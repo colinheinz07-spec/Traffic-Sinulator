@@ -1,7 +1,8 @@
 import { networkData } from './geodata.js';
 import { roadLaneInfo, rampLaneInfo } from './lane-info.js';
+import { mapCandidates, chooseMapHits, closestJunction, lanePositions, hitLabel } from './selection.js';
 import { buildContinuousRoads, lineWidths, rampBadges, overlaps } from './cartography.js';
-import { DIRECTIONS, validateMap, names, mercator, inverse, nearestPolyline } from './core.js';
+import { DIRECTIONS, validateMap, names, mercator, inverse } from './core.js';
 const $ = (id) => { const element = document.getElementById(id); if (!element)
     throw Error(`Element fehlt: ${id}`); return element; };
 const canvas = $('map'), wrapper = canvas.parentElement;
@@ -193,36 +194,68 @@ function draw() {
     }
 }
 function focusOn(place, z = 13) { selected = null; $('detail').hidden = true; focus = place; zoom = z; refresh(); }
+function showSelected(hit) {
+    selected = hit;
+    refresh();
+    $('selection-chooser').hidden = true;
+    $('selected-fields').hidden = false;
+    $('selection-help').hidden = false;
+    $('selected-title').textContent = hitLabel(hit);
+    $('selected-note').textContent = hit.kind === 'ramp'
+        ? 'Überleitung am AD Dernbach – vom OSM-Fahrbahnverlauf ausgewählt.'
+        : `Fahrtrichtung eindeutig zugeordnet · OSM-Way ${hit.road.wayId}`;
+    $('selected-direction').textContent = hitLabel(hit);
+    $('selected-coords').textContent = `${hit.point[0].toFixed(6)}° N · ${hit.point[1].toFixed(6)}° E`;
+    const lane = hit.kind === 'ramp' ? rampLaneInfo(hit.ramp, hit.point) : roadLaneInfo(hit.road);
+    $('selected-lanes').textContent = lane.label;
+    $('selected-lane-names').textContent = lanePositions(lane.count).join(' · ') || 'Keine gesicherte Fahrstreifenaufteilung';
+    if (lane.source !== 'osm')
+        $('selected-note').textContent += ' · Fahrstreifenangabe nicht aktuell verifiziert.';
+    const junction = closestJunction(hit, exits);
+    $('selected-junction').textContent = hit.kind === 'ramp'
+        ? 'AD Dernbach (A3 39 / A48 13)'
+        : junction ? `${junction.exit.road} ${junction.exit.ref} ${junction.exit.name} · ca. ${junction.distanceKm.toFixed(1).replace('.', ',')} km Luftlinie` : 'Nicht zugeordnet';
+    $('detail').hidden = false;
+    hint.textContent = 'Fahrbahn und Punkt ausgewählt. Die Ereignisfunktion folgt im nächsten Schritt.';
+}
 function selectAt(x, y) {
+    // Ramp badges are independent explicit controls, not generic near-road guesses.
     const badge = badges.find(b => Math.hypot(b.bubble[0] - x, b.bubble[1] - y) <= 17);
-    let best = null;
-    const candidate = (points, target) => { const hit = nearestPolyline(points, [x, y], toScreen); if (hit.distance > 19 || (best && hit.distance >= best.distance))
-        return; best = { ...target, point: hit.point, distance: hit.distance }; };
-    // Numbered ramp badges take precedence over overlapping motorway paths.
-    if (badge)
-        best = { ramp: badge.ramp, point: badge.point, distance: 0 };
-    else {
-        for (const ramp of ramps)
-            candidate(ramp.points, { ramp });
-        for (const road of allRoads)
-            candidate(road.points, { road });
-    }
-    if (!best) {
-        hint.textContent = 'Kein Autobahnabschnitt am Tipp-Punkt. Zoome näher an die Fahrbahn.';
+    if (badge) {
+        const snapped = mapCandidates([], [badge.ramp], toScreen(badge.point), toScreen, 2)[0];
+        if (snapped)
+            showSelected(snapped);
         return;
     }
-    selected = best;
+    const nearby = mapCandidates(allRoads, ramps, [x, y], toScreen, zoom < 10.5 ? 12 : 18);
+    const options = chooseMapHits(nearby);
+    if (!options.length) {
+        hint.textContent = 'Keine A3-/A48-Fahrbahn oder Rampe getroffen. Zoome näher heran.';
+        return;
+    }
+    if (options.length === 1) {
+        showSelected(options[0]);
+        return;
+    }
+    selected = null;
     refresh();
-    const found = best;
-    $('selected-title').textContent = found.ramp?.name ?? names[found.road.road];
-    $('selected-note').textContent = found.ramp ? 'Verbindungsrampe am AD Dernbach – separat auswählbar.' : `A3/A48-Fahrbahnabschnitt · OSM-Way ${found.road.wayId}`;
-    $('selected-coords').textContent = `${found.point[0].toFixed(6)}° N · ${found.point[1].toFixed(6)}° E`;
-    const laneResult = found.ramp ? rampLaneInfo(found.ramp, found.point) : roadLaneInfo(found.road);
-    $('selected-lanes').textContent = laneResult.label;
-    if (laneResult.source !== 'osm')
-        $('selected-note').textContent += ' · Achtung: Fahrstreifenwert nicht neu bestätigt.';
+    $('selected-title').textContent = 'Fahrtrichtung auswählen';
+    $('selected-note').textContent = 'Mehrere Fahrbahnen oder Rampen liegen hier dicht beieinander. Wähle den richtigen Verkehrsweg:';
+    $('selected-fields').hidden = true;
+    $('selection-help').hidden = true;
+    const parent = $('selection-options');
+    parent.replaceChildren();
+    for (const option of options) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'direction-choice';
+        button.textContent = hitLabel(option);
+        button.onclick = () => showSelected(option);
+        parent.append(button);
+    }
+    $('selection-chooser').hidden = false;
     $('detail').hidden = false;
-    hint.textContent = 'Fahrbahnposition ausgewählt. Die Ereignisfunktion kommt nach der Kartenfreigabe.';
+    hint.textContent = 'Mehrere Fahrtrichtungen am Fingertipp: bitte unten eindeutig auswählen.';
 }
 function makeExitButtons() {
     const parent = $('junctions');
