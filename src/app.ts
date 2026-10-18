@@ -1,4 +1,5 @@
 import {networkData} from './geodata.js';
+import {buildContinuousRoads,lineWidths,along,rampBadges,overlaps,type Rectangle,type RampBadge} from './cartography.js';
 import {DIRECTIONS,validateMap,names,mercator,inverse,nearestPolyline,type Point,type Road,type Ramp,type Exit} from './core.js';
 
 const $=<T extends HTMLElement>(id:string)=>{const element=document.getElementById(id);if(!element)throw Error(`Element fehlt: ${id}`);return element as T;};
@@ -8,14 +9,18 @@ const status=$('status'),hint=$('hint');
 let focus:Point=[50.507,7.63],zoom=10,needsDraw=true;
 const roadColors={'A3-koeln':'#26bb7c','A3-frankfurt':'#26bb7c','A48-dernbach':'#2bc9c5','A48-koblenz':'#2bc9c5'};
 const mapReady=validateMap(networkData);const allRoads=networkData.roads,ramps=networkData.ramps,exits=networkData.exits;
+const drawnRoads=buildContinuousRoads(allRoads);
+let badges:RampBadge[]=[];
 const pointerPositions=new Map<number,[number,number]>();let pointerDown:{x:number;y:number;at:number}|null=null;
 let selected:{road?:Road;ramp?:Ramp;point:Point;distance:number}|null=null;
 const imageCache=new Map<string,{image:HTMLImageElement;ready:boolean;failed:boolean}>();
 const size=()=>{const width=wrapper.clientWidth,height=wrapper.clientHeight,scale=Math.min(2,window.devicePixelRatio||1);if(canvas.width!==Math.floor(width*scale)||canvas.height!==Math.floor(height*scale)){canvas.width=Math.floor(width*scale);canvas.height=Math.floor(height*scale);}return {width,height,scale};};
 function toScreen(p:Point):[number,number]{const mid=mercator(focus,zoom),v=mercator(p,zoom);return [wrapper.clientWidth/2+v[0]-mid[0],wrapper.clientHeight/2+v[1]-mid[1]];}
 function fromScreen(x:number,y:number):Point{const mid=mercator(focus,zoom);return inverse([mid[0]+x-wrapper.clientWidth/2,mid[1]+y-wrapper.clientHeight/2],zoom);}
-const refresh=()=>{needsDraw=true;};
+let frame=0;
+const refresh=()=>{needsDraw=true;if(!frame)frame=requestAnimationFrame(()=>{frame=0;if(needsDraw){needsDraw=false;draw();}});};
 function fit(){
+ selected=null;$('detail').hidden=true;
  const all=[...allRoads.flatMap(r=>r.points),...ramps.flatMap(r=>r.points)];
  const latMin=Math.min(...all.map(p=>p[0])),latMax=Math.max(...all.map(p=>p[0]));
  const lonMin=Math.min(...all.map(p=>p[1])),lonMax=Math.max(...all.map(p=>p[1]));
@@ -44,33 +49,60 @@ function stroke(points:Point[],width:number,color:string){
  context!.strokeStyle=color;context!.lineWidth=width;context!.lineJoin='round';context!.lineCap='round';context!.stroke();
 }
 function plotLabels(width:number,height:number){
- if(zoom<10.6)return;
- for(const exit of exits){const [x,y]=toScreen(exit.position);if(x<15||x>width-15||y<20||y>height-15)continue;
-  context!.beginPath();context!.arc(x,y,3,0,Math.PI*2);context!.fillStyle='#082237';context!.fill();context!.strokeStyle='#fff';context!.lineWidth=1.2;context!.stroke();
-  if(zoom>=11.6){const label=`${exit.road} ${exit.ref} · ${exit.name}`;context!.font='600 10px system-ui';const wide=context!.measureText(label).width;
-   context!.fillStyle='#0a2236ef';context!.fillRect(x-4,y-20,wide+11,15);context!.fillStyle='#fff';context!.fillText(label,x+2,y-9);}
+ if(zoom<11)return;
+ const labels:Rectangle[]=[];
+ const sorted=[...exits].sort((a,b)=>{
+  const pa=toScreen(a.position),pb=toScreen(b.position);
+  return Math.hypot(pa[0]-width/2,pa[1]-height/2)-Math.hypot(pb[0]-width/2,pb[1]-height/2);
+ });
+ for(const exit of sorted){const [x,y]=toScreen(exit.position);if(x<14||x>width-14||y<55||y>height-44)continue;
+  context!.beginPath();context!.arc(x,y,3.4,0,2*Math.PI);context!.fillStyle='#09283d';context!.fill();context!.strokeStyle='#f3f8fc';context!.lineWidth=1.3;context!.stroke();
+  if(zoom<12.1)continue;
+  const label=`${exit.road} ${exit.ref} · ${exit.name}`;context!.font='600 11px system-ui';const wide=context!.measureText(label).width;
+  const choices:Rectangle[]=[
+   {x:x+8,y:y-23,w:wide+10,h:17},{x:x+8,y:y+7,w:wide+10,h:17},
+   {x:x-wide-18,y:y-23,w:wide+10,h:17},{x:x-wide-18,y:y+7,w:wide+10,h:17}
+  ];
+  const box=choices.find(b=>b.x>=6&&b.x+b.w<=width-6&&b.y>=56&&b.y+b.h<=height-46&&!labels.some(used=>overlaps(b,used)));
+  if(!box)continue;
+  labels.push(box);context!.fillStyle='#0a2236e8';context!.fillRect(box.x,box.y,box.w,box.h);
+  context!.strokeStyle='#3d657a';context!.strokeRect(box.x,box.y,box.w,box.h);
+  context!.fillStyle='#fff';context!.fillText(label,box.x+5,box.y+12);
+ }
+}
+function plotRampBadges(width:number,height:number){
+ badges=zoom>=13.2?rampBadges(ramps,toScreen,{width,height}):[];
+ for(const badge of badges){const [x,y]=badge.screen,[bx,by]=badge.bubble;
+  context!.beginPath();context!.moveTo(x,y);context!.lineTo(bx,by);context!.strokeStyle='#e8b065';context!.lineWidth=1.5;context!.stroke();
+  context!.beginPath();context!.arc(bx,by,12.5,0,2*Math.PI);context!.fillStyle='#674115';context!.fill();
+  context!.strokeStyle='#ffcd7e';context!.lineWidth=1.6;context!.stroke();
+  context!.fillStyle='#fff';context!.font='bold 12px system-ui';context!.textAlign='center';context!.textBaseline='middle';context!.fillText(String(badge.number),bx,by+1);
+  context!.textAlign='start';context!.textBaseline='alphabetic';
  }
 }
 function draw(){
  const {width,height,scale}=size();context!.setTransform(scale,0,0,scale,0,0);
  context!.fillStyle='#132b3d';context!.fillRect(0,0,width,height);
  drawTiles(width,height);
- // Two passes: casing before colored line prevents adjacent carriageways from hiding the data.
- for(const road of allRoads)stroke(road.points,6.4,'#073347');
- for(const road of allRoads)stroke(road.points,4.5,roadColors[road.road]);
- for(const ramp of ramps)stroke(ramp.points,8,'#173247');
- for(const ramp of ramps)stroke(ramp.points,5,'#ffb455');
- plotLabels(width,height);
+ // Exact OSM node-connected chains eliminate thick end caps at ordinary way boundaries.
+ // Zoom-adaptive outlines keep both carriageways visually distinct on narrow screens.
+ const lines=lineWidths(zoom);
+ for(const road of drawnRoads)stroke(road.points,lines.motorwayCasing,'#083348');
+ for(const road of drawnRoads)stroke(road.points,lines.motorway,roadColors[road.road]);
+ for(const ramp of ramps)stroke(ramp.points,lines.rampCasing,'#273b4c');
+ for(const ramp of ramps)stroke(ramp.points,lines.ramp,'#ffb455');
+ plotLabels(width,height);plotRampBadges(width,height);
  if(selected){const [x,y]=toScreen(selected.point);context!.beginPath();context!.arc(x,y,9,0,2*Math.PI);context!.fillStyle='#39d7ff';context!.fill();context!.lineWidth=2;context!.strokeStyle='#fff';context!.stroke();}
 }
-function loop(){if(needsDraw){needsDraw=false;draw()}requestAnimationFrame(loop)}
-function focusOn(place:Point,z=13){focus=place;zoom=z;refresh()}
+function focusOn(place:Point,z=13){selected=null;$('detail').hidden=true;focus=place;zoom=z;refresh()}
 function selectAt(x:number,y:number){
+ const badge=badges.find(b=>Math.hypot(b.bubble[0]-x,b.bubble[1]-y)<=17);
  let best:{road?:Road;ramp?:Ramp;point:Point;distance:number}|null=null;
  const candidate=(points:Point[],target:{road?:Road;ramp?:Ramp})=>{const hit=nearestPolyline(points,[x,y],toScreen);if(hit.distance>19||(best&&hit.distance>=best.distance))return;best={...target,point:hit.point,distance:hit.distance};};
- // Check ramps first (independent event locations), then mainlines, choosing the closer one.
- for(const ramp of ramps)candidate(ramp.points,{ramp});
- for(const road of allRoads)candidate(road.points,{road});
+ // Numbered ramp badges take precedence over overlapping motorway paths.
+ if(badge)best={ramp:badge.ramp,point:badge.point,distance:0};
+ else{for(const ramp of ramps)candidate(ramp.points,{ramp});
+ for(const road of allRoads)candidate(road.points,{road});}
  if(!best){hint.textContent='Kein Autobahnabschnitt am Tipp-Punkt. Zoome näher an die Fahrbahn.';return;}
  selected=best;refresh();
  const found=best as {road?:Road;ramp?:Ramp;point:Point;distance:number};
@@ -113,7 +145,7 @@ function bind(){
  window.addEventListener('resize',refresh);
 }
 function start(){if(!mapReady.valid){status.classList.add('error');status.textContent='Geodatenprüfung fehlgeschlagen';hint.textContent=mapReady.errors.join(' · ');return;}
- fillMetrics();makeExitButtons();bind();fit();status.textContent=`✓ ${allRoads.length} echte Autobahnabschnitte · 4 Rampen · ${exits.length} Anschlüsse`;
- requestAnimationFrame(loop);
+ fillMetrics();makeExitButtons();bind();fit();status.textContent=`✓ ${allRoads.length} OSM-Fahrbahnstücke · ${drawnRoads.length} durchgehende Zeichenlinien · 4 AD-Rampen · ${exits.length} Anschlussstellen`;
+ refresh();
 }
 start();
