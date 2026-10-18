@@ -1,5 +1,6 @@
 import {networkData} from './geodata.js';
 import {roadLaneInfo,rampLaneInfo} from './lane-info.js';
+import {mapCandidates,chooseMapHits,closestJunction,lanePositions,hitLabel,type MapHit} from './selection.js';
 import {buildContinuousRoads,lineWidths,along,rampBadges,overlaps,type Rectangle,type RampBadge} from './cartography.js';
 import {DIRECTIONS,validateMap,names,mercator,inverse,nearestPolyline,type Point,type Road,type Ramp,type Exit} from './core.js';
 
@@ -13,7 +14,7 @@ const mapReady=validateMap(networkData);const allRoads=networkData.roads,ramps=n
 const drawnRoads=buildContinuousRoads(allRoads);
 let badges:RampBadge[]=[];
 const pointerPositions=new Map<number,[number,number]>();let pointerDown:{x:number;y:number;at:number}|null=null;
-let selected:{road?:Road;ramp?:Ramp;point:Point;distance:number}|null=null;
+let selected:MapHit|null=null;
 const imageCache=new Map<string,{image:HTMLImageElement;ready:boolean;failed:boolean}>();
 const size=()=>{const width=wrapper.clientWidth,height=wrapper.clientHeight,scale=Math.min(2,window.devicePixelRatio||1);if(canvas.width!==Math.floor(width*scale)||canvas.height!==Math.floor(height*scale)){canvas.width=Math.floor(width*scale);canvas.height=Math.floor(height*scale);}return {width,height,scale};};
 function toScreen(p:Point):[number,number]{const mid=mercator(focus,zoom),v=mercator(p,zoom);return [wrapper.clientWidth/2+v[0]-mid[0],wrapper.clientHeight/2+v[1]-mid[1]];}
@@ -96,25 +97,55 @@ function draw(){
  if(selected){const [x,y]=toScreen(selected.point);context!.beginPath();context!.arc(x,y,9,0,2*Math.PI);context!.fillStyle='#39d7ff';context!.fill();context!.lineWidth=2;context!.strokeStyle='#fff';context!.stroke();}
 }
 function focusOn(place:Point,z=13){selected=null;$('detail').hidden=true;focus=place;zoom=z;refresh()}
-function selectAt(x:number,y:number){
- const badge=badges.find(b=>Math.hypot(b.bubble[0]-x,b.bubble[1]-y)<=17);
- let best:{road?:Road;ramp?:Ramp;point:Point;distance:number}|null=null;
- const candidate=(points:Point[],target:{road?:Road;ramp?:Ramp})=>{const hit=nearestPolyline(points,[x,y],toScreen);if(hit.distance>19||(best&&hit.distance>=best.distance))return;best={...target,point:hit.point,distance:hit.distance};};
- // Numbered ramp badges take precedence over overlapping motorway paths.
- if(badge)best={ramp:badge.ramp,point:badge.point,distance:0};
- else{for(const ramp of ramps)candidate(ramp.points,{ramp});
- for(const road of allRoads)candidate(road.points,{road});}
- if(!best){hint.textContent='Kein Autobahnabschnitt am Tipp-Punkt. Zoome näher an die Fahrbahn.';return;}
- selected=best;refresh();
- const found=best as {road?:Road;ramp?:Ramp;point:Point;distance:number};
- $('selected-title').textContent=found.ramp?.name ?? names[found.road!.road];
- $('selected-note').textContent=found.ramp?'Verbindungsrampe am AD Dernbach – separat auswählbar.':`A3/A48-Fahrbahnabschnitt · OSM-Way ${found.road!.wayId}`;
- $('selected-coords').textContent=`${found.point[0].toFixed(6)}° N · ${found.point[1].toFixed(6)}° E`;
- const laneResult=found.ramp?rampLaneInfo(found.ramp,found.point):roadLaneInfo(found.road!);
- $('selected-lanes').textContent=laneResult.label;
- if(laneResult.source!=='osm')$('selected-note').textContent+=' · Achtung: Fahrstreifenwert nicht neu bestätigt.';
+function showSelected(hit:MapHit){
+ selected=hit;refresh();
+ $('selection-chooser').hidden=true;
+ $('selected-fields').hidden=false;
+ $('selection-help').hidden=false;
+ $('selected-title').textContent=hitLabel(hit);
+ $('selected-note').textContent=hit.kind==='ramp'
+  ? 'Überleitung am AD Dernbach – vom OSM-Fahrbahnverlauf ausgewählt.'
+  : `Fahrtrichtung eindeutig zugeordnet · OSM-Way ${hit.road.wayId}`;
+ $('selected-direction').textContent=hitLabel(hit);
+ $('selected-coords').textContent=`${hit.point[0].toFixed(6)}° N · ${hit.point[1].toFixed(6)}° E`;
+ const lane=hit.kind==='ramp'?rampLaneInfo(hit.ramp,hit.point):roadLaneInfo(hit.road);
+ $('selected-lanes').textContent=lane.label;
+ $('selected-lane-names').textContent=lanePositions(lane.count).join(' · ')||'Keine gesicherte Fahrstreifenaufteilung';
+ if(lane.source!=='osm')$('selected-note').textContent+=' · Fahrstreifenangabe nicht aktuell verifiziert.';
+ const junction=closestJunction(hit,exits);
+ $('selected-junction').textContent=hit.kind==='ramp'
+  ? 'AD Dernbach (A3 39 / A48 13)'
+  : junction?`${junction.exit.road} ${junction.exit.ref} ${junction.exit.name} · ca. ${junction.distanceKm.toFixed(1).replace('.',',')} km Luftlinie`:'Nicht zugeordnet';
  $('detail').hidden=false;
- hint.textContent='Fahrbahnposition ausgewählt. Die Ereignisfunktion kommt nach der Kartenfreigabe.';
+ hint.textContent='Fahrbahn und Punkt ausgewählt. Die Ereignisfunktion folgt im nächsten Schritt.';
+}
+function selectAt(x:number,y:number){
+ // Ramp badges are independent explicit controls, not generic near-road guesses.
+ const badge=badges.find(b=>Math.hypot(b.bubble[0]-x,b.bubble[1]-y)<=17);
+ if(badge){
+  const snapped=mapCandidates([], [badge.ramp],toScreen(badge.point),toScreen,2)[0];
+  if(snapped)showSelected(snapped);
+  return;
+ }
+ const nearby=mapCandidates(allRoads,ramps,[x,y],toScreen,zoom<10.5?12:18);
+ const options=chooseMapHits(nearby);
+ if(!options.length){hint.textContent='Keine A3-/A48-Fahrbahn oder Rampe getroffen. Zoome näher heran.';return;}
+ if(options.length===1){showSelected(options[0]!);return;}
+ selected=null;refresh();
+ $('selected-title').textContent='Fahrtrichtung auswählen';
+ $('selected-note').textContent='Mehrere Fahrbahnen oder Rampen liegen hier dicht beieinander. Wähle den richtigen Verkehrsweg:';
+ $('selected-fields').hidden=true;
+ $('selection-help').hidden=true;
+ const parent=$('selection-options');parent.replaceChildren();
+ for(const option of options){
+  const button=document.createElement('button');button.type='button';button.className='direction-choice';
+  button.textContent=hitLabel(option);
+  button.onclick=()=>showSelected(option);
+  parent.append(button);
+ }
+ $('selection-chooser').hidden=false;
+ $('detail').hidden=false;
+ hint.textContent='Mehrere Fahrtrichtungen am Fingertipp: bitte unten eindeutig auswählen.';
 }
 function makeExitButtons(){const parent=$('junctions');parent.replaceChildren();
  const sorted=[...exits].sort((a,b)=>a.road===b.road?(a.road==='A3'?Number(b.ref)-Number(a.ref):Number(a.ref)-Number(b.ref)):a.road==='A3'?-1:1);

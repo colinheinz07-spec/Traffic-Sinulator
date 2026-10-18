@@ -1,4 +1,4 @@
-# A3/A48 Stausimulator – Kartenfundament 0.3
+# A3/A48 Stausimulator – Kartenbedienung 0.6
 
 **Ein Repository, eine Startdatei:** `index.html` im Hauptverzeichnis direkt in SPCK öffnen. Keine Cloudflare-Konfiguration und keine externe Kartenbibliothek.
 
@@ -57,3 +57,14 @@ WICHTIG: Am Autobahndreieck Dernbach ist die Fahrstreifenanzahl **pro motorway_l
 - A48 → A3 Frankfurt: ein bis zwei Fahrstreifen, abhängig vom genauen Teilstück.
 
 Wenn auf die Karte getippt wird, ermittelt die App den nächsten **echten** OSM-Weg innerhalb der betreffenden Überleitung und zeigt dessen Spuranzahl mit Quellweg-ID. Wo die Geometrie nicht eindeutig zugeordnet werden kann, ist die Anzahl explizit als ungeklärt markiert. Dies ist ein OSM-Datenaudit und keine 2026-Vor-Ort-Vermessung; Bauphasen und vorübergehende Markierungen sind damit nicht vollständig erfasst.
+
+## Punkt 2 – punktgenaue Auswahl (0.6)
+
+- Ein Tipp auf eine A3-/A48-Fahrbahn oder eine AD-Dernbach-Rampe rastet ausschließlich auf dem vorhandenen OSM-Verlauf ein.
+- Dicht nebeneinanderliegende Richtungsfahrbahnen werden **nicht** automatisch verwechselt: Sind mehrere Kandidaten innerhalb einer Fingertipp-Toleranz, erscheint eine explizite Fahrtrichtungs-Auswahl.
+- Auswahl zeigt OSM-Koordinaten, Fahrtrichtung, dokumentierte Fahrstreifenanzahl mit Quellenhinweis und deren schematische Lage.
+- Die nächstgelegene Anschlussstelle wird nach geografischer Entfernung ermittelt und ausdrücklich als **Luftlinie** gekennzeichnet. Sie ist keine Kilometerangabe entlang der Autobahn.
+- Alle vier Rampen haben weiterhin eigene nummerierte Auswahlmarker und getrennte Fahrstreifenprofile.
+- Keine Ereignisse oder Stauphysik in dieser Version; nur Kartenbedienung.
+
+Die Geometrie- und Fahrstreifendaten wurden nicht umgebaut; nur ihre Auswahl/Anzeige wurde verbessert.
