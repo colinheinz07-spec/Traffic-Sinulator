@@ -1,4 +1,4 @@
-# A3/A48 Stausimulator – Kartenfundament 0.2
+# A3/A48 Stausimulator – Kartenfundament 0.3
 
 **Ein Repository, eine Startdatei:** `index.html` im Hauptverzeichnis direkt in SPCK öffnen. Keine Cloudflare-Konfiguration und keine externe Kartenbibliothek.
 
@@ -21,3 +21,26 @@ Die erste Version ist **absichtlich ausschließlich eine Karte** – kein künst
 Quellcode TypeScript (`src/`), in SPCK ausführbares JavaScript im Repository-Hauptverzeichnis. `npm run check` prüft Typen, statische OSM-Daten und Karte. Bei Änderungen nur nach grüner GitHub Actions CI auf `main` übernehmen. Die Karte muss zusätzlich auf echten Mobilgeräten überprüft werden, bevor eine Freigabe als produktiv erfolgt.
 
 Straßenverläufe: © OpenStreetMap-Mitwirkende, ODbL, https://www.openstreetmap.org/copyright. Ausgangsmaterial: öffentlich verfügbare OSM-Fahrbahndaten, exportiert und überprüft am 18.10.2026. Keine Live-Verkehrsdaten.
+
+## Karten-Feinschliff 0.3
+
+- OSM-Fahrbahnstücke werden bei identischen OSM-Endknoten zu durchgehenden Zeichenlinien verbunden. Keine zusätzlichen kartografischen Routen zwischen nicht verbundenen Straßen.
+- Zoomabhängige dünnere A3-/A48-Farbstriche und Rampen, damit Richtungsfahrbahnen auf dem Smartphone sichtbar bleiben.
+- AD Dernbach: die vier realen Rampen erhalten bei hoher Zoomstufe nummerierte Auswahlmarker, die direkt zur entsprechenden Rampe führen.
+- Anschlussstellenlabels werden ohne gegenseitige Überlagerung platziert; kein Label ersetzt die eigentliche geografische Position.
+- Zeichnung auf Anforderung (statt dauerhaftem 60-FPS-Loop), um die Karte auf Mobilgeräten effizienter zu halten.
+- Kartenelemente und Navigation bleiben im einzigen Hauptverzeichnis. Keine Verkehrs-/Ereignislogik hinzugefügt.
+
+## Durchgehende Fahrbahngeometrie (0.4)
+
+Die vorhandene OSM-Datei enthielt trotz der Verbindung identischer Way-Endpunkte
+kleine echte Lücken zwischen benachbarten Autobahn-Teilstücken. Das Script
+`scripts/fill_motorway_gaps.py` lädt zur Reparatur echte, als Autobahn A3/A48
+klassifizierte OSM-Ways und übernimmt **nur** Wege, die über ihre tatsächlichen
+OSM-Endpunkte zwei bisher getrennte Komponenten derselben Richtungsfahrbahn
+verbinden. Es erzeugt keine künstlichen Geraden durch Orte.
+
+`audit.gapRepair` im Datensatz dokumentiert pro Richtung die Zahl offener
+Endpunkte vor und nach dem Import. Restlücken werden offen und überprüfbar
+ausgewiesen; ein grüner CI-Test bedeutet nicht automatisch 100 % nahtlose
+Kartengrafik auf jedem Mobilgerät.
