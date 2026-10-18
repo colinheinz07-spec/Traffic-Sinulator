@@ -78,3 +78,12 @@ Die Geometrie- und Fahrstreifendaten wurden nicht umgebaut; nur ihre Auswahl/Anz
 - Eine **Vollsperrung** ist ein eigener Ereignistyp. Die definierten Regeln für die **spätere** Verkehrsphysik: neue Fahrzeuge dürfen nicht in den gesperrten Abschnitt einfahren, nachfolgende Fahrzeuge sollen über gültige Ausfahrten/Routen umgeleitet werden, bereits im Abschnitt befindliche Fahrzeuge dürfen den Bereich verlassen. Unfälle mit allen Fahrstreifen betroffen sind keine formalen Vollsperrungen.
 - Ereignisse können über ihren Kartenmarker oder Listeneintrag **bearbeitet** werden. Frühere Ereignisse aus Version 0.7 werden beim Laden auf Standardwerte migriert, statt verloren zu gehen.
 - **Noch keine echte Fahrzeug- oder Stausimulation, keine ausgewiesenen offiziellen Umleitungsstrecken.** Speeds und Standstreifenfreigabe sind benutzerdefinierte Szenarien, keine Anweisungen für den realen Straßenverkehr.
+
+## Punkt 4a – makroskopischer Verkehrsfluss (0.9)
+
+- Acht logisch getrennte Fahrwege (beide A3- und A48-Richtungen und vier AD-Dernbach-Rampen). Eigener einstellbarer Zufluss pro Fahrweg und simulierte Minuten statt Fahrzeugsymbole.
+- Kapazitätsengpässe aus vorhandenen Simulator-Ereignissen: verfügbare Fahrstreifen, Standstreifenfreigabe mit verringerter Kapazität, Tempolimit und einfädelbedingte Reibung.
+- Fahrzeuge werden im rechnerischen Bestand bilanziert: Warteschlange vorher + Zufluss – Durchfluss = Warteschlange nachher. Nach Freigabe kann Rückstau kontinuierlich abgebaut werden.
+- Vereinfachte geschätzte Rückstaulänge und Verzögerung; bei 0 Durchfluss wird keine künstlich endliche Wartezeit angezeigt. Vollsperrung bleibt vom Unfall mit allen Fahrspuren gesperrt unterschieden.
+- **Noch nicht umgesetzt:** reale Zuflussdaten, verteilte Stauabschnitte auf tatsächlichen Geokoordinaten, Rückstauübertragung A3↔A48, automatische Abfahrten/Umleitungen, bereits innerhalb einer Vollsperrung befindliche Fahrzeuge, Kartenfärbung nach Simulationsabschnitten und dauerhafte Speicherung des Simulationszustands.
+- Anfangszuflüsse und Kapazitäten sind bewusst **Simulationsannahmen**, keine amtlich bestätigten Durchschnittswerte. Keine echten Verkehrsmeldungen.

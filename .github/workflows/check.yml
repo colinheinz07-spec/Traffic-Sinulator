@@ -16,7 +16,7 @@ jobs:
       - run: npm run check
       - name: Verify that motorway gaps cannot be filled by invented links
         run: python -m unittest discover -s scripts/tests -v
-      - run: git diff --exit-code -- app.js core.js geodata.js cartography.js lane-info.js lane-profiles.js selection.js events.js selection.js events.js
+      - run: git diff --exit-code -- app.js core.js geodata.js cartography.js lane-info.js lane-profiles.js selection.js events.js traffic.js
 
       - name: Export verified SPCK preview for browser testing
         uses: actions/upload-artifact@v4
@@ -30,7 +30,13 @@ jobs:
             geodata.js
             selection.js
             events.js
+            traffic.js
             lane-info.js
             lane-profiles.js
             README.md
+            package.json
+            tsconfig.json
+            src/
+            tests/
+            scripts/
           retention-days: 3
