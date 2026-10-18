@@ -14,7 +14,7 @@ jobs:
           node-version: '22'
       - run: npm install --no-audit --no-fund
       - run: npm run check
-      - run: git diff --exit-code -- app.js core.js geodata.js
+      - run: git diff --exit-code -- app.js core.js geodata.js cartography.js
 
       - name: Export verified SPCK preview for browser testing
         uses: actions/upload-artifact@v4
