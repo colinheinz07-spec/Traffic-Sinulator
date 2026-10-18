@@ -4,6 +4,7 @@ on:
     branches: [feature/a3-limburg-sued]
     paths:
       - scripts/extend_a3.py
+      - src/core.ts
       - .github/workflows/extend-a3.yml
   workflow_dispatch:
 permissions:
