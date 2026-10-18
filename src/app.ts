@@ -1,4 +1,5 @@
 import {networkData} from './geodata.js';
+import {roadLaneInfo,rampLaneInfo} from './lane-info.js';
 import {buildContinuousRoads,lineWidths,along,rampBadges,overlaps,type Rectangle,type RampBadge} from './cartography.js';
 import {DIRECTIONS,validateMap,names,mercator,inverse,nearestPolyline,type Point,type Road,type Ramp,type Exit} from './core.js';
 
@@ -109,7 +110,9 @@ function selectAt(x:number,y:number){
  $('selected-title').textContent=found.ramp?.name ?? names[found.road!.road];
  $('selected-note').textContent=found.ramp?'Verbindungsrampe am AD Dernbach – separat auswählbar.':`A3/A48-Fahrbahnabschnitt · OSM-Way ${found.road!.wayId}`;
  $('selected-coords').textContent=`${found.point[0].toFixed(6)}° N · ${found.point[1].toFixed(6)}° E`;
- $('selected-lanes').textContent=String(found.ramp?.lanes ?? found.road!.lanes);
+ const laneResult=found.ramp?rampLaneInfo(found.ramp,found.point):roadLaneInfo(found.road!);
+ $('selected-lanes').textContent=laneResult.label;
+ if(laneResult.source!=='osm')$('selected-note').textContent+=' · Achtung: Fahrstreifenwert nicht neu bestätigt.';
  $('detail').hidden=false;
  hint.textContent='Fahrbahnposition ausgewählt. Die Ereignisfunktion kommt nach der Kartenfreigabe.';
 }
