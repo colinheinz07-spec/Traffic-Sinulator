@@ -89,12 +89,12 @@ function makeExitButtons(){const parent=$('junctions');parent.replaceChildren();
 }
 function fillMetrics(){const parent=$('metrics');parent.replaceChildren();
  for(const dir of DIRECTIONS){const card=document.createElement('div');card.className='metric';const title=document.createElement('small'),amount=document.createElement('strong');
-  title.textContent=names[dir];amount.textContent=`${Math.round(networkData.coverage[dir]*1000)/10} %`;card.append(title,amount);parent.append(card);
+  title.textContent=names[dir];amount.textContent=`${allRoads.filter(r=>r.road===dir).reduce((sum,r)=>sum+r.km,0).toFixed(1)} km Fahrbahn`;card.append(title,amount);parent.append(card);
  }
 }
 function bind(){
  $('fit').onclick=()=>fit();$('dernbach').onclick=()=>focusOn([50.460264,7.767549],14.2);
- for(const [id,road,ref] of [['koblenz','A48','9'],['diez','A3','41'],['honnef','A3','34']]){
+ for(const [id,road,ref] of [['koblenz','A48','9'],['diez','A3','41'],['limburg-nord','A3','42'],['limburg-sued','A3','43'],['honnef','A3','34']]){
   $(id!).onclick=()=>{const exit=exits.find(e=>e.road===road&&e.ref===ref);if(exit)focusOn(exit.position,13.8)};
  }
  $('plus').onclick=()=>{zoom=Math.min(17,zoom+1);refresh()};$('minus').onclick=()=>{zoom=Math.max(8,zoom-1);refresh()};

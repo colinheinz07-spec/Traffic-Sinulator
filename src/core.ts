@@ -6,7 +6,7 @@ export type Exit = {road:'A3'|'A48';ref:string;name:string;position:Point;source
 export type MapData={version:number;source:string;created:string;roads:Road[];ramps:Ramp[];exits:Exit[];coverage:Record<RoadId,number>;audit:{complete:boolean;notes:string[];ways:number}};
 export const DIRECTIONS:RoadId[]=['A3-koeln','A3-frankfurt','A48-dernbach','A48-koblenz'];
 export const names:Record<RoadId,string>={'A3-koeln':'A3 Richtung Köln','A3-frankfurt':'A3 Richtung Frankfurt','A48-dernbach':'A48 Richtung Dernbach','A48-koblenz':'A48 Richtung Koblenz'};
-export const exitRefs={A3:['34','35','36','37','38','39','40','41'],A48:['9','10','11','12','13']};
+export const exitRefs={A3:['34','35','36','37','38','39','40','41','42','43'],A48:['9','10','11','12','13']};
 export function validateMap(data:MapData):{valid:boolean;errors:string[]}{
  const errors:string[]=[];
  if(data.version!==2||!data.audit?.complete)errors.push('Datensatz nicht freigegeben');
@@ -20,6 +20,10 @@ export function validateMap(data:MapData):{valid:boolean;errors:string[]}{
  for(const [name,refs] of Object.entries(exitRefs))for(const n of refs)if(!keys.has(`${name}:${n}`))errors.push('Anschluss fehlt: '+name+'/'+n);
  const routes=new Set(data.ramps.map(r=>r.from+'>'+r.to));
  if(data.ramps.length!==4||routes.size!==4)errors.push('Vier eindeutige Dernbach-Rampen erforderlich');
+ for(const road of ['A3-frankfurt','A3-koeln'] as const){
+  const added=data.roads.filter(r=>r.road===road && r.posKm<0);
+  if(added.length<8 || added.reduce((sum,r)=>sum+r.km,0)<9 || !added.some(r=>r.points.some(p=>p[1]>8.085&&p[0]<50.399)))errors.push('A3 bis Limburg-Süd unvollständig: '+road);
+ }
  for(const r of data.roads){if(!r.points || r.points.length<2||r.lanes<1||r.km<=0)errors.push('Straßenabschnitt ungültig: '+r.id);
   else if(!r.tags?.ref?.replaceAll(' ','').includes(r.road.startsWith('A3-')?'A3':'A48'))errors.push('Fremde Straße: '+r.id);
  }

@@ -1,0 +1,35 @@
+name: Extend A3 to Limburg-Sued
+on:
+  push:
+    branches: [feature/a3-limburg-sued]
+    paths:
+      - scripts/extend_a3.py
+      - .github/workflows/extend-a3.yml
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: Fetch geodata for both A3 directions and junctions 42/43
+        run: python scripts/extend_a3.py
+      - run: npm install --no-audit --no-fund
+      - name: Typecheck, compile, and verify the full corridor
+        run: npm run check
+      - name: Commit only verified embedded OSM dataset
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/geodata.ts geodata.js
+          git diff --cached --quiet && exit 0
+          git commit -m 'data: extend A3 to AS Limburg-Sued using verified OSM carriageways'
+          git push origin HEAD:feature/a3-limburg-sued
