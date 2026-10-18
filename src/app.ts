@@ -1,5 +1,5 @@
 import {networkData} from './geodata.js';
-import {decodeEvents,eventFromHit,eventNames,eventSymbols,eventSummary,STORAGE_KEY,isEventKind,type SimEvent} from './events.js';
+import {decodeEvents,eventFromHit,updatedEvent,eventNames,eventSymbols,eventSummary,flowPolicy,defaultLengthM,defaultSettings,maxLengthM,suggestedSpeed,STORAGE_KEY,isEventKind,type EventKind,type ShoulderMode,type SimEvent} from './events.js';
 import {roadLaneInfo,rampLaneInfo} from './lane-info.js';
 import {mapCandidates,chooseMapHits,closestJunction,lanePositions,hitLabel,type MapHit} from './selection.js';
 import {buildContinuousRoads,lineWidths,along,rampBadges,overlaps,type Rectangle,type RampBadge} from './cartography.js';
@@ -18,6 +18,8 @@ const pointerPositions=new Map<number,[number,number]>();let pointerDown:{x:numb
 let selected:MapHit|null=null;
 let events:SimEvent[]=readStoredEvents();
 let activeEventId:string|null=null;
+let editingEventId:string|null=null;
+let speedManuallyChanged=false;
 let storageWarning='';
 function readStoredEvents():SimEvent[]{try{return decodeEvents(window.localStorage.getItem(STORAGE_KEY))}catch{return []}}
 function persistEvents(){try{window.localStorage.setItem(STORAGE_KEY,JSON.stringify(events));storageWarning='';}catch{storageWarning='Achtung: Dieser Browser speichert Ereignisse nicht dauerhaft.';}}
@@ -41,7 +43,7 @@ function redrawEventList(){
 }
 function clearEventUi(){
  $('new-event-zone').hidden=true;$('event-form').hidden=true;$('existing-event').hidden=true;
- $('event-delete').textContent='Ereignis entfernen';$('event-form-error').textContent='';
+ $('event-delete').textContent='Ereignis entfernen';$('event-delete').dataset.confirm='';$('event-form-error').textContent='';editingEventId=null;
 }
 function showExistingEvent(e:SimEvent){
  selected=null;activeEventId=e.id;clearEventUi();
@@ -51,7 +53,7 @@ function showExistingEvent(e:SimEvent){
  $('selected-note').textContent=eventPathLabel(e);
  $('existing-event-desc').textContent=`${eventSummary(e)} · ${e.point[0].toFixed(6)}° N, ${e.point[1].toFixed(6)}° E · ${new Date(e.createdAt).toLocaleString('de-DE')}`;
  $('existing-event').hidden=false;$('detail').hidden=false;
- hint.textContent=`${eventNames[e.kind]} ausgewählt – du kannst das Ereignis entfernen.`;
+ hint.textContent=`${eventNames[e.kind]} ausgewählt – du kannst die Verkehrsführung bearbeiten oder das Ereignis entfernen.`;
  refresh();
 }
 function laneCountFor(hit:MapHit):number{
@@ -70,38 +72,101 @@ function drawEventMarkers(width:number,height:number){
   context!.textAlign='start';context!.textBaseline='alphabetic';
  }
 }
-function renderEventLaneChoices(){
- const help=$('event-lane-help'),parent=$('event-lanes');parent.replaceChildren();
- if(!selected){help.textContent='Keine Fahrbahn ausgewählt.';return;}
- const count=laneCountFor(selected),kind=$<HTMLSelectElement>('event-kind').value;
+function formLaneCount():number{
+ if(editingEventId)return events.find(e=>e.id===editingEventId)?.laneCount??0;
+ return selected?laneCountFor(selected):0;
+}
+function formPathKey():string{
+ if(editingEventId)return events.find(e=>e.id===editingEventId)?.pathKey??'';
+ return selected?.key??'';
+}
+function chosenLanes():number[]{return Array.from(document.querySelectorAll<HTMLInputElement>('#event-lanes input:checked')).map(x=>Number(x.value))}
+function currentShoulder():ShoulderMode{return $<HTMLSelectElement>('event-shoulder').value as ShoulderMode}
+function renderEventLaneChoices(preset?:readonly number[]){
+ const help=$('event-lane-help'),parent=$('event-lanes');
+ const selectedBefore=preset??chosenLanes();parent.replaceChildren();
+ const count=formLaneCount(),kind=$<HTMLSelectElement>('event-kind').value;
  if(!count){help.textContent='Fahrstreifenangabe ungeklärt – Ereignis hier vorerst nicht anlegbar.';return;}
- if(kind==='closure'){help.textContent=`Vollsperrung als eigenes Ereignis: automatisch alle ${count} Fahrstreifen betroffen.`;return;}
- help.textContent=`Welche Fahrstreifen sind betroffen? (${count} laut Kartendaten; ohne Häkchen keine Sperrung)`;
- const positions=lanePositions(count);
- positions.forEach((name,i)=>{const row=document.createElement('label'),input=document.createElement('input'),label=document.createElement('span');
-  input.type='checkbox';input.value=String(i);input.name='closed-lane';label.textContent=name;
-  row.append(input,label);parent.append(row);
+ if(kind==='closure'){help.textContent=`Eigenständige Vollsperrung: alle ${count} regulären Fahrstreifen gesperrt.`;return;}
+ help.textContent=`Reguläre Fahrstreifen sperren (${count} laut OSM; Standstreifen separat):`;
+ lanePositions(count).forEach((name,i)=>{const row=document.createElement('label'),input=document.createElement('input'),label=document.createElement('span');
+  input.type='checkbox';input.value=String(i);input.name='closed-lane';input.checked=selectedBefore.includes(i);label.textContent=name;
+  input.addEventListener('change',()=>updateEventConfigPreview());row.append(input,label);parent.append(row);
  });
+}
+function updateEventConfigPreview(resetSpeed=false){
+ const kind=$<HTMLSelectElement>('event-kind').value as EventKind;
+ if(!isEventKind(kind))return;
+ const count=formLaneCount(),closed=kind==='closure'?Array.from({length:count},(_,i)=>i):chosenLanes();
+ const shoulder=$<HTMLSelectElement>('event-shoulder'),shoulderRow=$('event-shoulder-row');
+ const isRamp=formPathKey().startsWith('ramp-');
+ shoulderRow.hidden=isRamp;$('event-shoulder-note').hidden=isRamp;
+ if(isRamp)shoulder.value='normal';
+ if(kind==='closure'){shoulder.value='blocked';shoulder.disabled=true;}else shoulder.disabled=false;
+ const mode=currentShoulder();
+ const input=$<HTMLInputElement>('event-length');input.max=String(maxLengthM(kind));input.min='1';
+ const length=Number(input.value);
+ if(resetSpeed||!(length>=1&&length<=maxLengthM(kind)))input.value=String(defaultLengthM(kind));
+ $('event-length-note').textContent=kind==='accident'||kind==='breakdown'
+  ?'Punktuelles Ereignis: maximal 200 m.':kind==='roadworks'?'Baustellenabschnitt: bis 20 km einstellbar.':'Sperrabschnitt: bis 10 km einstellbar.';
+ const speed=$<HTMLSelectElement>('event-speed');
+ const suggested=suggestedSpeed(kind,count,closed,mode);
+ if(resetSpeed||!speedManuallyChanged||suggested===0){speed.value=String(suggested);speedManuallyChanged=false;}
+ speed.disabled=suggested===0;
+ const zero=speed.querySelector<HTMLOptionElement>('option[value="0"]');if(zero)zero.disabled=suggested!==0;
+ const open=Math.max(0,count-closed.length)+(mode==='open'?1:0);
+ $('event-rule-hint').textContent=kind==='closure'
+  ?'Vollsperrung: keine neuen Fahrzeuge in den Sperrabschnitt; bereits darin befindliche Fahrzeuge dürfen später ausfahren. Nachfolgender Verkehr wird künftig über zulässige Ausfahrten/Umleitungen geleitet. Noch keine Verkehrsberechnung.'
+  :open===0?'Kein freier Fahrstreifen: derzeit kein Durchfluss. Ein Unfall ist trotzdem KEIN formales Vollsperrungs-Ereignis.'
+  :`${open} nutzbare Fahrstreifen (davon ${mode==='open'?'1 Standstreifen':'0 Standstreifen'}). Geschwindigkeitsvorschlag ${suggested} km/h – frei anpassbar. Nur Simulationsannahme, keine StVO-Vorgabe.`;
 }
 function beginEventForm(){
  if(!selected)return;
+ editingEventId=null;speedManuallyChanged=false;
  $('new-event-button').hidden=true;$('event-form').hidden=false;
  $<HTMLSelectElement>('event-kind').value='roadworks';
- $('event-form-error').textContent='';renderEventLaneChoices();
+ $<HTMLSelectElement>('event-shoulder').value='normal';
+ $<HTMLInputElement>('event-length').value='500';
+ $('event-save').textContent='Ereignis setzen';
+ $('event-form-error').textContent='';renderEventLaneChoices([]);updateEventConfigPreview(true);
+}
+function beginEditEvent(){
+ const current=events.find(x=>x.id===activeEventId);if(!current)return;
+ const id=current.id;
+ clearEventUi();editingEventId=id;speedManuallyChanged=true;
+ $('existing-event').hidden=true;$('new-event-zone').hidden=false;
+ $('new-event-button').hidden=true;$('event-form').hidden=false;
+ $('event-save').textContent='Änderungen speichern';
+ $('event-form-error').textContent='';
+ $<HTMLSelectElement>('event-kind').value=current.kind;
+ $<HTMLSelectElement>('event-shoulder').value=current.settings.shoulder;
+ $<HTMLInputElement>('event-length').value=String(current.settings.lengthM);
+ renderEventLaneChoices(current.closedLanes);
+ updateEventConfigPreview(false);
+ $<HTMLSelectElement>('event-speed').value=String(current.settings.speedKmh);
 }
 function saveNewEvent(){
- if(!selected)return;
  const kind=$<HTMLSelectElement>('event-kind').value;
  if(!isEventKind(kind))return;
- const count=laneCountFor(selected);
- const closed=Array.from(document.querySelectorAll<HTMLInputElement>('#event-lanes input:checked')).map(x=>Number(x.value));
+ const count=formLaneCount();
+ const closed=chosenLanes();
+ const settings={lengthM:Number($<HTMLInputElement>('event-length').value),speedKmh:Number($<HTMLSelectElement>('event-speed').value),shoulder:currentShoulder()};
  try{
-  const id=`ev-${Date.now()}-${Math.random().toString(36).slice(2,12)}`;
-  const entry=eventFromHit(selected,kind,count,closed,id,new Date().toISOString());
-  if(events.length>=150)throw Error('Maximal 150 Ereignisse gleichzeitig möglich.');
-  events=[...events,entry];persistEvents();redrawEventList();showExistingEvent(entry);
+  let entry:SimEvent;
+  if(editingEventId){
+   const current=events.find(e=>e.id===editingEventId);if(!current)throw Error('Zu bearbeitendes Ereignis nicht gefunden.');
+   entry=updatedEvent(current,kind,closed,settings);
+   events=events.map(e=>e.id===entry.id?entry:e);
+  }else{
+   if(!selected)throw Error('Wähle zuerst eine Fahrbahn.');
+   const id=`ev-${Date.now()}-${Math.random().toString(36).slice(2,12)}`;
+   entry=eventFromHit(selected,kind,count,closed,id,new Date().toISOString(),settings);
+   if(events.length>=150)throw Error('Maximal 150 Ereignisse gleichzeitig möglich.');
+   events=[...events,entry];
+  }
+  persistEvents();redrawEventList();showExistingEvent(entry);
   if(storageWarning)hint.textContent=storageWarning;
- }catch(e){$('event-form-error').textContent=e instanceof Error?e.message:'Ereignis konnte nicht angelegt werden.';}
+ }catch(e){$('event-form-error').textContent=e instanceof Error?e.message:'Ereignis konnte nicht gespeichert werden.';}
 }
 function removeExistingEvent(){
  const e=events.find(e=>e.id===activeEventId);if(!e)return;
@@ -265,8 +330,11 @@ function bind(){
  $('plus').onclick=()=>{zoom=Math.min(17,zoom+1);refresh()};$('minus').onclick=()=>{zoom=Math.max(8,zoom-1);refresh()};
  $('close').onclick=()=>{$('detail').hidden=true;$('event-delete').dataset.confirm='';};
  $('new-event-button').onclick=beginEventForm;
- $('event-cancel').onclick=()=>{$('event-form').hidden=true;$('new-event-button').hidden=false;};
- $('event-kind').addEventListener('change',renderEventLaneChoices);
+ $('event-cancel').onclick=()=>{const current=events.find(e=>e.id===editingEventId);if(current){showExistingEvent(current);}else{$('event-form').hidden=true;$('new-event-button').hidden=false;}};
+ $('event-kind').addEventListener('change',()=>{renderEventLaneChoices();updateEventConfigPreview(true)});
+ $('event-shoulder').addEventListener('change',()=>updateEventConfigPreview());
+ $('event-speed').addEventListener('change',()=>{speedManuallyChanged=true;updateEventConfigPreview()});
+ $('event-edit').onclick=beginEditEvent;
  $('event-save').onclick=saveNewEvent;
  $('event-delete').onclick=removeExistingEvent;
  canvas.addEventListener('pointerdown',e=>{canvas.setPointerCapture(e.pointerId);pointerPositions.set(e.pointerId,[e.clientX,e.clientY]);if(pointerPositions.size===1)pointerDown={x:e.clientX,y:e.clientY,at:performance.now()};else pointerDown=null});

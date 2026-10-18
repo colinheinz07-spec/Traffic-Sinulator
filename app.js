@@ -1,5 +1,5 @@
 import { networkData } from './geodata.js';
-import { decodeEvents, eventFromHit, eventNames, eventSymbols, eventSummary, STORAGE_KEY, isEventKind } from './events.js';
+import { decodeEvents, eventFromHit, updatedEvent, eventNames, eventSymbols, eventSummary, defaultLengthM, maxLengthM, suggestedSpeed, STORAGE_KEY, isEventKind } from './events.js';
 import { roadLaneInfo, rampLaneInfo } from './lane-info.js';
 import { mapCandidates, chooseMapHits, closestJunction, lanePositions, hitLabel } from './selection.js';
 import { buildContinuousRoads, lineWidths, rampBadges, overlaps } from './cartography.js';
@@ -22,6 +22,8 @@ let pointerDown = null;
 let selected = null;
 let events = readStoredEvents();
 let activeEventId = null;
+let editingEventId = null;
+let speedManuallyChanged = false;
 let storageWarning = '';
 function readStoredEvents() { try {
     return decodeEvents(window.localStorage.getItem(STORAGE_KEY));
@@ -68,7 +70,9 @@ function clearEventUi() {
     $('event-form').hidden = true;
     $('existing-event').hidden = true;
     $('event-delete').textContent = 'Ereignis entfernen';
+    $('event-delete').dataset.confirm = '';
     $('event-form-error').textContent = '';
+    editingEventId = null;
 }
 function showExistingEvent(e) {
     selected = null;
@@ -82,7 +86,7 @@ function showExistingEvent(e) {
     $('existing-event-desc').textContent = `${eventSummary(e)} · ${e.point[0].toFixed(6)}° N, ${e.point[1].toFixed(6)}° E · ${new Date(e.createdAt).toLocaleString('de-DE')}`;
     $('existing-event').hidden = false;
     $('detail').hidden = false;
-    hint.textContent = `${eventNames[e.kind]} ausgewählt – du kannst das Ereignis entfernen.`;
+    hint.textContent = `${eventNames[e.kind]} ausgewählt – du kannst die Verkehrsführung bearbeiten oder das Ereignis entfernen.`;
     refresh();
 }
 function laneCountFor(hit) {
@@ -110,57 +114,147 @@ function drawEventMarkers(width, height) {
         context.textBaseline = 'alphabetic';
     }
 }
-function renderEventLaneChoices() {
+function formLaneCount() {
+    if (editingEventId)
+        return events.find(e => e.id === editingEventId)?.laneCount ?? 0;
+    return selected ? laneCountFor(selected) : 0;
+}
+function formPathKey() {
+    if (editingEventId)
+        return events.find(e => e.id === editingEventId)?.pathKey ?? '';
+    return selected?.key ?? '';
+}
+function chosenLanes() { return Array.from(document.querySelectorAll('#event-lanes input:checked')).map(x => Number(x.value)); }
+function currentShoulder() { return $('event-shoulder').value; }
+function renderEventLaneChoices(preset) {
     const help = $('event-lane-help'), parent = $('event-lanes');
+    const selectedBefore = preset ?? chosenLanes();
     parent.replaceChildren();
-    if (!selected) {
-        help.textContent = 'Keine Fahrbahn ausgewählt.';
-        return;
-    }
-    const count = laneCountFor(selected), kind = $('event-kind').value;
+    const count = formLaneCount(), kind = $('event-kind').value;
     if (!count) {
         help.textContent = 'Fahrstreifenangabe ungeklärt – Ereignis hier vorerst nicht anlegbar.';
         return;
     }
     if (kind === 'closure') {
-        help.textContent = `Vollsperrung als eigenes Ereignis: automatisch alle ${count} Fahrstreifen betroffen.`;
+        help.textContent = `Eigenständige Vollsperrung: alle ${count} regulären Fahrstreifen gesperrt.`;
         return;
     }
-    help.textContent = `Welche Fahrstreifen sind betroffen? (${count} laut Kartendaten; ohne Häkchen keine Sperrung)`;
-    const positions = lanePositions(count);
-    positions.forEach((name, i) => {
+    help.textContent = `Reguläre Fahrstreifen sperren (${count} laut OSM; Standstreifen separat):`;
+    lanePositions(count).forEach((name, i) => {
         const row = document.createElement('label'), input = document.createElement('input'), label = document.createElement('span');
         input.type = 'checkbox';
         input.value = String(i);
         input.name = 'closed-lane';
+        input.checked = selectedBefore.includes(i);
         label.textContent = name;
+        input.addEventListener('change', () => updateEventConfigPreview());
         row.append(input, label);
         parent.append(row);
     });
 }
-function beginEventForm() {
-    if (!selected)
-        return;
-    $('new-event-button').hidden = true;
-    $('event-form').hidden = false;
-    $('event-kind').value = 'roadworks';
-    $('event-form-error').textContent = '';
-    renderEventLaneChoices();
-}
-function saveNewEvent() {
-    if (!selected)
-        return;
+function updateEventConfigPreview(resetSpeed = false) {
     const kind = $('event-kind').value;
     if (!isEventKind(kind))
         return;
-    const count = laneCountFor(selected);
-    const closed = Array.from(document.querySelectorAll('#event-lanes input:checked')).map(x => Number(x.value));
+    const count = formLaneCount(), closed = kind === 'closure' ? Array.from({ length: count }, (_, i) => i) : chosenLanes();
+    const shoulder = $('event-shoulder'), shoulderRow = $('event-shoulder-row');
+    const isRamp = formPathKey().startsWith('ramp-');
+    shoulderRow.hidden = isRamp;
+    $('event-shoulder-note').hidden = isRamp;
+    if (isRamp)
+        shoulder.value = 'normal';
+    if (kind === 'closure') {
+        shoulder.value = 'blocked';
+        shoulder.disabled = true;
+    }
+    else
+        shoulder.disabled = false;
+    const mode = currentShoulder();
+    const input = $('event-length');
+    input.max = String(maxLengthM(kind));
+    input.min = '1';
+    const length = Number(input.value);
+    if (resetSpeed || !(length >= 1 && length <= maxLengthM(kind)))
+        input.value = String(defaultLengthM(kind));
+    $('event-length-note').textContent = kind === 'accident' || kind === 'breakdown'
+        ? 'Punktuelles Ereignis: maximal 200 m.' : kind === 'roadworks' ? 'Baustellenabschnitt: bis 20 km einstellbar.' : 'Sperrabschnitt: bis 10 km einstellbar.';
+    const speed = $('event-speed');
+    const suggested = suggestedSpeed(kind, count, closed, mode);
+    if (resetSpeed || !speedManuallyChanged || suggested === 0) {
+        speed.value = String(suggested);
+        speedManuallyChanged = false;
+    }
+    speed.disabled = suggested === 0;
+    const zero = speed.querySelector('option[value="0"]');
+    if (zero)
+        zero.disabled = suggested !== 0;
+    const open = Math.max(0, count - closed.length) + (mode === 'open' ? 1 : 0);
+    $('event-rule-hint').textContent = kind === 'closure'
+        ? 'Vollsperrung: keine neuen Fahrzeuge in den Sperrabschnitt; bereits darin befindliche Fahrzeuge dürfen später ausfahren. Nachfolgender Verkehr wird künftig über zulässige Ausfahrten/Umleitungen geleitet. Noch keine Verkehrsberechnung.'
+        : open === 0 ? 'Kein freier Fahrstreifen: derzeit kein Durchfluss. Ein Unfall ist trotzdem KEIN formales Vollsperrungs-Ereignis.'
+            : `${open} nutzbare Fahrstreifen (davon ${mode === 'open' ? '1 Standstreifen' : '0 Standstreifen'}). Geschwindigkeitsvorschlag ${suggested} km/h – frei anpassbar. Nur Simulationsannahme, keine StVO-Vorgabe.`;
+}
+function beginEventForm() {
+    if (!selected)
+        return;
+    editingEventId = null;
+    speedManuallyChanged = false;
+    $('new-event-button').hidden = true;
+    $('event-form').hidden = false;
+    $('event-kind').value = 'roadworks';
+    $('event-shoulder').value = 'normal';
+    $('event-length').value = '500';
+    $('event-save').textContent = 'Ereignis setzen';
+    $('event-form-error').textContent = '';
+    renderEventLaneChoices([]);
+    updateEventConfigPreview(true);
+}
+function beginEditEvent() {
+    const current = events.find(x => x.id === activeEventId);
+    if (!current)
+        return;
+    const id = current.id;
+    clearEventUi();
+    editingEventId = id;
+    speedManuallyChanged = true;
+    $('existing-event').hidden = true;
+    $('new-event-zone').hidden = false;
+    $('new-event-button').hidden = true;
+    $('event-form').hidden = false;
+    $('event-save').textContent = 'Änderungen speichern';
+    $('event-form-error').textContent = '';
+    $('event-kind').value = current.kind;
+    $('event-shoulder').value = current.settings.shoulder;
+    $('event-length').value = String(current.settings.lengthM);
+    renderEventLaneChoices(current.closedLanes);
+    updateEventConfigPreview(false);
+    $('event-speed').value = String(current.settings.speedKmh);
+}
+function saveNewEvent() {
+    const kind = $('event-kind').value;
+    if (!isEventKind(kind))
+        return;
+    const count = formLaneCount();
+    const closed = chosenLanes();
+    const settings = { lengthM: Number($('event-length').value), speedKmh: Number($('event-speed').value), shoulder: currentShoulder() };
     try {
-        const id = `ev-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
-        const entry = eventFromHit(selected, kind, count, closed, id, new Date().toISOString());
-        if (events.length >= 150)
-            throw Error('Maximal 150 Ereignisse gleichzeitig möglich.');
-        events = [...events, entry];
+        let entry;
+        if (editingEventId) {
+            const current = events.find(e => e.id === editingEventId);
+            if (!current)
+                throw Error('Zu bearbeitendes Ereignis nicht gefunden.');
+            entry = updatedEvent(current, kind, closed, settings);
+            events = events.map(e => e.id === entry.id ? entry : e);
+        }
+        else {
+            if (!selected)
+                throw Error('Wähle zuerst eine Fahrbahn.');
+            const id = `ev-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+            entry = eventFromHit(selected, kind, count, closed, id, new Date().toISOString(), settings);
+            if (events.length >= 150)
+                throw Error('Maximal 150 Ereignisse gleichzeitig möglich.');
+            events = [...events, entry];
+        }
         persistEvents();
         redrawEventList();
         showExistingEvent(entry);
@@ -168,7 +262,7 @@ function saveNewEvent() {
             hint.textContent = storageWarning;
     }
     catch (e) {
-        $('event-form-error').textContent = e instanceof Error ? e.message : 'Ereignis konnte nicht angelegt werden.';
+        $('event-form-error').textContent = e instanceof Error ? e.message : 'Ereignis konnte nicht gespeichert werden.';
     }
 }
 function removeExistingEvent() {
@@ -478,8 +572,17 @@ function bind() {
     $('minus').onclick = () => { zoom = Math.max(8, zoom - 1); refresh(); };
     $('close').onclick = () => { $('detail').hidden = true; $('event-delete').dataset.confirm = ''; };
     $('new-event-button').onclick = beginEventForm;
-    $('event-cancel').onclick = () => { $('event-form').hidden = true; $('new-event-button').hidden = false; };
-    $('event-kind').addEventListener('change', renderEventLaneChoices);
+    $('event-cancel').onclick = () => { const current = events.find(e => e.id === editingEventId); if (current) {
+        showExistingEvent(current);
+    }
+    else {
+        $('event-form').hidden = true;
+        $('new-event-button').hidden = false;
+    } };
+    $('event-kind').addEventListener('change', () => { renderEventLaneChoices(); updateEventConfigPreview(true); });
+    $('event-shoulder').addEventListener('change', () => updateEventConfigPreview());
+    $('event-speed').addEventListener('change', () => { speedManuallyChanged = true; updateEventConfigPreview(); });
+    $('event-edit').onclick = beginEditEvent;
     $('event-save').onclick = saveNewEvent;
     $('event-delete').onclick = removeExistingEvent;
     canvas.addEventListener('pointerdown', e => { canvas.setPointerCapture(e.pointerId); pointerPositions.set(e.pointerId, [e.clientX, e.clientY]); if (pointerPositions.size === 1)

@@ -14,7 +14,7 @@ Die ursprünglich berechneten Abdeckungswerte gelten nur für den alten Korridor
 
 ## Technische Priorität
 
-Die Grundkarte und die punktgenaue Auswahl sind abgeschlossen. Seit 0.7 gibt es lokal gespeicherte, selbst erstellte **Simulator-Ereignisse**; diese verändern den Verkehrsfluss noch nicht und sind keine echten Verkehrsmeldungen. Straßen und Rampen sind auf der Karte antippbar und liefern die Auswahlkoordinaten; daraus wird später die Ereignisposition. Beide Fahrtrichtungen sind als echte OSM-Teilstücke gezeichnet, nicht als gerade Linien zwischen Anschlussstellen. Die Straßengeometrie ist im kompilierten `geodata.js` enthalten; sie funktioniert ohne laufenden API-Datenabruf. Hintergrundkacheln verwenden OpenStreetMap online, ohne sie bleibt die Straßenzeichnung erhalten.
+Die erste Version ist **absichtlich ausschließlich eine Karte** – kein künstlich nachgebildeter Verkehrsfluss und noch keine Ereignis-/Sperrungsfunktion. Straßen und Rampen sind auf der Karte antippbar und liefern die Auswahlkoordinaten; daraus wird später die Ereignisposition. Beide Fahrtrichtungen sind als echte OSM-Teilstücke gezeichnet, nicht als gerade Linien zwischen Anschlussstellen. Die Straßengeometrie ist im kompilierten `geodata.js` enthalten; sie funktioniert ohne laufenden API-Datenabruf. Hintergrundkacheln verwenden OpenStreetMap online, ohne sie bleibt die Straßenzeichnung erhalten.
 
 ## Entwicklung
 
@@ -69,11 +69,12 @@ Wenn auf die Karte getippt wird, ermittelt die App den nächsten **echten** OSM-
 
 Die Geometrie- und Fahrstreifendaten wurden nicht umgebaut; nur ihre Auswahl/Anzeige wurde verbessert.
 
-## Punkt 3a – Ereignisse platzieren (0.7)
 
-- Position: Nutzer tippt auf eine A3-/A48-Richtungsfahrbahn oder eine der vier AD-Dernbach-Rampen. Bei Mehrdeutigkeit zuerst Richtung/Rampe ausdrücklich auswählen.
-- Ereignisse: **Baustelle**, **Unfall**, **Lkw-Panne**, **Vollsperrung**. Typ und betroffene Fahrstreifen werden beim Anlegen angegeben.
-- Eine **Vollsperrung** ist ein eigener Ereignistyp und nicht automatisch gleichbedeutend mit einem Unfall, bei dem alle Fahrstreifen betroffen sind. Eine Vollsperrung markiert alle verfügbaren Fahrstreifen.
-- Erzeugte Ereignisse werden als Symbole auf der Karte und in einer Liste angezeigt; Marker und Listeneintrag sind antippbar, der Eintrag ist nach zweiter Bestätigung löschbar.
-- Speicherung nur im **LocalStorage des aktuell verwendeten Browsers/der SPCK-Vorschau**; nicht in GitHub und nicht geräteübergreifend. Wird der Browser-Speicher gelöscht, gehen die Ereignisse verloren.
-- Geografie, Anschlussstellen, OSM-Fahrstreifenprofile bleiben unverändert. **Noch keine Fahrzeugvisualisierung, Stauphysik oder Echtzeitdaten.**
+## Punkt 3b – Ereignisregeln 0.8
+
+- Ereignisse sind lokal gespeicherte Simulationsparameter: **Länge**, **Vorbeifahrgeschwindigkeit/Tempolimit**, sperrbare **reguläre Fahrstreifen** sowie optional der **Standstreifen** (normal / temporär freigegeben / gesperrt). An den AD-Rampen wird kein zusätzlicher Standstreifen erfunden.
+- Unfälle und Lkw-Pannen sind punktuelle Ereignisse mit einstellbarer Länge von **maximal 200 m**; Baustellen bis 20 km, Vollsperrungen bis 10 km. Angaben sind Simulationsabschnitte und noch keine gezogene Sperrstrecke auf der Karte.
+- Geschwindigkeits**vorschläge** (keine gesetzlichen Verkehrsregeln) orientieren sich an der Restkapazität: bei einer offenen Spur 40 km/h, bei zwei offenen Spuren 60 km/h; der Nutzer kann sie ändern (10–130 km/h in 10er-Schritten). Bei null nutzbaren Spuren beträgt der vorläufige Durchfluss 0.
+- Eine **Vollsperrung** ist ein eigener Ereignistyp. Die definierten Regeln für die **spätere** Verkehrsphysik: neue Fahrzeuge dürfen nicht in den gesperrten Abschnitt einfahren, nachfolgende Fahrzeuge sollen über gültige Ausfahrten/Routen umgeleitet werden, bereits im Abschnitt befindliche Fahrzeuge dürfen den Bereich verlassen. Unfälle mit allen Fahrstreifen betroffen sind keine formalen Vollsperrungen.
+- Ereignisse können über ihren Kartenmarker oder Listeneintrag **bearbeitet** werden. Frühere Ereignisse aus Version 0.7 werden beim Laden auf Standardwerte migriert, statt verloren zu gehen.
+- **Noch keine echte Fahrzeug- oder Stausimulation, keine ausgewiesenen offiziellen Umleitungsstrecken.** Speeds und Standstreifenfreigabe sind benutzerdefinierte Szenarien, keine Anweisungen für den realen Straßenverkehr.
