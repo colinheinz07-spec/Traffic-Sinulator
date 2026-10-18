@@ -33,4 +33,9 @@ jobs:
             lane-info.js
             lane-profiles.js
             README.md
+            package.json
+            tsconfig.json
+            src/
+            tests/
+            scripts/
           retention-days: 3
