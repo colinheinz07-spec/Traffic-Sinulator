@@ -1,4 +1,5 @@
 import { networkData } from './geodata.js';
+import { decodeEvents, eventFromHit, eventNames, eventSymbols, eventSummary, STORAGE_KEY, isEventKind } from './events.js';
 import { roadLaneInfo, rampLaneInfo } from './lane-info.js';
 import { mapCandidates, chooseMapHits, closestJunction, lanePositions, hitLabel } from './selection.js';
 import { buildContinuousRoads, lineWidths, rampBadges, overlaps } from './cartography.js';
@@ -19,6 +20,176 @@ let badges = [];
 const pointerPositions = new Map();
 let pointerDown = null;
 let selected = null;
+let events = readStoredEvents();
+let activeEventId = null;
+let storageWarning = '';
+function readStoredEvents() { try {
+    return decodeEvents(window.localStorage.getItem(STORAGE_KEY));
+}
+catch {
+    return [];
+} }
+function persistEvents() { try {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
+    storageWarning = '';
+}
+catch {
+    storageWarning = 'Achtung: Dieser Browser speichert Ereignisse nicht dauerhaft.';
+} }
+function eventPathLabel(e) {
+    const ramp = ramps.find(r => r.id === e.pathKey);
+    return ramp?.name ?? (names[e.pathKey] || 'Unbekannter Fahrweg');
+}
+function redrawEventList() {
+    const parent = $('events-list');
+    parent.replaceChildren();
+    $('event-counter').textContent = `(${events.length})`;
+    if (!events.length) {
+        const p = document.createElement('p');
+        p.textContent = 'Noch keine Ereignisse gesetzt. Wähle einen Fahrbahnabschnitt auf der Karte.';
+        parent.append(p);
+        return;
+    }
+    for (const event of [...events].reverse()) {
+        const item = document.createElement('div');
+        item.className = 'event-row';
+        const title = document.createElement('strong'), meta = document.createElement('small'), jump = document.createElement('button');
+        title.textContent = `${eventSymbols[event.kind]} ${eventNames[event.kind]} · ${eventPathLabel(event)}`;
+        meta.textContent = eventSummary(event);
+        jump.type = 'button';
+        jump.textContent = 'Auf Karte ansehen';
+        jump.onclick = () => { focus = event.point; zoom = Math.max(zoom, 14.4); showExistingEvent(event); refresh(); };
+        item.append(title, meta, jump);
+        parent.append(item);
+    }
+}
+function clearEventUi() {
+    $('new-event-zone').hidden = true;
+    $('event-form').hidden = true;
+    $('existing-event').hidden = true;
+    $('event-delete').textContent = 'Ereignis entfernen';
+    $('event-form-error').textContent = '';
+}
+function showExistingEvent(e) {
+    selected = null;
+    activeEventId = e.id;
+    clearEventUi();
+    $('selection-chooser').hidden = true;
+    $('selected-fields').hidden = true;
+    $('selection-help').hidden = true;
+    $('selected-title').textContent = `${eventSymbols[e.kind]} ${eventNames[e.kind]}`;
+    $('selected-note').textContent = eventPathLabel(e);
+    $('existing-event-desc').textContent = `${eventSummary(e)} · ${e.point[0].toFixed(6)}° N, ${e.point[1].toFixed(6)}° E · ${new Date(e.createdAt).toLocaleString('de-DE')}`;
+    $('existing-event').hidden = false;
+    $('detail').hidden = false;
+    hint.textContent = `${eventNames[e.kind]} ausgewählt – du kannst das Ereignis entfernen.`;
+    refresh();
+}
+function laneCountFor(hit) {
+    const info = hit.kind === 'ramp' ? rampLaneInfo(hit.ramp, hit.point) : roadLaneInfo(hit.road);
+    return info.source === 'unknown' ? 0 : info.count;
+}
+function drawEventMarkers(width, height) {
+    for (const event of events) {
+        const [x, y] = toScreen(event.point);
+        if (x < -20 || y < -20 || x > width + 20 || y > height + 20)
+            continue;
+        const active = event.id === activeEventId;
+        context.beginPath();
+        context.arc(x, y, active ? 18 : 15, 0, 2 * Math.PI);
+        context.fillStyle = active ? '#0b4760' : '#112638';
+        context.fill();
+        context.strokeStyle = active ? '#39ddff' : '#ffcb79';
+        context.lineWidth = active ? 3 : 2;
+        context.stroke();
+        context.font = '18px system-ui,"Apple Color Emoji"';
+        context.textAlign = 'center';
+        context.textBaseline = 'middle';
+        context.fillText(eventSymbols[event.kind], x, y + 1);
+        context.textAlign = 'start';
+        context.textBaseline = 'alphabetic';
+    }
+}
+function renderEventLaneChoices() {
+    const help = $('event-lane-help'), parent = $('event-lanes');
+    parent.replaceChildren();
+    if (!selected) {
+        help.textContent = 'Keine Fahrbahn ausgewählt.';
+        return;
+    }
+    const count = laneCountFor(selected), kind = $('event-kind').value;
+    if (!count) {
+        help.textContent = 'Fahrstreifenangabe ungeklärt – Ereignis hier vorerst nicht anlegbar.';
+        return;
+    }
+    if (kind === 'closure') {
+        help.textContent = `Vollsperrung als eigenes Ereignis: automatisch alle ${count} Fahrstreifen betroffen.`;
+        return;
+    }
+    help.textContent = `Welche Fahrstreifen sind betroffen? (${count} laut Kartendaten; ohne Häkchen keine Sperrung)`;
+    const positions = lanePositions(count);
+    positions.forEach((name, i) => {
+        const row = document.createElement('label'), input = document.createElement('input'), label = document.createElement('span');
+        input.type = 'checkbox';
+        input.value = String(i);
+        input.name = 'closed-lane';
+        label.textContent = name;
+        row.append(input, label);
+        parent.append(row);
+    });
+}
+function beginEventForm() {
+    if (!selected)
+        return;
+    $('new-event-button').hidden = true;
+    $('event-form').hidden = false;
+    $('event-kind').value = 'roadworks';
+    $('event-form-error').textContent = '';
+    renderEventLaneChoices();
+}
+function saveNewEvent() {
+    if (!selected)
+        return;
+    const kind = $('event-kind').value;
+    if (!isEventKind(kind))
+        return;
+    const count = laneCountFor(selected);
+    const closed = Array.from(document.querySelectorAll('#event-lanes input:checked')).map(x => Number(x.value));
+    try {
+        const id = `ev-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+        const entry = eventFromHit(selected, kind, count, closed, id, new Date().toISOString());
+        if (events.length >= 150)
+            throw Error('Maximal 150 Ereignisse gleichzeitig möglich.');
+        events = [...events, entry];
+        persistEvents();
+        redrawEventList();
+        showExistingEvent(entry);
+        if (storageWarning)
+            hint.textContent = storageWarning;
+    }
+    catch (e) {
+        $('event-form-error').textContent = e instanceof Error ? e.message : 'Ereignis konnte nicht angelegt werden.';
+    }
+}
+function removeExistingEvent() {
+    const e = events.find(e => e.id === activeEventId);
+    if (!e)
+        return;
+    const button = $('event-delete');
+    if (button.dataset.confirm !== e.id) {
+        button.dataset.confirm = e.id;
+        button.textContent = 'Wirklich entfernen?';
+        return;
+    }
+    events = events.filter(x => x.id !== e.id);
+    activeEventId = null;
+    button.dataset.confirm = '';
+    persistEvents();
+    redrawEventList();
+    $('detail').hidden = true;
+    hint.textContent = storageWarning || 'Ereignis aus der Simulation entfernt.';
+    refresh();
+}
 const imageCache = new Map();
 const size = () => { const width = wrapper.clientWidth, height = wrapper.clientHeight, scale = Math.min(2, window.devicePixelRatio || 1); if (canvas.width !== Math.floor(width * scale) || canvas.height !== Math.floor(height * scale)) {
     canvas.width = Math.floor(width * scale);
@@ -33,6 +204,7 @@ const refresh = () => { needsDraw = true; if (!frame)
         draw();
     } }); };
 function fit() {
+    activeEventId = null;
     selected = null;
     $('detail').hidden = true;
     const all = [...allRoads.flatMap(r => r.points), ...ramps.flatMap(r => r.points)];
@@ -182,6 +354,7 @@ function draw() {
         stroke(ramp.points, lines.ramp, '#ffb455');
     plotLabels(width, height);
     plotRampBadges(width, height);
+    drawEventMarkers(width, height);
     if (selected) {
         const [x, y] = toScreen(selected.point);
         context.beginPath();
@@ -193,11 +366,15 @@ function draw() {
         context.stroke();
     }
 }
-function focusOn(place, z = 13) { selected = null; $('detail').hidden = true; focus = place; zoom = z; refresh(); }
+function focusOn(place, z = 13) { activeEventId = null; selected = null; $('detail').hidden = true; focus = place; zoom = z; refresh(); }
 function showSelected(hit) {
+    activeEventId = null;
+    clearEventUi();
     selected = hit;
     refresh();
     $('selection-chooser').hidden = true;
+    $('new-event-zone').hidden = false;
+    $('new-event-button').hidden = false;
     $('selected-fields').hidden = false;
     $('selection-help').hidden = false;
     $('selected-title').textContent = hitLabel(hit);
@@ -216,9 +393,14 @@ function showSelected(hit) {
         ? 'AD Dernbach (A3 39 / A48 13)'
         : junction ? `${junction.exit.road} ${junction.exit.ref} ${junction.exit.name} · ca. ${junction.distanceKm.toFixed(1).replace('.', ',')} km Luftlinie` : 'Nicht zugeordnet';
     $('detail').hidden = false;
-    hint.textContent = 'Fahrbahn und Punkt ausgewählt. Die Ereignisfunktion folgt im nächsten Schritt.';
+    hint.textContent = 'Fahrbahn ausgewählt. Du kannst ein Simulator-Ereignis anlegen.';
 }
 function selectAt(x, y) {
+    const picked = [...events].reverse().find(e => { const p = toScreen(e.point); return Math.hypot(p[0] - x, p[1] - y) <= 18; });
+    if (picked) {
+        showExistingEvent(picked);
+        return;
+    }
     // Ramp badges are independent explicit controls, not generic near-road guesses.
     const badge = badges.find(b => Math.hypot(b.bubble[0] - x, b.bubble[1] - y) <= 17);
     if (badge) {
@@ -238,6 +420,8 @@ function selectAt(x, y) {
         return;
     }
     selected = null;
+    activeEventId = null;
+    clearEventUi();
     refresh();
     $('selected-title').textContent = 'Fahrtrichtung auswählen';
     $('selected-note').textContent = 'Mehrere Fahrbahnen oder Rampen liegen hier dicht beieinander. Wähle den richtigen Verkehrsweg:';
@@ -292,7 +476,12 @@ function bind() {
     }
     $('plus').onclick = () => { zoom = Math.min(17, zoom + 1); refresh(); };
     $('minus').onclick = () => { zoom = Math.max(8, zoom - 1); refresh(); };
-    $('close').onclick = () => { $('detail').hidden = true; };
+    $('close').onclick = () => { $('detail').hidden = true; $('event-delete').dataset.confirm = ''; };
+    $('new-event-button').onclick = beginEventForm;
+    $('event-cancel').onclick = () => { $('event-form').hidden = true; $('new-event-button').hidden = false; };
+    $('event-kind').addEventListener('change', renderEventLaneChoices);
+    $('event-save').onclick = saveNewEvent;
+    $('event-delete').onclick = removeExistingEvent;
     canvas.addEventListener('pointerdown', e => { canvas.setPointerCapture(e.pointerId); pointerPositions.set(e.pointerId, [e.clientX, e.clientY]); if (pointerPositions.size === 1)
         pointerDown = { x: e.clientX, y: e.clientY, at: performance.now() };
     else
@@ -338,6 +527,7 @@ function start() {
     fillMetrics();
     makeExitButtons();
     bind();
+    redrawEventList();
     fit();
     status.textContent = `✓ ${allRoads.length} OSM-Fahrbahnstücke · ${drawnRoads.length} durchgehende Zeichenlinien · 4 AD-Rampen · ${exits.length} Anschlussstellen`;
     refresh();
