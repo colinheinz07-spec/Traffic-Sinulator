@@ -1,3 +1,4 @@
+import {PATHS,advanceTraffic,baselineCapacity,defaultDemand,defaultDemands,emptyTraffic,trafficEstimate,type PathKey,type TrafficColor,type TrafficState} from './traffic.js';
 import {networkData} from './geodata.js';
 import {decodeEvents,eventFromHit,updatedEvent,eventNames,eventSymbols,eventSummary,flowPolicy,defaultLengthM,defaultSettings,maxLengthM,suggestedSpeed,STORAGE_KEY,isEventKind,type EventKind,type ShoulderMode,type SimEvent} from './events.js';
 import {roadLaneInfo,rampLaneInfo} from './lane-info.js';
@@ -22,7 +23,7 @@ let editingEventId:string|null=null;
 let speedManuallyChanged=false;
 let storageWarning='';
 function readStoredEvents():SimEvent[]{try{return decodeEvents(window.localStorage.getItem(STORAGE_KEY))}catch{return []}}
-function persistEvents(){try{window.localStorage.setItem(STORAGE_KEY,JSON.stringify(events));storageWarning='';}catch{storageWarning='Achtung: Dieser Browser speichert Ereignisse nicht dauerhaft.';}}
+function persistEvents(){try{window.localStorage.setItem(STORAGE_KEY,JSON.stringify(events));storageWarning='';}catch{storageWarning='Achtung: Dieser Browser speichert Ereignisse nicht dauerhaft.';}renderTraffic();}
 function eventPathLabel(e:SimEvent):string{
  const ramp=ramps.find(r=>r.id===e.pathKey);
  return ramp?.name??(names[e.pathKey as keyof typeof names]||'Unbekannter Fahrweg');
@@ -46,7 +47,7 @@ function clearEventUi(){
  $('event-delete').textContent='Ereignis entfernen';$('event-delete').dataset.confirm='';$('event-form-error').textContent='';editingEventId=null;
 }
 function showExistingEvent(e:SimEvent){
- selected=null;activeEventId=e.id;clearEventUi();
+ selected=null;activeEventId=e.id;clearEventUi();selectTrafficRoute(e.pathKey);
  $('selection-chooser').hidden=true;$('selected-fields').hidden=true;
  $('selection-help').hidden=true;
  $('selected-title').textContent=`${eventSymbols[e.kind]} ${eventNames[e.kind]}`;
@@ -176,6 +177,74 @@ function removeExistingEvent(){
  $('detail').hidden=true;hint.textContent=storageWarning||'Ereignis aus der Simulation entfernt.';refresh();
 }
 
+
+// Version 0.9: standalone macroscopic estimates, not live traffic measurements.
+// No fabricated traffic transfers between A3, A48, and AD Dernbach ramps.
+let trafficState:TrafficState=emptyTraffic();
+const trafficDemands=defaultDemands();
+let trafficTimer:ReturnType<typeof setInterval>|null=null;
+const trafficRouteLabel=(key:string)=>ramps.find(r=>r.id===key)?.name??(names[key as keyof typeof names]??key);
+const trafficNumber=(n:number,digits=0)=>n.toLocaleString('de-DE',{maximumFractionDigits:digits,minimumFractionDigits:digits});
+const trafficColorName:Record<TrafficColor,string>={free:'Frei',slow:'Stockend',jam:'Stau / Stop-and-Go',standstill:'Stillstand / gesperrt'};
+function renderTraffic(){
+ const selector=$<HTMLSelectElement>('traffic-route');const key=selector.value as PathKey;
+ if(!PATHS.includes(key))return;
+ const result=trafficEstimate(trafficState,key,events,trafficDemands[key]);
+ $('traffic-minute').textContent=`Minute ${trafficState.minute}`;
+ $('traffic-demand').textContent=trafficNumber(trafficDemands[key]);
+ $('traffic-capacity').textContent=trafficNumber(result.capacityVph);
+ $('traffic-outflow').textContent=trafficNumber(result.dischargedVph);
+ $('traffic-queue').textContent=trafficNumber(result.queueVehicles);
+ $('traffic-queue-km').textContent=`${trafficNumber(result.queueKm,2)} km`;
+ $('traffic-delay').textContent=result.delayMin===null?'Bei Sperrung nicht berechenbar':`${trafficNumber(result.delayMin,1)} min`;
+ $('traffic-speed').textContent=`${result.speedKmh} km/h`;
+ $('traffic-events').textContent=result.eventCount===0?'Kein Ereignis – Standardkapazität':
+  `${result.eventCount} Ereignis(se), maßgeblich: ${events.find(e=>e.id===result.bottleneckId)?.kind==='closure'?'Vollsperrung':result.bottleneckId?'Engpass':'kein Engpass'}`;
+ const stateLabel=$('traffic-state');stateLabel.textContent=trafficColorName[result.color];stateLabel.className=`traffic-state ${result.color}`;
+ $('traffic-closure-note').textContent=result.officiallyClosed?'Vollsperrung: kein neuer Zufluss in den Sperrabschnitt. Offizielle Umleitung und Ausfahrt bereits eingeschlossener Fahrzeuge werden noch NICHT simuliert. Die hier gezeigte Warteschlange ist vorläufiger, auflaufender Verkehr vor der Sperrung.':'';
+ const parent=$('traffic-summary');parent.replaceChildren();
+ for(const item of PATHS){const m=trafficEstimate(trafficState,item,events,trafficDemands[item]);
+  const button=document.createElement('button');button.type='button';button.className='traffic-summary-row';
+  const label=document.createElement('span');label.textContent=trafficRouteLabel(item);
+  const status=document.createElement('strong');status.className=`traffic-state ${m.color}`;
+  status.textContent=`${trafficNumber(m.queueKm,1)} km · ${m.delayMin===null?'gesperrt':trafficNumber(m.delayMin,1)+' min'}`;
+  button.append(label,status);button.setAttribute('aria-label',`${label.textContent}, ${status.textContent}`);
+  button.onclick=()=>selectTrafficRoute(item);parent.append(button);
+ }
+}
+function selectTrafficRoute(path:string){
+ if(!PATHS.includes(path as PathKey))return;
+ const key=path as PathKey;
+ $<HTMLSelectElement>('traffic-route').value=key;
+ $<HTMLInputElement>('traffic-inflow').value=String(trafficDemands[key]);
+ renderTraffic();
+}
+function stopTraffic(){if(trafficTimer!==null){clearInterval(trafficTimer);trafficTimer=null;}$('traffic-play').textContent='▶ Start';}
+function stepTraffic(minutes:number){
+ try{trafficState=advanceTraffic(trafficState,events,trafficDemands,minutes);renderTraffic();}
+ catch(e){stopTraffic();$('traffic-issue').textContent=e instanceof Error?e.message:'Simulationsfehler';}
+}
+function initializeTraffic(){
+ const select=$<HTMLSelectElement>('traffic-route');select.replaceChildren();
+ for(const key of PATHS){const option=document.createElement('option');option.value=key;option.textContent=trafficRouteLabel(key);select.append(option)}
+ select.value='A3-koeln';selectTrafficRoute(select.value);
+ select.addEventListener('change',()=>selectTrafficRoute(select.value));
+ const input=$<HTMLInputElement>('traffic-inflow');
+ input.addEventListener('change',()=>{
+  const val=Number(input.value),key=select.value as PathKey;
+  if(!Number.isInteger(val)||val<0||val>8000){$('traffic-issue').textContent='Zufluss: nur ganze Zahlen zwischen 0 und 8.000 Fahrzeugen/h.';input.value=String(trafficDemands[key]);return;}
+  $('traffic-issue').textContent='';trafficDemands[key]=val;renderTraffic();
+ });
+ $('traffic-play').onclick=()=>{
+  if(trafficTimer!==null){stopTraffic();return;}
+  $('traffic-play').textContent='⏸ Pause';
+  trafficTimer=setInterval(()=>stepTraffic(1),1000);
+ };
+ $('traffic-step').onclick=()=>stepTraffic(5);
+ $('traffic-reset').onclick=()=>{stopTraffic();trafficState=emptyTraffic();renderTraffic();};
+ document.addEventListener('visibilitychange',()=>{if(document.hidden)stopTraffic();});
+}
+
 const imageCache=new Map<string,{image:HTMLImageElement;ready:boolean;failed:boolean}>();
 const size=()=>{const width=wrapper.clientWidth,height=wrapper.clientHeight,scale=Math.min(2,window.devicePixelRatio||1);if(canvas.width!==Math.floor(width*scale)||canvas.height!==Math.floor(height*scale)){canvas.width=Math.floor(width*scale);canvas.height=Math.floor(height*scale);}return {width,height,scale};};
 function toScreen(p:Point):[number,number]{const mid=mercator(focus,zoom),v=mercator(p,zoom);return [wrapper.clientWidth/2+v[0]-mid[0],wrapper.clientHeight/2+v[1]-mid[1]];}
@@ -259,7 +328,7 @@ function draw(){
 }
 function focusOn(place:Point,z=13){activeEventId=null;selected=null;$('detail').hidden=true;focus=place;zoom=z;refresh()}
 function showSelected(hit:MapHit){
- activeEventId=null;clearEventUi();selected=hit;refresh();
+ activeEventId=null;clearEventUi();selected=hit;selectTrafficRoute(hit.key);refresh();
  $('selection-chooser').hidden=true;
  $('new-event-zone').hidden=false;$('new-event-button').hidden=false;
  $('selected-fields').hidden=false;
