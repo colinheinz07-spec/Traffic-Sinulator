@@ -14,6 +14,8 @@ jobs:
           node-version: '22'
       - run: npm install --no-audit --no-fund
       - run: npm run check
+      - name: Verify that motorway gaps cannot be filled by invented links
+        run: python -m unittest discover -s scripts/tests -v
       - run: git diff --exit-code -- app.js core.js geodata.js cartography.js
 
       - name: Export verified SPCK preview for browser testing
@@ -24,6 +26,7 @@ jobs:
             index.html
             app.js
             core.js
+            cartography.js
             geodata.js
             README.md
           retention-days: 3

@@ -28,3 +28,16 @@ test('ramp badges sit at real points on each of the four OSM routes',()=>{
  assert.equal(new Set(badges.map(b=>b.number)).size,4);
  assert.equal(overlaps({x:10,y:20,w:5,h:5},{x:30,y:40,w:5,h:5}),false);
 });
+
+test('all four motorway directions form one continuous real-OSM chain',()=>{
+ const audit=networkData.audit.gapRepair;
+ assert.ok(audit&&audit.verifiedWays>=80,'verified OSM repair is missing');
+ const paths=buildContinuousRoads(networkData.roads);
+ assert.equal(paths.length,4,'unexpected breaks in the motorway geometry');
+ for(const id of DIRECTIONS){
+  const own=paths.filter(p=>p.road===id);
+  assert.equal(own.length,1,'remaining OSM path gap in '+id);
+  assert.equal(audit.terminalAudit[id].danglingAfter,2,'expected precisely two natural endpoints in '+id);
+  assert.ok(own[0].points.length>=150,'path too short '+id);
+ }
+});
