@@ -15,3 +15,15 @@ jobs:
       - run: npm install --no-audit --no-fund
       - run: npm run check
       - run: git diff --exit-code -- app.js core.js geodata.js
+
+      - name: Export verified SPCK preview for browser testing
+        uses: actions/upload-artifact@v4
+        with:
+          name: a3-a48-karte-limburg-preview
+          path: |
+            index.html
+            app.js
+            core.js
+            geodata.js
+            README.md
+          retention-days: 3

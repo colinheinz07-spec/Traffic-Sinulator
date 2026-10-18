@@ -1,16 +1,16 @@
-# A3/A48 Stausimulator – Kartenfundament 0.1
+# A3/A48 Stausimulator – Kartenfundament 0.2
 
 **Ein Repository, eine Startdatei:** `index.html` im Hauptverzeichnis direkt in SPCK öffnen. Keine Cloudflare-Konfiguration und keine externe Kartenbibliothek.
 
 ## Prüfbare Streckenabdeckung
 
-- A3 **AS Diez (41) ↔ AS Bad Honnef/Linz (34)** – beide Richtungsfahrbahnen
+- A3 **AS Limburg-Süd (43) ↔ AS Limburg-Nord (42) ↔ AS Diez (41) ↔ AS Bad Honnef/Linz (34)** – beide Richtungsfahrbahnen
 - A48 **AK Koblenz / A61 (9) ↔ AD Dernbach (13)** – beide Richtungsfahrbahnen
-- Sämtliche **13 nummerierten Anschlussstellen/Knotenpunkte** in diesem Netz
+- Sämtliche **15 nummerierten Anschlussstellen/Knotenpunkte** in diesem Netz
 - **Vier eigenständig auswählbare Verbindungsrampen** am AD Dernbach
-- 324 als A3/A48 gekennzeichnete OSM-Straßenstücke, mit geografischen Originalkurven. Datenstand: 18.10.2026.
+- Über 324 als A3/A48 gekennzeichnete OSM-Straßenstücke, mit geografischen Originalkurven. Datenstand: 18.10.2026.
 
-Die geometrische Stichprobenabdeckung liegt bei 99,4 % (A3 Köln), 98,8 % (A3 Frankfurt) sowie jeweils 100 % für beide A48-Richtungen. Das bedeutet **nicht**, dass jeder Meter oder jede Fahrstreifenzahl bereits vor Ort vermessen ist.
+Die ursprünglich berechneten Abdeckungswerte gelten nur für den alten Korridor bis Diez. Die Erweiterung über Limburg-Nord bis Limburg-Süd wird separat anhand realer OSM-Ways und Junction-Nodes geprüft. Die neue Kartenübersicht zeigt stattdessen Fahrbahnkilometer pro Richtung. Keine Live-Verkehrsdaten.
 
 ## Technische Priorität
 
