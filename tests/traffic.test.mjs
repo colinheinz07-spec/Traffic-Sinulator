@@ -100,3 +100,28 @@ test('slow pass-by remains restrictive, normal speed-only limits need not cause 
  const incident=E('accident',[0,1],40);
  assert.ok(eventCapacity(incident)<eventCapacity(E('roadworks',[0,1],40)),'incident has tighter squeeze');
 });
+
+test('traffic volume can peak then decline, creating a queue plateau without a fake delay ceiling',async()=>{
+ const {demandScale,demandAtMinute}=await import('../dist/traffic.js');
+ const {makeCorridors,advanceSpatial,emptySpatial}=await import('../dist/spatial.js');
+ const d=defaultDemands();
+ assert.equal(demandScale(0,'wave'),1);
+ assert.equal(demandScale(150,'constant'),1);
+ assert.ok(demandScale(105,'wave')<.30);
+ assert.throws(()=>demandScale(-1,'wave'));
+ const event=E('roadworks',[0,1],40,'normal','demand-wave');
+ const corridors=makeCorridors(networkData.roads,networkData.ramps);
+ let state=emptySpatial(),early=0,peak=0,late=0;
+ for(let i=0;i<250;i++){
+  state=advanceSpatial(state,[event],demandAtMinute(d,i,'wave'),1,corridors);
+  const count=state.queues['demand-wave']?.vehicles??0;
+  if(i===20)early=count;
+  if(i===90)peak=count;
+  if(i===240)late=count;
+ }
+ assert.ok(early>0&&peak>early&&late<peak,`demand did not peak/decline: ${early}, ${peak}, ${late}`);
+ assert.equal(demandAtMinute(d,250,'constant')['A3-koeln'],d['A3-koeln']);
+ const page=readFileSync('index.html','utf8'),app=readFileSync('src/app.ts','utf8');
+ assert.match(page,/id="traffic-demand-mode"/);assert.match(page,/value="constant"/);
+ assert.match(app,/advanceSpatial\(spatialState,events,active,1,spatialCorridors,rampConnections\)/);
+});
