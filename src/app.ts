@@ -1,5 +1,6 @@
 import {PATHS,advanceTraffic,baselineCapacity,defaultDemand,defaultDemands,emptyTraffic,trafficEstimate,type PathKey,type TrafficColor,type TrafficState} from './traffic.js';
 import {networkData} from './geodata.js';
+import {makeCorridors,routeSlice,advanceSpatial,emptySpatial,jamsAt,jamBands} from './spatial.js';
 import {decodeEvents,eventFromHit,updatedEvent,eventNames,eventSymbols,eventSummary,flowPolicy,defaultLengthM,defaultSettings,maxLengthM,suggestedSpeed,STORAGE_KEY,isEventKind,type EventKind,type ShoulderMode,type SimEvent} from './events.js';
 import {roadLaneInfo,rampLaneInfo} from './lane-info.js';
 import {mapCandidates,chooseMapHits,closestJunction,lanePositions,hitLabel,type MapHit} from './selection.js';
@@ -11,9 +12,10 @@ const canvas=$<HTMLCanvasElement>('map'),wrapper=canvas.parentElement!;
 const context=canvas.getContext('2d');if(!context)throw Error('Canvas 2D wird nicht unterstützt');
 const status=$('status'),hint=$('hint');
 let focus:Point=[50.507,7.63],zoom=10,needsDraw=true;
-const roadColors={'A3-koeln':'#26bb7c','A3-frankfurt':'#26bb7c','A48-dernbach':'#2bc9c5','A48-koblenz':'#2bc9c5'};
+const roadColors={'A3-koeln':'#26bb7c','A3-frankfurt':'#26bb7c','A48-dernbach':'#26bb7c','A48-koblenz':'#26bb7c'};
 const mapReady=validateMap(networkData);const allRoads=networkData.roads,ramps=networkData.ramps,exits=networkData.exits;
 const drawnRoads=buildContinuousRoads(allRoads);
+const spatialCorridors=makeCorridors(allRoads,ramps);
 let badges:RampBadge[]=[];
 const pointerPositions=new Map<number,[number,number]>();let pointerDown:{x:number;y:number;at:number}|null=null;
 let selected:MapHit|null=null;
@@ -181,6 +183,7 @@ function removeExistingEvent(){
 // Version 0.9: standalone macroscopic estimates, not live traffic measurements.
 // No fabricated traffic transfers between A3, A48, and AD Dernbach ramps.
 let trafficState:TrafficState=emptyTraffic();
+let spatialState=emptySpatial();
 const trafficDemands=defaultDemands();
 let trafficTimer:ReturnType<typeof setInterval>|null=null;
 const trafficRouteLabel=(key:string)=>ramps.find(r=>r.id===key)?.name??(names[key as keyof typeof names]??key);
@@ -211,6 +214,20 @@ function renderTraffic(){
   button.append(label,status);button.setAttribute('aria-label',`${label.textContent}, ${status.textContent}`);
   button.onclick=()=>selectTrafficRoute(item);parent.append(button);
  }
+  const jams=jamsAt(spatialState,events,spatialCorridors);
+  const container=$('traffic-jams');container.replaceChildren();
+  $('traffic-jams-count').textContent=`(${jams.length})`;
+  if(jams.length===0){const p=document.createElement('p');p.textContent='Noch kein Rückstau an einem gesetzten Ereignis. Stau entsteht erst, wenn der Zufluss die Kapazität übersteigt.';container.append(p);}
+  for(const jam of jams){
+   const row=document.createElement('button');row.type='button';row.className='traffic-summary-row';
+   const title=document.createElement('span'),event=events.find(e=>e.id===jam.id);
+   title.textContent=`${trafficRouteLabel(jam.pathKey)} · ${jam.released?'Rückstau löst sich auf':event?eventNames[event.kind]:'Ereignis'}`;
+   const value=document.createElement('strong');value.className=`traffic-state ${jam.color}`;
+   value.textContent=`${trafficNumber(jam.queueM/1000,2)} km · ${jam.delayMin===null?'gesperrt':trafficNumber(jam.delayMin,1)+' min'}`;
+   row.append(title,value);
+   row.onclick=()=>{focus=jam.point;zoom=Math.max(zoom,14);refresh();};container.append(row);
+  }
+  refresh();
 }
 function selectTrafficRoute(path:string){
  if(!PATHS.includes(path as PathKey))return;
@@ -221,7 +238,7 @@ function selectTrafficRoute(path:string){
 }
 function stopTraffic(){if(trafficTimer!==null){clearInterval(trafficTimer);trafficTimer=null;}$('traffic-play').textContent='▶ Start';}
 function stepTraffic(minutes:number){
- try{trafficState=advanceTraffic(trafficState,events,trafficDemands,minutes);renderTraffic();}
+ try{trafficState=advanceTraffic(trafficState,events,trafficDemands,minutes);spatialState=advanceSpatial(spatialState,events,trafficDemands,minutes,spatialCorridors);renderTraffic();}
  catch(e){stopTraffic();$('traffic-issue').textContent=e instanceof Error?e.message:'Simulationsfehler';}
 }
 function initializeTraffic(){
@@ -241,7 +258,7 @@ function initializeTraffic(){
   trafficTimer=setInterval(()=>stepTraffic(1),1000);
  };
  $('traffic-step').onclick=()=>stepTraffic(5);
- $('traffic-reset').onclick=()=>{stopTraffic();trafficState=emptyTraffic();renderTraffic();};
+ $('traffic-reset').onclick=()=>{stopTraffic();trafficState=emptyTraffic();spatialState=emptySpatial();renderTraffic();};
  document.addEventListener('visibilitychange',()=>{if(document.hidden)stopTraffic();});
 }
 
@@ -312,6 +329,30 @@ function plotRampBadges(width:number,height:number){
   context!.textAlign='start';context!.textBaseline='alphabetic';
  }
 }
+const jamColors={slow:'#f59e0b',jam:'#dc2626',standstill:'#7f1d1d'} as const;
+function drawSpatialJams(){
+ const list=jamsAt(spatialState,events,spatialCorridors);
+ // Colored paths are exact OSM segments immediately UPSTREAM of each bottleneck.
+ for(const jam of list){
+  const road=spatialCorridors[jam.pathKey];
+  for(const band of jamBands(jam)){
+   const line=routeSlice(road,band.fromM,band.toM);
+   if(line.length>1){stroke(line,lineWidths(zoom).motorwayCasing+1,'#102735');stroke(line,lineWidths(zoom).motorway+1.1,jamColors[band.color]);}
+  }
+ }
+ if(zoom<10.6)return;
+ for(const jam of list){
+  const road=spatialCorridors[jam.pathKey];
+  const midM=Math.max(0,jam.anchorM-jam.visibleQueueM*.5);
+  const mid=routeSlice(road,midM-1,midM+1);
+  if(!mid.length)continue;
+  const [x,y]=toScreen(mid[0]!);if(x<8||x>wrapper.clientWidth-75||y<54||y>wrapper.clientHeight-63)continue;
+  const txt=jam.delayMin===null?'gesperrt':`+${trafficNumber(jam.delayMin,1)} min`;
+  context!.font='bold 11px system-ui';const w=context!.measureText(txt).width+16;
+  context!.fillStyle='#0a1c2bef';context!.fillRect(x,y-23,w,20);
+  context!.fillStyle='#fff';context!.fillText(txt,x+8,y-9);
+ }
+}
 function draw(){
  const {width,height,scale}=size();context!.setTransform(scale,0,0,scale,0,0);
  context!.fillStyle='#132b3d';context!.fillRect(0,0,width,height);
@@ -322,7 +363,8 @@ function draw(){
  for(const road of drawnRoads)stroke(road.points,lines.motorwayCasing,'#083348');
  for(const road of drawnRoads)stroke(road.points,lines.motorway,roadColors[road.road]);
  for(const ramp of ramps)stroke(ramp.points,lines.rampCasing,'#273b4c');
- for(const ramp of ramps)stroke(ramp.points,lines.ramp,'#ffb455');
+ for(const ramp of ramps)stroke(ramp.points,lines.ramp,'#26bb7c');
+ drawSpatialJams();
  plotLabels(width,height);plotRampBadges(width,height);drawEventMarkers(width,height);
  if(selected){const [x,y]=toScreen(selected.point);context!.beginPath();context!.arc(x,y,9,0,2*Math.PI);context!.fillStyle='#39d7ff';context!.fill();context!.lineWidth=2;context!.strokeStyle='#fff';context!.stroke();}
 }
