@@ -209,10 +209,10 @@ function renderTraffic(){
  $('traffic-capacity').textContent=trafficNumber(result.capacityVph);
  $('traffic-outflow').textContent=trafficNumber(Math.min(result.capacityVph,activeDemands[key]+result.ownVehicles*60));
  $('traffic-queue').textContent=trafficNumber(result.queueVehicles);
- $('traffic-shared').textContent=result.sharedRampVehicles>0?`Davon ${trafficNumber(result.sharedRampVehicles)} bereits in einer Rampenwarteschlange gezählte Fahrzeuge`:'Keine Rampenfahrzeuge auf diesem Abschnitt';
+ $('traffic-shared').textContent=result.sharedRampVehicles>0?`Davon ${trafficNumber(result.sharedRampVehicles)} bereits in einer Rampenwarteschlange gezählte Fahrzeuge · Wartezeit für Abbieger: ${result.exitDelayMin===null?'nicht berechenbar':trafficNumber(result.exitDelayMin,1)+' min'} (nicht zur Durchfahrt addiert)`:'Keine Rampenfahrzeuge auf diesem Abschnitt';
  $('traffic-queue-km').textContent=`${trafficNumber(result.queueKm,2)} km`;
- $('traffic-delay').textContent=result.delayMin===null?'Bei Stillstand nicht berechenbar':`${trafficNumber(result.delayMin,1)} min`;
- $('traffic-speed').textContent=result.color!=='free'&&!bn.event?'variiert (Rückstau)':`${bn.speedKmh} km/h`;
+ $('traffic-delay').textContent=result.delayMin===null?'Bei Stillstand nicht berechenbar':`${trafficNumber(result.delayMin,1)} min${result.sharedRampVehicles>0?' (Durchgangsverkehr)':''}`;
+ $('traffic-speed').textContent=result.ownVehicles>0?'variiert (eigener Rückstau)':result.sharedRampVehicles>0?'Abfahrt betroffen; keine eigene Warteschlange':`${bn.speedKmh} km/h`;
  $('traffic-events').textContent=bn.count===0?'Kein eigenes Ereignis auf dieser Richtung – mögliche Rückstauübertragung am AD wird berücksichtigt':
   `${bn.count} eigene(s) Ereignis(se) auf dieser Richtung`;
  const stateLabel=$('traffic-state');stateLabel.textContent=trafficColorName[result.color];stateLabel.className=`traffic-state ${result.color}`;
@@ -226,7 +226,7 @@ function renderTraffic(){
   const button=document.createElement('button');button.type='button';button.className='traffic-summary-row';
   const label=document.createElement('span');label.textContent=trafficRouteLabel(item);
   const status=document.createElement('strong');status.className=`traffic-state ${m.color}`;
-  status.textContent=`${trafficNumber(m.queueKm,1)} km · ${m.delayMin===null?'Zeit unbestimmt':trafficNumber(m.delayMin,1)+' min'}`;
+  status.textContent=`${trafficNumber(m.queueKm,1)} km · ${m.delayMin===null?'Zeit unbestimmt':trafficNumber(m.delayMin,1)+' min'}${m.sharedRampVehicles>0?' · Abfahrt betroffen':''}`;
   button.append(label,status);button.setAttribute('aria-label',`${label.textContent}, ${status.textContent}`);
   button.onclick=()=>selectTrafficRoute(item);parent.append(button);
  }
