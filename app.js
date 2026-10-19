@@ -1,6 +1,7 @@
 import { PATHS, advanceTraffic, defaultDemands, emptyTraffic, trafficEstimate } from './traffic.js';
 import { networkData } from './geodata.js';
 import { makeCorridors, routeSlice, advanceSpatial, emptySpatial, jamsAt, jamBands } from './spatial.js';
+import { buildRampConnections, rampSpillbacks } from './interchange.js';
 import { decodeEvents, eventFromHit, updatedEvent, eventNames, eventSymbols, eventSummary, defaultLengthM, maxLengthM, suggestedSpeed, STORAGE_KEY, isEventKind } from './events.js';
 import { roadLaneInfo, rampLaneInfo } from './lane-info.js';
 import { mapCandidates, chooseMapHits, closestJunction, lanePositions, hitLabel } from './selection.js';
@@ -19,6 +20,7 @@ const mapReady = validateMap(networkData);
 const allRoads = networkData.roads, ramps = networkData.ramps, exits = networkData.exits;
 const drawnRoads = buildContinuousRoads(allRoads);
 const spatialCorridors = makeCorridors(allRoads, ramps);
+const rampConnections = buildRampConnections(ramps, spatialCorridors);
 let badges = [];
 const pointerPositions = new Map();
 let pointerDown = null;
@@ -317,6 +319,10 @@ function renderTraffic() {
     stateLabel.textContent = trafficColorName[result.color];
     stateLabel.className = `traffic-state ${result.color}`;
     $('traffic-closure-note').textContent = result.officiallyClosed ? 'Vollsperrung: kein neuer Zufluss in den Sperrabschnitt. Offizielle Umleitung und Ausfahrt bereits eingeschlossener Fahrzeuge werden noch NICHT simuliert. Die hier gezeigte Warteschlange ist vorläufiger, auflaufender Verkehr vor der Sperrung.' : '';
+    const jams = jamsAt(spatialState, events, spatialCorridors);
+    const spillbacks = rampSpillbacks(jams, rampConnections, spatialCorridors);
+    const overflowText = spillbacks.map(s => `${trafficRouteLabel(s.rampId)}: ${trafficNumber(s.lengthM / 1000, 2)} km Rückstau auf ${trafficRouteLabel(s.source)}`).join(' · ');
+    $('traffic-interchange').textContent = spillbacks.length ? `AD Dernbach: ${overflowText}. Die Fahrzeuge sind bereits in der Rampenwarteschlange enthalten.` : 'AD Dernbach: Kein Rampenrückstau reicht auf eine A3-/A48-Hauptfahrbahn zurück.';
     const parent = $('traffic-summary');
     parent.replaceChildren();
     for (const item of PATHS) {
@@ -334,7 +340,6 @@ function renderTraffic() {
         button.onclick = () => selectTrafficRoute(item);
         parent.append(button);
     }
-    const jams = jamsAt(spatialState, events, spatialCorridors);
     const container = $('traffic-jams');
     container.replaceChildren();
     $('traffic-jams-count').textContent = `(${jams.length})`;
@@ -352,8 +357,14 @@ function renderTraffic() {
         const value = document.createElement('strong');
         value.className = `traffic-state ${jam.color}`;
         value.textContent = `${trafficNumber(jam.queueM / 1000, 2)} km · ${jam.delayMin === null ? 'gesperrt' : trafficNumber(jam.delayMin, 1) + ' min'}`;
+        const overflow = spillbacks.find(s => s.id === jam.id && s.rampId === jam.pathKey);
+        if (overflow) {
+            const extra = document.createElement('small');
+            extra.textContent = `↳ Reicht ${trafficNumber(overflow.lengthM / 1000, 2)} km auf ${trafficRouteLabel(overflow.source)} zurück`;
+            title.append(document.createElement('br'), extra);
+        }
         row.append(title, value);
-        row.onclick = () => { focus = jam.point; zoom = Math.max(zoom, 14); refresh(); };
+        row.onclick = () => { focus = overflow ? ramps.find(r => r.id === overflow.rampId).points[0] : jam.point; zoom = Math.max(zoom, 14); refresh(); };
         container.append(row);
     }
     refresh();
@@ -574,6 +585,24 @@ function drawSpatialJams() {
             if (line.length > 1) {
                 stroke(line, lineWidths(zoom).motorwayCasing + 1, '#102735');
                 stroke(line, lineWidths(zoom).motorway + 1.1, jamColors[band.color]);
+            }
+        }
+    }
+    // Storage on a congested ramp can overflow onto its VERIFIED feeder mainline.
+    // This colored mainline segment is not a second set of queued vehicles.
+    const spillbacks = rampSpillbacks(list, rampConnections, spatialCorridors);
+    for (const spill of spillbacks) {
+        const route = spatialCorridors[spill.source];
+        const length = spill.toM - spill.fromM;
+        if (length < 1)
+            continue;
+        const tail = Math.min(length * .25, Math.max(60, length * .12));
+        const split = Math.min(spill.toM, spill.fromM + tail);
+        for (const [start, end, color] of [[spill.fromM, split, 'slow'], [split, spill.toM, spill.color === 'standstill' ? 'jam' : spill.color]]) {
+            const line = routeSlice(route, start, end);
+            if (line.length > 1) {
+                stroke(line, lineWidths(zoom).motorwayCasing + 1, '#102735');
+                stroke(line, lineWidths(zoom).motorway + 1.1, jamColors[color === 'free' ? 'slow' : color]);
             }
         }
     }
