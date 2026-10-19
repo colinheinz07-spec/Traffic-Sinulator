@@ -87,3 +87,45 @@ export function rampSpillbacks(jams, connections, routes) {
     }
     return output.sort((a, b) => a.source.localeCompare(b.source) || a.rampId.localeCompare(b.rampId));
 }
+export function mergeBackflows(jams, connections, routes, demands) {
+    const output = [];
+    for (const link of connections) {
+        const incoming = demands[link.rampId];
+        if (!Number.isFinite(incoming) || incoming <= 0)
+            continue;
+        const inbound = connections.filter(c => c.to === link.to);
+        const targetDemand = demands[link.to];
+        const total = targetDemand + inbound.reduce((n, c) => n + (demands[c.rampId] || 0), 0);
+        if (!Number.isFinite(total) || total <= 0)
+            continue;
+        const share = Math.min(.8, incoming / total);
+        const targetRoute = routes[link.to], rampRoute = routes[link.rampId];
+        if (!targetRoute || !rampRoute)
+            throw Error('Fehlende OSM-Verbindung bei Zielstau');
+        // Only queues from bottlenecks *downstream* of this merge can block it.
+        // The jam must reach the merge (queue head advances against travel direction).
+        const affected = jams.filter(j => j.pathKey === link.to && j.anchorM > link.downstreamMergeM + .1
+            && j.anchorM - j.queueM < link.downstreamMergeM - .1);
+        if (!affected.length)
+            continue;
+        // Serial incidents cannot each claim the same ramp storage. One strongest
+        // crossing tail acts as the parent of this visible backed-up ramp.
+        const candidate = [...affected].sort((a, b) => (b.queueM - (b.anchorM - link.downstreamMergeM)) - (a.queueM - (a.anchorM - link.downstreamMergeM))
+            || a.id.localeCompare(b.id))[0];
+        const penetration = Math.max(0, candidate.queueM - (candidate.anchorM - link.downstreamMergeM));
+        // Reference 95 veh/km/lane. Junction allocation is a declared approximation.
+        const lanes = Math.max(1, Math.round(targetRoute.key.startsWith('A3') ? 3 : 2));
+        const rampQueueM = penetration * lanes * share;
+        const rampLengthM = Math.min(rampQueueM, rampRoute.lengthM);
+        const sourceExcess = Math.max(0, rampQueueM - rampRoute.lengthM);
+        const upstream = routes[link.from];
+        const sourceFromM = Math.max(0, link.rampEntryM - sourceExcess);
+        if (rampLengthM < 1 && link.rampEntryM - sourceFromM < 1)
+            continue;
+        output.push({ id: candidate.id, rampId: link.rampId, source: link.from, target: link.to,
+            rampFromM: rampRoute.lengthM - rampLengthM, rampToM: rampRoute.lengthM, rampLengthM,
+            sourceFromM, sourceToM: link.rampEntryM, sourceLengthM: link.rampEntryM - sourceFromM,
+            fraction: share, delayMin: candidate.delayMin, color: candidate.color });
+    }
+    return output.sort((a, b) => a.rampId.localeCompare(b.rampId));
+}

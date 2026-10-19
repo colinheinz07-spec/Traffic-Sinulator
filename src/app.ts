@@ -1,7 +1,7 @@
 import {PATHS,advanceTraffic,baselineCapacity,defaultDemand,defaultDemands,emptyTraffic,trafficEstimate,type PathKey,type TrafficColor,type TrafficState} from './traffic.js';
 import {networkData} from './geodata.js';
 import {makeCorridors,routeSlice,advanceSpatial,emptySpatial,jamsAt,jamBands} from './spatial.js';
-import {buildRampConnections,rampSpillbacks} from './interchange.js';
+import {buildRampConnections,rampSpillbacks,mergeBackflows} from './interchange.js';
 import {decodeEvents,eventFromHit,updatedEvent,eventNames,eventSymbols,eventSummary,flowPolicy,defaultLengthM,defaultSettings,maxLengthM,suggestedSpeed,STORAGE_KEY,isEventKind,type EventKind,type ShoulderMode,type SimEvent} from './events.js';
 import {roadLaneInfo,rampLaneInfo} from './lane-info.js';
 import {mapCandidates,chooseMapHits,closestJunction,lanePositions,hitLabel,type MapHit} from './selection.js';
@@ -209,8 +209,10 @@ function renderTraffic(){
  $('traffic-closure-note').textContent=result.officiallyClosed?'Vollsperrung: kein neuer Zufluss in den Sperrabschnitt. Offizielle Umleitung und Ausfahrt bereits eingeschlossener Fahrzeuge werden noch NICHT simuliert. Die hier gezeigte Warteschlange ist vorläufiger, auflaufender Verkehr vor der Sperrung.':'';
  const jams=jamsAt(spatialState,events,spatialCorridors);
  const spillbacks=rampSpillbacks(jams,rampConnections,spatialCorridors);
+ const mergeQueues=mergeBackflows(jams,rampConnections,spatialCorridors,trafficDemands);
  const overflowText=spillbacks.map(s=>`${trafficRouteLabel(s.rampId)}: ${trafficNumber(s.lengthM/1000,2)} km Rückstau auf ${trafficRouteLabel(s.source)}`).join(' · ');
- $('traffic-interchange').textContent=spillbacks.length?`AD Dernbach: ${overflowText}. Die Fahrzeuge sind bereits in der Rampenwarteschlange enthalten.`:'AD Dernbach: Kein Rampenrückstau reicht auf eine A3-/A48-Hauptfahrbahn zurück.';
+ const mergeText=mergeQueues.map(x=>`${trafficRouteLabel(x.target)} blockiert ${trafficRouteLabel(x.rampId)}: ${trafficNumber(x.rampLengthM/1000,2)} km auf Rampe${x.sourceLengthM>1?` und ${trafficNumber(x.sourceLengthM/1000,2)} km auf ${trafficRouteLabel(x.source)}`:''}`).join(' · ');
+ $('traffic-interchange').textContent=[overflowText,mergeText].filter(Boolean).join(' · ')||'AD Dernbach: Kein Rückstau reicht derzeit von einer Rampe auf A3/A48 oder von einer Zielautobahn in eine Rampe zurück.';
  const parent=$('traffic-summary');parent.replaceChildren();
  for(const item of PATHS){const m=trafficEstimate(trafficState,item,events,trafficDemands[item]);
   const button=document.createElement('button');button.type='button';button.className='traffic-summary-row';
@@ -233,6 +235,13 @@ function renderTraffic(){
    if(overflow){const extra=document.createElement('small');extra.textContent=`↳ Reicht ${trafficNumber(overflow.lengthM/1000,2)} km auf ${trafficRouteLabel(overflow.source)} zurück`;title.append(document.createElement('br'),extra)}
    row.append(title,value);
    row.onclick=()=>{focus=overflow?ramps.find(r=>r.id===overflow.rampId)!.points[0]!:jam.point;zoom=Math.max(zoom,14);refresh();};container.append(row);
+  }
+  for(const blockage of mergeQueues){
+   const row=document.createElement('button');row.type='button';row.className='traffic-summary-row';
+   const name=document.createElement('span');name.textContent=`↳ Rückstau von ${trafficRouteLabel(blockage.target)} auf ${trafficRouteLabel(blockage.rampId)}`;
+   const length=document.createElement('strong');length.className=`traffic-state ${blockage.color}`;
+   length.textContent=`${trafficNumber(blockage.rampLengthM/1000,2)} km Rampe${blockage.sourceLengthM>1?` + ${trafficNumber(blockage.sourceLengthM/1000,2)} km ${trafficRouteLabel(blockage.source)}`:''}`;
+   row.append(name,length);row.onclick=()=>{focus=ramps.find(r=>r.id===blockage.rampId)!.points.at(-1)!;zoom=Math.max(zoom,14);refresh();};container.append(row);
   }
   refresh();
 }
@@ -339,14 +348,6 @@ function plotRampBadges(width:number,height:number){
 const jamColors={slow:'#f59e0b',jam:'#dc2626',standstill:'#7f1d1d'} as const;
 function drawSpatialJams(){
  const list=jamsAt(spatialState,events,spatialCorridors);
- // Colored paths are exact OSM segments immediately UPSTREAM of each bottleneck.
- for(const jam of list){
-  const road=spatialCorridors[jam.pathKey];
-  for(const band of jamBands(jam)){
-   const line=routeSlice(road,band.fromM,band.toM);
-   if(line.length>1){stroke(line,lineWidths(zoom).motorwayCasing+1,'#102735');stroke(line,lineWidths(zoom).motorway+1.1,jamColors[band.color]);}
-  }
- }
  // Storage on a congested ramp can overflow onto its VERIFIED feeder mainline.
  // This colored mainline segment is not a second set of queued vehicles.
  const spillbacks=rampSpillbacks(list,rampConnections,spatialCorridors);
@@ -361,7 +362,34 @@ function drawSpatialJams(){
    if(line.length>1){stroke(line,lineWidths(zoom).motorwayCasing+1,'#102735');stroke(line,lineWidths(zoom).motorway+1.1,jamColors[color==='free'?'slow':color]);}
   }
  }
- if(zoom<10.6)return;
+ // Downstream A3/A48 queues may reach a verified merge and back up through
+ // the joining ramp onto its own feeder motorway. Display-only until traffic
+ // volumes are coupled; never add these overlays to vehicle/delay totals.
+ const backflows=mergeBackflows(list,rampConnections,spatialCorridors,trafficDemands);
+ for(const back of backflows){
+  for(const [key,begin,end] of [
+   [back.rampId,back.rampFromM,back.rampToM],
+   [back.source,back.sourceFromM,back.sourceToM]
+  ] as const){
+   const route=spatialCorridors[key];const distance=end-begin;
+   if(distance<1)continue;
+   const tail=Math.min(distance*.22,Math.max(35,distance*.12));
+   const middle=Math.min(end,begin+tail);
+   for(const [a,b,color] of [[begin,middle,'slow'],[middle,end,back.color==='standstill'?'jam':back.color]] as const){
+    const trace=routeSlice(route,a,b);
+    if(trace.length>1){stroke(trace,lineWidths(zoom).motorwayCasing+1,'#102735');stroke(trace,lineWidths(zoom).motorway+1.1,jamColors[color==='free'?'slow':color]);}
+   }
+  }
+ }
+ // Colored paths are exact OSM segments immediately UPSTREAM of each bottleneck.
+ for(const jam of list){
+  const road=spatialCorridors[jam.pathKey];
+  for(const band of jamBands(jam)){
+   const line=routeSlice(road,band.fromM,band.toM);
+   if(line.length>1){stroke(line,lineWidths(zoom).motorwayCasing+1,'#102735');stroke(line,lineWidths(zoom).motorway+1.1,jamColors[band.color]);}
+  }
+ }
+  if(zoom<10.6)return;
  for(const jam of list){
   const road=spatialCorridors[jam.pathKey];
   const midM=Math.max(0,jam.anchorM-jam.visibleQueueM*.5);

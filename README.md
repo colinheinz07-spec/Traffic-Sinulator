@@ -127,3 +127,19 @@ damit kein Stau verdeckt wird. Die Schätzung wird **nicht** anhand realer Messw
 kalibriert; bei anhaltendem Zufluss über Kapazität kann die Verzögerung weiter
 wachsen. Das ist kein künstlicher Maximalwert und kein Versprechen einer
 bestimmten Staudauer. Karte und AD-Dernbach-Verbindungen sind unverändert.
+
+
+## 4c.2 – Stau von A3/A48 zurück in Überleitungen (1.2.0)
+
+- Weiterhin Rückstau auf der Originalrampe und der korrekten zuführenden A3-/A48-Richtungsfahrbahn.
+- Neu: Erreicht der Rückstau eines Engpasses **auf der Zielautobahn** die
+  echte Einmündung einer Rampe, wird auch die Rampe von der Zusammenführung her
+  blockiert. Bei großem Rückstau reicht die Markierung bis auf die Autobahn,
+  von der die Rampe abzweigt. Beide Richtungen A3 ⇄ A48 sind berücksichtigt.
+- Die projizierte Rampenlänge verwendet die Nachfrageanteile der beteiligten
+  Zuläufe und deklarierte 95 Fzg/km/Fahrstreifen. Dies ist noch **keine**
+  vollständige vernetzte Mikrosimulation/CTM-Mehrwegezuweisung: Vorläufige
+  geografische Projektionen werden **nicht** zu den bereits berechneten
+  Fahrzeugmengen oder Verzögerungen addiert. Keine falschen Doppelzählungen.
+- Tests: sämtliche vier OSM-Rampen, Gegenrichtung bleibt unberührt, kein
+  Rückstau bei Engpass vor der Einmündung, Freigabe wirkt ohne Restblockade.
