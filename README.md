@@ -151,3 +151,10 @@ bestimmten Staudauer. Karte und AD-Dernbach-Verbindungen sind unverändert.
 - Drei Fahrstreifen werden für die Simulation standardmäßig mit 45 % rechts, 34 % Mitte, 21 % links gewichtet; dies sind illustrative Annahmen und keine Verkehrszählungen. Die Wahl der gesperrten Fahrspur ändert den simulierten Spurwechselverlust.
 - Vollsperrungen haben weiterhin keinen Durchfluss. Kein erfundener endlicher Zeitverlust bei vollständigem Stillstand. Ereignisse, OSM-Originalgeometrie und Gegenfahrbahnen bleiben unangetastet.
 - Noch kein vollständig gekoppeltes, kalibriertes Verkehrs-OD-Routing: Die Zuflüsse je Fahrweg sind weiterhin unabhängige Simulations-Eingabewerte. Die dynamischen Bremswellen sind für einen späteren Ausbauschritt geplant.
+
+
+## Dynamischer Zufluss 1.3.1
+
+Standardmodus **Abklingende Stoßzeit**: Der eingestellte Startzufluss nimmt ab Minute 10 während der folgenden 90 Modellminuten anhand einer synthetischen Stoßzeitkurve von 100 % auf ca. 23 % ab. Dies ist **eine Szenarioannahme, keine reale Verkehrszählung**. Für jede Modellminute wird die neue ankommende Fahrzeugmenge verwendet. Stau kann wachsen, sich stabilisieren und wieder abnehmen, wenn der Zufluss unter die Engpasskapazität fällt.
+
+Mit **Konstanter Zufluss (Dauertest)** kann eine dauerhaft überlastete Baustelle getestet werden. In diesem Fall ist weiterer Stau- und Verzögerungsaufbau physikalisch möglich. Es gibt absichtlich keine willkürliche feste Verzögerungsobergrenze. Keine Änderung der A3-/A48-OSM-Karte oder der Ereignisspeicherung.
