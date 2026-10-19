@@ -54,9 +54,16 @@ export function eventCapacity(e:SimEvent):number{
  const laneCapacity=perLane*(policy.openMainLanes+(e.settings.shoulder==='open'?.65:0));
  const normalSpeed=defaultKmH(e.pathKey as PathKey);
  const speedRatio=Math.min(1,policy.speedKmh/normalSpeed);
- // Lower limit alone reduces discharge moderately; blocked lanes introduce merging friction.
- const speedFactor=.42+.58*speedRatio;
- const mergeFactor=e.closedLanes.length===0?1:e.kind==='roadworks'?.83:.76;
+ // Scenario assumptions, not calibrated field measurements: below motorway free-flow
+ // a posted limit does not reduce peak *throughput* in proportion to speed.
+ // Previous 0.42+0.58*ratio combined with hard merging penalties could leave
+ // a single lane at 40 km/h with only ~916 veh/h, exaggerating delays.
+ // Keep a stronger penalty for very slow (<40 km/h) incident pass-bys.
+ const speedAt40=.86+.14*Math.min(1,40/normalSpeed);
+ const speedFactor=policy.speedKmh<40
+  ?speedAt40*(.45+.55*policy.speedKmh/40)
+  :.86+.14*speedRatio;
+ const mergeFactor=e.closedLanes.length===0?1:e.kind==='roadworks'?.92:.87;
  return Math.max(0,Math.round(laneCapacity*speedFactor*mergeFactor));
 }
 export function pathBottleneck(key:PathKey,events:readonly SimEvent[]):{
