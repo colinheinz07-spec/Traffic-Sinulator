@@ -1,7 +1,8 @@
-import {PATHS,advanceTraffic,baselineCapacity,defaultDemand,defaultDemands,emptyTraffic,trafficEstimate,type PathKey,type TrafficColor,type TrafficState} from './traffic.js';
+import {PATHS,pathBottleneck,baselineCapacity,defaultDemand,defaultDemands,type PathKey,type TrafficColor} from './traffic.js';
 import {networkData} from './geodata.js';
+import {routeReport} from './network-report.js';
 import {makeCorridors,routeSlice,advanceSpatial,emptySpatial,jamsAt,jamBands} from './spatial.js';
-import {buildRampConnections,rampSpillbacks,mergeBackflows} from './interchange.js';
+import {buildRampConnections,rampSpillbacks} from './interchange.js';
 import {decodeEvents,eventFromHit,updatedEvent,eventNames,eventSymbols,eventSummary,flowPolicy,defaultLengthM,defaultSettings,maxLengthM,suggestedSpeed,STORAGE_KEY,isEventKind,type EventKind,type ShoulderMode,type SimEvent} from './events.js';
 import {roadLaneInfo,rampLaneInfo} from './lane-info.js';
 import {mapCandidates,chooseMapHits,closestJunction,lanePositions,hitLabel,type MapHit} from './selection.js';
@@ -184,7 +185,7 @@ function removeExistingEvent(){
 
 // Version 0.9: standalone macroscopic estimates, not live traffic measurements.
 // No fabricated traffic transfers between A3, A48, and AD Dernbach ramps.
-let trafficState:TrafficState=emptyTraffic();
+
 let spatialState=emptySpatial();
 const trafficDemands=defaultDemands();
 let trafficTimer:ReturnType<typeof setInterval>|null=null;
@@ -194,31 +195,33 @@ const trafficColorName:Record<TrafficColor,string>={free:'Frei',slow:'Stockend',
 function renderTraffic(){
  const selector=$<HTMLSelectElement>('traffic-route');const key=selector.value as PathKey;
  if(!PATHS.includes(key))return;
- const result=trafficEstimate(trafficState,key,events,trafficDemands[key]);
- $('traffic-minute').textContent=`Minute ${trafficState.minute}`;
- $('traffic-demand').textContent=trafficNumber(trafficDemands[key]);
- $('traffic-capacity').textContent=trafficNumber(result.capacityVph);
- $('traffic-outflow').textContent=trafficNumber(result.dischargedVph);
- $('traffic-queue').textContent=trafficNumber(result.queueVehicles);
- $('traffic-queue-km').textContent=`${trafficNumber(result.queueKm,2)} km`;
- $('traffic-delay').textContent=result.delayMin===null?'Bei Sperrung nicht berechenbar':`${trafficNumber(result.delayMin,1)} min`;
- $('traffic-speed').textContent=`${result.speedKmh} km/h`;
- $('traffic-events').textContent=result.eventCount===0?'Kein Ereignis – Standardkapazität':
-  `${result.eventCount} Ereignis(se), maßgeblich: ${events.find(e=>e.id===result.bottleneckId)?.kind==='closure'?'Vollsperrung':result.bottleneckId?'Engpass':'kein Engpass'}`;
- const stateLabel=$('traffic-state');stateLabel.textContent=trafficColorName[result.color];stateLabel.className=`traffic-state ${result.color}`;
- $('traffic-closure-note').textContent=result.officiallyClosed?'Vollsperrung: kein neuer Zufluss in den Sperrabschnitt. Offizielle Umleitung und Ausfahrt bereits eingeschlossener Fahrzeuge werden noch NICHT simuliert. Die hier gezeigte Warteschlange ist vorläufiger, auflaufender Verkehr vor der Sperrung.':'';
  const jams=jamsAt(spatialState,events,spatialCorridors);
  const spillbacks=rampSpillbacks(jams,rampConnections,spatialCorridors);
- const mergeQueues=mergeBackflows(jams,rampConnections,spatialCorridors,trafficDemands);
+ const result=routeReport(key,jams,spillbacks,events);
+ const bn=pathBottleneck(key,events);
+ $('traffic-minute').textContent=`Minute ${spatialState.minute}`;
+ $('traffic-demand').textContent=trafficNumber(trafficDemands[key]);
+ $('traffic-capacity').textContent=trafficNumber(result.capacityVph);
+ $('traffic-outflow').textContent=trafficNumber(Math.min(result.capacityVph,trafficDemands[key]+result.ownVehicles*60));
+ $('traffic-queue').textContent=trafficNumber(result.queueVehicles);
+ $('traffic-shared').textContent=result.sharedRampVehicles>0?`Davon ${trafficNumber(result.sharedRampVehicles)} bereits in einer Rampenwarteschlange gezählte Fahrzeuge`:'Keine Rampenfahrzeuge auf diesem Abschnitt';
+ $('traffic-queue-km').textContent=`${trafficNumber(result.queueKm,2)} km`;
+ $('traffic-delay').textContent=result.delayMin===null?'Bei Stillstand nicht berechenbar':`${trafficNumber(result.delayMin,1)} min`;
+ $('traffic-speed').textContent=result.color!=='free'&&!bn.event?'variiert (Rückstau)':`${bn.speedKmh} km/h`;
+ $('traffic-events').textContent=bn.count===0?'Kein eigenes Ereignis auf dieser Richtung – mögliche Rückstauübertragung am AD wird berücksichtigt':
+  `${bn.count} eigene(s) Ereignis(se) auf dieser Richtung`;
+ const stateLabel=$('traffic-state');stateLabel.textContent=trafficColorName[result.color];stateLabel.className=`traffic-state ${result.color}`;
+ $('traffic-closure-note').textContent=bn.event?.kind==='closure'?'Vollsperrung: kein neuer Zufluss in den Sperrabschnitt. Offizielle Umleitung und Ausfahrt bereits eingeschlossener Fahrzeuge werden noch NICHT simuliert. Die hier gezeigte Warteschlange ist vorläufiger, auflaufender Verkehr vor der Sperrung.':'';
+ const mergeQueues=jams.filter(j=>j.id.startsWith('merge:')&&!j.released);
  const overflowText=spillbacks.map(s=>`${trafficRouteLabel(s.rampId)}: ${trafficNumber(s.lengthM/1000,2)} km Rückstau auf ${trafficRouteLabel(s.source)}`).join(' · ');
- const mergeText=mergeQueues.map(x=>`${trafficRouteLabel(x.target)} blockiert ${trafficRouteLabel(x.rampId)}: ${trafficNumber(x.rampLengthM/1000,2)} km auf Rampe${x.sourceLengthM>1?` und ${trafficNumber(x.sourceLengthM/1000,2)} km auf ${trafficRouteLabel(x.source)}`:''}`).join(' · ');
+ const mergeText=mergeQueues.map(x=>`${trafficRouteLabel(x.pathKey)}: ${trafficNumber(x.queueVehicles)} Fahrzeuge warten wegen Rückstau an der Einmündung`).join(' · ');
  $('traffic-interchange').textContent=[overflowText,mergeText].filter(Boolean).join(' · ')||'AD Dernbach: Kein Rückstau reicht derzeit von einer Rampe auf A3/A48 oder von einer Zielautobahn in eine Rampe zurück.';
  const parent=$('traffic-summary');parent.replaceChildren();
- for(const item of PATHS){const m=trafficEstimate(trafficState,item,events,trafficDemands[item]);
+ for(const item of PATHS){const m=routeReport(item,jams,spillbacks,events);
   const button=document.createElement('button');button.type='button';button.className='traffic-summary-row';
   const label=document.createElement('span');label.textContent=trafficRouteLabel(item);
   const status=document.createElement('strong');status.className=`traffic-state ${m.color}`;
-  status.textContent=`${trafficNumber(m.queueKm,1)} km · ${m.delayMin===null?'gesperrt':trafficNumber(m.delayMin,1)+' min'}`;
+  status.textContent=`${trafficNumber(m.queueKm,1)} km · ${m.delayMin===null?'Zeit unbestimmt':trafficNumber(m.delayMin,1)+' min'}`;
   button.append(label,status);button.setAttribute('aria-label',`${label.textContent}, ${status.textContent}`);
   button.onclick=()=>selectTrafficRoute(item);parent.append(button);
  }
@@ -228,20 +231,13 @@ function renderTraffic(){
   for(const jam of jams){
    const row=document.createElement('button');row.type='button';row.className='traffic-summary-row';
    const title=document.createElement('span'),event=events.find(e=>e.id===jam.id);
-   title.textContent=`${trafficRouteLabel(jam.pathKey)} · ${jam.released?'Rückstau löst sich auf':event?eventNames[event.kind]:'Ereignis'}`;
+   title.textContent=`${trafficRouteLabel(jam.pathKey)} · ${jam.released?'Rückstau löst sich auf':jam.id.startsWith('merge:')?'Rückstau von Zielautobahn':jam.id.startsWith('spill:')?'Rampenstau beeinträchtigt Ausfahrt':event?eventNames[event.kind]:'Engpass'}`;
    const value=document.createElement('strong');value.className=`traffic-state ${jam.color}`;
-   value.textContent=`${trafficNumber(jam.queueM/1000,2)} km · ${jam.delayMin===null?'gesperrt':trafficNumber(jam.delayMin,1)+' min'}`;
+   value.textContent=`${trafficNumber(jam.queueM/1000,2)} km · ${jam.delayMin===null?'Zeit unbestimmt':trafficNumber(jam.delayMin,1)+' min'}`;
    const overflow=spillbacks.find(s=>s.id===jam.id&&s.rampId===jam.pathKey);
    if(overflow){const extra=document.createElement('small');extra.textContent=`↳ Reicht ${trafficNumber(overflow.lengthM/1000,2)} km auf ${trafficRouteLabel(overflow.source)} zurück`;title.append(document.createElement('br'),extra)}
    row.append(title,value);
    row.onclick=()=>{focus=overflow?ramps.find(r=>r.id===overflow.rampId)!.points[0]!:jam.point;zoom=Math.max(zoom,14);refresh();};container.append(row);
-  }
-  for(const blockage of mergeQueues){
-   const row=document.createElement('button');row.type='button';row.className='traffic-summary-row';
-   const name=document.createElement('span');name.textContent=`↳ Rückstau von ${trafficRouteLabel(blockage.target)} auf ${trafficRouteLabel(blockage.rampId)}`;
-   const length=document.createElement('strong');length.className=`traffic-state ${blockage.color}`;
-   length.textContent=`${trafficNumber(blockage.rampLengthM/1000,2)} km Rampe${blockage.sourceLengthM>1?` + ${trafficNumber(blockage.sourceLengthM/1000,2)} km ${trafficRouteLabel(blockage.source)}`:''}`;
-   row.append(name,length);row.onclick=()=>{focus=ramps.find(r=>r.id===blockage.rampId)!.points.at(-1)!;zoom=Math.max(zoom,14);refresh();};container.append(row);
   }
   refresh();
 }
@@ -254,7 +250,7 @@ function selectTrafficRoute(path:string){
 }
 function stopTraffic(){if(trafficTimer!==null){clearInterval(trafficTimer);trafficTimer=null;}$('traffic-play').textContent='▶ Start';}
 function stepTraffic(minutes:number){
- try{trafficState=advanceTraffic(trafficState,events,trafficDemands,minutes);spatialState=advanceSpatial(spatialState,events,trafficDemands,minutes,spatialCorridors);renderTraffic();}
+ try{spatialState=advanceSpatial(spatialState,events,trafficDemands,minutes,spatialCorridors,rampConnections);renderTraffic();}
  catch(e){stopTraffic();$('traffic-issue').textContent=e instanceof Error?e.message:'Simulationsfehler';}
 }
 function initializeTraffic(){
@@ -274,7 +270,7 @@ function initializeTraffic(){
   trafficTimer=setInterval(()=>stepTraffic(1),1000);
  };
  $('traffic-step').onclick=()=>stepTraffic(5);
- $('traffic-reset').onclick=()=>{stopTraffic();trafficState=emptyTraffic();spatialState=emptySpatial();renderTraffic();};
+ $('traffic-reset').onclick=()=>{stopTraffic();spatialState=emptySpatial();renderTraffic();};
  document.addEventListener('visibilitychange',()=>{if(document.hidden)stopTraffic();});
 }
 
@@ -362,25 +358,8 @@ function drawSpatialJams(){
    if(line.length>1){stroke(line,lineWidths(zoom).motorwayCasing+1,'#102735');stroke(line,lineWidths(zoom).motorway+1.1,jamColors[color==='free'?'slow':color]);}
   }
  }
- // Downstream A3/A48 queues may reach a verified merge and back up through
- // the joining ramp onto its own feeder motorway. Display-only until traffic
- // volumes are coupled; never add these overlays to vehicle/delay totals.
- const backflows=mergeBackflows(list,rampConnections,spatialCorridors,trafficDemands);
- for(const back of backflows){
-  for(const [key,begin,end] of [
-   [back.rampId,back.rampFromM,back.rampToM],
-   [back.source,back.sourceFromM,back.sourceToM]
-  ] as const){
-   const route=spatialCorridors[key];const distance=end-begin;
-   if(distance<1)continue;
-   const tail=Math.min(distance*.22,Math.max(35,distance*.12));
-   const middle=Math.min(end,begin+tail);
-   for(const [a,b,color] of [[begin,middle,'slow'],[middle,end,back.color==='standstill'?'jam':back.color]] as const){
-    const trace=routeSlice(route,a,b);
-    if(trace.length>1){stroke(trace,lineWidths(zoom).motorwayCasing+1,'#102735');stroke(trace,lineWidths(zoom).motorway+1.1,jamColors[color==='free'?'slow':color]);}
-   }
-  }
- }
+ // No purely cosmetic downstream-merge overlay: a blocked ramp gets its
+ // own real queue in advanceSpatial(), rendered with the same jamBands() below.
  // Colored paths are exact OSM segments immediately UPSTREAM of each bottleneck.
  for(const jam of list){
   const road=spatialCorridors[jam.pathKey];
@@ -396,7 +375,7 @@ function drawSpatialJams(){
   const mid=routeSlice(road,midM-1,midM+1);
   if(!mid.length)continue;
   const [x,y]=toScreen(mid[0]!);if(x<8||x>wrapper.clientWidth-75||y<54||y>wrapper.clientHeight-63)continue;
-  const txt=jam.delayMin===null?'gesperrt':`+${trafficNumber(jam.delayMin,1)} min`;
+  const txt=jam.delayMin===null?'🚗🚗 gesperrt':`🚗🚗 +${trafficNumber(jam.delayMin,1)} min`;
   context!.font='bold 11px system-ui';const w=context!.measureText(txt).width+16;
   context!.fillStyle='#0a1c2bef';context!.fillRect(x,y-23,w,20);
   context!.fillStyle='#fff';context!.fillText(txt,x+8,y-9);
@@ -430,6 +409,8 @@ function showSelected(hit:MapHit){
   : `Fahrtrichtung eindeutig zugeordnet · OSM-Way ${hit.road.wayId}`;
  $('selected-direction').textContent=hitLabel(hit);
  $('selected-coords').textContent=`${hit.point[0].toFixed(6)}° N · ${hit.point[1].toFixed(6)}° E`;
+ const details=routeReport(hit.key as PathKey,jamsAt(spatialState,events,spatialCorridors),rampSpillbacks(jamsAt(spatialState,events,spatialCorridors),rampConnections,spatialCorridors),events);
+ $('selected-traffic').textContent=`${trafficNumber(details.queueVehicles)} Fahrzeuge auf diesem Fahrweg · ${details.delayMin===null?'Zeitverlust unbestimmt':`+${trafficNumber(details.delayMin,1)} min`}`;
  const lane=hit.kind==='ramp'?rampLaneInfo(hit.ramp,hit.point):roadLaneInfo(hit.road);
  $('selected-lanes').textContent=lane.label;
  $('selected-lane-names').textContent=lanePositions(lane.count).join(' · ')||'Keine gesicherte Fahrstreifenaufteilung';

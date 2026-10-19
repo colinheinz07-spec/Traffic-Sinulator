@@ -88,10 +88,11 @@ test('an actual downstream A3 closure can reach A48 through ramp; releasing it d
  projected=mergeBackflows(jamsAt(state,[],corridors),links,corridors,d);
  assert.ok(!projected.some(x=>x.rampId===link.rampId));
 });
-test('SPCK draws verified cross-motorway overlays and clearly labels model approximation',()=>{
+test('SPCK uses real coupled junction queues and no longer paints fake merge projections',()=>{
  const source=readFileSync('src/app.ts','utf8'),html=readFileSync('index.html','utf8');
- assert.match(source,/mergeBackflows\(list,rampConnections,spatialCorridors,trafficDemands\)/);
- assert.match(source,/routeSlice\(route,a,b\)/);
- assert.match(html,/Rückstau-Projektionen/);assert.match(html,/id="traffic-interchange"/);
- assert.match(html,/TRAFFIC 1\.2\.0/);
+ assert.match(source,/advanceSpatial\(spatialState,events,trafficDemands,minutes,spatialCorridors,rampConnections\)/);
+ assert.match(source,/routeReport\(key,jams,spillbacks,events\)/);
+ assert.doesNotMatch(source,/mergeBackflows\(list,rampConnections/);
+ assert.match(html,/id="traffic-interchange"/);
+ assert.match(html,/TRAFFIC 1\.3\.0/);
 });
