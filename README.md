@@ -98,3 +98,13 @@ Die Geometrie- und Fahrstreifendaten wurden nicht umgebaut; nur ihre Auswahl/Anz
 - Nach Entfernen eines Engpasses wird der aufgelaufene Verkehr **nicht augenblicklich gelöscht**, sondern mit der normalen Kapazität abgebaut. Zurücksetzen setzt beide Verkehrsmodelle zurück.
 - **Beschränkungen dieses Modellschritts:** Der Bereich „Alle acht Fahrwege“ benutzt weiterhin die aggregierte Engpassrechnung aus 0.9; die Einzelstaus verwenden das separate positionsbezogene Modell. Keine Stau-Rückwirkung zwischen zwei benachbarten Engpässen (Spillback), keine realen Reisezeiten zwischen Engpässen, keine automatische A3/A48-Übertragung, keine Umleitungslogik, keine fahrzeuggenaue Darstellung. Rückstau, der vor dem Rand der vorhandenen Strecke läge, wird nicht auf fiktive Straßen verlängert.
 - Die Verkehrswerte sind **Annahmen für einen Simulator**, keine gemessenen Verkehrsströme oder belastbaren Vorhersagen. Die Geodaten und Fahrstreifenprofile bleiben unverändert.
+
+
+## Punkt 4c.1 – AD Dernbach: geometrisch exakter Rampenrückstau (1.1)
+
+- Verbindet alle vier echten OSM-Rampen **gerichtet** mit A3/A48. Beide Enden müssen auf dem korrekten Hauptfahrbahnverlauf liegen (25-m-Sicherheitsprüfung); sonst startet die App nicht mit geratenen Kreuzungen.
+- Erst wenn die berechnete Fahrzeugwarteschlange bis zum **Anfang der Rampe** reicht, wird überschüssige Fahrzeugbelegung als Rückstau auf der zugehörigen **Zufahrtsfahrbahn** sichtbar (insbesondere A48 → A3 Köln auf die A48 Richtung Dernbach).
+- Queue-Positionen werden an realen OSM-Geometrien eingefärbt; es werden **keine** Verbindungslinien, Ortsstraßen oder künstlichen Umleitungen gezeichnet.
+- Die überlaufenden Fahrzeuge werden rechnerisch **nicht zusätzlich erzeugt**. Die Hauptfahrbahn-Überlagerung zeigt einen Teil der bereits in der Rampenwarteschlange gezählten Fahrzeuge.
+- Noch **kein vollständiger Verkehrsaufteilungs- und Merge-Solver**: Die frei einstellbaren Rampenzuflüsse werden weiterhin unabhängig von den Hauptfahrbahnzuflüssen vorgegeben. Hauptfahrbahn-Nettokapazität, offizielle Umleitungen und die echte Verzweigungsbilanz sind Folgeschritte. Die übernommene Modell-Lagermenge (95 Fzg/km auf einer ausfädelnden Fahrspur) ist eine vereinfachende Annahme, keine Verkehrsprognose.
+- Der +5-min-Testknopf bleibt vorerst bestehen; ein späterer Schritt ersetzt ihn durch automatische Zeitschaltung. Keine Fahrzeugvisualisierung.
