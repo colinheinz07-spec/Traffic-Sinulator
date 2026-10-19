@@ -738,6 +738,7 @@ function start() {
     fillMetrics();
     makeExitButtons();
     bind();
+    initializeTraffic();
     redrawEventList();
     fit();
     status.textContent = `✓ ${allRoads.length} OSM-Fahrbahnstücke · ${drawnRoads.length} durchgehende Zeichenlinien · 4 AD-Rampen · ${exits.length} Anschlussstellen`;

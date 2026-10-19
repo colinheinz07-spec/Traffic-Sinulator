@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
 import {PATHS,emptyTraffic,advanceTraffic,defaultDemands,trafficEstimate,eventCapacity,baselineCapacity,pathBottleneck} from '../dist/traffic.js';
 import {eventFromHit} from '../dist/events.js';
 import {networkData} from '../dist/geodata.js';
@@ -70,4 +71,13 @@ test('SPCK controls and compiled module hooks exist without a second app entry',
  assert.match(app,/advanceTraffic/);
  assert.match(app,/document\.addEventListener\('visibilitychange'/);
  assert.ok(!html.includes('map-v2/'));
+});
+
+// Regression: 0.9 displayed an empty picker on iOS because start() never called initializeTraffic().
+test('traffic route picker is initialized at startup and has eight static fallback options',()=>{
+ const html=readFileSync('index.html','utf8'),app=readFileSync('src/app.ts','utf8');
+ const keys=[...html.matchAll(/<option value="([^"]+)"/g)].map(m=>m[1]);
+ for(const path of PATHS)assert.ok(keys.includes(path),`missing iOS fallback path: ${path}`);
+ assert.match(app,/function start\(\)[\s\S]*?bind\(\);initializeTraffic\(\);/);
+ assert.match(app,/function initializeTraffic\(\)[\s\S]*?select\.replaceChildren\(\)/);
 });
