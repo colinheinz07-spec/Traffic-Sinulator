@@ -11,7 +11,7 @@ import {PATHS,baselineCapacity,eventCapacity,type PathKey,type TrafficColor} fro
 export interface Corridor {key:PathKey;points:Point[];metres:number[];lengthM:number}
 export interface QueuedAt {pathKey:PathKey;point:Point;vehicles:number;lanes:number;capacityVph?:number;active?:boolean}
 export interface SpatialState {minute:number;queues:Record<string,QueuedAt>}
-export interface Jam {id:string;pathKey:PathKey;eventKind:SimEvent['kind']|null;point:Point;anchorM:number;queueVehicles:number;queueM:number;visibleQueueM:number;delayMin:number|null;capacityVph:number;color:TrafficColor;released:boolean;outOfBoundsM:number}
+export interface Jam {id:string;pathKey:PathKey;eventKind:SimEvent['kind']|null;point:Point;anchorM:number;queueVehicles:number;queueM:number;visibleQueueM:number;delayMin:number|null;capacityVph:number;speedKmh:number;color:TrafficColor;released:boolean;outOfBoundsM:number}
 const rad=Math.PI/180;
 export function metres(a:Point,b:Point):number{
  const dx=(b[1]-a[1])*111195*Math.cos((a[0]+b[0])/2*rad);
@@ -136,13 +136,17 @@ export function jamsAt(state:SpatialState,events:readonly SimEvent[],corridors:R
   // Illustrative storage: 95 queued vehicles per kilometre of approach lane.
   const queueM=q.vehicles/(95*lanes)*1000,visibleQueueM=Math.min(queueM,anchor);
   const wait=capacity===0?null:q.vehicles/capacity*60;
-  const color:TrafficColor=capacity===0?'standstill':queueM>=750||(wait!==null&&wait>=5)?'jam':'slow';
+  // v=q/k: illustrative effective speed inside the dense queue, NOT GPS speed.
+  // Even when a lane passes vehicles, a <=10 km/h crawl is dark red.
+  const speedKmh=capacity===0?0:Math.min(q.pathKey.startsWith('ramp-')?80:120,capacity/(95*lanes));
+  const color:TrafficColor=capacity===0||(queueM>=150&&speedKmh<=10)?'standstill'
+   :queueM>=750||(wait!==null&&wait>=5)?'jam':'slow';
   result.push({id,pathKey:q.pathKey,eventKind:e?.kind??null,point:q.point,anchorM:anchor,
-   queueVehicles:q.vehicles,queueM,visibleQueueM,delayMin:wait,capacityVph:capacity,color,released:!e&&!q.active,outOfBoundsM:Math.max(0,queueM-anchor)});
+   queueVehicles:q.vehicles,queueM,visibleQueueM,delayMin:wait,capacityVph:capacity,speedKmh,color,released:!e&&!q.active,outOfBoundsM:Math.max(0,queueM-anchor)});
  }
  return result.sort((a,b)=>a.pathKey.localeCompare(b.pathKey)||a.anchorM-b.anchorM);
 }
-/** Green is the uninterrupted base, orange is tail, red is stop/go, dark red is stopped at closure. */
+/** Dark red marks either a full stop or very slow discharge (<=10 km/h). */
 export function jamBands(jam:Jam):{fromM:number;toM:number;color:'slow'|'jam'|'standstill'}[]{
  const start=Math.max(0,jam.anchorM-jam.queueM),end=jam.anchorM,length=end-start;
  if(length<.5)return [];

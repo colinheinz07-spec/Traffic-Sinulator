@@ -1,4 +1,4 @@
-import {PATHS,pathBottleneck,baselineCapacity,defaultDemand,defaultDemands,demandAtMinute,type DemandMode,type PathKey,type TrafficColor} from './traffic.js';
+import {PATHS,pathBottleneck,baselineCapacity,defaultDemand,defaultDemands,demandAtMinute,demandAtClock,type DemandMode,type PathKey,type TrafficColor} from './traffic.js';
 import {networkData} from './geodata.js';
 import {routeReport} from './network-report.js';
 import {makeCorridors,routeSlice,advanceSpatial,emptySpatial,jamsAt,jamBands} from './spatial.js';
@@ -188,11 +188,22 @@ function removeExistingEvent(){
 
 let spatialState=emptySpatial();
 const trafficDemands=defaultDemands();
-let demandMode:DemandMode='wave';
+let demandMode:DemandMode='clock';
+let simulationStartMs=Math.floor(Date.now()/60000)*60000;
+function dateTimeInputValue(d:Date):string{
+ const pad=(n:number)=>String(n).padStart(2,'0');
+ return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+function simulatedClock():Date{return new Date(simulationStartMs+spatialState.minute*60000);}
+function currentDemands():Record<PathKey,number>{
+ return demandMode==='clock'
+  ?demandAtClock(trafficDemands,simulatedClock())
+  :demandAtMinute(trafficDemands,spatialState.minute,demandMode);
+}
 let trafficTimer:ReturnType<typeof setInterval>|null=null;
 const trafficRouteLabel=(key:string)=>ramps.find(r=>r.id===key)?.name??(names[key as keyof typeof names]??key);
 const trafficNumber=(n:number,digits=0)=>n.toLocaleString('de-DE',{maximumFractionDigits:digits,minimumFractionDigits:digits});
-const trafficColorName:Record<TrafficColor,string>={free:'Frei',slow:'Stockend',jam:'Stau / Stop-and-Go',standstill:'Stillstand / gesperrt'};
+const trafficColorName:Record<TrafficColor,string>={free:'Frei',slow:'Stockend',jam:'Stau / Stop-and-Go',standstill:'Stillstand / extrem langsam (≤ 10 km/h)'};
 function renderTraffic(){
  const selector=$<HTMLSelectElement>('traffic-route');const key=selector.value as PathKey;
  if(!PATHS.includes(key))return;
@@ -201,18 +212,20 @@ function renderTraffic(){
  const result=routeReport(key,jams,spillbacks,events);
  const bn=pathBottleneck(key,events);
  $('traffic-minute').textContent=`Minute ${spatialState.minute}`;
- const activeDemands=demandAtMinute(trafficDemands,spatialState.minute,demandMode);
+ $('traffic-clock').textContent=simulatedClock().toLocaleString('de-DE',{weekday:'short',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})+' Uhr (Simulationszeit)';
+ const activeDemands=currentDemands();
  $('traffic-demand').textContent=trafficNumber(activeDemands[key]);
- $('traffic-demand-hint').textContent=demandMode==='wave'
-  ?'Modellannahme: Die Stoßzeit klingt ab. Der tatsächliche Zufluss sinkt über ca. 100 Modellminuten; die Eingabe ist der Anfangszufluss.'
-  :'Konstanter Zufluss. Bei mehr Ankünften als Engpasskapazität wächst die Warteschlange weiter.';
+ $('traffic-demand-hint').textContent=demandMode==='clock'
+  ?'Automatisches Tagesprofil: Nacht, Morgen- und Abendspitze sowie Werktag/Samstag/Sonntag. Der eingegebene Zufluss ist ein Spitzenstunden-Referenzwert, kein Messwert. Feiertage und Ferien sind noch nicht berücksichtigt.'
+  :demandMode==='wave'?'Testmodus: Abklingende Stoßzeit ab Simulationsstart; der Zufluss sinkt über ca. 100 Minuten.'
+  :'Testmodus: Konstanter Zufluss unabhängig von Datum und Uhrzeit.';
  $('traffic-capacity').textContent=trafficNumber(result.capacityVph);
  $('traffic-outflow').textContent=trafficNumber(Math.min(result.capacityVph,activeDemands[key]+result.ownVehicles*60));
  $('traffic-queue').textContent=trafficNumber(result.queueVehicles);
  $('traffic-shared').textContent=result.sharedRampVehicles>0?`Davon ${trafficNumber(result.sharedRampVehicles)} bereits in einer Rampenwarteschlange gezählte Fahrzeuge · Wartezeit für Abbieger: ${result.exitDelayMin===null?'nicht berechenbar':trafficNumber(result.exitDelayMin,1)+' min'} (nicht zur Durchfahrt addiert)`:'Keine Rampenfahrzeuge auf diesem Abschnitt';
  $('traffic-queue-km').textContent=`${trafficNumber(result.queueKm,2)} km`;
  $('traffic-delay').textContent=result.delayMin===null?'Bei Stillstand nicht berechenbar':`${trafficNumber(result.delayMin,1)} min${result.sharedRampVehicles>0?' (Durchgangsverkehr)':''}`;
- $('traffic-speed').textContent=result.ownVehicles>0?'variiert (eigener Rückstau)':result.sharedRampVehicles>0?'Abfahrt betroffen; keine eigene Warteschlange':`${bn.speedKmh} km/h`;
+ $('traffic-speed').textContent=result.ownVehicles>0?`ca. ${trafficNumber(Math.min(...jams.filter(j=>j.pathKey===key).map(j=>j.speedKmh)),1)} km/h (Rückstau-Modell)` :result.sharedRampVehicles>0?'Abfahrt betroffen; keine eigene Warteschlange':`${bn.speedKmh} km/h`;
  $('traffic-events').textContent=bn.count===0?'Kein eigenes Ereignis auf dieser Richtung – mögliche Rückstauübertragung am AD wird berücksichtigt':
   `${bn.count} eigene(s) Ereignis(se) auf dieser Richtung`;
  const stateLabel=$('traffic-state');stateLabel.textContent=trafficColorName[result.color];stateLabel.className=`traffic-state ${result.color}`;
@@ -257,7 +270,7 @@ function stopTraffic(){if(trafficTimer!==null){clearInterval(trafficTimer);traff
 function stepTraffic(minutes:number){
  try{
   for(let i=0;i<minutes;i++){
-   const active=demandAtMinute(trafficDemands,spatialState.minute,demandMode);
+   const active=currentDemands();
    spatialState=advanceSpatial(spatialState,events,active,1,spatialCorridors,rampConnections);
   }
   renderTraffic();
@@ -272,9 +285,25 @@ function initializeTraffic(){
  const pattern=$<HTMLSelectElement>('traffic-demand-mode');
  pattern.value=demandMode;
  pattern.addEventListener('change',()=>{
-  demandMode=pattern.value==='constant'?'constant':'wave';
+  demandMode=pattern.value==='constant'?'constant':pattern.value==='wave'?'wave':'clock';
   renderTraffic();
  });
+ const startInput=$<HTMLInputElement>('traffic-start-datetime');
+ startInput.value=dateTimeInputValue(new Date(simulationStartMs));
+ startInput.addEventListener('change',()=>{
+  const next=new Date(startInput.value);
+  if(!Number.isFinite(next.getTime())||dateTimeInputValue(next)!==startInput.value){
+   $('traffic-issue').textContent='Ungültiges Datum oder ungültige Uhrzeit.';
+   startInput.value=dateTimeInputValue(new Date(simulationStartMs));return;
+  }
+  stopTraffic();simulationStartMs=next.getTime();spatialState=emptySpatial();
+  $('traffic-issue').textContent='';renderTraffic();
+ });
+ $('traffic-now').onclick=()=>{
+  stopTraffic();simulationStartMs=Math.floor(Date.now()/60000)*60000;spatialState=emptySpatial();
+  startInput.value=dateTimeInputValue(new Date(simulationStartMs));
+  $('traffic-issue').textContent='';renderTraffic();
+ };
  const input=$<HTMLInputElement>('traffic-inflow');
  input.addEventListener('change',()=>{
   const val=Number(input.value),key=select.value as PathKey;

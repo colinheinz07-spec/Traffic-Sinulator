@@ -127,6 +127,50 @@ export function advanceTraffic(state, events, demands, minutes) {
     return { minute: state.minute + minutes, vehiclesWaiting: waiting };
 }
 export function defaultDemands() { return { ...demandDefaults }; }
+const WEEKDAY_PROFILE = [
+    [0, .14], [4, .09], [5, .20], [6, .52], [7, .86], [8, 1], [9, .79], [10, .66],
+    [12, .68], [14, .72], [15, .82], [16, 1], [17, 1.05], [18, .82], [19, .58],
+    [21, .32], [23, .19], [24, .14]
+];
+const SATURDAY_PROFILE = [
+    [0, .23], [3, .15], [6, .14], [8, .28], [10, .54], [12, .78], [15, .85],
+    [17, .76], [20, .61], [23, .33], [24, .23]
+];
+const SUNDAY_PROFILE = [
+    [0, .22], [4, .13], [8, .18], [10, .40], [12, .63], [15, .79], [17, .92],
+    [19, .76], [21, .46], [23, .26], [24, .22]
+];
+function interpolateHourly(points, hour) {
+    for (let i = 1; i < points.length; i++) {
+        const [end, value] = points[i], [start, previous] = points[i - 1];
+        if (hour <= end)
+            return previous + (value - previous) * (hour - start) / (end - start);
+    }
+    return points.at(-1)[1];
+}
+/** Synthetic local-clock demand: reference volumes are peak-hour inputs, NOT
+ * measured traffic counts. Public holidays and school holidays not modelled.
+ * Date uses local device time, including DST at a real elapsed-minute rollover.
+ */
+export function demandAtClock(base, moment) {
+    if (!Number.isFinite(moment.getTime()))
+        throw Error('Ungültiges Simulationsdatum');
+    const weekday = moment.getDay(), hour = moment.getHours() + moment.getMinutes() / 60;
+    const profile = weekday === 0 ? SUNDAY_PROFILE : weekday === 6 ? SATURDAY_PROFILE : WEEKDAY_PROFILE;
+    const factor = interpolateHourly(profile, hour);
+    return Object.fromEntries(PATHS.map(key => {
+        let direction = 1;
+        if (weekday !== 0 && weekday !== 6) {
+            const morning = Math.max(0, 1 - Math.abs(hour - 7.75) / 2.5);
+            const evening = Math.max(0, 1 - Math.abs(hour - 16.75) / 2.5);
+            if (key === 'A3-frankfurt' || key === 'A48-dernbach' || key === 'ramp-a48-to-frankfurt')
+                direction += .09 * morning;
+            if (key === 'A3-koeln' || key === 'A48-koblenz' || key === 'ramp-a48-to-koeln')
+                direction += .09 * evening;
+        }
+        return [key, Math.max(0, Math.min(8000, Math.round(base[key] * factor * direction)))];
+    }));
+}
 /** Synthetic ending of a traffic peak. No measured traffic; no arbitrary delay cap. */
 export function demandScale(minute, mode) {
     if (!Number.isFinite(minute) || minute < 0)

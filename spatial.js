@@ -164,13 +164,17 @@ export function jamsAt(state, events, corridors) {
         // Illustrative storage: 95 queued vehicles per kilometre of approach lane.
         const queueM = q.vehicles / (95 * lanes) * 1000, visibleQueueM = Math.min(queueM, anchor);
         const wait = capacity === 0 ? null : q.vehicles / capacity * 60;
-        const color = capacity === 0 ? 'standstill' : queueM >= 750 || (wait !== null && wait >= 5) ? 'jam' : 'slow';
+        // v=q/k: illustrative effective speed inside the dense queue, NOT GPS speed.
+        // Even when a lane passes vehicles, a <=10 km/h crawl is dark red.
+        const speedKmh = capacity === 0 ? 0 : Math.min(q.pathKey.startsWith('ramp-') ? 80 : 120, capacity / (95 * lanes));
+        const color = capacity === 0 || (queueM >= 150 && speedKmh <= 10) ? 'standstill'
+            : queueM >= 750 || (wait !== null && wait >= 5) ? 'jam' : 'slow';
         result.push({ id, pathKey: q.pathKey, eventKind: e?.kind ?? null, point: q.point, anchorM: anchor,
-            queueVehicles: q.vehicles, queueM, visibleQueueM, delayMin: wait, capacityVph: capacity, color, released: !e && !q.active, outOfBoundsM: Math.max(0, queueM - anchor) });
+            queueVehicles: q.vehicles, queueM, visibleQueueM, delayMin: wait, capacityVph: capacity, speedKmh, color, released: !e && !q.active, outOfBoundsM: Math.max(0, queueM - anchor) });
     }
     return result.sort((a, b) => a.pathKey.localeCompare(b.pathKey) || a.anchorM - b.anchorM);
 }
-/** Green is the uninterrupted base, orange is tail, red is stop/go, dark red is stopped at closure. */
+/** Dark red marks either a full stop or very slow discharge (<=10 km/h). */
 export function jamBands(jam) {
     const start = Math.max(0, jam.anchorM - jam.queueM), end = jam.anchorM, length = end - start;
     if (length < .5)

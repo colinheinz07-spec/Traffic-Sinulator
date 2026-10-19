@@ -158,3 +158,12 @@ bestimmten Staudauer. Karte und AD-Dernbach-Verbindungen sind unverändert.
 Standardmodus **Abklingende Stoßzeit**: Der eingestellte Startzufluss nimmt ab Minute 10 während der folgenden 90 Modellminuten anhand einer synthetischen Stoßzeitkurve von 100 % auf ca. 23 % ab. Dies ist **eine Szenarioannahme, keine reale Verkehrszählung**. Für jede Modellminute wird die neue ankommende Fahrzeugmenge verwendet. Stau kann wachsen, sich stabilisieren und wieder abnehmen, wenn der Zufluss unter die Engpasskapazität fällt.
 
 Mit **Konstanter Zufluss (Dauertest)** kann eine dauerhaft überlastete Baustelle getestet werden. In diesem Fall ist weiterer Stau- und Verzögerungsaufbau physikalisch möglich. Es gibt absichtlich keine willkürliche feste Verzögerungsobergrenze. Keine Änderung der A3-/A48-OSM-Karte oder der Ereignisspeicherung.
+
+
+## Version 1.4.0 – Datum, Uhrzeit und sehr langsamer Verkehr
+
+- Startdatum und lokale Geräteuhrzeit können eingestellt werden. Das laufende Simulationsdatum ergibt sich aus Startzeit plus Modellminuten, auch über Mitternacht hinweg. Ein geänderter Startzeitpunkt setzt bestehende Rückstaus zurück, ein normaler Reset springt zur Startzeit zurück.
+- Standardmodus: **synthetisches Verkehrsprofil nach Werktag, Samstag, Sonntag und Tageszeit** mit Morgen- und Abendspitzen sowie geringem Nachtverkehr. Der Spitzenstunden-Referenzwert kann für jeden Fahrweg eingestellt werden; leichte Richtungsfaktoren sind berücksichtigt. Keine realen Zähldaten, kein Feiertags-/Ferienmodell und keine Kalibrierung.
+- Alte Modi **abklingende Stoßzeit** und **konstanter Zufluss** bleiben für Belastungstests erhalten.
+- **Dunkelrot** bedeutet Stillstand **oder** modellierte Geschwindigkeit bis 10 km/h im Rückstau. Die Näherung verwendet Abflusskapazität geteilt durch die angenommene dichte Rückstaubelegung (95 Fahrzeuge je Kilometer und Fahrstreifen); keine gemessene Geschwindigkeit. Orange markiert Rückstauanfänge, Rot Stop-and-Go, Grün freie Abschnitte.
+- Keine Änderung der OSM-Geometrie, gespeicherter Ereignisse oder A3/A48-Rampenverknüpfungen.
