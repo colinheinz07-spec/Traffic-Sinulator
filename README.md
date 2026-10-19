@@ -1,4 +1,4 @@
-# A3/A48 Stausimulator – Kartenbedienung 0.6
+# A3/A48 Stausimulator – Stausimulation 1.0 (Punkt 4b)
 
 **Ein Repository, eine Startdatei:** `index.html` im Hauptverzeichnis direkt in SPCK öffnen. Keine Cloudflare-Konfiguration und keine externe Kartenbibliothek.
 
@@ -87,3 +87,14 @@ Die Geometrie- und Fahrstreifendaten wurden nicht umgebaut; nur ihre Auswahl/Anz
 - Vereinfachte geschätzte Rückstaulänge und Verzögerung; bei 0 Durchfluss wird keine künstlich endliche Wartezeit angezeigt. Vollsperrung bleibt vom Unfall mit allen Fahrspuren gesperrt unterschieden.
 - **Noch nicht umgesetzt:** reale Zuflussdaten, verteilte Stauabschnitte auf tatsächlichen Geokoordinaten, Rückstauübertragung A3↔A48, automatische Abfahrten/Umleitungen, bereits innerhalb einer Vollsperrung befindliche Fahrzeuge, Kartenfärbung nach Simulationsabschnitten und dauerhafte Speicherung des Simulationszustands.
 - Anfangszuflüsse und Kapazitäten sind bewusst **Simulationsannahmen**, keine amtlich bestätigten Durchschnittswerte. Keine echten Verkehrsmeldungen.
+
+
+## Punkt 4b – geografische Staus auf A3, A48 und AD-Rampen (1.0)
+
+- `src/spatial.ts`: Acht **kontinuierlich verknüpfte OSM-Fahrbahnkurven**, nach tatsächlicher Fahrtrichtung geordnet. Es werden keine Phantomstraßen, Ortsstraßen oder künstlichen Rampen erzeugt.
+- Ausgewählte Ereignisse werden entlang des **richtigen Fahrwegschlüssels** auf die Geometrie projiziert. Der Rückstau wächst von der Eingriffsstelle **gegen die Fahrtrichtung**, nicht auf der anderen Richtungsfahrbahn.
+- Die Simulationsschritte führen **für jedes Ereignis eine eigene Warteschlange** und leiten den jeweiligen Ausfluss zum nächsten Engpass desselben Fahrwegs weiter. Jede Staustelle kann separat mit einer beispielhaften Länge und rechnerischem Zeitverlust erscheinen.
+- Kartenfarben **Grün frei / Orange stockend / Rot Stop-and-Go / Dunkelrot Stillstand**. Die eingefärbten Teilstrecken stammen aus den tatsächlichen OSM-Streckenpunkten. Nummerierte Rampenauswahl und Ereignismarker bleiben bedienbar.
+- Nach Entfernen eines Engpasses wird der aufgelaufene Verkehr **nicht augenblicklich gelöscht**, sondern mit der normalen Kapazität abgebaut. Zurücksetzen setzt beide Verkehrsmodelle zurück.
+- **Beschränkungen dieses Modellschritts:** Der Bereich „Alle acht Fahrwege“ benutzt weiterhin die aggregierte Engpassrechnung aus 0.9; die Einzelstaus verwenden das separate positionsbezogene Modell. Keine Stau-Rückwirkung zwischen zwei benachbarten Engpässen (Spillback), keine realen Reisezeiten zwischen Engpässen, keine automatische A3/A48-Übertragung, keine Umleitungslogik, keine fahrzeuggenaue Darstellung. Rückstau, der vor dem Rand der vorhandenen Strecke läge, wird nicht auf fiktive Straßen verlängert.
+- Die Verkehrswerte sind **Annahmen für einen Simulator**, keine gemessenen Verkehrsströme oder belastbaren Vorhersagen. Die Geodaten und Fahrstreifenprofile bleiben unverändert.

@@ -1,4 +1,4 @@
-name: Karte prüfen
+name: Karte und Stausimulation prüfen
 on:
   push:
     branches: [main, 'feature/**']
@@ -14,29 +14,15 @@ jobs:
           node-version: '22'
       - run: npm install --no-audit --no-fund
       - run: npm run check
-      - name: Verify that motorway gaps cannot be filled by invented links
+      - name: Verify OSM motorway geometry is never fabricated
         run: python -m unittest discover -s scripts/tests -v
-      - run: git diff --exit-code -- app.js core.js geodata.js cartography.js lane-info.js lane-profiles.js selection.js events.js traffic.js
-
-      - name: Export verified SPCK preview for browser testing
+      - run: git diff --exit-code -- app.js core.js geodata.js cartography.js lane-info.js lane-profiles.js selection.js events.js traffic.js spatial.js
+      - name: Export SPCK preview
         uses: actions/upload-artifact@v4
         with:
-          name: a3-a48-karte-limburg-preview
+          name: traffic-sinulator-1-0-preview
           path: |
             index.html
-            app.js
-            core.js
-            cartography.js
-            geodata.js
-            selection.js
-            events.js
-            traffic.js
-            lane-info.js
-            lane-profiles.js
+            '*.js'
             README.md
-            package.json
-            tsconfig.json
-            src/
-            tests/
-            scripts/
           retention-days: 3
