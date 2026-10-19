@@ -127,7 +127,6 @@ export function advanceTraffic(state, events, demands, minutes) {
     return { minute: state.minute + minutes, vehiclesWaiting: waiting };
 }
 export function defaultDemands() { return { ...demandDefaults }; }
-
 /** Synthetic ending of a traffic peak. No measured traffic; no arbitrary delay cap. */
 export function demandScale(minute, mode) {
     if (!Number.isFinite(minute) || minute < 0)
