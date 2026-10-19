@@ -127,3 +127,16 @@ export function advanceTraffic(state, events, demands, minutes) {
     return { minute: state.minute + minutes, vehiclesWaiting: waiting };
 }
 export function defaultDemands() { return { ...demandDefaults }; }
+/** Synthetic ending of a traffic peak. No measured traffic; no arbitrary delay cap. */
+export function demandScale(minute, mode) {
+    if (!Number.isFinite(minute) || minute < 0)
+        throw Error('Ungültige Modellzeit');
+    if (mode === 'constant')
+        return 1;
+    const t = Math.max(0, Math.min(1, (minute - 10) / 90));
+    return 1 - .77 * t * t * (3 - 2 * t);
+}
+export function demandAtMinute(base, minute, mode) {
+    const factor = demandScale(minute, mode);
+    return Object.fromEntries(PATHS.map(key => [key, Math.round(base[key] * factor)]));
+}

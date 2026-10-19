@@ -132,3 +132,16 @@ export function advanceTraffic(state:TrafficState,events:readonly SimEvent[],dem
  return {minute:state.minute+minutes,vehiclesWaiting:waiting};
 }
 export function defaultDemands():Record<PathKey,number>{return {...demandDefaults}}
+
+export type DemandMode='wave'|'constant';
+/** Synthetic ending of a traffic peak. No measured traffic; no arbitrary delay cap. */
+export function demandScale(minute:number,mode:DemandMode):number{
+ if(!Number.isFinite(minute)||minute<0)throw Error('Ungültige Modellzeit');
+ if(mode==='constant')return 1;
+ const t=Math.max(0,Math.min(1,(minute-10)/90));
+ return 1-.77*t*t*(3-2*t);
+}
+export function demandAtMinute(base:Readonly<Record<PathKey,number>>,minute:number,mode:DemandMode):Record<PathKey,number>{
+ const factor=demandScale(minute,mode);
+ return Object.fromEntries(PATHS.map(key=>[key,Math.round(base[key]*factor)])) as Record<PathKey,number>;
+}

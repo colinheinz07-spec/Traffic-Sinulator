@@ -1,4 +1,4 @@
-import { PATHS, pathBottleneck, defaultDemands } from './traffic.js';
+import { PATHS, pathBottleneck, defaultDemands, demandAtMinute } from './traffic.js';
 import { networkData } from './geodata.js';
 import { routeReport } from './network-report.js';
 import { makeCorridors, routeSlice, advanceSpatial, emptySpatial, jamsAt, jamBands } from './spatial.js';
@@ -295,6 +295,7 @@ function removeExistingEvent() {
 // No fabricated traffic transfers between A3, A48, and AD Dernbach ramps.
 let spatialState = emptySpatial();
 const trafficDemands = defaultDemands();
+let demandMode = 'wave';
 let trafficTimer = null;
 const trafficRouteLabel = (key) => ramps.find(r => r.id === key)?.name ?? (names[key] ?? key);
 const trafficNumber = (n, digits = 0) => n.toLocaleString('de-DE', { maximumFractionDigits: digits, minimumFractionDigits: digits });
@@ -309,9 +310,13 @@ function renderTraffic() {
     const result = routeReport(key, jams, spillbacks, events);
     const bn = pathBottleneck(key, events);
     $('traffic-minute').textContent = `Minute ${spatialState.minute}`;
-    $('traffic-demand').textContent = trafficNumber(trafficDemands[key]);
+    const activeDemands = demandAtMinute(trafficDemands, spatialState.minute, demandMode);
+    $('traffic-demand').textContent = trafficNumber(activeDemands[key]);
+    $('traffic-demand-hint').textContent = demandMode === 'wave'
+        ? 'Modellannahme: Die Stoßzeit klingt ab. Der tatsächliche Zufluss sinkt über ca. 100 Modellminuten; die Eingabe ist der Anfangszufluss.'
+        : 'Konstanter Zufluss. Bei mehr Ankünften als Engpasskapazität wächst die Warteschlange weiter.';
     $('traffic-capacity').textContent = trafficNumber(result.capacityVph);
-    $('traffic-outflow').textContent = trafficNumber(Math.min(result.capacityVph, trafficDemands[key] + result.ownVehicles * 60));
+    $('traffic-outflow').textContent = trafficNumber(Math.min(result.capacityVph, activeDemands[key] + result.ownVehicles * 60));
     $('traffic-queue').textContent = trafficNumber(result.queueVehicles);
     $('traffic-shared').textContent = result.sharedRampVehicles > 0 ? `Davon ${trafficNumber(result.sharedRampVehicles)} bereits in einer Rampenwarteschlange gezählte Fahrzeuge` : 'Keine Rampenfahrzeuge auf diesem Abschnitt';
     $('traffic-queue-km').textContent = `${trafficNumber(result.queueKm, 2)} km`;
@@ -387,7 +392,10 @@ function stopTraffic() { if (trafficTimer !== null) {
 } $('traffic-play').textContent = '▶ Start'; }
 function stepTraffic(minutes) {
     try {
-        spatialState = advanceSpatial(spatialState, events, trafficDemands, minutes, spatialCorridors, rampConnections);
+        for (let i = 0; i < minutes; i++) {
+            const active = demandAtMinute(trafficDemands, spatialState.minute, demandMode);
+            spatialState = advanceSpatial(spatialState, events, active, 1, spatialCorridors, rampConnections);
+        }
         renderTraffic();
     }
     catch (e) {
@@ -407,6 +415,12 @@ function initializeTraffic() {
     select.value = 'A3-koeln';
     selectTrafficRoute(select.value);
     select.addEventListener('change', () => selectTrafficRoute(select.value));
+    const pattern = $('traffic-demand-mode');
+    pattern.value = demandMode;
+    pattern.addEventListener('change', () => {
+        demandMode = pattern.value === 'constant' ? 'constant' : 'wave';
+        renderTraffic();
+    });
     const input = $('traffic-inflow');
     input.addEventListener('change', () => {
         const val = Number(input.value), key = select.value;
