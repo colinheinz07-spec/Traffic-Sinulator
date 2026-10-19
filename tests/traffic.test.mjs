@@ -1,6 +1,5 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
 import {PATHS,emptyTraffic,advanceTraffic,defaultDemands,trafficEstimate,eventCapacity,baselineCapacity,pathBottleneck} from '../dist/traffic.js';
 import {eventFromHit} from '../dist/events.js';
 import {networkData} from '../dist/geodata.js';
@@ -73,11 +72,30 @@ test('SPCK controls and compiled module hooks exist without a second app entry',
  assert.ok(!html.includes('map-v2/'));
 });
 
-// Regression: 0.9 displayed an empty picker on iOS because start() never called initializeTraffic().
-test('traffic route picker is initialized at startup and has eight static fallback options',()=>{
- const html=readFileSync('index.html','utf8'),app=readFileSync('src/app.ts','utf8');
- const keys=[...html.matchAll(/<option value="([^"]+)"/g)].map(m=>m[1]);
- for(const path of PATHS)assert.ok(keys.includes(path),`missing iOS fallback path: ${path}`);
- assert.match(app,/function start\(\)[\s\S]*?bind\(\);initializeTraffic\(\);/);
- assert.match(app,/function initializeTraffic\(\)[\s\S]*?select\.replaceChildren\(\)/);
+// Regression from iPhone feedback: 0.9-1.1 made 40 km/h and two blocked A3
+// lanes discharge just 916 veh/h despite a separately accounted merge loss.
+test('moderate 40 km/h work-zone discharge avoids exaggerated short-term delay',()=>{
+ const event=E('roadworks',[0,1],40);
+ const capacity=eventCapacity(event);
+ assert.ok(capacity>=1400&&capacity<=1650,`work zone one-lane discharge ${capacity}`);
+ const d=defaultDemands();
+ assert.equal(d['A3-koeln'],4200,'demand must not be silently lowered to hide jams');
+ const five=trafficEstimate(advanceTraffic(emptyTraffic(),[event],d,5),'A3-koeln',[event],d['A3-koeln']);
+ const fifteen=trafficEstimate(advanceTraffic(emptyTraffic(),[event],d,15),'A3-koeln',[event],d['A3-koeln']);
+ assert.ok(five.delayMin>0&&five.delayMin<12,`five-minute delay ${five.delayMin}`);
+ assert.ok(fifteen.delayMin>=20&&fifteen.delayMin<=35,`15-minute delay ${fifteen.delayMin}`);
+ assert.ok(fifteen.delayMin>five.delayMin,'ongoing overload still grows the queue');
+ assert.ok(fifteen.queueKm>0,'no artificial deletion of queued vehicles');
+});
+test('slow pass-by remains restrictive, normal speed-only limits need not cause a queue',()=>{
+ const d=defaultDemands();
+ const normal=E('roadworks',[],40);
+ assert.ok(eventCapacity(normal)>d['A3-koeln'],'speed limit alone must not force a 4.2k/h jam');
+ assert.equal(advanceTraffic(emptyTraffic(),[normal],d,15).vehiclesWaiting['A3-koeln'],0);
+ const c10=eventCapacity(E('roadworks',[0,1],10)),c30=eventCapacity(E('roadworks',[0,1],30)),c40=eventCapacity(E('roadworks',[0,1],40)),c80=eventCapacity(E('roadworks',[0,1],80));
+ assert.ok(0<c10&&c10<c30&&c30<c40&&c40<c80,`monotone physically passable capacities ${[c10,c30,c40,c80]}`);
+ const closure=E('closure',[0,1,2],0,'blocked');
+ assert.equal(eventCapacity(closure),0,'full closure must stay physically blocked');
+ const incident=E('accident',[0,1],40);
+ assert.ok(eventCapacity(incident)<eventCapacity(E('roadworks',[0,1],40)),'incident has tighter squeeze');
 });

@@ -108,3 +108,22 @@ Die Geometrie- und Fahrstreifendaten wurden nicht umgebaut; nur ihre Auswahl/Anz
 - Die überlaufenden Fahrzeuge werden rechnerisch **nicht zusätzlich erzeugt**. Die Hauptfahrbahn-Überlagerung zeigt einen Teil der bereits in der Rampenwarteschlange gezählten Fahrzeuge.
 - Noch **kein vollständiger Verkehrsaufteilungs- und Merge-Solver**: Die frei einstellbaren Rampenzuflüsse werden weiterhin unabhängig von den Hauptfahrbahnzuflüssen vorgegeben. Hauptfahrbahn-Nettokapazität, offizielle Umleitungen und die echte Verzweigungsbilanz sind Folgeschritte. Die übernommene Modell-Lagermenge (95 Fzg/km auf einer ausfädelnden Fahrspur) ist eine vereinfachende Annahme, keine Verkehrsprognose.
 - Der +5-min-Testknopf bleibt vorerst bestehen; ein späterer Schritt ersetzt ihn durch automatische Zeitschaltung. Keine Fahrzeugvisualisierung.
+
+
+## Punkt 4c – Engpass-Kapazität kalibrieren (1.1.1)
+
+Bei einer dreistreifigen A3 mit zwei gesperrten Spuren, 40 km/h und 4.200 Fzg/h
+war die vorläufige Kapazität nur 916 Fzg/h. Nach 15 Modellminuten wurden
+2,88 km Rückstau und ungefähr 54 Minuten Zeitverlust angezeigt. Ursache war,
+dass die Geschwindigkeit den Durchfluss zu stark reduzierte und danach
+zusätzlich ein kräftiger Einfädelungsabschlag angewandt wurde.
+
+Das überarbeitete *Szenariomodell* verwendet bei 40 km/h eine moderatere
+Kapazitätsminderung, darunter (10–30 km/h) eine stärkere Drosselung.
+Fahrstreifensperrungen und Einfädelungen bleiben relevant. Bei einer vollständigen
+Blockade bleibt die Kapazität null, der Zeitverlust ist dann nicht seriös als
+endliche Zahl berechenbar. Ankunftszahlen (Fzg/h) wurden **nicht** gesenkt,
+damit kein Stau verdeckt wird. Die Schätzung wird **nicht** anhand realer Messwerte
+kalibriert; bei anhaltendem Zufluss über Kapazität kann die Verzögerung weiter
+wachsen. Das ist kein künstlicher Maximalwert und kein Versprechen einer
+bestimmten Staudauer. Karte und AD-Dernbach-Verbindungen sind unverändert.
