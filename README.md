@@ -143,3 +143,11 @@ bestimmten Staudauer. Karte und AD-Dernbach-Verbindungen sind unverändert.
   Fahrzeugmengen oder Verzögerungen addiert. Keine falschen Doppelzählungen.
 - Tests: sämtliche vier OSM-Rampen, Gegenrichtung bleibt unberührt, kein
   Rückstau bei Engpass vor der Einmündung, Freigabe wirkt ohne Restblockade.
+
+## Version 1.3 – Numerische Rückstaus an A3/A48 und spurabhängige Durchlassfähigkeit
+
+- Vollsperrungen auf einer Zielautobahn können nach Erreichen des AD-Merge-Knotens echte Rampen-Warteschlangen erzeugen; diese können wiederum numerisch auf der Quellautobahn Engpässe verursachen. Die färbende Karte und die Routen-Kennzahlen nutzen denselben räumlichen Zustand.
+- Auf Quellautobahnen physisch stehende Rampenfahrzeuge werden als **geteilte Belegung** und nicht als zusätzliche erzeugte Fahrzeuge ausgewiesen. Routen-Fahrzeuganzeigen dürfen deshalb nicht über alle Wege summiert werden.
+- Drei Fahrstreifen werden für die Simulation standardmäßig mit 45 % rechts, 34 % Mitte, 21 % links gewichtet; dies sind illustrative Annahmen und keine Verkehrszählungen. Die Wahl der gesperrten Fahrspur ändert den simulierten Spurwechselverlust.
+- Vollsperrungen haben weiterhin keinen Durchfluss. Kein erfundener endlicher Zeitverlust bei vollständigem Stillstand. Ereignisse, OSM-Originalgeometrie und Gegenfahrbahnen bleiben unangetastet.
+- Noch kein vollständig gekoppeltes, kalibriertes Verkehrs-OD-Routing: Die Zuflüsse je Fahrweg sind weiterhin unabhängige Simulations-Eingabewerte. Die dynamischen Bremswellen sind für einen späteren Ausbauschritt geplant.

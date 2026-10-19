@@ -45,6 +45,21 @@ export function baselineCapacity(key:PathKey):number{
 export function emptyTraffic():TrafficState{
  return {minute:0,vehiclesWaiting:Object.fromEntries(PATHS.map(p=>[p,0])) as Record<PathKey,number>};
 }
+/** Illustrative per-lane demand shares (right -> left), NOT observed counts.
+ * Right typically carries more HGVs and merging demand; closure of that lane
+ * therefore disrupts the stream differently from closing the left lane.
+ */
+export function laneDemandShares(n:number):number[]{
+ if(n<=1)return [1];
+ if(n===2)return [.58,.42];
+ if(n===3)return [.45,.34,.21];
+ const weights=Array.from({length:n},(_,i)=>i===0?1.45:i===n-1?.75:1);
+ const total=weights.reduce((a,b)=>a+b,0);return weights.map(w=>w/total);
+}
+export function closedDemandShare(e:SimEvent):number{
+ const shares=laneDemandShares(e.laneCount);
+ return e.closedLanes.reduce((sum,lane)=>sum+(shares[lane]??0),0);
+}
 export function eventCapacity(e:SimEvent):number{
  const policy=flowPolicy(e);
  if(!policy.canEnter)return 0;
@@ -63,7 +78,10 @@ export function eventCapacity(e:SimEvent):number{
  const speedFactor=policy.speedKmh<40
   ?speedAt40*(.45+.55*policy.speedKmh/40)
   :.86+.14*speedRatio;
- const mergeFactor=e.closedLanes.length===0?1:e.kind==='roadworks'?.92:.87;
+ // A blocked right lane requires more HGV/merging flow to change lane than a
+ // blocked left lane. Only a *moderate* extra bottleneck penalty is applied.
+ const baseMerge=e.closedLanes.length===0?1:e.kind==='roadworks'?.92:.87;
+ const mergeFactor=baseMerge*(1-(e.closedLanes.length? .07*closedDemandShare(e):0));
  return Math.max(0,Math.round(laneCapacity*speedFactor*mergeFactor));
 }
 export function pathBottleneck(key:PathKey,events:readonly SimEvent[]):{

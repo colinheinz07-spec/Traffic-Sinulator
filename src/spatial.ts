@@ -71,10 +71,9 @@ export function advanceSpatial(prev:SpatialState,events:readonly SimEvent[],dema
  if(!Number.isInteger(minutes)||minutes<1||minutes>60)throw Error('Ungültiger Simulations-Zeitschritt');
  const current:Record<string,QueuedAt>={};
  for(const [id,q] of Object.entries(prev.queues))if(q.vehicles>1e-6)current[id]={...q};
- // Every one-minute step derives junction supply from the ACTUAL stored queues.
- // No display-only projection is allowed to create or delete vehicles.
+ // Each minute calculates junction supply from the ACTUAL queued vehicles.
  for(let tick=0;tick<minutes;tick++){
-  const existing=jamsAt({minute:prev.minute+tick,queues:current},events,corridors);
+  const existing=links.length?jamsAt({minute:prev.minute+tick,queues:current},events,corridors):[];
   for(const key of PATHS){
   const volume=demands[key];if(!Number.isFinite(volume)||volume<0||volume>8000)throw Error('Ungültiger Zufluss');
   const route=corridors[key];
@@ -83,8 +82,8 @@ export function advanceSpatial(prev:SpatialState,events:readonly SimEvent[],dema
    const place=positionM(route,e.point);if(place===null)continue;
    nodes.push({id:e.id,event:e,place,point:e.point});
   }
-  // DOWNSTREAM: a queue occupying a verified merge reduces its ramp supply.
-  // Vehicles arriving on that ramp now accumulate in an actual numerical queue.
+  // If a downstream jam reaches a REAL motorway merge, incoming ramp traffic
+  // becomes a queue at that ramp. It is no longer an uncounted red overlay.
   for(const link of links)if(link.rampId===key){
    const blocked=existing.filter(j=>j.pathKey===link.to&&j.anchorM>link.downstreamMergeM+.1
     &&j.anchorM-j.queueM<link.downstreamMergeM-.1);
@@ -95,14 +94,13 @@ export function advanceSpatial(prev:SpatialState,events:readonly SimEvent[],dema
      point:route.points.at(-1)!,limitVph:cap});
    }
   }
-  // UPSTREAM: a ramp queue that physically fills its approach can obstruct the
-  // feeder exit area. Unlike the earlier colored overlay, this adds a distinct
-  // mainline queue of MAINLINE vehicles (not copies of the ramp's vehicles).
+  // A ramp queue can obstruct its feeder mainline's exit area. This builds a
+  // queue of *mainline* cars, distinct from the cars already queued on the ramp.
   for(const link of links)if(link.from===key){
    const rampJams=existing.filter(j=>j.pathKey===link.rampId&&j.outOfBoundsM>1);
    if(!rampJams.length)continue;
    const overflow=Math.max(...rampJams.map(j=>j.outOfBoundsM));
-   const fraction=overflow>=1000?.56:.78;
+   const fraction=overflow>=1000?.56:.78; // explicit scenario assumptions
    nodes.push({id:'spill:'+link.rampId,event:null,place:link.rampEntryM,
     point:corridors[link.rampId].points[0]!,limitVph:Math.round(baselineCapacity(key)*fraction)});
   }

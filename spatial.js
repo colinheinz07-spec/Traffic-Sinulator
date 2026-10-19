@@ -78,14 +78,16 @@ export function routeSlice(route, fromM, toM) {
     return points;
 }
 export function emptySpatial() { return { minute: 0, queues: {} }; }
-export function advanceSpatial(prev, events, demands, minutes, corridors) {
+export function advanceSpatial(prev, events, demands, minutes, corridors, links = []) {
     if (!Number.isInteger(minutes) || minutes < 1 || minutes > 60)
         throw Error('Ungültiger Simulations-Zeitschritt');
     const current = {};
     for (const [id, q] of Object.entries(prev.queues))
         if (q.vehicles > 1e-6)
             current[id] = { ...q };
-    for (let tick = 0; tick < minutes; tick++)
+    // Each minute calculates junction supply from the ACTUAL queued vehicles.
+    for (let tick = 0; tick < minutes; tick++) {
+        const existing = links.length ? jamsAt({ minute: prev.minute + tick, queues: current }, events, corridors) : [];
         for (const key of PATHS) {
             const volume = demands[key];
             if (!Number.isFinite(volume) || volume < 0 || volume > 8000)
@@ -99,6 +101,31 @@ export function advanceSpatial(prev, events, demands, minutes, corridors) {
                         continue;
                     nodes.push({ id: e.id, event: e, place, point: e.point });
                 }
+            // If a downstream jam reaches a REAL motorway merge, incoming ramp traffic
+            // becomes a queue at that ramp. It is no longer an uncounted red overlay.
+            for (const link of links)
+                if (link.rampId === key) {
+                    const blocked = existing.filter(j => j.pathKey === link.to && j.anchorM > link.downstreamMergeM + .1
+                        && j.anchorM - j.queueM < link.downstreamMergeM - .1);
+                    if (blocked.length) {
+                        const stopped = blocked.some(j => j.color === 'standstill');
+                        const cap = stopped ? 0 : Math.round(baselineCapacity(key) * .28);
+                        nodes.push({ id: 'merge:' + key, event: null, place: Math.max(0, route.lengthM - .5),
+                            point: route.points.at(-1), limitVph: cap });
+                    }
+                }
+            // A ramp queue can obstruct its feeder mainline's exit area. This builds a
+            // queue of *mainline* cars, distinct from the cars already queued on the ramp.
+            for (const link of links)
+                if (link.from === key) {
+                    const rampJams = existing.filter(j => j.pathKey === link.rampId && j.outOfBoundsM > 1);
+                    if (!rampJams.length)
+                        continue;
+                    const overflow = Math.max(...rampJams.map(j => j.outOfBoundsM));
+                    const fraction = overflow >= 1000 ? .56 : .78; // explicit scenario assumptions
+                    nodes.push({ id: 'spill:' + link.rampId, event: null, place: link.rampEntryM,
+                        point: corridors[link.rampId].points[0], limitVph: Math.round(baselineCapacity(key) * fraction) });
+                }
             const active = new Set(nodes.map(n => n.id));
             for (const [id, q] of Object.entries(current))
                 if (q.pathKey === key && !active.has(id)) {
@@ -111,15 +138,16 @@ export function advanceSpatial(prev, events, demands, minutes, corridors) {
             let entering = Math.min(volume / 60, baselineCapacity(key) / 60);
             for (const node of nodes) {
                 const stored = current[node.id]?.vehicles ?? 0;
-                const cap = (node.event ? eventCapacity(node.event) : baselineCapacity(key)) / 60;
+                const cap = (node.limitVph ?? (node.event ? eventCapacity(node.event) : baselineCapacity(key))) / 60;
                 const available = stored + entering, passing = Math.min(available, cap), waiting = Math.max(0, available - passing);
                 if (waiting > 1e-6)
-                    current[node.id] = { pathKey: key, point: node.point, vehicles: waiting, lanes: node.event?.laneCount ?? current[node.id]?.lanes ?? (key.startsWith('ramp-') ? 1 : Math.round(baselineCapacity(key) / 1800)) };
+                    current[node.id] = { pathKey: key, point: node.point, vehicles: waiting, lanes: node.event?.laneCount ?? current[node.id]?.lanes ?? (key.startsWith('ramp-') ? 1 : Math.round(baselineCapacity(key) / 1800)), capacityVph: cap * 60, active: node.event !== null || node.limitVph !== undefined };
                 else
                     delete current[node.id];
                 entering = passing;
             }
         }
+    }
     return { minute: prev.minute + minutes, queues: current };
 }
 /** One individually measurable bottleneck queue per event (or residual queue after clearing). */
@@ -131,14 +159,14 @@ export function jamsAt(state, events, corridors) {
         const route = corridors[q.pathKey], anchor = positionM(route, q.point);
         if (anchor === null || q.vehicles < .01)
             continue;
-        const capacity = e ? eventCapacity(e) : baselineCapacity(q.pathKey);
+        const capacity = e ? eventCapacity(e) : (q.capacityVph ?? baselineCapacity(q.pathKey));
         const lanes = Math.max(1, q.lanes);
         // Illustrative storage: 95 queued vehicles per kilometre of approach lane.
         const queueM = q.vehicles / (95 * lanes) * 1000, visibleQueueM = Math.min(queueM, anchor);
         const wait = capacity === 0 ? null : q.vehicles / capacity * 60;
         const color = capacity === 0 ? 'standstill' : queueM >= 750 || (wait !== null && wait >= 5) ? 'jam' : 'slow';
         result.push({ id, pathKey: q.pathKey, eventKind: e?.kind ?? null, point: q.point, anchorM: anchor,
-            queueVehicles: q.vehicles, queueM, visibleQueueM, delayMin: wait, capacityVph: capacity, color, released: !e, outOfBoundsM: Math.max(0, queueM - anchor) });
+            queueVehicles: q.vehicles, queueM, visibleQueueM, delayMin: wait, capacityVph: capacity, color, released: !e && !q.active, outOfBoundsM: Math.max(0, queueM - anchor) });
     }
     return result.sort((a, b) => a.pathKey.localeCompare(b.pathKey) || a.anchorM - b.anchorM);
 }
