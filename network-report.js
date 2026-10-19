@@ -10,10 +10,15 @@ export function routeReport(key, jams, spillbacks, events) {
     const maxLength = Math.max(0, ...own.map(j => j.visibleQueueM), ...shared.map(s => s.lengthM));
     const bottleneck = pathBottleneck(key, events);
     const cap = Math.min(bottleneck.capacityVph, ...own.filter(j => !j.released).map(j => j.capacityVph));
-    const delays = [...own.map(j => j.delayMin), ...shared.map(s => s.delayMin)];
-    const delayMin = delays.some(d => d === null) ? null : Math.max(0, ...delays.filter((d) => d !== null));
+    // A blocked off-ramp must not lend its (possibly unbounded) wait to cars
+    // travelling straight ahead. Only queues owned by this roadway delay them.
+    // Queued ramp vehicles are still reported at their physical location.
+    const throughDelays = own.map(j => j.delayMin);
+    const exitDelays = shared.map(s => s.delayMin);
+    const delayMin = throughDelays.some(d => d === null) ? null : Math.max(0, ...throughDelays.filter((d) => d !== null));
+    const exitDelayMin = exitDelays.some(d => d === null) ? null : Math.max(0, ...exitDelays.filter((d) => d !== null));
     const color = [...own.map(j => j.color), ...shared.map(s => s.color)]
         .reduce((c, next) => rank[next] > rank[c] ? next : c, 'free');
     return { key, ownVehicles, sharedRampVehicles, queueVehicles, queueKm: maxLength / 1000,
-        delayMin, capacityVph: cap, color, countedQueueIds: own.map(j => j.id) };
+        delayMin, exitDelayMin, capacityVph: cap, color, countedQueueIds: own.map(j => j.id) };
 }
