@@ -29,7 +29,10 @@ test('A3 Frankfurt closure builds REAL queues on A48 ramp and A48 feeder, opposi
  assert.ok(ramp.ownVehicles>0,'the blocked merge creates a real ramp queue');
  assert.ok(feeder.queueVehicles>0,'feeder has actual or on-feeder vehicles, never zero on colored section');
  assert.ok(spills.some(s=>s.rampId===link.rampId&&s.source==='A48-dernbach'));
- assert.ok(feeder.delayMin===null||feeder.delayMin>0,'feeder delay must not read zero');
+ assert.equal(feeder.delayMin,0,'exit-bound ramp vehicles must not delay through traffic');
+ assert.equal(feeder.color,'free','exit-lane queue cannot label all A48 lanes as jammed');
+ assert.ok(['slow','jam','standstill'].includes(feeder.exitColor),'exit lane congestion remains visible');
+ assert.ok(!Object.keys(after.queues).some(id=>id.startsWith('spill:')),'no fake through-lane queue');
  assert.equal(opposite.queueVehicles,0,'opposite A48 direction unaffected');
  assert.ok(Object.keys(after.queues).some(id=>id==='merge:'+link.rampId));
  const ownerIds=new Set(jams.map(j=>j.id));assert.equal(ownerIds.size,jams.length);

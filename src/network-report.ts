@@ -18,7 +18,10 @@ export interface RouteReport {
   /** Independent waiting time for vehicles entering an overflowing ramp. */
   exitDelayMin:number|null;
   capacityVph:number;
+  /** Traffic on the actual through carriageway. */
   color:TrafficColor;
+  /** Independently affected exit lane (not all through lanes). */
+  exitColor:TrafficColor;
   countedQueueIds:string[];
 }
 const rank:Record<TrafficColor,number>={free:0,slow:1,jam:2,standstill:3};
@@ -39,8 +42,10 @@ export function routeReport(key:PathKey,jams:readonly Jam[],spillbacks:readonly 
   const exitDelays=shared.map(s=>s.delayMin);
   const delayMin=throughDelays.some(d=>d===null)?null:Math.max(0,...throughDelays.filter((d):d is number=>d!==null));
   const exitDelayMin=exitDelays.some(d=>d===null)?null:Math.max(0,...exitDelays.filter((d):d is number=>d!==null));
-  const color=[...own.map(j=>j.color),...shared.map(s=>s.color)]
+  const color=own.map(j=>j.color)
+   .reduce<TrafficColor>((c,next)=>rank[next]>rank[c]?next:c,'free');
+  const exitColor=shared.map(s=>s.color)
    .reduce<TrafficColor>((c,next)=>rank[next]>rank[c]?next:c,'free');
   return {key,ownVehicles,sharedRampVehicles,queueVehicles,queueKm:maxLength/1000,
-   delayMin,exitDelayMin,capacityVph:cap,color,countedQueueIds:own.map(j=>j.id)};
+   delayMin,exitDelayMin,capacityVph:cap,color,exitColor,countedQueueIds:own.map(j=>j.id)};
 }
