@@ -7,6 +7,7 @@ import type {Road,Ramp,Point} from './core.js';
 import type {SimEvent} from './events.js';
 import type {RampConnection} from './interchange.js';
 import {PATHS,baselineCapacity,eventCapacity,defaultDemand,type PathKey,type TrafficColor} from './traffic.js';
+import {colorAtSpeed,queueFundamentalDiagram} from './traffic-physics.js';
 
 export interface Corridor {key:PathKey;points:Point[];metres:number[];lengthM:number}
 export interface QueuedAt {pathKey:PathKey;point:Point;vehicles:number;lanes:number;capacityVph?:number;active?:boolean;color?:TrafficColor;pendingColor?:TrafficColor;pendingTicks?:number}
@@ -67,19 +68,15 @@ export function routeSlice(route:Corridor,fromM:number,toM:number):Point[]{
  points.push(interpolate(b));return points;
 }
 export function emptySpatial():SpatialState{return {minute:0,queues:{}}}
-/** The map and route report use one queued-traffic classifier.
- * v = flow / queued density is a scenario approximation, not GPS speed.
- * Orange remains the upstream approach; red is congestion; dark red
- * means a stop or crawling at <=10 km/h.
+/** Color is based ONLY on calculated km/h; density comes from the same
+ * triangular-flow approximation used for the physical queue footprint.
+ * It does not invent a color based on queue length or elapsed time.
  */
-export function queueCondition(vehicles:number,capacityVph:number,lanes:number,path:PathKey):{color:TrafficColor;speedKmh:number}{
- const density=95*Math.max(1,lanes);
- const speedKmh=capacityVph===0?0:Math.min(path.startsWith('ramp-')?80:120,capacityVph/density);
- const queueM=vehicles/density*1000;
- const wait=capacityVph===0?null:vehicles/capacityVph*60;
- const color:TrafficColor=capacityVph===0||(queueM>=150&&speedKmh<=10)?'standstill'
-  :queueM>=750||(queueM>=150&&speedKmh<=30)||(wait!==null&&wait>=5)?'jam':'slow';
- return {color,speedKmh};
+export function queueCondition(vehicles:number,capacityVph:number,lanes:number,path:PathKey):{
+ color:TrafficColor;speedKmh:number;densityVehPerKm:number
+}{
+ const {speedKmh,densityVehPerKm}=queueFundamentalDiagram(capacityVph,lanes,path);
+ return {color:vehicles>0?colorAtSpeed(speedKmh):'free',speedKmh,densityVehPerKm};
 }
 /** Positive downstream capacity always leaves a positive merge service share.
  * Demand ratios are scenario assumptions, not a calibrated junction solver.
@@ -163,10 +160,12 @@ export function jamsAt(state:SpatialState,events:readonly SimEvent[],corridors:R
   if(anchor===null||q.vehicles<.01)continue;
   const capacity=e?eventCapacity(e):(q.capacityVph??baselineCapacity(q.pathKey));
   const lanes=Math.max(1,q.lanes);
-  // Illustrative storage: 95 queued vehicles per kilometre of approach lane.
-  const queueM=q.vehicles/(95*lanes)*1000,visibleQueueM=Math.min(queueM,anchor);
-  const wait=capacity===0?null:q.vehicles/capacity*60;
   const condition=queueCondition(q.vehicles,capacity,lanes,q.pathKey);
+  // Same estimated density determines both the queued speed and jam length.
+  const queueM=q.vehicles/condition.densityVehPerKm*1000,visibleQueueM=Math.min(queueM,anchor);
+  // Little's law: queue vehicles / bottleneck throughput, independent of
+  // elapsed simulation time. A true zero-throughput closure is indeterminate.
+  const wait=capacity===0?null:q.vehicles/capacity*60;
   const speedKmh=condition.speedKmh;
   const color=q.color??condition.color;
   result.push({id,pathKey:q.pathKey,eventKind:e?.kind??null,point:q.point,anchorM:anchor,

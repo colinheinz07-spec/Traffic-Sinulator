@@ -53,7 +53,7 @@ test('one queue color until actual spatial speed differences are modelled',()=>{
  }
  assert.equal(queueCondition(200,0,3,'A3-koeln').color,'standstill');
  assert.equal(queueCondition(400,1500,3,'A3-koeln').color,'standstill');
- assert.equal(queueCondition(25,5400,3,'A3-koeln').color,'slow');
+ assert.equal(queueCondition(25,5400,3,'A3-koeln').color,'free','high-capacity queued recovery speed can be free flow');
 });
 
 test('existing queues require two stable minutes to change display color',()=>{

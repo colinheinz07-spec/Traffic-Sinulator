@@ -2,6 +2,7 @@
 import type {Jam} from './spatial.js';
 import type {Spillback} from './interchange.js';
 import {pathBottleneck,type PathKey,type TrafficColor} from './traffic.js';
+import {colorAtSpeed,freeSpeedKmh} from './traffic-physics.js';
 import type {SimEvent} from './events.js';
 
 export interface RouteReport {
@@ -18,6 +19,8 @@ export interface RouteReport {
   /** Independent waiting time for vehicles entering an overflowing ramp. */
   exitDelayMin:number|null;
   capacityVph:number;
+  /** Minimum modelled local speed on this path, not the full-route average. */
+  speedKmh:number;
   /** Traffic on the actual through carriageway. */
   color:TrafficColor;
   /** Independently affected exit lane (not all through lanes). */
@@ -40,12 +43,24 @@ export function routeReport(key:PathKey,jams:readonly Jam[],spillbacks:readonly 
   // Queued ramp vehicles are still reported at their physical location.
   const throughDelays=own.map(j=>j.delayMin);
   const exitDelays=shared.map(s=>s.delayMin);
-  const delayMin=throughDelays.some(d=>d===null)?null:Math.max(0,...throughDelays.filter((d):d is number=>d!==null));
+  const freeSpeed=freeSpeedKmh(key);
+  const restrictions=events.filter(e=>e.pathKey===key);
+  // Even without a queue, a speed restriction requires extra travel time.
+  // Take the largest zone penalty to avoid multiplying identical overlapping
+  // incidents; add it ONCE to any modelled queue waiting time.
+  const slowing=Math.max(0,...restrictions.map(e=>{
+   const v=e.settings.speedKmh;
+   return v>0&&v<freeSpeed?e.settings.lengthM/1000*(1/v-1/freeSpeed)*60:0;
+  }));
+  const waiting=throughDelays.some(d=>d===null)?null:Math.max(0,...throughDelays.filter((d):d is number=>d!==null));
+  const delayMin=waiting===null||cap===0?null:waiting+slowing;
   const exitDelayMin=exitDelays.some(d=>d===null)?null:Math.max(0,...exitDelays.filter((d):d is number=>d!==null));
-  const color=own.map(j=>j.color)
+  const speedKmh=Math.min(freeSpeed,...own.map(j=>Number.isFinite(j.speedKmh)?j.speedKmh:freeSpeed),
+   ...restrictions.map(e=>e.settings.speedKmh));
+  const color=[...own.map(j=>j.color),...restrictions.map(e=>colorAtSpeed(e.settings.speedKmh))]
    .reduce<TrafficColor>((c,next)=>rank[next]>rank[c]?next:c,'free');
   const exitColor=shared.map(s=>s.color)
    .reduce<TrafficColor>((c,next)=>rank[next]>rank[c]?next:c,'free');
   return {key,ownVehicles,sharedRampVehicles,queueVehicles,queueKm:maxLength/1000,
-   delayMin,exitDelayMin,capacityVph:cap,color,exitColor,countedQueueIds:own.map(j=>j.id)};
+   delayMin,exitDelayMin,capacityVph:cap,speedKmh,color,exitColor,countedQueueIds:own.map(j=>j.id)};
 }
