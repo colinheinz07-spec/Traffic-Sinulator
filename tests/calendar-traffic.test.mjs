@@ -55,5 +55,5 @@ test('date/time controls drive minute-by-minute simulation',()=>{
  assert.match(app,/demandAtClock\(trafficDemands,simulatedClock\(\)\)/);
  assert.match(app,/simulationStartMs\+spatialState.minute\*60000/);
  assert.match(app,/spatialState=emptySpatial\(\)/);
- assert.match(html,/Stillstand \/ extrem langsam/);
+ assert.match(html,/Stillstand\\/Kriechverkehr \(0–10 km\\/h\)/);
 });
