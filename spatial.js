@@ -3,7 +3,7 @@
  * No vehicle sprites, hidden road connectors, A3/A48 transfers, or invented detours.
  */
 import { buildContinuousRoads } from './cartography.js';
-import { PATHS, baselineCapacity, eventCapacity } from './traffic.js';
+import { PATHS, baselineCapacity, eventCapacity, defaultDemand } from './traffic.js';
 const rad = Math.PI / 180;
 export function metres(a, b) {
     const dx = (b[1] - a[1]) * 111195 * Math.cos((a[0] + b[0]) / 2 * rad);
@@ -78,6 +78,30 @@ export function routeSlice(route, fromM, toM) {
     return points;
 }
 export function emptySpatial() { return { minute: 0, queues: {} }; }
+/** The map and route report use one queued-traffic classifier.
+ * v = flow / queued density is a scenario approximation, not GPS speed.
+ * Orange remains the upstream approach; red is congestion; dark red
+ * means a stop or crawling at <=10 km/h.
+ */
+export function queueCondition(vehicles, capacityVph, lanes, path) {
+    const density = 95 * Math.max(1, lanes);
+    const speedKmh = capacityVph === 0 ? 0 : Math.min(path.startsWith('ramp-') ? 80 : 120, capacityVph / density);
+    const queueM = vehicles / density * 1000;
+    const wait = capacityVph === 0 ? null : vehicles / capacityVph * 60;
+    const color = capacityVph === 0 || (queueM >= 150 && speedKmh <= 10) ? 'standstill'
+        : queueM >= 750 || (queueM >= 150 && speedKmh <= 30) || (wait !== null && wait >= 5) ? 'jam' : 'slow';
+    return { color, speedKmh };
+}
+/** Positive downstream capacity always leaves a positive merge service share.
+ * Demand ratios are scenario assumptions, not a calibrated junction solver.
+ * Retain baseline demand entitlement when arrivals drop, so old queues drain.
+ */
+export function mergeSupplyVph(ramp, targetCapacityVph, targetDemandVph, rampDemandVph) {
+    if (targetCapacityVph <= 0)
+        return 0;
+    const supplyRatio = Math.min(1, targetCapacityVph / Math.max(targetCapacityVph, targetDemandVph));
+    return Math.min(baselineCapacity(ramp), Math.round(Math.max(defaultDemand(ramp), rampDemandVph) * supplyRatio));
+}
 export function advanceSpatial(prev, events, demands, minutes, corridors, links = []) {
     if (!Number.isInteger(minutes) || minutes < 1 || minutes > 60)
         throw Error('Ungültiger Simulations-Zeitschritt');
@@ -108,8 +132,9 @@ export function advanceSpatial(prev, events, demands, minutes, corridors, links 
                     const blocked = existing.filter(j => j.pathKey === link.to && j.anchorM > link.downstreamMergeM + .1
                         && j.anchorM - j.queueM < link.downstreamMergeM - .1);
                     if (blocked.length) {
-                        const stopped = blocked.some(j => j.color === 'standstill');
-                        const cap = stopped ? 0 : Math.round(baselineCapacity(key) * .28);
+                        // A dark-red queue is not a closed merge: calculate actual downstream supply.
+                        const targetCapacity = Math.min(...blocked.map(j => j.capacityVph));
+                        const cap = mergeSupplyVph(key, targetCapacity, demands[link.to], volume);
                         nodes.push({ id: 'merge:' + key, event: null, place: Math.max(0, route.lengthM - .5),
                             point: route.points.at(-1), limitVph: cap });
                     }
@@ -140,8 +165,23 @@ export function advanceSpatial(prev, events, demands, minutes, corridors, links 
                 const stored = current[node.id]?.vehicles ?? 0;
                 const cap = (node.limitVph ?? (node.event ? eventCapacity(node.event) : baselineCapacity(key))) / 60;
                 const available = stored + entering, passing = Math.min(available, cap), waiting = Math.max(0, available - passing);
-                if (waiting > 1e-6)
-                    current[node.id] = { pathKey: key, point: node.point, vehicles: waiting, lanes: node.event?.laneCount ?? current[node.id]?.lanes ?? (key.startsWith('ramp-') ? 1 : Math.round(baselineCapacity(key) / 1800)), capacityVph: cap * 60, active: node.event !== null || node.limitVph !== undefined };
+                if (waiting > 1e-6) {
+                    const previous = current[node.id];
+                    const lanes = node.event?.laneCount ?? previous?.lanes ?? (key.startsWith('ramp-') ? 1 : Math.round(baselineCapacity(key) / 1800));
+                    const desired = queueCondition(waiting, cap * 60, lanes, key).color;
+                    let color = desired, pendingColor, pendingTicks;
+                    // Two consecutive minutes for a color transition; real blockage is immediate.
+                    if (cap > 0 && previous?.color && previous.color !== desired) {
+                        const ticks = (previous.pendingColor === desired ? (previous.pendingTicks ?? 0) : 0) + 1;
+                        if (ticks < 2) {
+                            color = previous.color;
+                            pendingColor = desired;
+                            pendingTicks = ticks;
+                        }
+                    }
+                    current[node.id] = { pathKey: key, point: node.point, vehicles: waiting, lanes, capacityVph: cap * 60,
+                        active: node.event !== null || node.limitVph !== undefined, color, pendingColor, pendingTicks };
+                }
                 else
                     delete current[node.id];
                 entering = passing;
@@ -164,11 +204,9 @@ export function jamsAt(state, events, corridors) {
         // Illustrative storage: 95 queued vehicles per kilometre of approach lane.
         const queueM = q.vehicles / (95 * lanes) * 1000, visibleQueueM = Math.min(queueM, anchor);
         const wait = capacity === 0 ? null : q.vehicles / capacity * 60;
-        // v=q/k: illustrative effective speed inside the dense queue, NOT GPS speed.
-        // Even when a lane passes vehicles, a <=10 km/h crawl is dark red.
-        const speedKmh = capacity === 0 ? 0 : Math.min(q.pathKey.startsWith('ramp-') ? 80 : 120, capacity / (95 * lanes));
-        const color = capacity === 0 || (queueM >= 150 && speedKmh <= 10) ? 'standstill'
-            : queueM >= 750 || (wait !== null && wait >= 5) ? 'jam' : 'slow';
+        const condition = queueCondition(q.vehicles, capacity, lanes, q.pathKey);
+        const speedKmh = condition.speedKmh;
+        const color = q.color ?? condition.color;
         result.push({ id, pathKey: q.pathKey, eventKind: e?.kind ?? null, point: q.point, anchorM: anchor,
             queueVehicles: q.vehicles, queueM, visibleQueueM, delayMin: wait, capacityVph: capacity, speedKmh, color, released: !e && !q.active, outOfBoundsM: Math.max(0, queueM - anchor) });
     }
@@ -179,15 +217,22 @@ export function jamBands(jam) {
     const start = Math.max(0, jam.anchorM - jam.queueM), end = jam.anchorM, length = end - start;
     if (length < .5)
         return [];
-    const tail = Math.min(length, Math.max(50, length * .24));
-    const stop = jam.color === 'standstill' ? Math.min(length - tail, Math.max(30, length * .18)) : 0;
-    const a = Math.min(end, start + tail), b = Math.max(a, end - stop);
+    if (jam.color === 'slow')
+        return [{ fromM: start, toM: end, color: 'slow' }];
+    const tail = Math.min(length * .22, Math.max(8, length * .18));
+    const orangeEnd = start + tail;
     const bands = [];
-    if (a > start)
-        bands.push({ fromM: start, toM: a, color: 'slow' });
-    if (b > a)
-        bands.push({ fromM: a, toM: b, color: 'jam' });
-    if (end > b)
-        bands.push({ fromM: b, toM: end, color: 'standstill' });
+    if (orangeEnd > start)
+        bands.push({ fromM: start, toM: orangeEnd, color: 'slow' });
+    if (jam.color === 'jam') {
+        if (end > orangeEnd)
+            bands.push({ fromM: orangeEnd, toM: end, color: 'jam' });
+        return bands;
+    }
+    const stopLength = Math.max(0, (end - orangeEnd) * .44), redEnd = end - stopLength;
+    if (redEnd > orangeEnd)
+        bands.push({ fromM: orangeEnd, toM: redEnd, color: 'jam' });
+    if (end > redEnd)
+        bands.push({ fromM: redEnd, toM: end, color: 'standstill' });
     return bands;
 }
