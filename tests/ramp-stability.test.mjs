@@ -40,16 +40,16 @@ test('near-Dernbach one-lane A3 construction gives ramp a physically related del
  assert.ok(jams.filter(j=>j.pathKey===link.rampId).every(j=>j.capacityVph>0));
 });
 
-test('orange means orange: no artificial red band, coherent slow/jam/standstill gradients',()=>{
+test('one queue color until actual spatial speed differences are modelled',()=>{
  const make=color=>jamBands({anchorM:2200,queueM:1800,color});
  assert.deepEqual(make('slow').map(x=>x.color),['slow']);
- assert.deepEqual(make('jam').map(x=>x.color),['slow','jam']);
- assert.deepEqual(make('standstill').map(x=>x.color),['slow','jam','standstill']);
+ assert.deepEqual(make('jam').map(x=>x.color),['jam']);
+ assert.deepEqual(make('standstill').map(x=>x.color),['standstill']);
  for(const color of ['slow','jam','standstill']){
   const bands=make(color);
   assert.equal(bands[0].fromM,400);
   assert.equal(bands.at(-1).toM,2200);
-  assert.ok(bands.every((x,i)=>x.toM>x.fromM&&(i===0||Math.abs(x.fromM-bands[i-1].toM)<.001)));
+  assert.equal(bands.length,1);assert.ok(bands.every(x=>x.toM>x.fromM));
  }
  assert.equal(queueCondition(200,0,3,'A3-koeln').color,'standstill');
  assert.equal(queueCondition(400,1500,3,'A3-koeln').color,'standstill');

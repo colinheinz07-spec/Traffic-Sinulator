@@ -17,8 +17,10 @@ export function routeReport(key, jams, spillbacks, events) {
     const exitDelays = shared.map(s => s.delayMin);
     const delayMin = throughDelays.some(d => d === null) ? null : Math.max(0, ...throughDelays.filter((d) => d !== null));
     const exitDelayMin = exitDelays.some(d => d === null) ? null : Math.max(0, ...exitDelays.filter((d) => d !== null));
-    const color = [...own.map(j => j.color), ...shared.map(s => s.color)]
+    const color = own.map(j => j.color)
+        .reduce((c, next) => rank[next] > rank[c] ? next : c, 'free');
+    const exitColor = shared.map(s => s.color)
         .reduce((c, next) => rank[next] > rank[c] ? next : c, 'free');
     return { key, ownVehicles, sharedRampVehicles, queueVehicles, queueKm: maxLength / 1000,
-        delayMin, exitDelayMin, capacityVph: cap, color, countedQueueIds: own.map(j => j.id) };
+        delayMin, exitDelayMin, capacityVph: cap, color, exitColor, countedQueueIds: own.map(j => j.id) };
 }

@@ -40,9 +40,9 @@ test('one A3 construction produces an upstream-only queue and four user colors',
  const state=advanceSpatial(emptySpatial(),[e],demands,30,corridors);
  const jams=jamsAt(state,[e],corridors);assert.equal(jams.length,1);
  const j=jams[0];assert.equal(j.pathKey,'A3-koeln');assert.ok(j.queueVehicles>100&&j.queueM>0);
- const bands=jamBands(j);assert.ok(bands.length>=2);
+ const bands=jamBands(j);assert.equal(bands.length,1,'no fabricated orange/red fractions');
  assert.ok(bands.every(b=>b.fromM>=0&&b.toM<=j.anchorM+1e-9));
- assert.equal(bands[0].color,'slow');assert.equal(bands.at(-1).color,'standstill','extrem langsamer Verkehr wird dunkelrot markiert');
+ assert.equal(bands[0].color,'standstill','actual congested segment gets the derived color');
  assert.equal(state.queues['montabaur'].pathKey,'A3-koeln');
  assert.ok(!jams.some(x=>x.pathKey==='A3-frankfurt'));
 });

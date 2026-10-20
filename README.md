@@ -176,3 +176,10 @@ Mit **Konstanter Zufluss (Dauertest)** kann eine dauerhaft überlastete Baustell
 - Die Karte und die Abschnittsübersicht verwenden dieselben stabilisierten Farbzustände. Farbwechsel bestehender Warteschlangen erfordern zwei Simulationsminuten; reale Totalsperrungen wirken sofort. Orange wird bei rein stockendem Verkehr nicht künstlich rot gefärbt.
 - Rückstaus einer Rampe werden auf ihrem physisch belegten Bereich der Quellautobahn mit denselben Farbübergängen gerendert. Es entstehen dadurch keine zusätzlichen Fahrzeuge.
 - Die sichtbare Schaltfläche +5 min wurde entfernt. Start/Pause und Zurücksetzen bleiben erhalten.
+
+
+## 1.4.2 – Korrekte A48-Durchgangszuordnung
+
+Eine überlaufende Rampe erzeugt keine zusätzliche künstliche A48/A3-Hauptfahrbahn-Warteschlange mehr. Das bisherige `spill:`-Modell drosselte pauschal **alle** Hauptfahrbahnfahrzeuge, obwohl nur der Abfahrtsstreifen belegt war; dieser selbstverstärkende Effekt ließ den Zeitverlust ohne reale Hauptfahrbahn-Sperrung wachsen. Rampenfahrzeuge werden nur in ihrer Rampenwarteschlange geführt und als Belegung am Abfahrtsstreifen auf der A48 sichtbar. Der Durchgangsverkehr erhält seinen eigenen Farb- und Verzögerungsstatus.
+
+Bisher fest eingezeichnete orange/rote/dunkelrote Prozentanteile eines Staus entfallen: Ohne echten abschnittsweisen Geschwindigkeitszustand wird die sichtbare Warteschlange einheitlich in ihrer berechneten Farbe dargestellt. Ein späteres segmentbasiertes Modell kann lokale Farben wieder korrekt trennen. Echte Überlastung kann weiterhin anwachsen; es wird **keine künstliche Maximalverzögerung** eingeführt. Die vollständige netzweite Abbiegestrombilanz fehlt weiterhin und sollte separat umgesetzt werden.

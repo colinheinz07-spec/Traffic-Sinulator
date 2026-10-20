@@ -331,8 +331,8 @@ function renderTraffic() {
     $('traffic-capacity').textContent = trafficNumber(result.capacityVph);
     $('traffic-outflow').textContent = trafficNumber(Math.min(result.capacityVph, activeDemands[key] + result.ownVehicles * 60));
     $('traffic-queue').textContent = trafficNumber(result.queueVehicles);
-    $('traffic-shared').textContent = result.sharedRampVehicles > 0 ? `Davon ${trafficNumber(result.sharedRampVehicles)} bereits in einer Rampenwarteschlange gezählte Fahrzeuge · Wartezeit für Abbieger: ${result.exitDelayMin === null ? 'nicht berechenbar' : trafficNumber(result.exitDelayMin, 1) + ' min'} (nicht zur Durchfahrt addiert)` : 'Keine Rampenfahrzeuge auf diesem Abschnitt';
-    $('traffic-queue-km').textContent = `${trafficNumber(result.queueKm, 2)} km`;
+    $('traffic-shared').textContent = result.sharedRampVehicles > 0 ? `Abfahrtsstreifen betroffen (${trafficColorName[result.exitColor]}): ${trafficNumber(result.sharedRampVehicles)} Fahrzeuge der Rampenwarteschlange auf dieser Autobahn. Abbieger-Wartezeit: ${result.exitDelayMin === null ? 'nicht berechenbar' : trafficNumber(result.exitDelayMin, 1) + ' min'}. Kein zusätzlich erzeugter Stau im Durchgangsverkehr.` : 'Keine Rampenfahrzeuge auf diesem Abschnitt';
+    $('traffic-queue-km').textContent = `${trafficNumber(result.queueKm, 2)} km${result.sharedRampVehicles > 0 && result.ownVehicles === 0 ? ' (Abfahrtsstreifen)' : ''}`;
     $('traffic-delay').textContent = result.delayMin === null ? 'Bei Stillstand nicht berechenbar' : `${trafficNumber(result.delayMin, 1)} min${result.sharedRampVehicles > 0 ? ' (Durchgangsverkehr)' : ''}`;
     $('traffic-speed').textContent = result.ownVehicles > 0 ? `ca. ${trafficNumber(Math.min(...jams.filter(j => j.pathKey === key).map(j => j.speedKmh)), 1)} km/h (Rückstau-Modell)` : result.sharedRampVehicles > 0 ? 'Abfahrt betroffen; keine eigene Warteschlange' : `${bn.speedKmh} km/h`;
     $('traffic-events').textContent = bn.count === 0 ? 'Kein eigenes Ereignis auf dieser Richtung – mögliche Rückstauübertragung am AD wird berücksichtigt' :
@@ -356,7 +356,7 @@ function renderTraffic() {
         label.textContent = trafficRouteLabel(item);
         const status = document.createElement('strong');
         status.className = `traffic-state ${m.color}`;
-        status.textContent = `${trafficNumber(m.queueKm, 1)} km · ${m.delayMin === null ? 'Zeit unbestimmt' : trafficNumber(m.delayMin, 1) + ' min'}${m.sharedRampVehicles > 0 ? ' · Abfahrt betroffen' : ''}`;
+        status.textContent = `${trafficNumber(m.queueKm, 1)} km · ${m.delayMin === null ? 'Zeit unbestimmt' : trafficNumber(m.delayMin, 1) + ' min'}${m.sharedRampVehicles > 0 ? ' · Abfahrt ' + trafficColorName[m.exitColor].toLowerCase() : ''}`;
         button.append(label, status);
         button.setAttribute('aria-label', `${label.textContent}, ${status.textContent}`);
         button.onclick = () => selectTrafficRoute(item);
@@ -640,10 +640,9 @@ function drawSpatialJams() {
         // The same color gradient is used for the ramp and the overlapping feeder.
         for (const band of jamBands({ anchorM: spill.toM, queueM: length, color: spill.color })) {
             const line = routeSlice(route, band.fromM, band.toM);
-            if (line.length > 1) {
-                stroke(line, lineWidths(zoom).motorwayCasing + 1, '#102735');
-                stroke(line, lineWidths(zoom).motorway + 1.1, jamColors[band.color]);
-            }
+            // Ramp vehicles occupy an exit lane, not the full width of the mainline.
+            if (line.length > 1)
+                stroke(line, Math.max(1, lineWidths(zoom).motorway * .4), jamColors[band.color]);
         }
     }
     // No purely cosmetic downstream-merge overlay: a blocked ramp gets its

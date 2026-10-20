@@ -139,18 +139,11 @@ export function advanceSpatial(prev, events, demands, minutes, corridors, links 
                             point: route.points.at(-1), limitVph: cap });
                     }
                 }
-            // A ramp queue can obstruct its feeder mainline's exit area. This builds a
-            // queue of *mainline* cars, distinct from the cars already queued on the ramp.
-            for (const link of links)
-                if (link.from === key) {
-                    const rampJams = existing.filter(j => j.pathKey === link.rampId && j.outOfBoundsM > 1);
-                    if (!rampJams.length)
-                        continue;
-                    const overflow = Math.max(...rampJams.map(j => j.outOfBoundsM));
-                    const fraction = overflow >= 1000 ? .56 : .78; // explicit scenario assumptions
-                    nodes.push({ id: 'spill:' + link.rampId, event: null, place: link.rampEntryM,
-                        point: corridors[link.rampId].points[0], limitVph: Math.round(baselineCapacity(key) * fraction) });
-                }
+            // An overflow from a ramp occupies the exit lane ONLY. Its vehicles are
+            // ALREADY owned by the ramp queue and rampSpillbacks() plots their location.
+            // Applying another bottleneck to the ENTIRE mainline would invent a second
+            // queue of through-traffic and cause self-amplifying delays. Mainline lane
+            // obstructions need an actual event until a turn-by-turn solver is available.
             const active = new Set(nodes.map(n => n.id));
             for (const [id, q] of Object.entries(current))
                 if (q.pathKey === key && !active.has(id)) {
@@ -213,26 +206,10 @@ export function jamsAt(state, events, corridors) {
     return result.sort((a, b) => a.pathKey.localeCompare(b.pathKey) || a.anchorM - b.anchorM);
 }
 /** Dark red marks either a full stop or very slow discharge (<=10 km/h). */
+/** Uniform actual queue state: no automatic fictional orange/red fractions.
+ * Future segment-based densities and speeds can provide multiple true bands.
+ */
 export function jamBands(jam) {
-    const start = Math.max(0, jam.anchorM - jam.queueM), end = jam.anchorM, length = end - start;
-    if (length < .5)
-        return [];
-    if (jam.color === 'slow')
-        return [{ fromM: start, toM: end, color: 'slow' }];
-    const tail = Math.min(length * .22, Math.max(8, length * .18));
-    const orangeEnd = start + tail;
-    const bands = [];
-    if (orangeEnd > start)
-        bands.push({ fromM: start, toM: orangeEnd, color: 'slow' });
-    if (jam.color === 'jam') {
-        if (end > orangeEnd)
-            bands.push({ fromM: orangeEnd, toM: end, color: 'jam' });
-        return bands;
-    }
-    const stopLength = Math.max(0, (end - orangeEnd) * .44), redEnd = end - stopLength;
-    if (redEnd > orangeEnd)
-        bands.push({ fromM: orangeEnd, toM: redEnd, color: 'jam' });
-    if (end > redEnd)
-        bands.push({ fromM: redEnd, toM: end, color: 'standstill' });
-    return bands;
+    const fromM = Math.max(0, jam.anchorM - jam.queueM), toM = jam.anchorM;
+    return toM - fromM < .5 ? [] : [{ fromM, toM, color: jam.color === 'free' ? 'slow' : jam.color }];
 }
