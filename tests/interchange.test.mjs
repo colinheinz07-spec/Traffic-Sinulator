@@ -60,12 +60,13 @@ test('same ramp serial jams choose one overflow overlay; never invent duplicate 
  const spill=rampSpillbacks([{...j1,id:'one'},{...j2,id:'two'}],links,routes);
  assert.equal(spill.length,1);assert.equal(spill[0].source,'A48-dernbach');
 });
-test('UI wires OSM spillback to map and identifies limits without deleting +5-minute debug control',()=>{
+test('UI wires OSM spillback to map with no +5-minute debug control',()=>{
  const app=readFileSync('src/app.ts','utf8'),html=readFileSync('index.html','utf8'),workflow=readFileSync('.github/workflows/check.yml','utf8');
  assert.match(app,/buildRampConnections\(ramps,spatialCorridors\)/);
  assert.match(app,/rampSpillbacks\(list,rampConnections,spatialCorridors\)/);
  assert.match(html,/id="traffic-interchange"/);
- assert.match(html,/id="traffic-step"/);
+ assert.doesNotMatch(html,/id="traffic-step"/);
+ assert.doesNotMatch(app,/traffic-step/);
  assert.match(html,/Verkehrsströme an Verzweigungen.*nicht vollständig/);
  assert.match(workflow,/interchange\.js/);
 });

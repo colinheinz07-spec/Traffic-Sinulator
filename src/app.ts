@@ -315,7 +315,6 @@ function initializeTraffic(){
   $('traffic-play').textContent='⏸ Pause';
   trafficTimer=setInterval(()=>stepTraffic(1),1000);
  };
- $('traffic-step').onclick=()=>stepTraffic(5);
  $('traffic-reset').onclick=()=>{stopTraffic();spatialState=emptySpatial();renderTraffic();};
  document.addEventListener('visibilitychange',()=>{if(document.hidden)stopTraffic();});
 }
@@ -397,11 +396,10 @@ function drawSpatialJams(){
   const route=spatialCorridors[spill.source];
   const length=spill.toM-spill.fromM;
   if(length<1)continue;
-  const tail=Math.min(length*.25,Math.max(60,length*.12));
-  const split=Math.min(spill.toM,spill.fromM+tail);
-  for(const [start,end,color] of [[spill.fromM,split,'slow'],[split,spill.toM,spill.color==='standstill'?'jam':spill.color]] as const){
-   const line=routeSlice(route,start,end);
-   if(line.length>1){stroke(line,lineWidths(zoom).motorwayCasing+1,'#102735');stroke(line,lineWidths(zoom).motorway+1.1,jamColors[color==='free'?'slow':color]);}
+  // The same color gradient is used for the ramp and the overlapping feeder.
+  for(const band of jamBands({anchorM:spill.toM,queueM:length,color:spill.color})){
+   const line=routeSlice(route,band.fromM,band.toM);
+   if(line.length>1){stroke(line,lineWidths(zoom).motorwayCasing+1,'#102735');stroke(line,lineWidths(zoom).motorway+1.1,jamColors[band.color]);}
   }
  }
  // No purely cosmetic downstream-merge overlay: a blocked ramp gets its

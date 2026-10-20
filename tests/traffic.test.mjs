@@ -66,12 +66,13 @@ test('SPCK controls and compiled module hooks exist without a second app entry',
  const {readFileSync}=await import('node:fs');
  const html=readFileSync('index.html','utf8');
  const app=readFileSync('src/app.ts','utf8');
- for(const id of ['traffic-route','traffic-inflow','traffic-play','traffic-step','traffic-reset','traffic-minute','traffic-demand','traffic-queue','traffic-queue-km','traffic-delay','traffic-summary'])
+ for(const id of ['traffic-route','traffic-inflow','traffic-play','traffic-reset','traffic-minute','traffic-demand','traffic-queue','traffic-queue-km','traffic-delay','traffic-summary'])
   assert.ok(html.includes(`id="${id}"`),`missing ${id}`);
  assert.match(app,/advanceSpatial/);
  assert.doesNotMatch(app,/trafficEstimate\(trafficState/);
  assert.match(app,/document\.addEventListener\('visibilitychange'/);
  assert.ok(!html.includes('map-v2/'));
+ assert.doesNotMatch(html,/id="traffic-step"/);
 });
 
 // Regression from iPhone feedback: 0.9-1.1 made 40 km/h and two blocked A3

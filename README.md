@@ -167,3 +167,12 @@ Mit **Konstanter Zufluss (Dauertest)** kann eine dauerhaft überlastete Baustell
 - Alte Modi **abklingende Stoßzeit** und **konstanter Zufluss** bleiben für Belastungstests erhalten.
 - **Dunkelrot** bedeutet Stillstand **oder** modellierte Geschwindigkeit bis 10 km/h im Rückstau. Die Näherung verwendet Abflusskapazität geteilt durch die angenommene dichte Rückstaubelegung (95 Fahrzeuge je Kilometer und Fahrstreifen); keine gemessene Geschwindigkeit. Orange markiert Rückstauanfänge, Rot Stop-and-Go, Grün freie Abschnitte.
 - Keine Änderung der OSM-Geometrie, gespeicherter Ereignisse oder A3/A48-Rampenverknüpfungen.
+
+
+## 1.4.1 – Rampenverzögerung, Farbstabilität und Bedienung
+
+- Eine dunkle Zielautobahn bedeutet nicht mehr automatisch eine gesperrte Rampe. Die bisherige starre 28-Prozent-Drosselung ist durch eine angenäherte Aufteilung entsprechend dem Verhältnis von Zielengpasskapazität und Zielzufluss ersetzt. Bei physisch null Durchfluss ist die Einmündung weiterhin blockiert. Auch ältere Rampenwarteschlangen können abfließen, wenn neue Zuflüsse zurückgehen.
+- Das ist ein vereinfachtes Modell ohne kalibrierte Verflechtungsberechnung. Rampen können bei tatsächlichem Engpass mehr Wartezeit haben als die Zielautobahn; es wird keine künstliche Verzögerungsobergrenze eingeführt.
+- Die Karte und die Abschnittsübersicht verwenden dieselben stabilisierten Farbzustände. Farbwechsel bestehender Warteschlangen erfordern zwei Simulationsminuten; reale Totalsperrungen wirken sofort. Orange wird bei rein stockendem Verkehr nicht künstlich rot gefärbt.
+- Rückstaus einer Rampe werden auf ihrem physisch belegten Bereich der Quellautobahn mit denselben Farbübergängen gerendert. Es entstehen dadurch keine zusätzlichen Fahrzeuge.
+- Die sichtbare Schaltfläche +5 min wurde entfernt. Start/Pause und Zurücksetzen bleiben erhalten.
