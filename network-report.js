@@ -1,4 +1,5 @@
 import { pathBottleneck } from './traffic.js';
+import { colorAtSpeed, freeSpeedKmh } from './traffic-physics.js';
 const rank = { free: 0, slow: 1, jam: 2, standstill: 3 };
 export function routeReport(key, jams, spillbacks, events) {
     const own = jams.filter(j => j.pathKey === key);
@@ -15,12 +16,23 @@ export function routeReport(key, jams, spillbacks, events) {
     // Queued ramp vehicles are still reported at their physical location.
     const throughDelays = own.map(j => j.delayMin);
     const exitDelays = shared.map(s => s.delayMin);
-    const delayMin = throughDelays.some(d => d === null) ? null : Math.max(0, ...throughDelays.filter((d) => d !== null));
+    const freeSpeed = freeSpeedKmh(key);
+    const restrictions = events.filter(e => e.pathKey === key);
+    // Even without a queue, a speed restriction requires extra travel time.
+    // Take the largest zone penalty to avoid multiplying identical overlapping
+    // incidents; add it ONCE to any modelled queue waiting time.
+    const slowing = Math.max(0, ...restrictions.map(e => {
+        const v = e.settings.speedKmh;
+        return v > 0 && v < freeSpeed ? e.settings.lengthM / 1000 * (1 / v - 1 / freeSpeed) * 60 : 0;
+    }));
+    const waiting = throughDelays.some(d => d === null) ? null : Math.max(0, ...throughDelays.filter((d) => d !== null));
+    const delayMin = waiting === null || cap === 0 ? null : waiting + slowing;
     const exitDelayMin = exitDelays.some(d => d === null) ? null : Math.max(0, ...exitDelays.filter((d) => d !== null));
-    const color = own.map(j => j.color)
+    const speedKmh = Math.min(freeSpeed, ...own.map(j => Number.isFinite(j.speedKmh) ? j.speedKmh : freeSpeed), ...restrictions.map(e => e.settings.speedKmh));
+    const color = [...own.map(j => j.color), ...restrictions.map(e => colorAtSpeed(e.settings.speedKmh))]
         .reduce((c, next) => rank[next] > rank[c] ? next : c, 'free');
     const exitColor = shared.map(s => s.color)
         .reduce((c, next) => rank[next] > rank[c] ? next : c, 'free');
     return { key, ownVehicles, sharedRampVehicles, queueVehicles, queueKm: maxLength / 1000,
-        delayMin, exitDelayMin, capacityVph: cap, color, exitColor, countedQueueIds: own.map(j => j.id) };
+        delayMin, exitDelayMin, capacityVph: cap, speedKmh, color, exitColor, countedQueueIds: own.map(j => j.id) };
 }
