@@ -10,7 +10,9 @@ export const eventSymbols:Record<EventKind,string>={roadworks:'🚧',accident:'�
 /** Keep old key so 0.7 events do not disappear after updating to 0.8. */
 export const STORAGE_KEY='traffic-sinulator-events-v1';
 export interface EventSettings {lengthM:number;speedKmh:number;shoulder:ShoulderMode}
-export interface SimEvent {id:string;kind:EventKind;pathKey:string;point:Point;closedLanes:number[];laneCount:number;createdAt:string;settings:EventSettings}
+export interface EventPhase {startAt:string;kind:'roadworks'|'closure';closedLanes:number[];speedKmh:number;shoulder:ShoulderMode}
+export interface EventSchedule {startAt:string;endAt:string;phases:EventPhase[]}
+export interface SimEvent {id:string;kind:EventKind;pathKey:string;point:Point;closedLanes:number[];laneCount:number;createdAt:string;settings:EventSettings;schedule?:EventSchedule}
 export interface FlowPolicy {openMainLanes:number;openTotalLanes:number;canEnter:boolean;occupantsMayLeave:boolean;rerouteApproaching:boolean;speedKmh:number}
 const directions:ReadonlySet<string>=new Set<RoadId>(['A3-koeln','A3-frankfurt','A48-koblenz','A48-dernbach']);
 const knownRampIds:ReadonlySet<string>=new Set(['ramp-a3-to-a48-from-frankfurt','ramp-a3-to-a48-from-koeln','ramp-a48-to-koeln','ramp-a48-to-frankfurt']);
@@ -47,6 +49,27 @@ export function validEvent(v:unknown):v is SimEvent{
  const passable=x.kind!=='closure'&&(laneCount-x.closedLanes.length+(s.shoulder==='open'?1:0)>0);
  if(!Number.isInteger(s.speedKmh)||s.speedKmh<0||s.speedKmh>130||s.speedKmh%10!==0)return false;
  if((!passable&&s.speedKmh!==0)||(passable&&s.speedKmh===0))return false;
+ if(x.schedule!==undefined){
+  if(x.kind!=='roadworks'&&x.kind!=='closure')return false;
+  const sch=x.schedule;
+  if(!sch||typeof sch!=='object'||typeof sch.startAt!=='string'||typeof sch.endAt!=='string'
+   ||!Number.isFinite(Date.parse(sch.startAt))||!Number.isFinite(Date.parse(sch.endAt))
+   ||Date.parse(sch.startAt)>=Date.parse(sch.endAt)
+   ||!Array.isArray(sch.phases)||sch.phases.length>6)return false;
+  let previous=Date.parse(sch.startAt);
+  for(const phase of sch.phases){
+   if(!phase||typeof phase!=='object'||typeof phase.startAt!=='string'
+    ||(phase.kind!=='roadworks'&&phase.kind!=='closure')||
+    !Array.isArray(phase.closedLanes)||!isShoulder(phase.shoulder)||
+    !Number.isInteger(phase.speedKmh))return false;
+   const ts=Date.parse(phase.startAt);
+   if(!Number.isFinite(ts)||ts<=previous||ts>=Date.parse(sch.endAt))return false;
+   previous=ts;
+   const candidate={...x,kind:phase.kind,closedLanes:phase.closedLanes,
+    settings:{...s,shoulder:phase.shoulder,speedKmh:phase.speedKmh},schedule:undefined};
+   if(!validEvent(candidate))return false;
+  }
+ }
  return true;
 }
 /** Old 0.7 event records are upgraded in memory; no silent data loss. */
@@ -100,4 +123,31 @@ export function eventSummary(e:SimEvent):string{
  if(e.settings.shoulder==='open')parts.push('Standstreifen freigegeben (Simulation)');
  if(e.settings.shoulder==='blocked')parts.push('Standstreifen gesperrt');
  return parts.join(' · ');
+}
+
+/** A planned event is active in [start,end). Phases replace lane settings
+ * without deleting history. This keeps rewinding/replaying deterministic.
+ * Unscheduled historical events retain their original always-active behavior.
+ */
+export function effectiveEventAt(event:SimEvent,at:number):SimEvent|null{
+ const schedule=event.schedule;
+ if(!schedule)return event;
+ if(!Number.isFinite(at)||at<Date.parse(schedule.startAt)||at>=Date.parse(schedule.endAt))return null;
+ let active:EventPhase|null=null;
+ for(const phase of schedule.phases){
+  if(Date.parse(phase.startAt)<=at)active=phase;
+  else break;
+ }
+ if(!active)return event;
+ return {...event,kind:active.kind,closedLanes:[...active.closedLanes],
+  settings:{...event.settings,speedKmh:active.speedKmh,shoulder:active.shoulder}};
+}
+export function effectiveEventsAt(events:readonly SimEvent[],at:number):SimEvent[]{
+ return events.flatMap(e=>{const active=effectiveEventAt(e,at);return active?[active]:[]});
+}
+export function eventScheduleStatus(event:SimEvent,at:number):'permanent'|'planned'|'active'|'finished'{
+ if(!event.schedule)return 'permanent';
+ if(at<Date.parse(event.schedule.startAt))return 'planned';
+ if(at>=Date.parse(event.schedule.endAt))return 'finished';
+ return 'active';
 }

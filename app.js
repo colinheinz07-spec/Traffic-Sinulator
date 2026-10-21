@@ -8,11 +8,12 @@ import { buildRampConnections, rampSpillbacks } from './interchange.js';
 import { DIVERSION_LINKS, CROSS_MOTORWAY_DIVERSION, diversionJunctions, planDiversion } from './diversions.js';
 import { loadDetourGeometry } from './detour-routing.js';
 import { advanceDetour, emptyDetour, detourVehicles } from './detour-flow.js';
-import { decodeEvents, eventFromHit, updatedEvent, eventNames, eventSymbols, eventSummary, defaultLengthM, maxLengthM, suggestedSpeed, STORAGE_KEY, isEventKind } from './events.js';
+import { decodeEvents, eventFromHit, updatedEvent, eventNames, eventSymbols, eventSummary, defaultLengthM, maxLengthM, suggestedSpeed, STORAGE_KEY, isEventKind, validEvent, effectiveEventsAt, eventScheduleStatus } from './events.js';
 import { roadLaneInfo, rampLaneInfo } from './lane-info.js';
 import { mapCandidates, chooseMapHits, closestJunction, lanePositions, hitLabel } from './selection.js';
 import { buildContinuousRoads, lineWidths, rampBadges, overlaps } from './cartography.js';
 import { placeJamCallout } from './map-callouts.js';
+import { installScheduleForm } from './schedule-form.js';
 import { DIRECTIONS, validateMap, names, mercator, inverse } from './core.js';
 const $ = (id) => { const element = document.getElementById(id); if (!element)
     throw Error(`Element fehlt: ${id}`); return element; };
@@ -54,6 +55,21 @@ function eventPathLabel(e) {
     const ramp = ramps.find(r => r.id === e.pathKey);
     return ramp?.name ?? (names[e.pathKey] || 'Unbekannter Fahrweg');
 }
+function activeEvents() { return effectiveEventsAt(events, simulatedClock().getTime()); }
+function scheduleSummary(event) {
+    if (!event.schedule)
+        return 'Ohne Enddatum';
+    const fmt = (iso) => new Date(iso).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' });
+    return fmt(event.schedule.startAt) + ' – ' + fmt(event.schedule.endAt) +
+        (event.schedule.phases.length ? ' · ' + (event.schedule.phases.length + 1) + ' Bauphasen' : '');
+}
+function eventStatus(event) {
+    const state = eventScheduleStatus(event, simulatedClock().getTime());
+    return state === 'planned' ? 'Geplant' : state === 'finished' ? 'Beendet' : state === 'active' ? 'Aktiv' : 'Dauerhaft aktiv';
+}
+const scheduleForm = installScheduleForm({
+    clock: () => simulatedClock(), format: (date) => dateTimeInputValue(date), laneCount: () => formLaneCount()
+});
 function redrawEventList() {
     const parent = $('events-list');
     parent.replaceChildren();
@@ -69,11 +85,16 @@ function redrawEventList() {
         item.className = 'event-row';
         const title = document.createElement('strong'), meta = document.createElement('small'), jump = document.createElement('button');
         title.textContent = `${eventSymbols[event.kind]} ${eventNames[event.kind]} · ${eventPathLabel(event)}`;
-        meta.textContent = eventSummary(event);
+        meta.textContent = eventSummary(effectiveEventsAt([event], simulatedClock().getTime())[0] ?? event);
         jump.type = 'button';
         jump.textContent = 'Auf Karte ansehen';
         jump.onclick = () => { focus = event.point; zoom = Math.max(zoom, 14.4); showExistingEvent(event); refresh(); };
-        item.append(title, meta, jump);
+        const schedule = document.createElement('small');
+        schedule.textContent = eventStatus(event) + ' · ' + scheduleSummary(event);
+        const state = document.createElement('span');
+        state.className = 'schedule-state ' + eventScheduleStatus(event, simulatedClock().getTime());
+        state.textContent = eventStatus(event);
+        item.append(title, meta, state, schedule, jump);
         parent.append(item);
     }
 }
@@ -96,7 +117,7 @@ function showExistingEvent(e) {
     $('selection-help').hidden = true;
     $('selected-title').textContent = `${eventSymbols[e.kind]} ${eventNames[e.kind]}`;
     $('selected-note').textContent = eventPathLabel(e);
-    $('existing-event-desc').textContent = `${eventSummary(e)} · ${e.point[0].toFixed(6)}° N, ${e.point[1].toFixed(6)}° E · ${new Date(e.createdAt).toLocaleString('de-DE')}`;
+    $('existing-event-desc').textContent = `${eventStatus(e)} · ${scheduleSummary(e)} · ${eventSummary(effectiveEventsAt([e], simulatedClock().getTime())[0] ?? e)} · ${e.point[0].toFixed(6)}° N, ${e.point[1].toFixed(6)}° E`;
     $('existing-event').hidden = false;
     $('detail').hidden = false;
     hint.textContent = `${eventNames[e.kind]} ausgewählt – du kannst die Verkehrsführung bearbeiten oder das Ereignis entfernen.`;
@@ -107,7 +128,7 @@ function laneCountFor(hit) {
     return info.source === 'unknown' ? 0 : info.count;
 }
 function drawEventMarkers(width, height) {
-    for (const event of events) {
+    for (const event of activeEvents()) {
         const [x, y] = toScreen(event.point);
         if (x < -20 || y < -20 || x > width + 20 || y > height + 20)
             continue;
@@ -219,6 +240,7 @@ function beginEventForm() {
     $('event-length').value = '500';
     $('event-save').textContent = 'Ereignis setzen';
     $('event-form-error').textContent = '';
+    scheduleForm.reset();
     renderEventLaneChoices([]);
     updateEventConfigPreview(true);
 }
@@ -237,6 +259,7 @@ function beginEditEvent() {
     $('event-save').textContent = 'Änderungen speichern';
     $('event-form-error').textContent = '';
     $('event-kind').value = current.kind;
+    scheduleForm.reset(current.schedule);
     $('event-shoulder').value = current.settings.shoulder;
     $('event-length').value = String(current.settings.lengthM);
     renderEventLaneChoices(current.closedLanes);
@@ -252,18 +275,23 @@ function saveNewEvent() {
     const settings = { lengthM: Number($('event-length').value), speedKmh: Number($('event-speed').value), shoulder: currentShoulder() };
     try {
         let entry;
+        const schedule = scheduleForm.read();
         if (editingEventId) {
             const current = events.find(e => e.id === editingEventId);
             if (!current)
                 throw Error('Zu bearbeitendes Ereignis nicht gefunden.');
-            entry = updatedEvent(current, kind, closed, settings);
+            entry = { ...updatedEvent(current, kind, closed, settings), schedule };
+            if (!validEvent(entry))
+                throw Error('Zeitplan ungültig: Beginn vor Ende und jede Bauphase innerhalb des Zeitraums.');
             events = events.map(e => e.id === entry.id ? entry : e);
         }
         else {
             if (!selected)
                 throw Error('Wähle zuerst eine Fahrbahn.');
             const id = `ev-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
-            entry = eventFromHit(selected, kind, count, closed, id, new Date().toISOString(), settings);
+            entry = { ...eventFromHit(selected, kind, count, closed, id, new Date().toISOString(), settings), schedule };
+            if (!validEvent(entry))
+                throw Error('Zeitplan ungültig: Beginn vor Ende und jede Bauphase innerhalb des Zeitraums.');
             if (events.length >= 150)
                 throw Error('Maximal 150 Ereignisse gleichzeitig möglich.');
             events = [...events, entry];
@@ -365,14 +393,14 @@ function renderDiversionPlanner(key, jams, spillbacks) {
     }
     const direction = key, corridor = spatialCorridors[direction];
     const junctions = diversionJunctions(direction, exits, corridor);
-    const active = events.filter(e => e.pathKey === direction);
+    const active = activeEvents().filter(e => e.pathKey === direction);
     if (!active.length) {
         const p = document.createElement('p');
         p.textContent = 'Noch kein Ereignis in dieser Fahrtrichtung. Die dokumentierten U-Strecken kannst du unten einsehen.';
         parent.append(p);
     }
     else {
-        const traffic = routeReport(direction, jams, spillbacks, events);
+        const traffic = routeReport(direction, jams, spillbacks, activeEvents());
         for (const event of active) {
             const plan = planDiversion(event, corridor, exits, traffic.delayMin);
             if (!plan)
@@ -501,17 +529,36 @@ function renderDiversionPlanner(key, jams, spillbacks) {
         catalog.append(card);
     }
 }
+/** Simulation time is displayed ABOVE the map. It is not the device's
+ * continuously advancing wall clock: only simulation steps change minutes.
+ * Reuse the existing local-date input formatter to keep date and time aligned.
+ */
+function updateMapClock() {
+    const clock = simulatedClock();
+    const time = $('traffic-clock');
+    time.textContent = clock.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+    time.dateTime = dateTimeInputValue(clock);
+    $('map-clock-date').textContent = clock.toLocaleDateString('de-DE', {
+        weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric'
+    });
+    const state = $('map-clock-status');
+    const running = trafficTimer !== null;
+    state.textContent = running ? '● Läuft · Minute ' + spatialState.minute :
+        spatialState.minute === 0 ? 'Bereit · Minute 0' : 'Pausiert · Minute ' + spatialState.minute;
+    state.className = 'map-clock-status' + (running ? ' running' : '');
+}
 function renderTraffic() {
+    const timeline = activeEvents();
     const selector = $('traffic-route');
     const key = selector.value;
     if (!PATHS.includes(key))
         return;
-    const jams = jamsAt(spatialState, events, spatialCorridors);
+    const jams = jamsAt(spatialState, timeline, spatialCorridors);
     const spillbacks = rampSpillbacks(jams, rampConnections, spatialCorridors);
-    const result = routeReport(key, jams, spillbacks, events);
-    const bn = pathBottleneck(key, events);
+    const result = routeReport(key, jams, spillbacks, timeline);
+    const bn = pathBottleneck(key, timeline);
     $('traffic-minute').textContent = `Minute ${spatialState.minute}`;
-    $('traffic-clock').textContent = simulatedClock().toLocaleString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) + ' Uhr (Simulationszeit)';
+    updateMapClock();
     const activeDemands = currentDemands();
     $('traffic-demand').textContent = trafficNumber(activeDemands[key]);
     $('traffic-demand-hint').textContent = demandMode === 'clock'
@@ -538,7 +585,7 @@ function renderTraffic() {
     const parent = $('traffic-summary');
     parent.replaceChildren();
     for (const item of PATHS) {
-        const m = routeReport(item, jams, spillbacks, events);
+        const m = routeReport(item, jams, spillbacks, timeline);
         const button = document.createElement('button');
         button.type = 'button';
         button.className = 'traffic-summary-row';
@@ -561,7 +608,7 @@ function renderTraffic() {
         container.append(p);
     }
     for (const jam of jams) {
-        const event = events.find(e => e.id === jam.id);
+        const event = timeline.find(e => e.id === jam.id);
         const symbol = event ? eventSymbols[event.kind] : '🚗';
         const kind = jam.released ? 'Rückstau löst sich auf'
             : jam.id.startsWith('merge:') ? 'Rückstau an der Überleitung'
@@ -607,6 +654,7 @@ function renderTraffic() {
         row.onclick = () => { focus = overflow ? ramps.find(r => r.id === overflow.rampId).points[0] : jam.point; zoom = Math.max(zoom, 14); refresh(); };
         container.append(row);
     }
+    redrawEventList();
     renderDiversionPlanner(key, jams, spillbacks);
     refresh();
 }
@@ -621,17 +669,18 @@ function selectTrafficRoute(path) {
 function stopTraffic() { if (trafficTimer !== null) {
     clearInterval(trafficTimer);
     trafficTimer = null;
-} $('traffic-play').textContent = '▶ Start'; }
+} $('traffic-play').textContent = '▶ Start'; updateMapClock(); }
 function stepTraffic(minutes) {
     try {
         for (let i = 0; i < minutes; i++) {
             const active = currentDemands();
+            const timeline = activeEvents();
             const transfers = [];
-            const jams = jamsAt(spatialState, events, spatialCorridors);
+            const jams = jamsAt(spatialState, timeline, spatialCorridors);
             const spillbacks = rampSpillbacks(jams, rampConnections, spatialCorridors);
             for (const [path, entry] of activeDetours) {
-                const event = events.find(e => e.id === entry.config.eventId && e.pathKey === path);
-                const delay = event ? routeReport(path, jams, spillbacks, events).delayMin : 0;
+                const event = timeline.find(e => e.id === entry.config.eventId && e.pathKey === path);
+                const delay = event ? routeReport(path, jams, spillbacks, timeline).delayMin : 0;
                 // Without a blocking event, drivers already on the detour still return.
                 const wanted = !event ? 0 : event.kind === 'closure' ? 100 :
                     Math.max(0, Math.min(35, delay === null ? 0 : delay <= 30 ? delay * .02 : delay <= 45 ? 1 + (delay - 30) * .15 :
@@ -640,7 +689,7 @@ function stepTraffic(minutes) {
                 // Only motorists who can physically reach this exit may be diverted.
                 // An upstream restriction could already be metering traffic BEFORE the
                 // detour exit, so using raw path demand would create extra road users.
-                const capacityAhead = events.filter(e => e.pathKey === path).reduce((limit, e) => {
+                const capacityAhead = timeline.filter(e => e.pathKey === path).reduce((limit, e) => {
                     const at = positionM(spatialCorridors[path], e.point);
                     return at !== null && at < entry.config.fromM ?
                         Math.min(limit, eventCapacity(e, initialTraffic)) : limit;
@@ -652,13 +701,13 @@ function stepTraffic(minutes) {
                 activeDetours.set(path, { ...entry, state: moved.state });
                 transfers.push(moved.transfer);
             }
-            spatialState = advanceSpatial(spatialState, events, active, 1, spatialCorridors, rampConnections, transfers);
+            spatialState = advanceSpatial(spatialState, timeline, active, 1, spatialCorridors, rampConnections, transfers);
             // First integration stage: separate, conservative cell ledger for the
             // motorway SPEED FIELD. The existing event/ramp/detour ledger remains
             // authoritative for reported vehicle totals and time delays.
             for (const key of CELL_PATHS) {
                 const previous = cellNetwork[key] ?? initialiseCells(spatialCorridors[key], active[key]);
-                cellNetwork[key] = advanceCells(previous, spatialCorridors[key], events, active[key]);
+                cellNetwork[key] = advanceCells(previous, spatialCorridors[key], timeline, active[key]);
             }
         }
         renderTraffic();
@@ -732,6 +781,7 @@ function initializeTraffic() {
         }
         $('traffic-play').textContent = '⏸ Pause';
         trafficTimer = setInterval(() => stepTraffic(1), 1000);
+        updateMapClock();
     };
     $('traffic-reset').onclick = () => { stopTraffic(); spatialState = emptySpatial(); cellNetwork = {}; resetDetourFlow(); renderTraffic(); };
     document.addEventListener('visibilitychange', () => { if (document.hidden)
@@ -884,7 +934,8 @@ function plotRampBadges(width, height) {
 }
 const jamColors = { slow: '#f59e0b', jam: '#dc2626', standstill: '#7f1d1d' };
 function drawSpatialJams() {
-    const list = jamsAt(spatialState, events, spatialCorridors);
+    const timeline = activeEvents();
+    const list = jamsAt(spatialState, timeline, spatialCorridors);
     const spillbacks = rampSpillbacks(list, rampConnections, spatialCorridors);
     const byPath = new Map();
     const append = (key, bands) => {
@@ -892,7 +943,7 @@ function drawSpatialJams() {
     };
     // Posted limits and closed worksites are local restrictions, whether or not
     // a queue has formed. They are not counted as additional queued vehicles.
-    for (const event of events) {
+    for (const event of timeline) {
         const route = spatialCorridors[event.pathKey];
         const at = positionM(route, event.point);
         if (at === null)
@@ -961,7 +1012,7 @@ function drawSpatialJams() {
         return;
     const labelObstacles = [
         ...badges.map(b => ({ x: b.bubble[0] - 23, y: b.bubble[1] - 23, width: 46, height: 46 })),
-        ...events.map(e => { const [x, y] = toScreen(e.point); return { x: x - 25, y: y - 25, width: 50, height: 50 }; })
+        ...timeline.map(e => { const [x, y] = toScreen(e.point); return { x: x - 25, y: y - 25, width: 50, height: 50 }; })
     ];
     for (const jam of list) {
         // Never place a big overlay directly on the motorway/ramp junction:
@@ -972,7 +1023,7 @@ function drawSpatialJams() {
         if (!mid.length)
             continue;
         const [x, y] = toScreen(mid[0]);
-        const event = events.find(e => e.id === jam.id), sign = event ? eventSymbols[event.kind] : '🚗';
+        const event = timeline.find(e => e.id === jam.id), sign = event ? eventSymbols[event.kind] : '🚗';
         const shortDirection = jam.pathKey === 'A3-koeln' ? 'A3 Köln' : jam.pathKey === 'A3-frankfurt' ? 'A3 Frankfurt'
             : jam.pathKey === 'A48-dernbach' ? 'A48 Dernbach' : jam.pathKey === 'A48-koblenz' ? 'A48 Koblenz'
                 : jam.pathKey === 'ramp-a48-to-koeln' ? 'A48→A3 Köln'
@@ -1080,7 +1131,7 @@ function showSelected(hit) {
         : `Fahrtrichtung eindeutig zugeordnet · OSM-Way ${hit.road.wayId}`;
     $('selected-direction').textContent = hitLabel(hit);
     $('selected-coords').textContent = `${hit.point[0].toFixed(6)}° N · ${hit.point[1].toFixed(6)}° E`;
-    const details = routeReport(hit.key, jamsAt(spatialState, events, spatialCorridors), rampSpillbacks(jamsAt(spatialState, events, spatialCorridors), rampConnections, spatialCorridors), events);
+    const details = routeReport(hit.key, jamsAt(spatialState, activeEvents(), spatialCorridors), rampSpillbacks(jamsAt(spatialState, activeEvents(), spatialCorridors), rampConnections, spatialCorridors), activeEvents());
     $('selected-traffic').textContent = `${trafficNumber(details.queueVehicles)} Fahrzeuge auf diesem Fahrweg · ${details.delayMin === null ? 'Zeitverlust unbestimmt' : `+${trafficNumber(details.delayMin, 1)} min`}`;
     const lane = hit.kind === 'ramp' ? rampLaneInfo(hit.ramp, hit.point) : roadLaneInfo(hit.road);
     $('selected-lanes').textContent = lane.label;
@@ -1095,7 +1146,7 @@ function showSelected(hit) {
     hint.textContent = 'Fahrbahn ausgewählt. Du kannst ein Simulator-Ereignis anlegen.';
 }
 function selectAt(x, y) {
-    const picked = [...events].reverse().find(e => { const p = toScreen(e.point); return Math.hypot(p[0] - x, p[1] - y) <= 18; });
+    const picked = [...activeEvents()].reverse().find(e => { const p = toScreen(e.point); return Math.hypot(p[0] - x, p[1] - y) <= 18; });
     if (picked) {
         showExistingEvent(picked);
         return;
@@ -1184,12 +1235,21 @@ function bind() {
         $('event-form').hidden = true;
         $('new-event-button').hidden = false;
     } };
-    $('event-kind').addEventListener('change', () => { renderEventLaneChoices(); updateEventConfigPreview(true); });
+    $('event-kind').addEventListener('change', () => { renderEventLaneChoices(); updateEventConfigPreview(true); scheduleForm.display(); });
     $('event-shoulder').addEventListener('change', () => updateEventConfigPreview());
     $('event-speed').addEventListener('change', () => { speedManuallyChanged = true; updateEventConfigPreview(); });
     $('event-edit').onclick = beginEditEvent;
     $('event-save').onclick = saveNewEvent;
     $('event-delete').onclick = removeExistingEvent;
+    // iOS WebKit otherwise selects map labels and shows the native "Kopieren"
+    // callout on a tap-and-hold. Keep text selection intact in input/forms.
+    const mapRegion = canvas.closest('.map-shell');
+    if (!mapRegion)
+        throw Error('Kartenoberfläche fehlt');
+    for (const type of ['contextmenu', 'selectstart', 'dragstart']) {
+        mapRegion.addEventListener(type, event => event.preventDefault());
+    }
+    canvas.addEventListener('dblclick', event => event.preventDefault());
     canvas.addEventListener('pointerdown', e => { canvas.setPointerCapture(e.pointerId); pointerPositions.set(e.pointerId, [e.clientX, e.clientY]); if (pointerPositions.size === 1)
         pointerDown = { x: e.clientX, y: e.clientY, at: performance.now() };
     else
