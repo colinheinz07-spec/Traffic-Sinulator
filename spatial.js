@@ -179,8 +179,14 @@ export function advanceSpatial(prev, events, demands, minutes, corridors, links 
                             pendingTicks = ticks;
                         }
                     }
+                    // The history is a bounded *speed signal*, never a second vehicle ledger.
+                    // New restrictions propagate to upstream positions with finite wave speed.
+                    const speedHistory = [...(previous?.speedHistory ?? [])];
+                    speedHistory.push({ minute: prev.minute + tick + 1, speedKmh });
+                    if (speedHistory.length > 480)
+                        speedHistory.splice(0, speedHistory.length - 480);
                     current[node.id] = { pathKey: key, point: node.point, vehicles: waiting, lanes, capacityVph: cap * 60,
-                        active: node.event !== null || node.limitVph !== undefined, densityVehPerKm, color, pendingColor, pendingTicks };
+                        active: node.event !== null || node.limitVph !== undefined, densityVehPerKm, color, pendingColor, pendingTicks, speedHistory };
                 }
                 else
                     delete current[node.id];
@@ -199,7 +205,10 @@ export function jamsAt(state, events, corridors) {
         const route = corridors[q.pathKey], anchor = positionM(route, q.point);
         if (anchor === null || q.vehicles < .01)
             continue;
-        const capacity = e ? eventCapacity(e) : (q.capacityVph ?? baselineCapacity(q.pathKey));
+        // Use the discharge of the last simulated minute, not the newly edited
+        // settings before any simulation tick has passed. This avoids repainting
+        // an entire existing queue the instant a limit is edited in the UI.
+        const capacity = q.capacityVph ?? (e ? eventCapacity(e) : baselineCapacity(q.pathKey));
         const lanes = Math.max(1, q.lanes);
         const condition = queueCondition(q.vehicles, capacity, lanes, q.pathKey);
         const densityVehPerKm = q.densityVehPerKm ?? condition.densityVehPerKm;
@@ -211,7 +220,7 @@ export function jamsAt(state, events, corridors) {
         const speedKmh = capacity === 0 ? 0 : Math.min(freeSpeedKmh(q.pathKey), capacity / densityVehPerKm);
         const color = q.color ?? colorAtSpeed(speedKmh);
         result.push({ id, pathKey: q.pathKey, eventKind: e?.kind ?? null, point: q.point, anchorM: anchor,
-            queueVehicles: q.vehicles, queueM, visibleQueueM, delayMin: wait, capacityVph: capacity, speedKmh, color, released: !e && !q.active, outOfBoundsM: Math.max(0, queueM - anchor) });
+            queueVehicles: q.vehicles, queueM, visibleQueueM, delayMin: wait, capacityVph: capacity, speedKmh, color, released: !e && !q.active, outOfBoundsM: Math.max(0, queueM - anchor), speedHistory: q.speedHistory });
     }
     return result.sort((a, b) => a.pathKey.localeCompare(b.pathKey) || a.anchorM - b.anchorM);
 }
