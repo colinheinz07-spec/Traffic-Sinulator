@@ -7,9 +7,10 @@ import type {Road,Ramp,Point} from './core.js';
 import type {SimEvent} from './events.js';
 import type {RampConnection} from './interchange.js';
 import {PATHS,baselineCapacity,eventCapacity,defaultDemand,type PathKey,type TrafficColor} from './traffic.js';
+import {colorAtSpeed,queueFundamentalDiagram,freeSpeedKmh} from './traffic-physics.js';
 
 export interface Corridor {key:PathKey;points:Point[];metres:number[];lengthM:number}
-export interface QueuedAt {pathKey:PathKey;point:Point;vehicles:number;lanes:number;capacityVph?:number;active?:boolean;color?:TrafficColor;pendingColor?:TrafficColor;pendingTicks?:number}
+export interface QueuedAt {pathKey:PathKey;point:Point;vehicles:number;lanes:number;capacityVph?:number;active?:boolean;densityVehPerKm?:number;color?:TrafficColor;pendingColor?:TrafficColor;pendingTicks?:number}
 export interface SpatialState {minute:number;queues:Record<string,QueuedAt>}
 export interface Jam {id:string;pathKey:PathKey;eventKind:SimEvent['kind']|null;point:Point;anchorM:number;queueVehicles:number;queueM:number;visibleQueueM:number;delayMin:number|null;capacityVph:number;speedKmh:number;color:TrafficColor;released:boolean;outOfBoundsM:number}
 const rad=Math.PI/180;
@@ -67,19 +68,15 @@ export function routeSlice(route:Corridor,fromM:number,toM:number):Point[]{
  points.push(interpolate(b));return points;
 }
 export function emptySpatial():SpatialState{return {minute:0,queues:{}}}
-/** The map and route report use one queued-traffic classifier.
- * v = flow / queued density is a scenario approximation, not GPS speed.
- * Orange remains the upstream approach; red is congestion; dark red
- * means a stop or crawling at <=10 km/h.
+/** Color is based ONLY on calculated km/h; density comes from the same
+ * triangular-flow approximation used for the physical queue footprint.
+ * It does not invent a color based on queue length or elapsed time.
  */
-export function queueCondition(vehicles:number,capacityVph:number,lanes:number,path:PathKey):{color:TrafficColor;speedKmh:number}{
- const density=95*Math.max(1,lanes);
- const speedKmh=capacityVph===0?0:Math.min(path.startsWith('ramp-')?80:120,capacityVph/density);
- const queueM=vehicles/density*1000;
- const wait=capacityVph===0?null:vehicles/capacityVph*60;
- const color:TrafficColor=capacityVph===0||(queueM>=150&&speedKmh<=10)?'standstill'
-  :queueM>=750||(queueM>=150&&speedKmh<=30)||(wait!==null&&wait>=5)?'jam':'slow';
- return {color,speedKmh};
+export function queueCondition(vehicles:number,capacityVph:number,lanes:number,path:PathKey):{
+ color:TrafficColor;speedKmh:number;densityVehPerKm:number
+}{
+ const {speedKmh,densityVehPerKm}=queueFundamentalDiagram(capacityVph,lanes,path);
+ return {color:vehicles>0?colorAtSpeed(speedKmh):'free',speedKmh,densityVehPerKm};
 }
 /** Positive downstream capacity always leaves a positive merge service share.
  * Demand ratios are scenario assumptions, not a calibrated junction solver.
@@ -137,7 +134,20 @@ export function advanceSpatial(prev:SpatialState,events:readonly SimEvent[],dema
    if(waiting>1e-6){
     const previous=current[node.id];
     const lanes=node.event?.laneCount??previous?.lanes??(key.startsWith('ramp-')?1:Math.round(baselineCapacity(key)/1800));
-    const desired=queueCondition(waiting,cap*60,lanes,key).color;
+    const target=queueCondition(waiting,cap*60,lanes,key);
+    // A queue does not instantaneously decompress along kilometres of road
+    // when a worksite reopens. Relax its density only as stored vehicles drain.
+    // This prevents the classic false visual increase in queue length even
+    // though the total number of waiting cars is already falling.
+    const oldDensity=previous?.densityVehPerKm??queueCondition(previous?.vehicles??0,
+     previous?.capacityVph??cap*60,lanes,key).densityVehPerKm;
+    const fractionRemaining=previous&&previous.vehicles>0?
+     Math.max(0,Math.min(1,waiting/previous.vehicles)):1;
+    const densityVehPerKm=previous&&target.densityVehPerKm<oldDensity
+     ?Math.max(target.densityVehPerKm,oldDensity*(.5+.5*fractionRemaining))
+     :target.densityVehPerKm;
+    const speedKmh=cap===0?0:Math.min(freeSpeedKmh(key),cap*60/densityVehPerKm);
+    const desired=colorAtSpeed(speedKmh);
     let color=desired,pendingColor:TrafficColor|undefined,pendingTicks:number|undefined;
     // Two consecutive minutes for a color transition; real blockage is immediate.
     if(cap>0&&previous?.color&&previous.color!==desired){
@@ -145,7 +155,7 @@ export function advanceSpatial(prev:SpatialState,events:readonly SimEvent[],dema
      if(ticks<2){color=previous.color;pendingColor=desired;pendingTicks=ticks;}
     }
     current[node.id]={pathKey:key,point:node.point,vehicles:waiting,lanes,capacityVph:cap*60,
-     active:node.event!==null||node.limitVph!==undefined,color,pendingColor,pendingTicks};
+     active:node.event!==null||node.limitVph!==undefined,densityVehPerKm,color,pendingColor,pendingTicks};
    }else delete current[node.id];
    entering=passing;
   }
@@ -163,12 +173,15 @@ export function jamsAt(state:SpatialState,events:readonly SimEvent[],corridors:R
   if(anchor===null||q.vehicles<.01)continue;
   const capacity=e?eventCapacity(e):(q.capacityVph??baselineCapacity(q.pathKey));
   const lanes=Math.max(1,q.lanes);
-  // Illustrative storage: 95 queued vehicles per kilometre of approach lane.
-  const queueM=q.vehicles/(95*lanes)*1000,visibleQueueM=Math.min(queueM,anchor);
-  const wait=capacity===0?null:q.vehicles/capacity*60;
   const condition=queueCondition(q.vehicles,capacity,lanes,q.pathKey);
-  const speedKmh=condition.speedKmh;
-  const color=q.color??condition.color;
+  const densityVehPerKm=q.densityVehPerKm??condition.densityVehPerKm;
+  // Densities are persistent state; queue length and speed evolve together.
+  const queueM=q.vehicles/densityVehPerKm*1000,visibleQueueM=Math.min(queueM,anchor);
+  // Little's law: queue vehicles / bottleneck throughput, independent of
+  // elapsed simulation time. A true zero-throughput closure is indeterminate.
+  const wait=capacity===0?null:q.vehicles/capacity*60;
+  const speedKmh=capacity===0?0:Math.min(freeSpeedKmh(q.pathKey),capacity/densityVehPerKm);
+  const color=q.color??colorAtSpeed(speedKmh);
   result.push({id,pathKey:q.pathKey,eventKind:e?.kind??null,point:q.point,anchorM:anchor,
    queueVehicles:q.vehicles,queueM,visibleQueueM,delayMin:wait,capacityVph:capacity,speedKmh,color,released:!e&&!q.active,outOfBoundsM:Math.max(0,queueM-anchor)});
  }

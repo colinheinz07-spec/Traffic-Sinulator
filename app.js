@@ -1,7 +1,8 @@
 import { PATHS, pathBottleneck, defaultDemands, demandAtMinute, demandAtClock } from './traffic.js';
 import { networkData } from './geodata.js';
 import { routeReport } from './network-report.js';
-import { makeCorridors, routeSlice, advanceSpatial, emptySpatial, jamsAt, jamBands } from './spatial.js';
+import { makeCorridors, routeSlice, positionM, advanceSpatial, emptySpatial, jamsAt } from './spatial.js';
+import { colorAtSpeed, physicalSpeedBands, resolveSpeedBands, freeSpeedKmh } from './traffic-physics.js';
 import { buildRampConnections, rampSpillbacks } from './interchange.js';
 import { decodeEvents, eventFromHit, updatedEvent, eventNames, eventSymbols, eventSummary, defaultLengthM, maxLengthM, suggestedSpeed, STORAGE_KEY, isEventKind } from './events.js';
 import { roadLaneInfo, rampLaneInfo } from './lane-info.js';
@@ -334,7 +335,7 @@ function renderTraffic() {
     $('traffic-shared').textContent = result.sharedRampVehicles > 0 ? `Abfahrtsstreifen betroffen (${trafficColorName[result.exitColor]}): ${trafficNumber(result.sharedRampVehicles)} Fahrzeuge der Rampenwarteschlange auf dieser Autobahn. Abbieger-Wartezeit: ${result.exitDelayMin === null ? 'nicht berechenbar' : trafficNumber(result.exitDelayMin, 1) + ' min'}. Kein zusätzlich erzeugter Stau im Durchgangsverkehr.` : 'Keine Rampenfahrzeuge auf diesem Abschnitt';
     $('traffic-queue-km').textContent = `${trafficNumber(result.queueKm, 2)} km${result.sharedRampVehicles > 0 && result.ownVehicles === 0 ? ' (Abfahrtsstreifen)' : ''}`;
     $('traffic-delay').textContent = result.delayMin === null ? 'Bei Stillstand nicht berechenbar' : `${trafficNumber(result.delayMin, 1)} min${result.sharedRampVehicles > 0 ? ' (Durchgangsverkehr)' : ''}`;
-    $('traffic-speed').textContent = result.ownVehicles > 0 ? `ca. ${trafficNumber(Math.min(...jams.filter(j => j.pathKey === key).map(j => j.speedKmh)), 1)} km/h (Rückstau-Modell)` : result.sharedRampVehicles > 0 ? 'Abfahrt betroffen; keine eigene Warteschlange' : `${bn.speedKmh} km/h`;
+    $('traffic-speed').textContent = `ca. ${trafficNumber(result.speedKmh, 1)} km/h${result.ownVehicles > 0 ? ' (Rückstau)' : bn.count > 0 ? ' (Ereignisbereich)' : ' (freie Fahrt)'}`;
     $('traffic-events').textContent = bn.count === 0 ? 'Kein eigenes Ereignis auf dieser Richtung – mögliche Rückstauübertragung am AD wird berücksichtigt' :
         `${bn.count} eigene(s) Ereignis(se) auf dieser Richtung`;
     const stateLabel = $('traffic-state');
@@ -356,7 +357,7 @@ function renderTraffic() {
         label.textContent = trafficRouteLabel(item);
         const status = document.createElement('strong');
         status.className = `traffic-state ${m.color}`;
-        status.textContent = `${trafficNumber(m.queueKm, 1)} km · ${m.delayMin === null ? 'Zeit unbestimmt' : trafficNumber(m.delayMin, 1) + ' min'}${m.sharedRampVehicles > 0 ? ' · Abfahrt ' + trafficColorName[m.exitColor].toLowerCase() : ''}`;
+        status.textContent = `${trafficNumber(m.queueKm, 1)} km · ${m.delayMin === null ? 'Zeit unbestimmt' : trafficNumber(m.delayMin, 1) + ' min'} · ${trafficNumber(m.speedKmh)} km/h${m.sharedRampVehicles > 0 ? ' · Abfahrt ' + trafficColorName[m.exitColor].toLowerCase() : ''}`;
         button.append(label, status);
         button.setAttribute('aria-label', `${label.textContent}, ${status.textContent}`);
         button.onclick = () => selectTrafficRoute(item);
@@ -378,7 +379,7 @@ function renderTraffic() {
         title.textContent = `${trafficRouteLabel(jam.pathKey)} · ${jam.released ? 'Rückstau löst sich auf' : jam.id.startsWith('merge:') ? 'Rückstau von Zielautobahn' : jam.id.startsWith('spill:') ? 'Rampenstau beeinträchtigt Ausfahrt' : event ? eventNames[event.kind] : 'Engpass'}`;
         const value = document.createElement('strong');
         value.className = `traffic-state ${jam.color}`;
-        value.textContent = `${trafficNumber(jam.queueM / 1000, 2)} km · ${jam.delayMin === null ? 'Zeit unbestimmt' : trafficNumber(jam.delayMin, 1) + ' min'}`;
+        value.textContent = `${trafficNumber(jam.queueM / 1000, 2)} km · ${jam.delayMin === null ? 'Zeit unbestimmt' : trafficNumber(jam.delayMin, 1) + ' min'} · ${trafficNumber(jam.speedKmh)} km/h`;
         const overflow = spillbacks.find(s => s.id === jam.id && s.rampId === jam.pathKey);
         if (overflow) {
             const extra = document.createElement('small');
@@ -629,33 +630,58 @@ function plotRampBadges(width, height) {
 const jamColors = { slow: '#f59e0b', jam: '#dc2626', standstill: '#7f1d1d' };
 function drawSpatialJams() {
     const list = jamsAt(spatialState, events, spatialCorridors);
-    // Storage on a congested ramp can overflow onto its VERIFIED feeder mainline.
-    // This colored mainline segment is not a second set of queued vehicles.
     const spillbacks = rampSpillbacks(list, rampConnections, spatialCorridors);
+    const byPath = new Map();
+    const append = (key, bands) => {
+        byPath.set(key, [...(byPath.get(key) ?? []), ...bands]);
+    };
+    // Posted limits and closed worksites are local restrictions, whether or not
+    // a queue has formed. They are not counted as additional queued vehicles.
+    for (const event of events) {
+        const route = spatialCorridors[event.pathKey];
+        const at = positionM(route, event.point);
+        if (at === null)
+            continue;
+        const speed = Math.min(freeSpeedKmh(route.key), Math.max(0, event.settings.speedKmh));
+        const end = Math.min(route.lengthM, at + event.settings.lengthM);
+        if (end - at >= .5)
+            append(route.key, [{ fromM: at, toM: end, color: colorAtSpeed(speed), speedKmh: speed, source: 'restriction' }]);
+    }
+    // Congestion core: speed estimated from discharge and density using the
+    // fundamental diagram. Its approach is split at actual braking-speed
+    // thresholds, never at hard-coded percentages of the jam length.
+    for (const jam of list)
+        append(jam.pathKey, physicalSpeedBands(jam));
+    const widths = lineWidths(zoom);
+    for (const [key, bands] of byPath) {
+        const route = spatialCorridors[key], narrow = key.startsWith('ramp-');
+        for (const band of resolveSpeedBands(bands)) {
+            if (band.color === 'free')
+                continue;
+            const line = routeSlice(route, band.fromM, band.toM);
+            if (line.length < 2)
+                continue;
+            const width = narrow ? widths.ramp : widths.motorway;
+            stroke(line, width + 1.5, '#112537');
+            stroke(line, width + .65, jamColors[band.color]);
+        }
+    }
+    // Ramp spillback on the feeder's *exit lane*, not on all A48/A3 lanes.
     for (const spill of spillbacks) {
-        const route = spatialCorridors[spill.source];
         const length = spill.toM - spill.fromM;
         if (length < 1)
             continue;
-        // The same color gradient is used for the ramp and the overlapping feeder.
-        for (const band of jamBands({ anchorM: spill.toM, queueM: length, color: spill.color })) {
+        const parent = list.find(j => j.pathKey === spill.rampId && j.id === spill.id);
+        if (!parent)
+            continue;
+        const route = spatialCorridors[spill.source];
+        const bands = physicalSpeedBands({ anchorM: spill.toM, queueM: length, pathKey: spill.source, speedKmh: parent.speedKmh });
+        for (const band of bands) {
+            if (band.color === 'free')
+                continue;
             const line = routeSlice(route, band.fromM, band.toM);
-            // Ramp vehicles occupy an exit lane, not the full width of the mainline.
             if (line.length > 1)
-                stroke(line, Math.max(1, lineWidths(zoom).motorway * .4), jamColors[band.color]);
-        }
-    }
-    // No purely cosmetic downstream-merge overlay: a blocked ramp gets its
-    // own real queue in advanceSpatial(), rendered with the same jamBands() below.
-    // Colored paths are exact OSM segments immediately UPSTREAM of each bottleneck.
-    for (const jam of list) {
-        const road = spatialCorridors[jam.pathKey];
-        for (const band of jamBands(jam)) {
-            const line = routeSlice(road, band.fromM, band.toM);
-            if (line.length > 1) {
-                stroke(line, lineWidths(zoom).motorwayCasing + 1, '#102735');
-                stroke(line, lineWidths(zoom).motorway + 1.1, jamColors[band.color]);
-            }
+                stroke(line, Math.max(1, widths.motorway * .46), jamColors[band.color]);
         }
     }
     if (zoom < 10.6)
@@ -669,7 +695,7 @@ function drawSpatialJams() {
         const [x, y] = toScreen(mid[0]);
         if (x < 8 || x > wrapper.clientWidth - 75 || y < 54 || y > wrapper.clientHeight - 63)
             continue;
-        const txt = jam.delayMin === null ? '🚗🚗 gesperrt' : `🚗🚗 +${trafficNumber(jam.delayMin, 1)} min`;
+        const txt = jam.delayMin === null ? '⛔ gesperrt' : `+${trafficNumber(jam.delayMin, 1)} min · ${trafficNumber(jam.speedKmh)} km/h`;
         context.font = 'bold 11px system-ui';
         const w = context.measureText(txt).width + 16;
         context.fillStyle = '#0a1c2bef';
