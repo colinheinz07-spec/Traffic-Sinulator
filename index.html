@@ -112,6 +112,19 @@
 .event-row .schedule-state.finished{color:#a0b8c7;border-color:#375061}
 .event-row .schedule-state.planned{color:#f8d29a;border-color:#907243}
 @media(max-width:410px){.schedule-dates,.schedule-phase-grid{grid-template-columns:1fr}}
+
+.junction-movements{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin:10px 0 14px}
+.junction-movement{border:1px solid #31536b;border-radius:12px;background:#102a3c;padding:10px;display:flex;flex-direction:column;gap:7px;min-width:0}
+.junction-movement.critical{border-color:#f6b756;background:#302b29}
+.junction-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:4px}
+.junction-head strong{font-size:.83rem;color:#e7f6ff}
+.junction-share{font-size:.79rem;font-weight:800;color:#95d8ef}
+.junction-movement.critical .junction-share{color:#ffda8f}
+.junction-flow{font-size:.74rem;line-height:1.5;color:#c8e2ec}
+.junction-flow b{color:#fff}
+.junction-note{font-size:.69rem;color:#93b9cc;line-height:1.4}
+.junction-movement.critical .junction-note{color:#f4cbaa}
+@media(max-width:520px){.junction-movements{grid-template-columns:1fr}}
 </style></head><body><main>
 <header><div><div class="eyebrow">Stausimulator · Kartenfundament</div><h1>A3 / A48 – Streckenkarte</h1></div><span class="phase">TRAFFIC 1.5.8</span></header>
 <div class="toolbar"><button id="fit" class="primary">Gesamtes Netz</button><button id="dernbach">AD Dernbach</button><button id="koblenz">AK Koblenz</button><button id="diez">AS Diez</button><button id="limburg-nord">AS Limburg-Nord</button><button id="limburg-sued">AS Limburg-Süd</button><button id="honnef">AS Bad Honnef/Linz</button></div>
@@ -143,6 +156,9 @@
 <p id="traffic-events" class="event-info"></p><p id="traffic-interchange" class="event-info" aria-live="polite">AD Dernbach: noch keine Rampenüberläufe.</p><p id="traffic-closure-note" class="event-info"></p>
 <h3 class="traffic-subtitle">Einzelne Rückstaus <span id="traffic-jams-count">(0)</span></h3><div class="traffic-summary" id="traffic-jams"></div>
 <h3 class="traffic-subtitle">Alle acht Fahrwege (aggregiertes Modell)</h3><div id="traffic-summary" class="traffic-summary"></div>
+<h3 class="traffic-subtitle">↘↗ Anschlussstellen · Abfahrten und Auffahrten</h3>
+<p class="diversion-subtitle">Fahrtrichtungsbezogene Übersicht aller Anschlussstellen. <strong>Umfahrung % = Soll-Anteil</strong> für herannahende Fahrzeuge. Bei Vollsperrung 100 % an der letzten geeigneten Ausfahrt davor. <strong>Ist ↓ / ↑</strong> zeigt nur tatsächlich über eine aktivierte, durchgehende OSM-Umleitung abgezweigte und wieder eingefädelte Fahrzeuge; gewöhnlicher Anschlussstellenverkehr ist noch nicht modelliert.</p>
+<div id="junction-movements" class="junction-movements" aria-live="polite"></div>
 <h3 class="traffic-subtitle">🛣️ Bedarfsumleitungen · Planung</h3>
 <p class="diversion-subtitle">Für die ausgewählte Richtung werden geeignete Ausfahrten <strong>vor dem Ereignis</strong> und dokumentierte U-Strecken gezeigt. Lade die echte OSM-Straßenverbindung online und aktiviere sie dann. Erst dann werden Fahrzeuge an der Ausfahrt abgezweigt und nach der Fahrzeit am passenden Wiedereintritt wieder hinzugefügt. Fehlt eine durchgehende Route, bleibt die Umleitung aus.</p>
 <div id="traffic-diversion-plans" class="diversion-options" aria-live="polite"></div>
