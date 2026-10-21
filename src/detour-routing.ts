@@ -201,7 +201,7 @@ export async function loadDetourGeometry(
    if(route&&route.startGapM<1300&&route.endGapM<1300)official={route,ways};
   }catch{/* fallback on genuinely mapped local-road graph only */}
  }
- let route=official?.route,ways=official?.ways,source:DetourGeometry['source']='osm-official-relation';
+ let route:GraphRoute|null=official?.route??null,ways=official?.ways,source:DetourGeometry['source']='osm-official-relation';
  if(!route){
   ways=await fetchOSMWays(bboxQuery(from.position,to.position),fetcher);
   route=shortestOSMRoute(graphFromWays(ways),from.position,to.position);
