@@ -23,7 +23,7 @@ export function installScheduleForm(config:ScheduleFormConfig){
   container.hidden=!enable.checked;
  }
  function numbering(){
-  [...host.children].forEach((node,i)=>{const title=node.querySelector('strong');if(title)title.textContent='Phase '+(i+2);});
+  Array.from(host.children).forEach((node,i)=>{const title=node.querySelector('strong');if(title)title.textContent='Phase '+(i+2);});
  }
  function add(phase?:EventPhase){
   if(host.children.length>=6)return;
@@ -64,7 +64,7 @@ export function installScheduleForm(config:ScheduleFormConfig){
    if(closing)shoulder.value='blocked';
    else if(shoulder.value==='blocked'&&phase?.kind==='closure')shoulder.value='normal';
    const closed=closing?Array.from({length:count},(_,i)=>i):
-    [...lanes.querySelectorAll<HTMLInputElement>('input:checked')].map(x=>Number(x.value));
+    Array.from(lanes.querySelectorAll<HTMLInputElement>('input:checked')).map(x=>Number(x.value));
    const suggested=suggestedSpeed(closing?'closure':'roadworks',count,closed,shoulder.value as ShoulderMode);
    if(reset)speed.value=String(suggested);
    const zero=speed.querySelector<HTMLOptionElement>('option[value="0"]');if(zero)zero.disabled=suggested!==0;
@@ -91,13 +91,13 @@ export function installScheduleForm(config:ScheduleFormConfig){
   if(!start.value||!end.value||!Number.isFinite(Date.parse(start.value))||!Number.isFinite(Date.parse(end.value)))
    throw Error('Bitte einen gültigen Beginn und ein Ende auswählen.');
   const phases:EventPhase[]=[];
-  for(const item of [...host.children]){
-   const field=(key:string)=>item.querySelector<HTMLInputElement|HTMLSelectElement>('[data-field="'+key+'"]')!;
+  for(const item of Array.from(host.children)){
+   const field=(key:string)=>(item as HTMLElement).querySelector<HTMLInputElement|HTMLSelectElement>('[data-field="'+key+'"]')!;
    const at=field('start').value;
    if(!at||!Number.isFinite(Date.parse(at)))throw Error('Jede Phase braucht einen gültigen Beginn.');
    const kind=field('kind').value as 'roadworks'|'closure';
    const closedLanes=kind==='closure'?Array.from({length:config.laneCount()},(_,i)=>i):
-    [...item.querySelectorAll<HTMLInputElement>('.schedule-phase-lanes input:checked')].map(x=>Number(x.value));
+    Array.from(item.querySelectorAll<HTMLInputElement>('.schedule-phase-lanes input:checked')).map(x=>Number(x.value));
    phases.push({startAt:new Date(at).toISOString(),kind,closedLanes,
     speedKmh:Number(field('speed').value),shoulder:kind==='closure'?'blocked':field('shoulder').value as ShoulderMode});
   }
