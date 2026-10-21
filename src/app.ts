@@ -1,4 +1,4 @@
-import {PATHS,pathBottleneck,baselineCapacity,defaultDemand,defaultDemands,demandAtMinute,demandAtClock,type DemandMode,type PathKey,type TrafficColor} from './traffic.js';
+import {PATHS,pathBottleneck,eventCapacity,baselineCapacity,defaultDemand,defaultDemands,demandAtMinute,demandAtClock,type DemandMode,type PathKey,type TrafficColor} from './traffic.js';
 import {networkData} from './geodata.js';
 import {routeReport} from './network-report.js';
 import {makeCorridors,routeSlice,positionM,advanceSpatial,emptySpatial,jamsAt} from './spatial.js';
@@ -456,9 +456,18 @@ function stepTraffic(minutes:number){
      Math.max(0,Math.min(35,delay===null?0:delay<=30?delay*.02:delay<=45?1+(delay-30)*.15:
       delay<=60?3.25+(delay-45)*.38:delay<=90?9+(delay-60)*.55:25));
     const initialTraffic=active[path as PathKey];
+    // Only motorists who can physically reach this exit may be diverted.
+    // An upstream restriction could already be metering traffic BEFORE the
+    // detour exit, so using raw path demand would create extra road users.
+    const capacityAhead=events.filter(e=>e.pathKey===path).reduce((limit,e)=>{
+     const at=positionM(spatialCorridors[path as PathKey],e.point);
+     return at!==null&&at<entry.config.fromM?
+      Math.min(limit,eventCapacity(e,initialTraffic)):limit;
+    },initialTraffic);
+    const sourceSupply=Math.max(0,Math.min(initialTraffic,capacityAhead));
     const mergeSupply=Math.max(0,baselineCapacity(path as PathKey)-
      (initialTraffic*(1-wanted/100)));
-    const moved=advanceDetour(entry.state,entry.config,spatialState.minute,initialTraffic,wanted,mergeSupply);
+    const moved=advanceDetour(entry.state,entry.config,spatialState.minute,sourceSupply,wanted,mergeSupply);
     activeDetours.set(path,{...entry,state:moved.state});
     transfers.push(moved.transfer);
    }
