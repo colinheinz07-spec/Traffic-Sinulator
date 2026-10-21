@@ -4,6 +4,7 @@ import { routeReport } from './network-report.js';
 import { makeCorridors, routeSlice, positionM, advanceSpatial, emptySpatial, jamsAt } from './spatial.js';
 import { colorAtSpeed, physicalSpeedBands, stopAndGoBands, resolveSpeedBands, freeSpeedKmh } from './traffic-physics.js';
 import { buildRampConnections, rampSpillbacks } from './interchange.js';
+import { DIVERSION_LINKS, CROSS_MOTORWAY_DIVERSION, diversionJunctions, planDiversion } from './diversions.js';
 import { decodeEvents, eventFromHit, updatedEvent, eventNames, eventSymbols, eventSummary, defaultLengthM, maxLengthM, suggestedSpeed, STORAGE_KEY, isEventKind } from './events.js';
 import { roadLaneInfo, rampLaneInfo } from './lane-info.js';
 import { mapCandidates, chooseMapHits, closestJunction, lanePositions, hitLabel } from './selection.js';
@@ -312,6 +313,93 @@ let trafficTimer = null;
 const trafficRouteLabel = (key) => ramps.find(r => r.id === key)?.name ?? (names[key] ?? key);
 const trafficNumber = (n, digits = 0) => n.toLocaleString('de-DE', { maximumFractionDigits: digits, minimumFractionDigits: digits });
 const trafficColorName = { free: 'Frei', slow: 'Stockend', jam: 'Stau / Stop-and-Go', standstill: 'Stillstand / extrem langsam (≤ 10 km/h)' };
+/** Planning preview only: no transfers to side-road traffic are executed here.
+ * We deliberately require real, connected OSM local-road geometry first.
+ */
+function renderDiversionPlanner(key, jams, spillbacks) {
+    const parent = $('traffic-diversion-plans'), catalog = $('traffic-diversion-catalog');
+    parent.replaceChildren();
+    catalog.replaceChildren();
+    if (key.startsWith('ramp-')) {
+        const p = document.createElement('p');
+        p.textContent = 'Überleitungsrampen am AD Dernbach sind keine Ortsausfahrten. Wähle A3 oder A48, um geeignete Bedarfsumleitungen zu sehen.';
+        parent.append(p);
+        return;
+    }
+    const direction = key, corridor = spatialCorridors[direction];
+    const junctions = diversionJunctions(direction, exits, corridor);
+    const active = events.filter(e => e.pathKey === direction);
+    if (!active.length) {
+        const p = document.createElement('p');
+        p.textContent = 'Noch kein Ereignis in dieser Fahrtrichtung. Die dokumentierten U-Strecken kannst du unten einsehen.';
+        parent.append(p);
+    }
+    else {
+        const traffic = routeReport(direction, jams, spillbacks, events);
+        for (const event of active) {
+            const plan = planDiversion(event, corridor, exits, traffic.delayMin);
+            if (!plan)
+                continue;
+            const block = document.createElement('div');
+            block.className = 'diversion-preview';
+            const title = document.createElement('strong');
+            title.textContent = `${eventSymbols[event.kind]} ${eventNames[event.kind]} · ${trafficRouteLabel(direction)}`;
+            const demand = document.createElement('p');
+            demand.textContent = plan.requiredDiversion ? '⛔ Vor der Vollsperrung: Ableiten oder Fahrzeuge zurückhalten'
+                : `Ausweichinteresse (Modellannahme): ${trafficNumber(plan.interestPercent ?? 0, 1)} % bei ${traffic.delayMin === null ? 'unbestimmter' : trafficNumber(traffic.delayMin, 1) + ' min'} Verzögerung`;
+            block.append(title, demand);
+            if (!plan.candidateExits.length) {
+                const note = document.createElement('p');
+                note.textContent = 'Keine geeignete reguläre Ausfahrt vor dem Ereignis innerhalb unserer Kartengrenzen. Kein erfundener Umleitungsweg.';
+                block.append(note);
+            }
+            for (const option of plan.candidateExits) {
+                const line = document.createElement('div');
+                line.className = 'diversion-option';
+                const label = document.createElement('strong');
+                label.textContent = `AS ${option.exit.ref} ${option.exit.name} · ${trafficNumber(option.upstreamKm, 1)} km vor Ereignis`;
+                const secondary = document.createElement('span');
+                secondary.textContent = option.link ? `${option.link.code} · ${option.link.toRef ? 'bis AS ' + option.link.toRef : 'Ziel nicht bestätigt'} · ${option.link.evidence === 'partial' ? 'Verlauf unvollständig' : 'Start/Ziel bekannt'}`
+                    : 'Kein eindeutig zugeordneter U-Verlauf im geprüften Katalog';
+                line.append(label, secondary);
+                block.append(line);
+            }
+            const warning = document.createElement('p');
+            warning.className = 'diversion-warning';
+            warning.textContent = 'Vorschau: Es wird noch kein Fahrzeug über Land-/Bundesstraßen umgeleitet. Die Nebenstraßenkapazität und Rückstaus an Ausfahrten müssen zuvor abgebildet werden.';
+            block.append(warning);
+            parent.append(block);
+        }
+    }
+    const all = DIVERSION_LINKS.filter(l => l.path === direction);
+    if (!all.length && direction === 'A48-koblenz') {
+        const msg = document.createElement('p');
+        msg.textContent = 'Für diese Richtung liegen überwiegend unvollständige Bedarfsumleitungen vor.';
+        catalog.append(msg);
+    }
+    for (const link of all) {
+        const exit = junctions.find(e => e.road === link.fromRoad && e.ref === link.fromRef);
+        const to = link.toRef ? exits.find(e => e.road === link.toRoad && e.ref === link.toRef) : null;
+        const card = document.createElement('div');
+        card.className = 'diversion-option';
+        const label = document.createElement('strong');
+        label.textContent = `${link.code} · ${exit?.name ?? ('AS ' + link.fromRef)} → ${to?.name ?? 'Ziel offen'}`;
+        const desc = document.createElement('span');
+        desc.textContent = link.description;
+        card.append(label, desc);
+        catalog.append(card);
+    }
+    if (direction === 'A48-koblenz') {
+        const card = document.createElement('div');
+        card.className = 'diversion-option';
+        const title = document.createElement('strong');
+        title.textContent = 'U40 · A3 Ransbach-Baumbach → A48 Höhr-Grenzhausen';
+        const desc = document.createElement('span');
+        desc.textContent = CROSS_MOTORWAY_DIVERSION.description;
+        card.append(title, desc);
+        catalog.append(card);
+    }
+}
 function renderTraffic() {
     const selector = $('traffic-route');
     const key = selector.value;
@@ -418,6 +506,7 @@ function renderTraffic() {
         row.onclick = () => { focus = overflow ? ramps.find(r => r.id === overflow.rampId).points[0] : jam.point; zoom = Math.max(zoom, 14); refresh(); };
         container.append(row);
     }
+    renderDiversionPlanner(key, jams, spillbacks);
     refresh();
 }
 function selectTrafficRoute(path) {
