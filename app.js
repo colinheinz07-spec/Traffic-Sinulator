@@ -85,7 +85,7 @@ function redrawEventList() {
         item.className = 'event-row';
         const title = document.createElement('strong'), meta = document.createElement('small'), jump = document.createElement('button');
         title.textContent = `${eventSymbols[event.kind]} ${eventNames[event.kind]} · ${eventPathLabel(event)}`;
-        meta.textContent = eventSummary(event);
+        meta.textContent = eventSummary(effectiveEventsAt([event], simulatedClock().getTime())[0] ?? event);
         jump.type = 'button';
         jump.textContent = 'Auf Karte ansehen';
         jump.onclick = () => { focus = event.point; zoom = Math.max(zoom, 14.4); showExistingEvent(event); refresh(); };
@@ -117,7 +117,7 @@ function showExistingEvent(e) {
     $('selection-help').hidden = true;
     $('selected-title').textContent = `${eventSymbols[e.kind]} ${eventNames[e.kind]}`;
     $('selected-note').textContent = eventPathLabel(e);
-    $('existing-event-desc').textContent = `${eventStatus(e)} · ${scheduleSummary(e)} · ${eventSummary(e)} · ${e.point[0].toFixed(6)}° N, ${e.point[1].toFixed(6)}° E`;
+    $('existing-event-desc').textContent = `${eventStatus(e)} · ${scheduleSummary(e)} · ${eventSummary(effectiveEventsAt([e], simulatedClock().getTime())[0] ?? e)} · ${e.point[0].toFixed(6)}° N, ${e.point[1].toFixed(6)}° E`;
     $('existing-event').hidden = false;
     $('detail').hidden = false;
     hint.textContent = `${eventNames[e.kind]} ausgewählt – du kannst die Verkehrsführung bearbeiten oder das Ereignis entfernen.`;
