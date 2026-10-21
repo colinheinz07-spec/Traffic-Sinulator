@@ -5,7 +5,7 @@ import type {PathKey,TrafficColor} from './traffic.js';
 
 export interface SpeedBand {
  fromM:number;toM:number;color:TrafficColor;speedKmh:number;
- source:'queue'|'approach'|'restriction';
+ source:'queue'|'approach'|'restriction'|'cell';
 }
 const RANK:Record<TrafficColor,number>={free:0,slow:1,jam:2,standstill:3};
 export function freeSpeedKmh(path:PathKey):number{
