@@ -49,20 +49,65 @@
 .diversion-route-button{align-self:flex-start;font-size:.76rem;padding:8px 12px;margin-top:4px;border-color:#2a9bc0;background:#155471;color:#eefaff;font-weight:700}
 .diversion-route-button:disabled{opacity:.55;cursor:wait}
 .diversion-warning{color:#ffc78e!important;font-size:.73rem!important}
+
+/* Mobile map HUD — selection disabled only for gestures/chrome, not forms. */
+.map-timebar{display:flex;align-items:center;gap:11px;margin:0 10px 10px;padding:10px 14px;min-height:66px;border:1px solid #365c75;border-radius:16px;background:linear-gradient(115deg,#142f43 0%,#0d2437 65%,#112d40 100%);box-shadow:0 5px 18px #00000022;min-width:0}
+.map-time-symbol{display:grid;place-items:center;width:36px;height:36px;flex:0 0 36px;border:1px solid #3d7692;border-radius:11px;background:#16475f;color:#9ce5ff;font-size:1.32rem}
+.map-time-detail{display:grid;gap:3px;min-width:0;flex:1}
+.map-time-title{font-size:.62rem;letter-spacing:.12em;font-weight:800;color:#8fd4eb}
+.map-time-date{font-size:.77rem;color:#d2e5ef;font-weight:580;white-space:nowrap}
+.map-time-reading{display:grid;gap:2px;justify-items:end;flex:none}
+.map-time-reading time{font-size:1.8rem;line-height:1.05;font-weight:800;letter-spacing:-.025em;color:#fff;font-variant-numeric:tabular-nums}
+.map-clock-status{font-size:.67rem;color:#b2cad8;white-space:nowrap}
+.map-clock-status.running{color:#68e4ac}
+.map-shell{box-shadow:0 10px 30px #0003}
+.map-status{max-width:calc(100% - 79px);padding:7px 10px;font-size:.70rem;white-space:nowrap;text-overflow:ellipsis;overflow:hidden}
+.map-status.error{white-space:normal;overflow-wrap:anywhere;overflow:visible}
+.map-controls button{border-radius:12px;box-shadow:0 2px 8px #0004}
+.legend{padding:9px 10px;gap:7px 12px;background:#071522e8;backdrop-filter:blur(6px)}
+.model-summary{color:#c6e2f0!important}
+.model-info{margin:7px 0 14px;border:1px solid #32556f;border-radius:10px;background:#0e2639;padding:10px}
+.model-info summary{color:#9cdcf4;font-size:.78rem;font-weight:700;cursor:pointer}
+.model-info p{margin-top:10px}
+.map-shell,.map-shell *, .map-timebar,.map-timebar *, .toolbar,.toolbar *, .subline{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
+.map-shell canvas{touch-action:none}
+.map-controls button,.toolbar button{touch-action:manipulation}
+@media(max-width:600px){
+ .legend{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:10px;row-gap:7px;font-size:.66rem}
+ .legend span{min-width:0}
+ .map-timebar{padding:10px 11px;gap:8px}
+ .map-time-symbol{width:33px;height:33px;flex-basis:33px}
+ .map-time-reading time{font-size:1.58rem}
+ .map-time-date{font-size:.72rem}
+ .map-clock-status{font-size:.63rem}
+}
+@media(max-width:345px){.map-time-symbol{display:none}.map-timebar{gap:6px}}
 </style></head><body><main>
-<header><div><div class="eyebrow">Stausimulator · Kartenfundament</div><h1>A3 / A48 – Streckenkarte</h1></div><span class="phase">TRAFFIC 1.5.7</span></header>
+<header><div><div class="eyebrow">Stausimulator · Kartenfundament</div><h1>A3 / A48 – Streckenkarte</h1></div><span class="phase">TRAFFIC 1.5.8</span></header>
 <div class="toolbar"><button id="fit" class="primary">Gesamtes Netz</button><button id="dernbach">AD Dernbach</button><button id="koblenz">AK Koblenz</button><button id="diez">AS Diez</button><button id="limburg-nord">AS Limburg-Nord</button><button id="limburg-sued">AS Limburg-Süd</button><button id="honnef">AS Bad Honnef/Linz</button></div>
+<section class="map-timebar" aria-label="Aktuelles Simulationsdatum und Uhrzeit">
+ <span class="map-time-symbol" aria-hidden="true">◷</span>
+ <div class="map-time-detail">
+  <span class="map-time-title">SIMULATIONSZEIT</span>
+  <span id="map-clock-date" class="map-time-date">Datum wird geladen …</span>
+ </div>
+ <div class="map-time-reading">
+  <time id="traffic-clock" datetime="" aria-label="Uhrzeit der Simulation">--:--</time>
+  <span id="map-clock-status" class="map-clock-status">Bereit · Minute 0</span>
+ </div>
+</section>
 <section class="map-shell"><canvas id="map" aria-label="Interaktive Karte der A3 und A48 mit allen Anschlussstellen und vier Rampen"></canvas><div class="map-status" id="status">Geprüfte Autobahndaten werden geladen …</div><div class="map-controls"><button id="plus" aria-label="Vergrößern">+</button><button id="minus" aria-label="Verkleinern">−</button></div><div class="legend"><span><i class="swatch" style="background:#26bb7c"></i>Frei (&gt;65 km/h)</span><span><i class="swatch" style="background:#f59e0b"></i>Stockend (&gt;30–65 km/h)</span><span><i class="swatch" style="background:#dc2626"></i>Stau/Stop-and-Go (&gt;10–30 km/h)</span><span><i class="swatch" style="background:#7f1d1d"></i>Stillstand/Kriechverkehr (0–10 km/h)</span></div></section>
 <div id="hint" class="subline" aria-live="polite">Fahrbahn oder Rampe antippen, um den exakten Kartenpunkt auszuwählen.</div>
-<section class="panel" id="traffic-panel"><h2>🚗 Verkehrsfluss – Modell 1.5.7</h2>
-<p>Vereinfachte rechnerische Schätzung, <b>keine Live-Verkehrsdaten</b>. <b>Neue A3/A48-Kartenfarben:</b> In der aktuellen Entwicklungsstufe stammen sie aus einem fahrzeugerhaltenden 500-m-Zellmodell statt aus künstlichen Bremswellen. <b>Wichtig:</b> Die Staulängen, Minuten und Rampen-/Umleitungswerte werden bis zur vollständigen Kopplung weiterhin vom bisherigen separaten Ereignismodell geliefert; lokal eingefärbter Stau und angegebene Gesamtlänge können deshalb noch abweichen. Einzelne Rückstaus pro Ereignis entlang des echten Straßenverlaufs. Die Gesamtzahlen bleiben ein vereinfachtes aggregiertes Modell; Rampenrückstaus auf Hauptfahrbahnen werden in diesen Gesamtzahlen nicht doppelt gezählt. Rückstau kann sowohl von den Rampen auf A3/A48 als auch von einem Stau auf der Zielautobahn zurück auf die passenden Rampen und deren zuführende Autobahn wirken (vorerst georeferenzierte Modellprojektion). berechnete Rückstaus von Zielautobahnen werden nicht zusätzlich als Fahrzeuge oder Verzögerungsminuten gezählt. Verkehrsströme an Verzweigungen werden noch nicht vollständig miteinander verrechnet. Vollständige Verkehrsfluss-Aufteilung an Ein- und Ausfädelungen sowie Umleitungen folgt später. <b>Keine Fahrzeugdarstellung.</b></p>
+<section class="panel" id="traffic-panel"><h2>🚗 Verkehrsfluss – Modell 1.5.8</h2>
+<p class="model-summary">Interaktive A3/A48-Stausimulation mit Streckenzellen, Ereignissen und Umleitungen. <strong>Rechenmodell, keine Live-Verkehrsdaten.</strong></p>
+<details class="model-info"><summary>Berechnungsmodell und Grenzen anzeigen</summary><p>Vereinfachte rechnerische Schätzung, <b>keine Live-Verkehrsdaten</b>. <b>Neue A3/A48-Kartenfarben:</b> In der aktuellen Entwicklungsstufe stammen sie aus einem fahrzeugerhaltenden 500-m-Zellmodell statt aus künstlichen Bremswellen. <b>Wichtig:</b> Die Staulängen, Minuten und Rampen-/Umleitungswerte werden bis zur vollständigen Kopplung weiterhin vom bisherigen separaten Ereignismodell geliefert; lokal eingefärbter Stau und angegebene Gesamtlänge können deshalb noch abweichen. Einzelne Rückstaus pro Ereignis entlang des echten Straßenverlaufs. Die Gesamtzahlen bleiben ein vereinfachtes aggregiertes Modell; Rampenrückstaus auf Hauptfahrbahnen werden in diesen Gesamtzahlen nicht doppelt gezählt. Rückstau kann sowohl von den Rampen auf A3/A48 als auch von einem Stau auf der Zielautobahn zurück auf die passenden Rampen und deren zuführende Autobahn wirken (vorerst georeferenzierte Modellprojektion). berechnete Rückstaus von Zielautobahnen werden nicht zusätzlich als Fahrzeuge oder Verzögerungsminuten gezählt. Verkehrsströme an Verzweigungen werden noch nicht vollständig miteinander verrechnet. Vollständige Verkehrsfluss-Aufteilung an Ein- und Ausfädelungen sowie Umleitungen folgt später. <b>Keine Fahrzeugdarstellung.</b></p></details>
 <div class="traffic-controls"><label for="traffic-route">Fahrtrichtung / Rampe
 <select id="traffic-route"><option value="A3-koeln">A3 Richtung Köln</option><option value="A3-frankfurt">A3 Richtung Frankfurt</option><option value="A48-dernbach">A48 Richtung Dernbach</option><option value="A48-koblenz">A48 Richtung Koblenz</option><option value="ramp-a3-to-a48-from-frankfurt">A3 Richtung Köln → A48</option><option value="ramp-a48-to-koeln">A48 → A3 Köln</option><option value="ramp-a3-to-a48-from-koeln">A3 Richtung Frankfurt → A48</option><option value="ramp-a48-to-frankfurt">A48 → A3 Frankfurt</option></select></label><label for="traffic-inflow">Referenzzufluss (Fahrzeuge pro Stunde)
 <input type="number" id="traffic-inflow" inputmode="numeric" min="0" max="8000" step="100" value="4200"></label><label for="traffic-demand-mode">Verkehrsverlauf
 <select id="traffic-demand-mode"><option value="clock" selected>Datum &amp; Uhrzeit (automatisch)</option><option value="wave">Abklingende Stoßzeit (Test)</option><option value="constant">Konstanter Zufluss (Dauertest)</option></select></label><label for="traffic-start-datetime">Simulationsstart · Datum &amp; Uhrzeit
 <input type="datetime-local" id="traffic-start-datetime" step="60"></label></div><p class="traffic-datetime-note">Geräte-Ortszeit · Die Simulation zählt die Minuten ab dem eingestellten Start fort. Änderungen an Datum und Uhrzeit setzen bestehende Rückstaus zurück. <button id="traffic-now" type="button">Jetzt einsetzen</button></p>
 <p id="traffic-demand-hint" class="settings-note">Modellannahme: Die Stoßzeit lässt allmählich nach. Keine Echtzeit-Verkehrsdaten.</p>
-<div class="traffic-playbar"><button id="traffic-play" class="primary">▶ Start</button><button id="traffic-reset">Zurücksetzen</button><strong id="traffic-minute">Minute 0</strong></div><div class="traffic-clock" id="traffic-clock" aria-live="off">Simulationszeit wird geladen …</div>
+<div class="traffic-playbar"><button id="traffic-play" class="primary">▶ Start</button><button id="traffic-reset">Zurücksetzen</button><strong id="traffic-minute">Minute 0</strong></div>
 <div id="traffic-issue" role="alert" class="traffic-issue"></div>
 <p id="traffic-shared" class="event-info">Keine Rampenfahrzeuge auf diesem Abschnitt</p><div class="traffic-stat-grid"><div>Zufluss<strong id="traffic-demand">–</strong><small>Fzg/h</small></div><div>Kapazität<strong id="traffic-capacity">–</strong><small>Fzg/h</small></div><div>Durchfluss<strong id="traffic-outflow">–</strong><small>Fzg/h</small></div><div>Wartende Fahrzeuge<strong id="traffic-queue">–</strong></div><div>Rechnerischer Rückstau<strong id="traffic-queue-km">–</strong></div><div>Geschätzter Zeitverlust<strong id="traffic-delay">–</strong></div><div>Geschätzte niedrigste Geschwindigkeit<strong id="traffic-speed">–</strong><small>km/h im betroffenen Abschnitt</small></div><div>Verkehrszustand<strong id="traffic-state" class="traffic-state">–</strong></div></div>
 <p id="traffic-events" class="event-info"></p><p id="traffic-interchange" class="event-info" aria-live="polite">AD Dernbach: noch keine Rampenüberläufe.</p><p id="traffic-closure-note" class="event-info"></p>
