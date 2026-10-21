@@ -138,42 +138,49 @@ export function waveEpisodes(id, throughMinute) {
     const seed = hashSeed(id), result = [];
     let time = -75;
     for (let i = 0; i < 3000 && time <= throughMinute + 18; i++) {
-        const riseMin = .6 + 3 * waveRandom(seed, i, 1);
-        const flowMin = 1 + 8 * waveRandom(seed, i, 2);
-        const fallMin = .5 + 3 * waveRandom(seed, i, 3);
-        const stopGapMin = 3 + 18 * waveRandom(seed, i, 4);
+        // Rare and varied release episodes, separated by longer settled phases.
+        // This is a visual speed perturbation and never creates actual vehicles.
+        const riseMin = 1.2 + 2.8 * waveRandom(seed, i, 1);
+        const flowMin = 1.2 + 3.7 * waveRandom(seed, i, 2);
+        const fallMin = 1.5 + 3 * waveRandom(seed, i, 3);
+        const stopGapMin = 8 + 23 * waveRandom(seed, i, 4);
         result.push({ startMinute: time, riseMin, flowMin, fallMin, stopGapMin });
         time += riseMin + flowMin + fallMin + stopGapMin;
     }
     return result;
 }
-/** Stop-and-go: dissimilar waiting periods, then a release front, then
- * braking. The wave itself travels upstream via passedTime. NOT a measured
- * per-vehicle speed or a replacement for mass-conserving flow dynamics.
+/** Only modest, local release waves. No artificial 60-km/h surges inside
+ * a near-standing queue. The base congestion estimate determines its
+ * principal color; sporadic small differences may cross a color boundary.
  */
-function pulseSpeed(base, passedTime, id, queueKm, free) {
+export function localWaveSpeed(base, passedTime, id, queueKm, free, roadType = 'motorway') {
     const value = Math.max(0, Math.min(free, base));
-    if (value <= .001 || value >= 65 || queueKm < .35)
+    if (value <= .001 || value >= 65 || queueKm < .7)
         return value;
     const seed = hashSeed(id);
-    const strength = Math.min(1, queueKm / 1.7) * Math.min(1, (65 - value) / 42);
-    const stopSpeed = value <= 13 ? value * .18 : value * .42;
+    const severity = Math.min(1, queueKm / 2.5) * Math.min(1, (65 - value) / 55);
+    const rampScale = roadType === 'ramp' ? .60 : 1;
+    // Steady low-speed traffic remains low-speed: don't fabricate perpetual
+    // standing followed by abrupt orange spikes.
+    const resting = value <= 10 ? value * .72 : value * .94;
     const episodes = waveEpisodes(id, passedTime);
     for (let i = episodes.length - 1; i >= 0; i--) {
-        const e = episodes[i];
-        const passed = passedTime - e.startMinute;
-        if (passed < 0)
+        const e = episodes[i], elapsed = passedTime - e.startMinute;
+        if (elapsed < 0)
             continue;
         const duration = e.riseMin + e.flowMin + e.fallMin;
-        if (passed > duration)
+        if (elapsed > duration)
             break;
-        const rise = passed < e.riseMin ? passed / e.riseMin
-            : passed < e.riseMin + e.flowMin ? 1
-                : Math.max(0, 1 - (passed - e.riseMin - e.flowMin) / e.fallMin);
-        const peak = value + strength * ((value <= 13 ? 23 : 13) + 48 * waveRandom(seed, i, 7));
-        return Math.min(65, Math.max(0, stopSpeed + (peak - stopSpeed) * rise));
+        const progress = elapsed < e.riseMin ? elapsed / e.riseMin :
+            elapsed < e.riseMin + e.flowMin ? 1 :
+                Math.max(0, 1 - (elapsed - e.riseMin - e.flowMin) / e.fallMin);
+        const boost = severity * rampScale * (6 + 10 * waveRandom(seed, i, 7));
+        // A 5-km/h jam may locally rise into red, but never orange or green
+        // solely because of a scripted wave.
+        const ceiling = value <= 10 ? 23 : value <= 30 ? 44 : Math.min(free, value + 12);
+        return Math.max(0, Math.min(ceiling, resting + boost * progress));
     }
-    return stopSpeed;
+    return resting;
 }
 /** Piecewise per-cell speed estimates, with consistent colorAtSpeed().
  * The fixed cell grid is anchored on OSM route metres, so its edges do not
@@ -186,7 +193,6 @@ export function stopAndGoBands(jam, simMinute) {
     if (!Number.isFinite(simMinute) || simMinute < 0)
         throw Error('Ungültige Simulationsminute');
     const free = freeSpeedKmh(jam.pathKey), out = [];
-    const seed = [...(jam.id ?? jam.pathKey)].reduce((sum, ch) => sum + ch.charCodeAt(0), 0) % 13 / 13 * 1.6;
     const beginCell = Math.floor(tail / CELL_M);
     const lastCell = Math.ceil(end / CELL_M);
     for (let c = beginCell; c < lastCell; c++) {
@@ -196,7 +202,7 @@ export function stopAndGoBands(jam, simMinute) {
         const upstreamM = (jam.offsetBackM ?? 0) + jam.anchorM - (fromM + toM) / 2;
         const signalTime = simMinute - upstreamM / WAVE_UPSTREAM_M_PER_MIN;
         const source = propagatedBaseSpeed(jam.speedHistory, simMinute, upstreamM, jam.speedKmh);
-        const kmh = pulseSpeed(source, signalTime, jam.id ?? jam.pathKey, jam.queueM / 1000, free);
+        const kmh = localWaveSpeed(source, signalTime, jam.id ?? jam.pathKey, jam.queueM / 1000, free, jam.pathKey.startsWith('ramp-') || jam.offsetBackM !== undefined ? 'ramp' : 'motorway');
         const color = colorAtSpeed(kmh);
         const last = out.at(-1);
         if (last && last.color === color && Math.abs(last.toM - fromM) < .01) {
