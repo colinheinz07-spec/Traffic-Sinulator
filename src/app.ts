@@ -340,10 +340,13 @@ function drawJunctionMovementHints(width:number,height:number){
   if(row.exit.isInterchange||row.desiredPercent<=0&&row.outVph<=0&&row.inVph<=0)continue;
   const [x,y]=toScreen(row.exit.position);
   if(x<24||x>width-24||y<78||y>height-90)continue;
-  const label=row.mandatory?'AS '+row.exit.ref+' · ↘ 100% Soll':
-   'AS '+row.exit.ref+' · ↘ '+trafficNumber(row.desiredPercent)+'%';
+  const label=row.mandatory?
+   'AS '+row.exit.ref+' · ↘100% Soll'+(row.outVph>0?' · ↓'+trafficNumber(row.outVph)+'/h':''):
+   row.inVph>0?'AS '+row.exit.ref+' · ↑'+trafficNumber(row.inVph)+'/h':
+   row.outVph>0?'AS '+row.exit.ref+' · ↓'+trafficNumber(row.outVph)+'/h':
+   'AS '+row.exit.ref+' · ↘'+trafficNumber(row.desiredPercent)+'%';
   context!.font='bold 11px system-ui';
-  const w=Math.min(155,Math.max(98,context!.measureText(label).width+12));
+  const w=Math.min(216,Math.max(98,context!.measureText(label).width+12));
   const candidate=placeJamCallout({x,y},w,25,{width,height},used);
   if(!candidate)continue;
   context!.save();
