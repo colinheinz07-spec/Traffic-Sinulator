@@ -117,8 +117,11 @@ export function eventSummary(e) {
         parts.push('Vollsperrung · nachfolgende Fahrzeuge umleiten · Fahrzeuge im Abschnitt dürfen ausfahren');
     else if (e.closedLanes.length === e.laneCount)
         parts.push('Alle Fahrstreifen betroffen (ohne Vollsperrungs-Ereignis)');
-    else if (e.closedLanes.length)
+    else if (e.closedLanes.length) {
         parts.push(`${e.closedLanes.length} von ${e.laneCount} Fahrstreifen gesperrt`);
+        const lanePositions = e.closedLanes.map(lane => lane === 0 ? 'rechts' : lane === e.laneCount - 1 ? 'links' : 'mittig');
+        parts.push('Betroffen: ' + lanePositions.join(', '));
+    }
     else
         parts.push('Kein Fahrstreifen gesperrt');
     if (e.settings.shoulder === 'open')

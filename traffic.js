@@ -26,55 +26,74 @@ export function baselineCapacity(key) {
 export function emptyTraffic() {
     return { minute: 0, vehiclesWaiting: Object.fromEntries(PATHS.map(p => [p, 0])) };
 }
-/** Illustrative per-lane demand shares (right -> left), NOT observed counts.
- * Right typically carries more HGVs and merging demand; closure of that lane
- * therefore disrupts the stream differently from closing the left lane.
+/** A3/A48 scenario assumptions (NOT actual freight counts). The vehicle
+ * composition can be supplied by subsequent route/time-based demand models.
  */
-export function laneDemandShares(n) {
-    if (n <= 1)
-        return [1];
-    if (n === 2)
-        return [.58, .42];
-    if (n === 3)
-        return [.45, .34, .21];
-    const weights = Array.from({ length: n }, (_, i) => i === 0 ? 1.45 : i === n - 1 ? .75 : 1);
-    const total = weights.reduce((a, b) => a + b, 0);
-    return weights.map(w => w / total);
+export function defaultHeavyShare(key) {
+    return key.startsWith('A3') ? .23 : key.startsWith('A48') ? .16 : .15;
 }
-export function closedDemandShare(e) {
-    const shares = laneDemandShares(e.laneCount);
+/** Shares ordered RIGHT -> LEFT, from car- and HGV-specific lane choices.
+ * Heavy trucks are predominantly right; cars are more evenly distributed.
+ * Expose heavyFraction so an automated or measured fleet mix can replace the
+ * synthetic reference. This is not a measured lane occupation distribution.
+ */
+export function laneDemandShares(n, heavyFraction = .23) {
+    if (!Number.isInteger(n) || n < 1 || n > 7 || !Number.isFinite(heavyFraction) || heavyFraction < 0 || heavyFraction > 1)
+        throw Error('Ungültige Fahrstreifenanzahl oder Schwerlastanteil');
+    if (n === 1)
+        return [1];
+    const cars = n === 2 ? [.53, .47] : n === 3 ? [.38, .36, .26] :
+        Array.from({ length: n }, (_, i) => 1.10 - .40 * i / (n - 1));
+    const trucks = n === 2 ? [.96, .04] : n === 3 ? [.90, .10, 0] :
+        Array.from({ length: n }, (_, i) => i === 0 ? .89 : i === 1 ? .09 : .02 / (n - 2));
+    const carTotal = cars.reduce((a, b) => a + b, 0), truckTotal = trucks.reduce((a, b) => a + b, 0);
+    return cars.map((v, i) => (1 - heavyFraction) * v / carTotal + heavyFraction * trucks[i] / truckTotal);
+}
+export function closedDemandShare(e, heavyFraction = defaultHeavyShare(e.pathKey)) {
+    const shares = laneDemandShares(e.laneCount, heavyFraction);
     return e.closedLanes.reduce((sum, lane) => sum + (shares[lane] ?? 0), 0);
 }
-export function eventCapacity(e) {
+/** Relative closure sensitivity: with more HGVs, closing the truck-heavy
+ * right lane causes additional merging disturbance at saturated demand.
+ * This *reduces effective capacity*, never adds fictional queued vehicles.
+ */
+export function eventCapacity(e, volumeVph = defaultDemand(e.pathKey), heavyFraction = defaultHeavyShare(e.pathKey)) {
     const policy = flowPolicy(e);
     if (!policy.canEnter)
         return 0;
+    if (!Number.isFinite(volumeVph) || volumeVph < 0 || volumeVph > 8000)
+        throw Error('Ungültiger Zufluss');
+    if (!Number.isFinite(heavyFraction) || heavyFraction < 0 || heavyFraction > 1)
+        throw Error('Ungültiger Schwerlastanteil');
     const ramp = e.pathKey.startsWith('ramp-');
     const perLane = ramp ? 1500 : 1800;
-    // Standstreifen are explicitly less capable than ordinary traffic lanes.
     const laneCapacity = perLane * (policy.openMainLanes + (e.settings.shoulder === 'open' ? .65 : 0));
     const normalSpeed = defaultKmH(e.pathKey);
     const speedRatio = Math.min(1, policy.speedKmh / normalSpeed);
-    // Scenario assumptions, not calibrated field measurements: below motorway free-flow
-    // a posted limit does not reduce peak *throughput* in proportion to speed.
-    // Previous 0.42+0.58*ratio combined with hard merging penalties could leave
-    // a single lane at 40 km/h with only ~916 veh/h, exaggerating delays.
-    // Keep a stronger penalty for very slow (<40 km/h) incident pass-bys.
     const speedAt40 = .86 + .14 * Math.min(1, 40 / normalSpeed);
     const speedFactor = policy.speedKmh < 40
         ? speedAt40 * (.45 + .55 * policy.speedKmh / 40)
         : .86 + .14 * speedRatio;
-    // A blocked right lane requires more HGV/merging flow to change lane than a
-    // blocked left lane. Only a *moderate* extra bottleneck penalty is applied.
     const baseMerge = e.closedLanes.length === 0 ? 1 : e.kind === 'roadworks' ? .92 : .87;
-    const mergeFactor = baseMerge * (1 - (e.closedLanes.length ? .07 * closedDemandShare(e) : 0));
+    const shares = laneDemandShares(e.laneCount, heavyFraction);
+    const hgvDistribution = laneDemandShares(e.laneCount, 1);
+    const affectedShare = e.closedLanes.reduce((sum, i) => sum + shares[i], 0);
+    const divertedHeavyShare = e.closedLanes.reduce((sum, i) => sum + hgvDistribution[i] * heavyFraction, 0);
+    // When only one lane remains, vehicles have no further alternative merge
+    // lane. Avoid multiplying the loss as if every truck changes lanes twice.
+    const remaining = Math.max(0, policy.openMainLanes);
+    const constrained = remaining <= 1 ? .45 : 1;
+    const loading = Math.min(1, volumeVph / Math.max(1, laneCapacity));
+    const extraMergeLoss = e.closedLanes.length === 0 ? 0 :
+        constrained * loading * (.10 * affectedShare + .14 * divertedHeavyShare);
+    const mergeFactor = baseMerge * Math.max(.72, 1 - extraMergeLoss);
     return Math.max(0, Math.round(laneCapacity * speedFactor * mergeFactor));
 }
-export function pathBottleneck(key, events) {
+export function pathBottleneck(key, events, volumeVph = defaultDemand(key)) {
     const relevant = events.filter(e => e.pathKey === key);
     let capacity = baselineCapacity(key), critical = null;
     for (const e of relevant) {
-        const c = eventCapacity(e);
+        const c = eventCapacity(e, volumeVph);
         if (c < capacity || (c === capacity && critical === null)) {
             capacity = c;
             critical = e;
@@ -85,7 +104,7 @@ export function pathBottleneck(key, events) {
 export function trafficEstimate(state, key, events, inputVph) {
     if (!Number.isFinite(inputVph) || inputVph < 0 || inputVph > 8000)
         throw Error('Zufluss muss zwischen 0 und 8000 Fahrzeugen/h liegen');
-    const bn = pathBottleneck(key, events), queue = Math.max(0, state.vehiclesWaiting[key]);
+    const bn = pathBottleneck(key, events, inputVph), queue = Math.max(0, state.vehiclesWaiting[key]);
     const capacity = bn.capacityVph;
     // Long queues spread across available approach lanes, using a declared illustrative density.
     const approachLanes = key.startsWith('ramp-') ? 1 : motorwayBaseLanes[key];
@@ -119,7 +138,7 @@ export function advanceTraffic(state, events, demands, minutes) {
             const volume = demands[key];
             if (!Number.isFinite(volume) || volume < 0 || volume > 8000)
                 throw Error('Zufluss außerhalb des zulässigen Bereichs');
-            const capacity = pathBottleneck(key, events).capacityVph;
+            const capacity = pathBottleneck(key, events, volume).capacityVph;
             const available = waiting[key] + volume / 60;
             const discharged = Math.min(available, capacity / 60);
             waiting[key] = Math.max(0, available - discharged);
