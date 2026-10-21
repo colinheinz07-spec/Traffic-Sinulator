@@ -11,6 +11,7 @@ import {decodeEvents,eventFromHit,updatedEvent,eventNames,eventSymbols,eventSumm
 import {roadLaneInfo,rampLaneInfo} from './lane-info.js';
 import {mapCandidates,chooseMapHits,closestJunction,lanePositions,hitLabel,type MapHit} from './selection.js';
 import {buildContinuousRoads,lineWidths,along,rampBadges,overlaps,type Rectangle,type RampBadge} from './cartography.js';
+import {placeJamCallout,type LabelRect} from './map-callouts.js';
 import {DIRECTIONS,validateMap,names,mercator,inverse,nearestPolyline,type Point,type Road,type Ramp,type Exit} from './core.js';
 
 const $=<T extends HTMLElement>(id:string)=>{const element=document.getElementById(id);if(!element)throw Error(`Element fehlt: ${id}`);return element as T;};
@@ -645,24 +646,42 @@ function drawSpatialJams(){
    if(line.length>1)stroke(line,Math.max(1,widths.motorway*.46),jamColors[band.color]);
   }
  }
-  if(zoom<10.6)return;
+  if(zoom<11.4)return;
+ const labelObstacles:LabelRect[]=[
+  ...badges.map(b=>({x:b.bubble[0]-23,y:b.bubble[1]-23,width:46,height:46})),
+  ...events.map(e=>{const [x,y]=toScreen(e.point);return {x:x-25,y:y-25,width:50,height:50};})
+ ];
  for(const jam of list){
+  // Never place a big overlay directly on the motorway/ramp junction:
+  // choose a small detached callout or omit it entirely when map is crowded.
   const road=spatialCorridors[jam.pathKey];
-  const midM=Math.max(0,jam.anchorM-jam.visibleQueueM*.5);
-  const mid=routeSlice(road,midM-1,midM+1);
+  const at=Math.max(0,jam.anchorM-jam.visibleQueueM*.5);
+  const mid=routeSlice(road,Math.max(0,at-2),Math.min(road.lengthM,at+2));
   if(!mid.length)continue;
-  const [x,y]=toScreen(mid[0]!);if(x<8||x>wrapper.clientWidth-75||y<54||y>wrapper.clientHeight-63)continue;
+  const [x,y]=toScreen(mid[0]!);
   const event=events.find(e=>e.id===jam.id),sign=event?eventSymbols[event.kind]:'🚗';
   const shortDirection=jam.pathKey==='A3-koeln'?'A3 Köln':jam.pathKey==='A3-frankfurt'?'A3 Frankfurt'
-   :jam.pathKey==='A48-dernbach'?'A48 Dernbach':jam.pathKey==='A48-koblenz'?'A48 Koblenz':'AD Dernbach · Rampe';
-  const delay=jam.delayMin===null?'Sperrung':`+${trafficNumber(jam.delayMin,1)} min`;
+   :jam.pathKey==='A48-dernbach'?'A48 Dernbach':jam.pathKey==='A48-koblenz'?'A48 Koblenz'
+   :jam.pathKey==='ramp-a48-to-koeln'?'A48→A3 Köln'
+   :jam.pathKey==='ramp-a48-to-frankfurt'?'A48→A3 Ffm':'AD Dernbach Rampe';
+  const delay=jam.delayMin===null?'gesperrt':`+${trafficNumber(jam.delayMin)} min`;
   const first=`${sign} ${shortDirection} · ${delay}`;
-  const second=`${trafficNumber(jam.queueM/1000,1)} km Stau · ${trafficNumber(jam.speedKmh)} km/h`;
-  context!.font='bold 10px system-ui';
-  const w=Math.min(225,Math.max(context!.measureText(first).width,context!.measureText(second).width)+16);
-  context!.fillStyle='#0a1c2bef';context!.fillRect(x,y-39,w,36);
-  context!.fillStyle='#fff';context!.fillText(first,x+8,y-26);
-  context!.fillStyle='#bdd6e7';context!.fillText(second,x+8,y-12);
+  const second=`${trafficNumber(jam.queueM/1000,1)} km · ${trafficNumber(jam.speedKmh)} km/h`;
+  context!.font='600 10px system-ui';
+  const width=Math.min(194,Math.max(context!.measureText(first).width,context!.measureText(second).width)+15);
+  const callout=placeJamCallout({x,y},width,33,
+   {width:wrapper.clientWidth,height:wrapper.clientHeight},labelObstacles);
+  if(!callout)continue;
+  context!.save();
+  context!.strokeStyle='#4d91af';context!.lineWidth=1;
+  context!.beginPath();context!.moveTo(x,y);
+  context!.lineTo(callout.x+(callout.x>x?0:callout.width),callout.y+callout.height/2);
+  context!.stroke();
+  context!.fillStyle='#102332e5';context!.fillRect(callout.x,callout.y,callout.width,callout.height);
+  context!.fillStyle='#fff';context!.fillText(first,callout.x+7,callout.y+13);
+  context!.fillStyle='#bbd9e8';context!.fillText(second,callout.x+7,callout.y+26);
+  context!.restore();
+  labelObstacles.push(callout);
  }
 }
 function drawDetours(){
