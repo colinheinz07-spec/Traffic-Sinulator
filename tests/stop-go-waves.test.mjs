@@ -116,5 +116,5 @@ test('two-line map labels and jam cards show event sign, direction, delay and km
  assert.match(app,/shortDirection/);
  assert.match(app,/km Stau/);
  assert.match(html,/jam-card-header/);
- assert.ok(html.includes('TRAFFIC 1.5.2'));
+ assert.ok(html.includes('TRAFFIC 1.5.3'));
 });
