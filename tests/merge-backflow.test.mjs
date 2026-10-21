@@ -91,7 +91,7 @@ test('an actual downstream A3 closure can reach A48 through ramp; releasing it d
 test('SPCK uses real coupled junction queues and no longer paints fake merge projections',()=>{
  const source=readFileSync('src/app.ts','utf8'),html=readFileSync('index.html','utf8');
  assert.match(source,/advanceSpatial\(spatialState,timeline,active,1,spatialCorridors,rampConnections,transfers\)/);
- assert.match(source,/routeReport\(key,jams,spillbacks,events\)/);
+ assert.match(source,/routeReport\(key,jams,spillbacks,timeline\)/);
  assert.doesNotMatch(source,/mergeBackflows\(list,rampConnections/);
  assert.match(html,/id="traffic-interchange"/);
  assert.match(html,/TRAFFIC 1\.5\.8/);
