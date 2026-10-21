@@ -194,3 +194,12 @@ Bisher fest eingezeichnete orange/rote/dunkelrote Prozentanteile eines Staus ent
 - Anzeigen zeigen modellierte km/h bei Rückstaus und den niedrigsten errechneten Wert auf dem ausgewählten Fahrweg. Ein Tempolimit bewirkt einen **geometrisch begründeten Fahrzeitaufschlag** (Länge und Differenz zur freien Fahrt), auch ohne Stau. Warteschlangenwartezeit folgt weiterhin der Fahrzeugzahl geteilt durch den Durchfluss und wächst nicht allein wegen vergangener Minuten.
 - A48-Überlauf wird weiterhin ausschließlich als belegter Abfahrtsstreifen gerendert. Keine neu erfundene gesamte Hauptfahrbahnsperrung, keine Doppelzählung der Rampenfahrzeuge.
 - Die Kapazitäts- und Nachfrageannahmen sowie die Verteilung an Ein-/Ausfädelungen sind nicht auf Messdaten kalibriert. Eine vollständige zellenbasierte Netzflussberechnung mit abbiegenden Verkehrsströmen bleibt separat geplant.
+
+
+## TRAFFIC 1.5.1 – wandernde Stop-and-Go-Wellen
+
+- Längere Rückstaus werden auf **160-Meter-Abschnitte** verteilt, in denen die modellierte Fahrgeschwindigkeit und somit die Farbe jeweils unterschiedlich sein können. Dunkelrot, Rot und phasenweise Orange können gleichzeitig auf einer Staustrecke auftreten, anstatt dass die gesamte Schlange synchron die Farbe wechselt.
+- Dynamische Geschwindigkeitswellen wandern mit einer angenommenen Rate von 230 Metern pro Modellminute **gegen die Fahrtrichtung**. Wiederkehrende Stau-/Anfahrimpulse ergeben sich aus der Geschwindigkeit am Engpass und einer mehrminütigen Reaktionszeit; Schwellen stammen unverändert aus colorAtSpeed.
+- Die Geschwindigkeitsentwicklung jeder Warteschlange wird bis zu 480 Modellminuten gespeichert. Änderungen einer Unfall- oder Baustellenregelung erreichen weiter entfernte Rückstaubereiche erst verzögert. Beim Editieren wird der bestehende Verkehr nicht ohne einen Simulationsschritt über die gesamte Länge umgefärbt.
+- Die Wellen verändern **weder Anzahl wartender Autos, noch Zufluss, Abfluss oder aufsummierten Zeitverlust**; die eigenständige Fahrzeugbilanz bleibt unverändert. Vollsperrungen erhalten keine künstlichen fahrenden Segmente, und überfüllte Abfahrten werden weiterhin separat von A3/A48-Durchgangsfahrbahnen dargestellt.
+- **Modellgrenze:** Die Wellen sind eine deterministische, entlang der räumlichen Position fortschreitende **Geschwindigkeitsnäherung**, keine vollständig gekoppelte Zellflussberechnung mit eigener Massenerhaltung und Rückwirkung jeder Welle auf die Wartezeit. Die Parameter sind nicht auf reale Schleifendetektoren kalibriert.

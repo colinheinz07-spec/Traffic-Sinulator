@@ -90,3 +90,78 @@ export function resolveSpeedBands(bands) {
     }
     return out;
 }
+const WAVE_UPSTREAM_M_PER_MIN = 230; // -13.8 km/h kinematic wave assumption
+const CELL_M = 160;
+function sourceSpeed(history, time, fallback) {
+    if (!history?.length)
+        return fallback;
+    let lo = 0, hi = history.length - 1;
+    if (time <= history[0].minute)
+        return history[0].speedKmh;
+    if (time >= history[hi].minute)
+        return history[hi].speedKmh;
+    while (lo + 1 < hi) {
+        const mid = (lo + hi) >> 1;
+        if (history[mid].minute <= time)
+            lo = mid;
+        else
+            hi = mid;
+    }
+    // In-between source observations are interpolated, avoiding 1-minute jumps.
+    const a = history[lo], b = history[hi], fraction = (time - a.minute) / (b.minute - a.minute);
+    return a.speedKmh + (b.speedKmh - a.speedKmh) * fraction;
+}
+/** Propagation time along the existing queue: a new bottleneck speed
+ * reaches a point x metres upstream only after x / 230 model minutes.
+ */
+export function propagatedBaseSpeed(history, minute, backFromBottleneckM, fallback) {
+    return sourceSpeed(history, minute - Math.max(0, backFromBottleneckM) / WAVE_UPSTREAM_M_PER_MIN, fallback);
+}
+const frac = (v) => v - Math.floor(v);
+function pulseSpeed(base, passedTime, seed, queueKm, free) {
+    const value = Math.max(0, Math.min(free, base));
+    if (value <= .001 || value >= 65 || queueKm < .35)
+        return value;
+    // A moving, finite-width release wave, not static stripes. Narrow moving
+    // platoons recover up to orange before braking again in dense stop-and-go.
+    const severity = Math.max(0, Math.min(1, (60 - value) / 50));
+    const amplitude = Math.min(37, (free - value) * .55) * severity *
+        Math.min(1, queueKm / 1.3);
+    const phase = frac((passedTime + seed) / 4.8);
+    const distance = Math.min(phase, 1 - phase);
+    const release = Math.max(0, 1 - distance / .18);
+    return Math.max(0, Math.min(free, value + amplitude * (release - .18)));
+}
+/** Piecewise per-cell speed estimates, with consistent colorAtSpeed().
+ * The fixed cell grid is anchored on OSM route metres, so its edges do not
+ * all jump when the queue head/tail changes.
+ */
+export function stopAndGoBands(jam, simMinute) {
+    const tail = Math.max(0, jam.anchorM - jam.queueM), end = jam.anchorM;
+    if (end - tail < .5)
+        return [];
+    if (!Number.isFinite(simMinute) || simMinute < 0)
+        throw Error('Ungültige Simulationsminute');
+    const free = freeSpeedKmh(jam.pathKey), out = [];
+    const seed = [...(jam.id ?? jam.pathKey)].reduce((sum, ch) => sum + ch.charCodeAt(0), 0) % 13 / 13 * 1.6;
+    const beginCell = Math.floor(tail / CELL_M);
+    const lastCell = Math.ceil(end / CELL_M);
+    for (let c = beginCell; c < lastCell; c++) {
+        const fromM = Math.max(tail, c * CELL_M), toM = Math.min(end, (c + 1) * CELL_M);
+        if (toM - fromM < .5)
+            continue;
+        const upstreamM = (jam.offsetBackM ?? 0) + jam.anchorM - (fromM + toM) / 2;
+        const signalTime = simMinute - upstreamM / WAVE_UPSTREAM_M_PER_MIN;
+        const source = propagatedBaseSpeed(jam.speedHistory, simMinute, upstreamM, jam.speedKmh);
+        const kmh = pulseSpeed(source, signalTime, seed, jam.queueM / 1000, free);
+        const color = colorAtSpeed(kmh);
+        const last = out.at(-1);
+        if (last && last.color === color && Math.abs(last.toM - fromM) < .01) {
+            last.toM = toM;
+            last.speedKmh = Math.min(last.speedKmh, kmh);
+        }
+        else
+            out.push({ fromM, toM, speedKmh: kmh, color, source: 'queue' });
+    }
+    return out;
+}
