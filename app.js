@@ -6,6 +6,7 @@ import { colorAtSpeed, physicalSpeedBands, stopAndGoBands, resolveSpeedBands, fr
 import { initialiseCells, advanceCells, cellSpeedBands } from './traffic-cells.js';
 import { buildRampConnections, rampSpillbacks } from './interchange.js';
 import { DIVERSION_LINKS, CROSS_MOTORWAY_DIVERSION, diversionJunctions, planDiversion } from './diversions.js';
+import { junctionMovements } from './junction-movements.js';
 import { loadDetourGeometry } from './detour-routing.js';
 import { advanceDetour, emptyDetour, detourVehicles } from './detour-flow.js';
 import { decodeEvents, eventFromHit, updatedEvent, eventNames, eventSymbols, eventSummary, defaultLengthM, maxLengthM, suggestedSpeed, STORAGE_KEY, isEventKind, validEvent, effectiveEventsAt, eventScheduleStatus } from './events.js';
@@ -381,6 +382,115 @@ function findDetourTarget(path, event, exit, link) {
     }
     return downstream[0] ?? null;
 }
+/** Render junction intention separately from measured off- and on-ramp flow.
+ * The existing detour ledger remains the ONLY source of real diverted vehicles.
+ * Never invent normal ramp movements, or equate 100% target with discharge.
+ */
+function realJunctionFlows() {
+    return [...activeDetours.entries()].map(([path, entry]) => ({
+        path: path, fromM: entry.config.fromM, toM: entry.config.toM,
+        eventId: entry.config.eventId,
+        outVph: entry.state.lastDeparture * 60, inVph: entry.state.lastRejoined * 60,
+        vehiclesOnDetour: detourVehicles(entry.state), waitingAtReentry: entry.state.waitingMerge
+    }));
+}
+function junctionRows(path) {
+    const timeline = activeEvents();
+    const jams = jamsAt(spatialState, timeline, spatialCorridors);
+    const spill = rampSpillbacks(jams, rampConnections, spatialCorridors);
+    const delay = routeReport(path, jams, spill, timeline).delayMin;
+    return junctionMovements(path, spatialCorridors[path], exits, timeline, delay, realJunctionFlows());
+}
+function renderJunctionMovements(path) {
+    const host = $('junction-movements');
+    host.replaceChildren();
+    if (path.startsWith('ramp-')) {
+        const p = document.createElement('p');
+        p.className = 'junction-note';
+        p.textContent = 'Die Überleitungsrampe ist keine eigene Ortsanschlussstelle. Wähle A3 Köln/Frankfurt oder A48 Dernbach/Koblenz.';
+        host.append(p);
+        return;
+    }
+    for (const row of junctionRows(path)) {
+        const card = document.createElement('div');
+        card.className = 'junction-movement' + (row.mandatory ? ' critical' : '');
+        const header = document.createElement('div');
+        header.className = 'junction-head';
+        const title = document.createElement('strong');
+        title.textContent = (row.exit.isInterchange ? 'AK/AD ' : 'AS ') + row.exit.ref + ' ' + row.exit.name;
+        const badge = document.createElement('span');
+        badge.className = 'junction-share';
+        badge.textContent = row.exit.isInterchange ? 'Knoten' : ('↘ ' + trafficNumber(row.desiredPercent, 1) + ' % Soll');
+        header.append(title, badge);
+        const flow = document.createElement('div');
+        flow.className = 'junction-flow';
+        if (row.exit.isInterchange) {
+            flow.textContent = 'Überleitungen A3 ↔ A48 werden separat berechnet.';
+        }
+        else {
+            const out = document.createElement('span');
+            out.textContent = 'Abfahrt ↓ ';
+            const count = document.createElement('b');
+            count.textContent = row.validatedRouteActive ?
+                trafficNumber(row.outVph) + ' Fzg/h' : '—';
+            const up = document.createElement('span');
+            up.textContent = ' · Auffahrt ↑ ';
+            const entering = document.createElement('b');
+            entering.textContent = row.validatedRouteActive ?
+                trafficNumber(row.inVph) + ' Fzg/h' : '—';
+            flow.append(out, count, up, entering);
+        }
+        card.append(header, flow);
+        if (!row.exit.isInterchange) {
+            const note = document.createElement('span');
+            note.className = 'junction-note';
+            note.textContent = row.mandatory ?
+                '⛔ Letzte reguläre Ausfahrt vor der Vollsperrung: 100 % sollen abfahren. Erst bei aktivierter OSM-Umleitung entsteht tatsächlicher Abfluss; sonst stauen sich die Fahrzeuge vor der Sperrung.' :
+                row.validatedRouteActive ?
+                    'OSM-Route aktiv · ' + trafficNumber(row.vehiclesOnDetour) + ' Fzg unterwegs/wartend · ' + trafficNumber(row.waitingAtReentry) + ' vor Wiedereinfädelung' :
+                    row.desiredPercent > 0 ? 'Unverbindlicher Umfahrungswunsch aufgrund des geschätzten Zeitverlusts; noch keine Abfahrten erfasst.' :
+                        'Keine Ereignis-Umleitung an dieser Anschlussstelle; normale Ein-/Ausfahrten noch nicht als eigene Ströme simuliert.';
+            card.append(note);
+        }
+        host.append(card);
+    }
+}
+function drawJunctionMovementHints(width, height) {
+    if (zoom < 12.2)
+        return;
+    const key = $('traffic-route').value;
+    if (key.startsWith('ramp-') || !DIRECTIONS.includes(key))
+        return;
+    const rows = junctionRows(key);
+    const used = [];
+    for (const row of rows) {
+        if (row.exit.isInterchange || row.desiredPercent <= 0 && row.outVph <= 0 && row.inVph <= 0)
+            continue;
+        const [x, y] = toScreen(row.exit.position);
+        if (x < 24 || x > width - 24 || y < 78 || y > height - 90)
+            continue;
+        const label = row.mandatory ?
+            'AS ' + row.exit.ref + ' · ↘100% Soll' + (row.outVph > 0 ? ' · ↓' + trafficNumber(row.outVph) + '/h' : '') :
+            row.inVph > 0 ? 'AS ' + row.exit.ref + ' · ↑' + trafficNumber(row.inVph) + '/h' :
+                row.outVph > 0 ? 'AS ' + row.exit.ref + ' · ↓' + trafficNumber(row.outVph) + '/h' :
+                    'AS ' + row.exit.ref + ' · ↘' + trafficNumber(row.desiredPercent) + '%';
+        context.font = 'bold 11px system-ui';
+        const w = Math.min(216, Math.max(98, context.measureText(label).width + 12));
+        const candidate = placeJamCallout({ x, y }, w, 25, { width, height }, used);
+        if (!candidate)
+            continue;
+        context.save();
+        context.fillStyle = '#091e2ce9';
+        context.fillRect(candidate.x, candidate.y, candidate.width, candidate.height);
+        context.strokeStyle = row.mandatory ? '#ffcd76' : '#52bfe6';
+        context.lineWidth = 1.3;
+        context.strokeRect(candidate.x, candidate.y, candidate.width, candidate.height);
+        context.fillStyle = row.mandatory ? '#ffdd9c' : '#d1f1ff';
+        context.fillText(label, candidate.x + 6, candidate.y + 16);
+        context.restore();
+        used.push(candidate);
+    }
+}
 function renderDiversionPlanner(key, jams, spillbacks) {
     const parent = $('traffic-diversion-plans'), catalog = $('traffic-diversion-catalog');
     parent.replaceChildren();
@@ -577,7 +687,7 @@ function renderTraffic() {
     const stateLabel = $('traffic-state');
     stateLabel.textContent = trafficColorName[result.color];
     stateLabel.className = `traffic-state ${result.color}`;
-    $('traffic-closure-note').textContent = bn.event?.kind === 'closure' ? 'Vollsperrung: kein neuer Zufluss in den Sperrabschnitt. Offizielle Umleitung und Ausfahrt bereits eingeschlossener Fahrzeuge werden noch NICHT simuliert. Die hier gezeigte Warteschlange ist vorläufiger, auflaufender Verkehr vor der Sperrung.' : '';
+    $('traffic-closure-note').textContent = bn.event?.kind === 'closure' ? 'Vollsperrung: an der letzten regulären Ausfahrt davor gilt 100 % Umleitungsziel. Tatsächlich abfahrende Fahrzeuge werden nur bei einer geprüften, aktivierten OSM-Umleitung gezählt; überschüssiger Verkehr bleibt im Rückstau vor der Sperre.' : '';
     const mergeQueues = jams.filter(j => j.id.startsWith('merge:') && !j.released);
     const overflowText = spillbacks.map(s => `${trafficRouteLabel(s.rampId)}: ${trafficNumber(s.lengthM / 1000, 2)} km Rückstau auf ${trafficRouteLabel(s.source)}`).join(' · ');
     const mergeText = mergeQueues.map(x => `${trafficRouteLabel(x.pathKey)}: ${trafficNumber(x.queueVehicles)} Fahrzeuge warten wegen Rückstau an der Einmündung`).join(' · ');
@@ -655,6 +765,7 @@ function renderTraffic() {
         container.append(row);
     }
     redrawEventList();
+    renderJunctionMovements(key);
     renderDiversionPlanner(key, jams, spillbacks);
     refresh();
 }
@@ -1102,6 +1213,7 @@ function draw() {
     plotLabels(width, height);
     plotRampBadges(width, height);
     drawEventMarkers(width, height);
+    drawJunctionMovementHints(width, height);
     if (selected) {
         const [x, y] = toScreen(selected.point);
         context.beginPath();
