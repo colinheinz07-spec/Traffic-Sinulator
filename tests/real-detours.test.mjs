@@ -127,6 +127,6 @@ test('SPCK controls clearly label OSM-fetched routes and require activation',()=
  assert.match(page,/TRAFFIC 1\.5\.8/);
  assert.match(page,/OSM-Straßenverbindung online/);
  assert.match(app,/loadDetourGeometry\(link,option.exit,target\)/);
- assert.match(app,/advanceSpatial\(spatialState,events,active,1,spatialCorridors,rampConnections,transfers\)/);
+ assert.match(app,/advanceSpatial\(spatialState,timeline,active,1,spatialCorridors,rampConnections,transfers\)/);
  assert.match(app,/Umleitung aktivieren/);
 });
