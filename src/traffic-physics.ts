@@ -145,7 +145,7 @@ function waveRandom(seed:number,index:number,channel:number):number{
  * stop interval follows; prolonged standing is normal in a heavy jam.
  */
 export function waveEpisodes(id:string,throughMinute:number):WaveEpisode[]{
- if(!Number.isFinite(throughMinute)||throughMinute< -200)throw Error('Ungültige Wellenzeit');
+ if(!Number.isFinite(throughMinute))throw Error('Ungültige Wellenzeit');
  const seed=hashSeed(id),result:WaveEpisode[]=[];
  let time=-75;
  for(let i=0;i<3000&&time<=throughMinute+18;i++){
