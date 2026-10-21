@@ -5,7 +5,7 @@ import {networkData} from '../dist/geodata.js';
 import {makeCorridors,emptySpatial,advanceSpatial,jamsAt} from '../dist/spatial.js';
 import {defaultDemands} from '../dist/traffic.js';
 import {eventFromHit} from '../dist/events.js';
-import {stopAndGoBands,propagatedBaseSpeed} from '../dist/traffic-physics.js';
+import {stopAndGoBands,propagatedBaseSpeed,waveEpisodes} from '../dist/traffic-physics.js';
 
 const route=makeCorridors(networkData.roads,networkData.ramps);
 const base={id:'unfall',pathKey:'A3-koeln',anchorM:14000,queueM:11000,speedKmh:8};
@@ -17,7 +17,7 @@ test('a 11-km queue has local red, dark-red and occasional orange sections at on
  const bands=stopAndGoBands(base,125);
  const colors=new Set(bands.map(b=>b.color));
  for(const c of ['standstill','jam','slow'])assert.ok(colors.has(c),c+' missing');
- assert.ok(bands.length>8,'a long jam must not be a single painted stripe');
+ assert.ok(bands.length>2,'a long queue must have multiple locally different speed sections');
  assert.ok(bands.every(b=>b.toM>b.fromM&&b.fromM>=0&&b.toM<=base.anchorM));
 });
 test('stop-and-go waves migrate upstream, not entire sections flashing in sync',()=>{
@@ -77,4 +77,44 @@ test('SPCK app uses wave speeds in place of entire single-color queue, ramps inc
  assert.match(app,/stopAndGoBands\(jam,spatialState\.minute\)/);
  assert.match(app,/speedHistory:parent\.speedHistory/);
  assert.match(app,/physicalSpeedBands\(jam\)\.filter\(b=>b\.source==='approach'\)/);
+});
+
+test('flow and standstill episodes are variable, not a uniform repeating beat',()=>{
+ const episodes=waveEpisodes('unfall',800);
+ assert.ok(episodes.length>20,'scenario covers many independent episodes');
+ const gaps=episodes.map(e=>e.stopGapMin);
+ const rises=episodes.map(e=>e.riseMin);
+ const holds=episodes.map(e=>e.flowMin);
+ assert.ok(Math.max(...gaps)-Math.min(...gaps)>10,'some jams stand much longer than others');
+ assert.ok(Math.max(...holds)-Math.min(...holds)>5,'platoons move for different lengths of time');
+ assert.ok(Math.max(...rises)-Math.min(...rises)>1,'acceleration intervals are variable');
+ assert.ok(episodes.some(e=>e.stopGapMin>15),'prolonged standstill is possible');
+ assert.ok(episodes.every((e,i)=>i===0||e.startMinute>episodes[i-1].startMinute));
+ assert.deepEqual(episodes,waveEpisodes('unfall',800),'replay must be reproducible');
+ assert.notDeepEqual(episodes,waveEpisodes('another incident',800),'different incidents have distinct waves');
+});
+
+test('there is no identical repeated 4.8-minute pattern across a long queue',()=>{
+ const snapshot=(minute)=>stopAndGoBands(base,minute).map(b=>[Math.round(b.fromM),Math.round(b.toM),b.color]);
+ assert.notDeepEqual(snapshot(110),snapshot(114.8));
+ assert.notDeepEqual(snapshot(125),snapshot(139));
+ const localStates=new Set();
+ for(let t=120;t<230;t++){
+  const band=stopAndGoBands(base,t).find(b=>b.fromM<=base.anchorM-80&&b.toM>=base.anchorM-80);
+  if(band)localStates.add(band.color);
+ }
+ assert.ok(localStates.has('standstill'),'long waiting episodes must reach one point');
+ assert.ok(localStates.size>1,'the same location must eventually move and stop again');
+});
+
+test('two-line map labels and jam cards show event sign, direction, delay and km',()=>{
+ const app=readFileSync('src/app.ts','utf8');
+ const html=readFileSync('index.html','utf8');
+ for(const token of ['jam-card','jam-card-sign','jam-card-delay','jam-card-metrics','trafficRouteLabel(jam.pathKey)','jam.queueM/1000','jam.delayMin','eventSymbols[event.kind]']){
+  assert.ok(app.includes(token),token);
+ }
+ assert.match(app,/shortDirection/);
+ assert.match(app,/km Stau/);
+ assert.match(html,/jam-card-header/);
+ assert.ok(html.includes('TRAFFIC 1.5.2'));
 });

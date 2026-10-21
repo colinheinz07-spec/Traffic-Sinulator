@@ -372,21 +372,49 @@ function renderTraffic() {
         container.append(p);
     }
     for (const jam of jams) {
+        const event = events.find(e => e.id === jam.id);
+        const symbol = event ? eventSymbols[event.kind] : '🚗';
+        const kind = jam.released ? 'Rückstau löst sich auf'
+            : jam.id.startsWith('merge:') ? 'Rückstau an der Überleitung'
+                : event ? eventNames[event.kind] : 'Verkehrsstau';
         const row = document.createElement('button');
         row.type = 'button';
-        row.className = 'traffic-summary-row';
-        const title = document.createElement('span'), event = events.find(e => e.id === jam.id);
-        title.textContent = `${trafficRouteLabel(jam.pathKey)} · ${jam.released ? 'Rückstau löst sich auf' : jam.id.startsWith('merge:') ? 'Rückstau von Zielautobahn' : jam.id.startsWith('spill:') ? 'Rampenstau beeinträchtigt Ausfahrt' : event ? eventNames[event.kind] : 'Engpass'}`;
-        const value = document.createElement('strong');
-        value.className = `traffic-state ${jam.color}`;
-        value.textContent = `${trafficNumber(jam.queueM / 1000, 2)} km · ${jam.delayMin === null ? 'Zeit unbestimmt' : trafficNumber(jam.delayMin, 1) + ' min'} · ${trafficNumber(jam.speedKmh)} km/h`;
-        const overflow = spillbacks.find(s => s.id === jam.id && s.rampId === jam.pathKey);
+        row.className = 'traffic-summary-row jam-card';
+        row.setAttribute('data-traffic-state', jam.color);
+        const header = document.createElement('div');
+        header.className = 'jam-card-header';
+        const marker = document.createElement('span');
+        marker.className = 'jam-card-sign';
+        marker.textContent = symbol;
+        marker.setAttribute('aria-hidden', 'true');
+        const heading = document.createElement('div');
+        heading.className = 'jam-card-heading';
+        const eventName = document.createElement('strong');
+        eventName.textContent = kind;
+        const direction = document.createElement('span');
+        direction.textContent = trafficRouteLabel(jam.pathKey);
+        heading.append(eventName, direction);
+        const delay = document.createElement('strong');
+        delay.className = 'jam-card-delay';
+        delay.textContent = jam.delayMin === null ? '⛔ Sperrung' : `+${trafficNumber(jam.delayMin, 1)} min`;
+        header.append(marker, heading, delay);
+        const metrics = document.createElement('div');
+        metrics.className = 'jam-card-metrics';
+        const length = document.createElement('span');
+        length.textContent = `↔ ${trafficNumber(jam.queueM / 1000, 2)} km Rückstau`;
+        const speed = document.createElement('span');
+        speed.className = `traffic-state ${jam.color}`;
+        speed.textContent = `ca. ${trafficNumber(jam.speedKmh)} km/h · ${trafficColorName[jam.color]}`;
+        metrics.append(length, speed);
+        row.append(header, metrics);
+        const overflow = spillbacks.find(x => x.id === jam.id && x.rampId === jam.pathKey);
         if (overflow) {
-            const extra = document.createElement('small');
-            extra.textContent = `↳ Reicht ${trafficNumber(overflow.lengthM / 1000, 2)} km auf ${trafficRouteLabel(overflow.source)} zurück`;
-            title.append(document.createElement('br'), extra);
+            const extra = document.createElement('span');
+            extra.className = 'jam-card-note';
+            extra.textContent = `↳ ${trafficNumber(overflow.lengthM / 1000, 2)} km auf ${trafficRouteLabel(overflow.source)} – Abfahrtsstreifen`;
+            row.append(extra);
         }
-        row.append(title, value);
+        row.setAttribute('aria-label', `${symbol} ${kind}, ${trafficRouteLabel(jam.pathKey)}, ${delay.textContent}, ${length.textContent}, ${speed.textContent}`);
         row.onclick = () => { focus = overflow ? ramps.find(r => r.id === overflow.rampId).points[0] : jam.point; zoom = Math.max(zoom, 14); refresh(); };
         container.append(row);
     }
@@ -705,13 +733,20 @@ function drawSpatialJams() {
         const [x, y] = toScreen(mid[0]);
         if (x < 8 || x > wrapper.clientWidth - 75 || y < 54 || y > wrapper.clientHeight - 63)
             continue;
-        const txt = jam.delayMin === null ? '⛔ gesperrt' : `+${trafficNumber(jam.delayMin, 1)} min · ${trafficNumber(jam.speedKmh)} km/h`;
-        context.font = 'bold 11px system-ui';
-        const w = context.measureText(txt).width + 16;
+        const event = events.find(e => e.id === jam.id), sign = event ? eventSymbols[event.kind] : '🚗';
+        const shortDirection = jam.pathKey === 'A3-koeln' ? 'A3 Köln' : jam.pathKey === 'A3-frankfurt' ? 'A3 Frankfurt'
+            : jam.pathKey === 'A48-dernbach' ? 'A48 Dernbach' : jam.pathKey === 'A48-koblenz' ? 'A48 Koblenz' : 'AD Dernbach · Rampe';
+        const delay = jam.delayMin === null ? 'Sperrung' : `+${trafficNumber(jam.delayMin, 1)} min`;
+        const first = `${sign} ${shortDirection} · ${delay}`;
+        const second = `${trafficNumber(jam.queueM / 1000, 1)} km Stau · ${trafficNumber(jam.speedKmh)} km/h`;
+        context.font = 'bold 10px system-ui';
+        const w = Math.min(225, Math.max(context.measureText(first).width, context.measureText(second).width) + 16);
         context.fillStyle = '#0a1c2bef';
-        context.fillRect(x, y - 23, w, 20);
+        context.fillRect(x, y - 39, w, 36);
         context.fillStyle = '#fff';
-        context.fillText(txt, x + 8, y - 9);
+        context.fillText(first, x + 8, y - 26);
+        context.fillStyle = '#bdd6e7';
+        context.fillText(second, x + 8, y - 12);
     }
 }
 function draw() {

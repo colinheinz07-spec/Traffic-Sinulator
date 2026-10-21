@@ -94,5 +94,5 @@ test('SPCK uses real coupled junction queues and no longer paints fake merge pro
  assert.match(source,/routeReport\(key,jams,spillbacks,events\)/);
  assert.doesNotMatch(source,/mergeBackflows\(list,rampConnections/);
  assert.match(html,/id="traffic-interchange"/);
- assert.match(html,/TRAFFIC 1\.5\.1/);
+ assert.match(html,/TRAFFIC 1\.5\.2/);
 });

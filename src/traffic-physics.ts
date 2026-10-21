@@ -125,19 +125,63 @@ export function propagatedBaseSpeed(history:readonly HistoricalSpeed[]|undefined
  minute:number,backFromBottleneckM:number,fallback:number):number{
  return sourceSpeed(history,minute-Math.max(0,backFromBottleneckM)/WAVE_UPSTREAM_M_PER_MIN,fallback);
 }
-const frac=(v:number)=>v-Math.floor(v);
-function pulseSpeed(base:number,passedTime:number,seed:number,queueKm:number,free:number):number{
+/** Variable dwell/release episodes, reproducible without global PRNG state.
+ * Durations vary by episode: a free-flow burst does not occur every fixed
+ * number of minutes. The same timestamp/id always yields the same wave.
+ */
+export interface WaveEpisode {startMinute:number;riseMin:number;flowMin:number;fallMin:number;stopGapMin:number}
+function hashSeed(id:string):number{
+ let h=2166136261;
+ for(const char of id)h=Math.imul(h^char.charCodeAt(0),16777619);
+ return h>>>0;
+}
+function waveRandom(seed:number,index:number,channel:number):number{
+ let x=(seed^Math.imul(index+91,0x9e3779b9)^Math.imul(channel+1,0x85ebca6b))|0;
+ x=Math.imul(x^(x>>>16),0x7feb352d);
+ x=Math.imul(x^(x>>>15),0x846ca68b);
+ return ((x^(x>>>16))>>>0)/4294967296;
+}
+/** Start times and durations are not periodic. After each episode a variable
+ * stop interval follows; prolonged standing is normal in a heavy jam.
+ */
+export function waveEpisodes(id:string,throughMinute:number):WaveEpisode[]{
+ if(!Number.isFinite(throughMinute))throw Error('Ungültige Wellenzeit');
+ const seed=hashSeed(id),result:WaveEpisode[]=[];
+ let time=-75;
+ for(let i=0;i<3000&&time<=throughMinute+18;i++){
+  const riseMin=.6+3*waveRandom(seed,i,1);
+  const flowMin=1+8*waveRandom(seed,i,2);
+  const fallMin=.5+3*waveRandom(seed,i,3);
+  const stopGapMin=3+18*waveRandom(seed,i,4);
+  result.push({startMinute:time,riseMin,flowMin,fallMin,stopGapMin});
+  time+=riseMin+flowMin+fallMin+stopGapMin;
+ }
+ return result;
+}
+/** Stop-and-go: dissimilar waiting periods, then a release front, then
+ * braking. The wave itself travels upstream via passedTime. NOT a measured
+ * per-vehicle speed or a replacement for mass-conserving flow dynamics.
+ */
+function pulseSpeed(base:number,passedTime:number,id:string,queueKm:number,free:number):number{
  const value=Math.max(0,Math.min(free,base));
  if(value<=.001||value>=65||queueKm<.35)return value;
- // A moving, finite-width release wave, not static stripes. Narrow moving
- // platoons recover up to orange before braking again in dense stop-and-go.
- const severity=Math.max(0,Math.min(1,(60-value)/50));
- const amplitude=Math.min(37,(free-value)*.55)*severity*
-  Math.min(1,queueKm/1.3);
- const phase=frac((passedTime+seed)/4.8);
- const distance=Math.min(phase,1-phase);
- const release=Math.max(0,1-distance/.18);
- return Math.max(0,Math.min(free,value+amplitude*(release-.18)));
+ const seed=hashSeed(id);
+ const strength=Math.min(1,queueKm/1.7)*Math.min(1,(65-value)/42);
+ const stopSpeed=value<=13?value*.18:value*.42;
+ const episodes=waveEpisodes(id,passedTime);
+ for(let i=episodes.length-1;i>=0;i--){
+  const e=episodes[i]!;
+  const passed=passedTime-e.startMinute;
+  if(passed<0)continue;
+  const duration=e.riseMin+e.flowMin+e.fallMin;
+  if(passed>duration)break;
+  const rise=passed<e.riseMin?passed/e.riseMin
+   :passed<e.riseMin+e.flowMin?1
+   :Math.max(0,1-(passed-e.riseMin-e.flowMin)/e.fallMin);
+  const peak=value+strength*((value<=13?23:13)+48*waveRandom(seed,i,7));
+  return Math.min(65,Math.max(0,stopSpeed+(peak-stopSpeed)*rise));
+ }
+ return stopSpeed;
 }
 /** Piecewise per-cell speed estimates, with consistent colorAtSpeed().
  * The fixed cell grid is anchored on OSM route metres, so its edges do not
@@ -157,7 +201,7 @@ export function stopAndGoBands(jam:MovingQueue,simMinute:number):SpeedBand[]{
   const upstreamM=(jam.offsetBackM??0)+jam.anchorM-(fromM+toM)/2;
   const signalTime=simMinute-upstreamM/WAVE_UPSTREAM_M_PER_MIN;
   const source=propagatedBaseSpeed(jam.speedHistory,simMinute,upstreamM,jam.speedKmh);
-  const kmh=pulseSpeed(source,signalTime,seed,jam.queueM/1000,free);
+  const kmh=pulseSpeed(source,signalTime,jam.id??jam.pathKey,jam.queueM/1000,free);
   const color=colorAtSpeed(kmh);
   const last=out.at(-1);
   if(last&&last.color===color&&Math.abs(last.toM-fromM)<.01){
