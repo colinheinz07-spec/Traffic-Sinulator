@@ -97,7 +97,7 @@ export function mergeSupplyVph(ramp, targetCapacityVph, targetDemandVph, rampDem
     const supplyRatio = Math.min(1, targetCapacityVph / Math.max(targetCapacityVph, targetDemandVph));
     return Math.min(baselineCapacity(ramp), Math.round(Math.max(defaultDemand(ramp), rampDemandVph) * supplyRatio));
 }
-export function advanceSpatial(prev, events, demands, minutes, corridors, links = []) {
+export function advanceSpatial(prev, events, demands, minutes, corridors, links = [], transfers = []) {
     if (!Number.isInteger(minutes) || minutes < 1 || minutes > 60)
         throw Error('Ungültiger Simulations-Zeitschritt');
     const current = {};
@@ -134,6 +134,21 @@ export function advanceSpatial(prev, events, demands, minutes, corridors, links 
                             point: route.points.at(-1), limitVph: cap });
                     }
                 }
+            // Connected, validated OSM detours are inserted at the physical junction
+            // positions. Leaving vehicles are removed ONCE, rejoined vehicles added
+            // ONCE downstream of the event; no shared motorway inflow subtraction.
+            for (const transfer of transfers)
+                if (transfer.path === key) {
+                    if (!(transfer.fromM >= 0 && transfer.toM <= route.lengthM && transfer.toM > transfer.fromM
+                        && transfer.leaveVpm >= 0 && transfer.joinVpm >= 0))
+                        throw Error('Umleitungs-Anschlussposition oder Fahrzeugstrom ungültig');
+                    const from = routeSlice(route, Math.max(0, transfer.fromM - 2), transfer.fromM)[0] ?? route.points[0];
+                    const to = routeSlice(route, transfer.toM, Math.min(route.lengthM, transfer.toM + 2))[0] ?? route.points.at(-1);
+                    nodes.push({ id: 'divert-out:' + transfer.id, event: null, place: transfer.fromM,
+                        point: from, leavingVpm: transfer.leaveVpm });
+                    nodes.push({ id: 'divert-in:' + transfer.id, event: null, place: transfer.toM,
+                        point: to, joiningVpm: transfer.joinVpm, limitVph: baselineCapacity(key) });
+                }
             // An overflow from a ramp occupies the exit lane ONLY. Its vehicles are
             // ALREADY owned by the ramp queue and rampSpillbacks() plots their location.
             // Applying another bottleneck to the ENTIRE mainline would invent a second
@@ -150,6 +165,15 @@ export function advanceSpatial(prev, events, demands, minutes, corridors, links 
             // FIFO mass conservation at each serial bottleneck. Downstream gets only upstream discharge.
             let entering = Math.min(volume / 60, baselineCapacity(key) / 60);
             for (const node of nodes) {
+                // At a real mapped off-ramp cars exit the motorway only if they are
+                // accepted by the detour. Never generate a fictitious local-road queue
+                // by subtracting an intended percentage instead of actual admissions.
+                if (node.leavingVpm !== undefined) {
+                    entering = Math.max(0, entering - node.leavingVpm);
+                    continue;
+                }
+                if (node.joiningVpm !== undefined)
+                    entering += node.joiningVpm;
                 const stored = current[node.id]?.vehicles ?? 0;
                 const previous = current[node.id];
                 const fullCapacityVph = node.limitVph ?? (node.event ? eventCapacity(node.event, volume) : baselineCapacity(key));
