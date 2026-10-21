@@ -13,6 +13,9 @@ export interface Corridor {key:PathKey;points:Point[];metres:number[];lengthM:nu
 export interface SpeedHistorySample {minute:number;speedKmh:number}
 export interface QueuedAt {pathKey:PathKey;point:Point;vehicles:number;lanes:number;capacityVph?:number;active?:boolean;densityVehPerKm?:number;color?:TrafficColor;pendingColor?:TrafficColor;pendingTicks?:number;speedHistory?:SpeedHistorySample[];recoveryTick?:number}
 export interface SpatialState {minute:number;queues:Record<string,QueuedAt>}
+export interface SpatialTransfer {
+ id:string;path:PathKey;fromM:number;toM:number;leaveVpm:number;joinVpm:number;
+}
 export interface Jam {id:string;pathKey:PathKey;eventKind:SimEvent['kind']|null;point:Point;anchorM:number;queueVehicles:number;queueM:number;visibleQueueM:number;delayMin:number|null;capacityVph:number;speedKmh:number;color:TrafficColor;released:boolean;outOfBoundsM:number;speedHistory?:readonly SpeedHistorySample[]}
 const rad=Math.PI/180;
 export function metres(a:Point,b:Point):number{
@@ -88,7 +91,7 @@ export function mergeSupplyVph(ramp:PathKey,targetCapacityVph:number,targetDeman
  const supplyRatio=Math.min(1,targetCapacityVph/Math.max(targetCapacityVph,targetDemandVph));
  return Math.min(baselineCapacity(ramp),Math.round(Math.max(defaultDemand(ramp),rampDemandVph)*supplyRatio));
 }
-export function advanceSpatial(prev:SpatialState,events:readonly SimEvent[],demands:Readonly<Record<PathKey,number>>,minutes:number,corridors:Record<PathKey,Corridor>,links:readonly RampConnection[]=[]):SpatialState{
+export function advanceSpatial(prev:SpatialState,events:readonly SimEvent[],demands:Readonly<Record<PathKey,number>>,minutes:number,corridors:Record<PathKey,Corridor>,links:readonly RampConnection[]=[],transfers:readonly SpatialTransfer[]=[]):SpatialState{
  if(!Number.isInteger(minutes)||minutes<1||minutes>60)throw Error('Ungültiger Simulations-Zeitschritt');
  const current:Record<string,QueuedAt>={};
  for(const [id,q] of Object.entries(prev.queues))if(q.vehicles>1e-6)current[id]={...q};
@@ -98,7 +101,8 @@ export function advanceSpatial(prev:SpatialState,events:readonly SimEvent[],dema
   for(const key of PATHS){
   const volume=demands[key];if(!Number.isFinite(volume)||volume<0||volume>8000)throw Error('Ungültiger Zufluss');
   const route=corridors[key];
-  const nodes:{id:string;event:SimEvent|null;place:number;point:Point;limitVph?:number}[]=[];
+  const nodes:{id:string;event:SimEvent|null;place:number;point:Point;limitVph?:number;
+   leavingVpm?:number;joiningVpm?:number}[]=[];
   for(const e of events)if(e.pathKey===key){
    const place=positionM(route,e.point);if(place===null)continue;
    nodes.push({id:e.id,event:e,place,point:e.point});
@@ -116,6 +120,20 @@ export function advanceSpatial(prev:SpatialState,events:readonly SimEvent[],dema
      point:route.points.at(-1)!,limitVph:cap});
    }
   }
+  // Connected, validated OSM detours are inserted at the physical junction
+  // positions. Leaving vehicles are removed ONCE, rejoined vehicles added
+  // ONCE downstream of the event; no shared motorway inflow subtraction.
+  for(const transfer of transfers)if(transfer.path===key){
+   if(!(transfer.fromM>=0&&transfer.toM<=route.lengthM&&transfer.toM>transfer.fromM
+    &&transfer.leaveVpm>=0&&transfer.joinVpm>=0))
+    throw Error('Umleitungs-Anschlussposition oder Fahrzeugstrom ungültig');
+   const from=routeSlice(route,Math.max(0,transfer.fromM-2),transfer.fromM)[0]??route.points[0]!;
+   const to=routeSlice(route,transfer.toM,Math.min(route.lengthM,transfer.toM+2))[0]??route.points.at(-1)!;
+   nodes.push({id:'divert-out:'+transfer.id,event:null,place:transfer.fromM,
+    point:from,leavingVpm:transfer.leaveVpm});
+   nodes.push({id:'divert-in:'+transfer.id,event:null,place:transfer.toM,
+    point:to,joiningVpm:transfer.joinVpm,limitVph:baselineCapacity(key)});
+  }
   // An overflow from a ramp occupies the exit lane ONLY. Its vehicles are
   // ALREADY owned by the ramp queue and rampSpillbacks() plots their location.
   // Applying another bottleneck to the ENTIRE mainline would invent a second
@@ -129,6 +147,11 @@ export function advanceSpatial(prev:SpatialState,events:readonly SimEvent[],dema
   // FIFO mass conservation at each serial bottleneck. Downstream gets only upstream discharge.
   let entering=Math.min(volume/60,baselineCapacity(key)/60);
   for(const node of nodes){
+   // At a real mapped off-ramp cars exit the motorway only if they are
+   // accepted by the detour. Never generate a fictitious local-road queue
+   // by subtracting an intended percentage instead of actual admissions.
+   if(node.leavingVpm!==undefined){entering=Math.max(0,entering-node.leavingVpm);continue;}
+   if(node.joiningVpm!==undefined)entering+=node.joiningVpm;
    const stored=current[node.id]?.vehicles??0;
    const previous=current[node.id];
    const fullCapacityVph=node.limitVph??(node.event?eventCapacity(node.event,volume):baselineCapacity(key));
