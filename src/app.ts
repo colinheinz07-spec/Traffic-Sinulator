@@ -284,7 +284,7 @@ function renderDiversionPlanner(key:PathKey,jams:ReturnType<typeof jamsAt>,spill
      const link=option.link??simulatedLink(direction,option.exit,target);
      const k=detourKey(link,target.ref),loaded=mappedDetours.get(k),running=activeDetours.get(direction);
      const details=document.createElement('span');
-     details.textContent=loaded?`${loaded.geometry.lengthKm.toFixed(1).replace('.',',')} km · freie Fahrt ${loaded.geometry.freeMinutes.toFixed(0)} min · ${loaded.geometry.label}`
+     details.textContent=loaded?`${loaded.geometry.lengthKm.toFixed(1).replace('.',',')} km · geschätzt ${loaded.geometry.freeMinutes.toFixed(0)} min · ${loaded.geometry.junctionCount} Kreuzungen · ${loaded.geometry.trafficLightCount} OSM-Ampeln · ${loaded.geometry.label}`
       :`Wiedereintritt AS ${target.ref} ${target.name}; Strecke muss online aus OSM geladen werden`;
      line.append(details);
      if(detourLoadErrors.has(k)){
@@ -320,7 +320,7 @@ function renderDiversionPlanner(key:PathKey,jams:ReturnType<typeof jamsAt>,spill
      line.append(button);
      if(running?.config.id===k){
       const st=running.state,report=document.createElement('span');
-      report.textContent=`Aktiv · ${trafficNumber(detourVehicles(st))} Fahrzeuge auf Nebenstraße oder unterwegs · ${trafficNumber(st.lastDeparture*60)} Fzg/h abgezweigt · ${trafficNumber(st.lastRejoined*60)} Fzg/h zurück`;
+      report.textContent=`Aktiv · ${trafficNumber(detourVehicles(st))} Fahrzeuge insgesamt · ${trafficNumber(st.waitingRoad)} warten vor Nebenstraßen-Engpass · ${trafficNumber(st.waitingMerge)} vor Wiedereinfädelung · ${trafficNumber(st.lastDeparture*60)} Fzg/h abgezweigt · ${trafficNumber(st.lastRejoined*60)} Fzg/h zurück`;
       line.append(report);
      }
     }else{
@@ -698,7 +698,7 @@ function drawDetours(){
    const p=config.geometry.points[Math.floor(config.geometry.points.length/2)]!;
    const [x,y]=toScreen(p);
    if(x>0&&y>0&&x<wrapper.clientWidth-140&&y<wrapper.clientHeight-15){
-    const txt=`${config.geometry.label}: ${trafficNumber(state.waitingRoad)} warten`;
+    const txt=`${config.geometry.label}: ${trafficNumber(state.waitingRoad)} vor Kreuzung · ${trafficNumber(state.waitingMerge)} vor Auffahrt`;
     context!.font='bold 10px system-ui';
     const w=Math.min(215,context!.measureText(txt).width+16);
     context!.fillStyle='#06243add';context!.fillRect(x,y-17,w,22);
