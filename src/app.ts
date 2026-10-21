@@ -2,7 +2,7 @@ import {PATHS,pathBottleneck,baselineCapacity,defaultDemand,defaultDemands,deman
 import {networkData} from './geodata.js';
 import {routeReport} from './network-report.js';
 import {makeCorridors,routeSlice,positionM,advanceSpatial,emptySpatial,jamsAt} from './spatial.js';
-import {colorAtSpeed,physicalSpeedBands,resolveSpeedBands,freeSpeedKmh,type SpeedBand} from './traffic-physics.js';
+import {colorAtSpeed,physicalSpeedBands,stopAndGoBands,resolveSpeedBands,freeSpeedKmh,type SpeedBand} from './traffic-physics.js';
 import {buildRampConnections,rampSpillbacks} from './interchange.js';
 import {decodeEvents,eventFromHit,updatedEvent,eventNames,eventSymbols,eventSummary,flowPolicy,defaultLengthM,defaultSettings,maxLengthM,suggestedSpeed,STORAGE_KEY,isEventKind,type EventKind,type ShoulderMode,type SimEvent} from './events.js';
 import {roadLaneInfo,rampLaneInfo} from './lane-info.js';
@@ -408,7 +408,14 @@ function drawSpatialJams(){
  // Congestion core: speed estimated from discharge and density using the
  // fundamental diagram. Its approach is split at actual braking-speed
  // thresholds, never at hard-coded percentages of the jam length.
- for(const jam of list)append(jam.pathKey,physicalSpeedBands(jam));
+ for(const jam of list){
+  // The underlying vehicle queue remains mass-conserving; only its visual
+  // speed field has longitudinal cells and upstream-moving braking waves.
+  append(jam.pathKey,[
+   ...physicalSpeedBands(jam).filter(b=>b.source==='approach'),
+   ...stopAndGoBands(jam,spatialState.minute)
+  ]);
+ }
  const widths=lineWidths(zoom);
  for(const [key,bands] of byPath){
   const route=spatialCorridors[key],narrow=key.startsWith('ramp-');
@@ -428,7 +435,11 @@ function drawSpatialJams(){
   const parent=list.find(j=>j.pathKey===spill.rampId&&j.id===spill.id);
   if(!parent)continue;
   const route=spatialCorridors[spill.source];
-  const bands=physicalSpeedBands({anchorM:spill.toM,queueM:length,pathKey:spill.source,speedKmh:parent.speedKmh});
+  const bands=stopAndGoBands({
+   id:parent.id,pathKey:spill.source,anchorM:spill.toM,queueM:length,
+   speedKmh:parent.speedKmh,speedHistory:parent.speedHistory,
+   offsetBackM:spatialCorridors[spill.rampId].lengthM
+  },spatialState.minute);
   for(const band of bands){
    if(band.color==='free')continue;
    const line=routeSlice(route,band.fromM,band.toM);
