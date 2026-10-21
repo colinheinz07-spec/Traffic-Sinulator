@@ -410,7 +410,7 @@ function renderDiversionPlanner(key:PathKey,jams:ReturnType<typeof jamsAt>,spill
      const button=document.createElement('button');button.type='button';
      button.className='diversion-route-button';
      button.textContent=loaded?(running?.config.id===k?'Umleitung deaktivieren':'Umleitung aktivieren')
-      :(detourLoading.has(k)?'OSM-Kartendaten werden geladen …':'OSM-Straßenroute laden');
+      :(detourLoading.has(k)?'OSM-Kartendaten werden geladen …':'OSM-Route laden & Umleitung starten');
      button.disabled=detourLoading.has(k);
      button.onclick=async()=>{
       if(loaded){
@@ -429,6 +429,9 @@ function renderDiversionPlanner(key:PathKey,jams:ReturnType<typeof jamsAt>,spill
        if(!(config.toM>config.fromM+200))throw Error('Umleitung überspringt das Ereignis nicht');
        // Hard gate: every point came from connected OSM non-motorway ways.
        mappedDetours.set(k,config);
+       // An explicit tap both verifies the real OSM route and starts its
+       // capped diversion flow. No autonomous teleporting / fake network.
+       activeDetours.set(direction,{config,state:emptyDetour(config)});
       }catch(error){
        detourLoadErrors.set(k,error instanceof Error?error.message:'Kartendaten nicht verfügbar');
       }finally{detourLoading.delete(k);renderTraffic();}
