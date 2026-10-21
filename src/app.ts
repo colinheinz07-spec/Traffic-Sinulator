@@ -358,6 +358,24 @@ function renderDiversionPlanner(key:PathKey,jams:ReturnType<typeof jamsAt>,spill
   card.append(title,desc);catalog.append(card);
  }
 }
+/** Simulation time is displayed ABOVE the map. It is not the device's
+ * continuously advancing wall clock: only simulation steps change minutes.
+ * Reuse the existing local-date input formatter to keep date and time aligned.
+ */
+function updateMapClock(){
+ const clock=simulatedClock();
+ const time=$<HTMLTimeElement>('traffic-clock');
+ time.textContent=clock.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
+ time.dateTime=dateTimeInputValue(clock);
+ $('map-clock-date').textContent=clock.toLocaleDateString('de-DE',{
+  weekday:'short',day:'2-digit',month:'2-digit',year:'numeric'
+ });
+ const state=$('map-clock-status');
+ const running=trafficTimer!==null;
+ state.textContent=running?'● Läuft · Minute '+spatialState.minute:
+  spatialState.minute===0?'Bereit · Minute 0':'Pausiert · Minute '+spatialState.minute;
+ state.className='map-clock-status'+(running?' running':'');
+}
 function renderTraffic(){
  const selector=$<HTMLSelectElement>('traffic-route');const key=selector.value as PathKey;
  if(!PATHS.includes(key))return;
@@ -366,7 +384,7 @@ function renderTraffic(){
  const result=routeReport(key,jams,spillbacks,events);
  const bn=pathBottleneck(key,events);
  $('traffic-minute').textContent=`Minute ${spatialState.minute}`;
- $('traffic-clock').textContent=simulatedClock().toLocaleString('de-DE',{weekday:'short',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})+' Uhr (Simulationszeit)';
+ updateMapClock();
  const activeDemands=currentDemands();
  $('traffic-demand').textContent=trafficNumber(activeDemands[key]);
  $('traffic-demand-hint').textContent=demandMode==='clock'
@@ -444,7 +462,7 @@ function selectTrafficRoute(path:string){
  $<HTMLInputElement>('traffic-inflow').value=String(trafficDemands[key]);
  renderTraffic();
 }
-function stopTraffic(){if(trafficTimer!==null){clearInterval(trafficTimer);trafficTimer=null;}$('traffic-play').textContent='▶ Start';}
+function stopTraffic(){if(trafficTimer!==null){clearInterval(trafficTimer);trafficTimer=null;}$('traffic-play').textContent='▶ Start';updateMapClock();}
 function stepTraffic(minutes:number){
  try{
   for(let i=0;i<minutes;i++){
@@ -525,6 +543,7 @@ function initializeTraffic(){
   if(trafficTimer!==null){stopTraffic();return;}
   $('traffic-play').textContent='⏸ Pause';
   trafficTimer=setInterval(()=>stepTraffic(1),1000);
+  updateMapClock();
  };
  $('traffic-reset').onclick=()=>{stopTraffic();spatialState=emptySpatial();cellNetwork={};resetDetourFlow();renderTraffic();};
  document.addEventListener('visibilitychange',()=>{if(document.hidden)stopTraffic();});
@@ -821,6 +840,14 @@ function bind(){
  $('event-edit').onclick=beginEditEvent;
  $('event-save').onclick=saveNewEvent;
  $('event-delete').onclick=removeExistingEvent;
+ // iOS WebKit otherwise selects map labels and shows the native "Kopieren"
+ // callout on a tap-and-hold. Keep text selection intact in input/forms.
+ const mapRegion=canvas.closest('.map-shell');
+ if(!mapRegion)throw Error('Kartenoberfläche fehlt');
+ for(const type of ['contextmenu','selectstart','dragstart']){
+  mapRegion.addEventListener(type,event=>event.preventDefault());
+ }
+ canvas.addEventListener('dblclick',event=>event.preventDefault());
  canvas.addEventListener('pointerdown',e=>{canvas.setPointerCapture(e.pointerId);pointerPositions.set(e.pointerId,[e.clientX,e.clientY]);if(pointerPositions.size===1)pointerDown={x:e.clientX,y:e.clientY,at:performance.now()};else pointerDown=null});
  canvas.addEventListener('pointermove',e=>{const last=pointerPositions.get(e.pointerId);if(!last)return;
   const current:[number,number]=[e.clientX,e.clientY];pointerPositions.set(e.pointerId,current);
