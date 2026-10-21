@@ -1,10 +1,12 @@
-import { PATHS, pathBottleneck, defaultDemands, demandAtMinute, demandAtClock } from './traffic.js';
+import { PATHS, pathBottleneck, eventCapacity, baselineCapacity, defaultDemands, demandAtMinute, demandAtClock } from './traffic.js';
 import { networkData } from './geodata.js';
 import { routeReport } from './network-report.js';
 import { makeCorridors, routeSlice, positionM, advanceSpatial, emptySpatial, jamsAt } from './spatial.js';
 import { colorAtSpeed, physicalSpeedBands, stopAndGoBands, resolveSpeedBands, freeSpeedKmh } from './traffic-physics.js';
 import { buildRampConnections, rampSpillbacks } from './interchange.js';
 import { DIVERSION_LINKS, CROSS_MOTORWAY_DIVERSION, diversionJunctions, planDiversion } from './diversions.js';
+import { loadDetourGeometry } from './detour-routing.js';
+import { advanceDetour, emptyDetour, detourVehicles } from './detour-flow.js';
 import { decodeEvents, eventFromHit, updatedEvent, eventNames, eventSymbols, eventSummary, defaultLengthM, maxLengthM, suggestedSpeed, STORAGE_KEY, isEventKind } from './events.js';
 import { roadLaneInfo, rampLaneInfo } from './lane-info.js';
 import { mapCandidates, chooseMapHits, closestJunction, lanePositions, hitLabel } from './selection.js';
@@ -297,6 +299,19 @@ function removeExistingEvent() {
 // No fabricated traffic transfers between A3, A48, and AD Dernbach ramps.
 let spatialState = emptySpatial();
 const trafficDemands = defaultDemands();
+const mappedDetours = new Map();
+const activeDetours = new Map();
+const detourLoading = new Set();
+const detourLoadErrors = new Map();
+function resetDetourFlow() {
+    for (const [key, route] of activeDetours)
+        activeDetours.set(key, { ...route, state: emptyDetour(route.config) });
+}
+function detourKey(link, targetRef) { return link.id + ':' + targetRef; }
+function simulatedLink(path, from, to) {
+    return { id: path + '-OSM-' + from.ref, code: 'SIM', path, fromRoad: from.road, fromRef: from.ref,
+        toRoad: to.road, toRef: to.ref, evidence: 'partial', description: 'Simulierte Verbindung auf echten OSM-Straßen' };
+}
 let demandMode = 'clock';
 let simulationStartMs = Math.floor(Date.now() / 60000) * 60000;
 function dateTimeInputValue(d) {
@@ -316,6 +331,24 @@ const trafficColorName = { free: 'Frei', slow: 'Stockend', jam: 'Stau / Stop-and
 /** Planning preview only: no transfers to side-road traffic are executed here.
  * We deliberately require real, connected OSM local-road geometry first.
  */
+/** Find a motorway re-entry AFTER the incident, always in the correct
+ * driving direction. An AD/AK is not a local off- or on-ramp.
+ */
+function findDetourTarget(path, event, exit, link) {
+    const route = spatialCorridors[path], where = positionM(route, event.point);
+    if (where === null)
+        return null;
+    const downstream = diversionJunctions(path, exits, route).filter(x => !x.isInterchange && x.ref !== exit.ref
+        && x.metre > where + 100 && x.metre > exit.metre + 200);
+    if (link?.toRef) {
+        const documented = downstream.find(x => x.ref === link.toRef);
+        // The documented U-route must actually bypass this event.
+        if (!documented)
+            return null;
+        return documented;
+    }
+    return downstream[0] ?? null;
+}
 function renderDiversionPlanner(key, jams, spillbacks) {
     const parent = $('traffic-diversion-plans'), catalog = $('traffic-diversion-catalog');
     parent.replaceChildren();
@@ -354,6 +387,7 @@ function renderDiversionPlanner(key, jams, spillbacks) {
                 block.append(note);
             }
             for (const option of plan.candidateExits) {
+                const target = findDetourTarget(direction, event, option.exit, option.link);
                 const line = document.createElement('div');
                 line.className = 'diversion-option';
                 const label = document.createElement('strong');
@@ -362,11 +396,74 @@ function renderDiversionPlanner(key, jams, spillbacks) {
                 secondary.textContent = option.link ? `${option.link.code} · ${option.link.toRef ? 'bis AS ' + option.link.toRef : 'Ziel nicht bestätigt'} · ${option.link.evidence === 'partial' ? 'Verlauf unvollständig' : 'Start/Ziel bekannt'}`
                     : 'Kein eindeutig zugeordneter U-Verlauf im geprüften Katalog';
                 line.append(label, secondary);
+                if (target) {
+                    const link = option.link ?? simulatedLink(direction, option.exit, target);
+                    const k = detourKey(link, target.ref), loaded = mappedDetours.get(k), running = activeDetours.get(direction);
+                    const details = document.createElement('span');
+                    details.textContent = loaded ? `${loaded.geometry.lengthKm.toFixed(1).replace('.', ',')} km · freie Fahrt ${loaded.geometry.freeMinutes.toFixed(0)} min · ${loaded.geometry.label}`
+                        : `Wiedereintritt AS ${target.ref} ${target.name}; Strecke muss online aus OSM geladen werden`;
+                    line.append(details);
+                    if (detourLoadErrors.has(k)) {
+                        const error = document.createElement('span');
+                        error.className = 'diversion-warning';
+                        error.textContent = detourLoadErrors.get(k);
+                        line.append(error);
+                    }
+                    const button = document.createElement('button');
+                    button.type = 'button';
+                    button.className = 'diversion-route-button';
+                    button.textContent = loaded ? (running?.config.id === k ? 'Umleitung deaktivieren' : 'Umleitung aktivieren')
+                        : (detourLoading.has(k) ? 'OSM-Kartendaten werden geladen …' : 'OSM-Straßenroute laden');
+                    button.disabled = detourLoading.has(k);
+                    button.onclick = async () => {
+                        if (loaded) {
+                            if (running?.config.id === k) {
+                                activeDetours.delete(direction);
+                            }
+                            else {
+                                activeDetours.set(direction, { config: loaded, state: emptyDetour(loaded) });
+                            }
+                            renderTraffic();
+                            return;
+                        }
+                        detourLoading.add(k);
+                        detourLoadErrors.delete(k);
+                        button.disabled = true;
+                        button.textContent = 'OSM-Kartendaten werden geladen …';
+                        try {
+                            const road = await loadDetourGeometry(link, option.exit, target);
+                            const config = { id: k, path: direction, fromM: option.exit.metre,
+                                toM: target.metre, eventId: event.id, geometry: { ...road, id: k } };
+                            if (!(config.toM > config.fromM + 200))
+                                throw Error('Umleitung überspringt das Ereignis nicht');
+                            // Hard gate: every point came from connected OSM non-motorway ways.
+                            mappedDetours.set(k, config);
+                        }
+                        catch (error) {
+                            detourLoadErrors.set(k, error instanceof Error ? error.message : 'Kartendaten nicht verfügbar');
+                        }
+                        finally {
+                            detourLoading.delete(k);
+                            renderTraffic();
+                        }
+                    };
+                    line.append(button);
+                    if (running?.config.id === k) {
+                        const st = running.state, report = document.createElement('span');
+                        report.textContent = `Aktiv · ${trafficNumber(detourVehicles(st))} Fahrzeuge auf Nebenstraße oder unterwegs · ${trafficNumber(st.lastDeparture * 60)} Fzg/h abgezweigt · ${trafficNumber(st.lastRejoined * 60)} Fzg/h zurück`;
+                        line.append(report);
+                    }
+                }
+                else {
+                    const unavailable = document.createElement('span');
+                    unavailable.textContent = 'Keine erreichbare Wiedereinfahrt hinter dem Ereignis belegt – nicht aktivierbar';
+                    line.append(unavailable);
+                }
                 block.append(line);
             }
             const warning = document.createElement('p');
             warning.className = 'diversion-warning';
-            warning.textContent = 'Vorschau: Es wird noch kein Fahrzeug über Land-/Bundesstraßen umgeleitet. Die Nebenstraßenkapazität und Rückstaus an Ausfahrten müssen zuvor abgebildet werden.';
+            warning.textContent = 'Nur ausdrücklich aktivierte, auf echten OSM-Straßen verbundene Routen zweigen Fahrzeuge ab. Bei fehlender Geometrie bleiben alle Fahrzeuge auf der Autobahn. Nebenstraßenkapazitäten und Verzögerungen sind vereinfachte Modellannahmen.';
             block.append(warning);
             parent.append(block);
         }
@@ -525,7 +622,33 @@ function stepTraffic(minutes) {
     try {
         for (let i = 0; i < minutes; i++) {
             const active = currentDemands();
-            spatialState = advanceSpatial(spatialState, events, active, 1, spatialCorridors, rampConnections);
+            const transfers = [];
+            const jams = jamsAt(spatialState, events, spatialCorridors);
+            const spillbacks = rampSpillbacks(jams, rampConnections, spatialCorridors);
+            for (const [path, entry] of activeDetours) {
+                const event = events.find(e => e.id === entry.config.eventId && e.pathKey === path);
+                const delay = event ? routeReport(path, jams, spillbacks, events).delayMin : 0;
+                // Without a blocking event, drivers already on the detour still return.
+                const wanted = !event ? 0 : event.kind === 'closure' ? 100 :
+                    Math.max(0, Math.min(35, delay === null ? 0 : delay <= 30 ? delay * .02 : delay <= 45 ? 1 + (delay - 30) * .15 :
+                        delay <= 60 ? 3.25 + (delay - 45) * .38 : delay <= 90 ? 9 + (delay - 60) * .55 : 25));
+                const initialTraffic = active[path];
+                // Only motorists who can physically reach this exit may be diverted.
+                // An upstream restriction could already be metering traffic BEFORE the
+                // detour exit, so using raw path demand would create extra road users.
+                const capacityAhead = events.filter(e => e.pathKey === path).reduce((limit, e) => {
+                    const at = positionM(spatialCorridors[path], e.point);
+                    return at !== null && at < entry.config.fromM ?
+                        Math.min(limit, eventCapacity(e, initialTraffic)) : limit;
+                }, initialTraffic);
+                const sourceSupply = Math.max(0, Math.min(initialTraffic, capacityAhead));
+                const mergeSupply = Math.max(0, baselineCapacity(path) -
+                    (initialTraffic * (1 - wanted / 100)));
+                const moved = advanceDetour(entry.state, entry.config, spatialState.minute, sourceSupply, wanted, mergeSupply);
+                activeDetours.set(path, { ...entry, state: moved.state });
+                transfers.push(moved.transfer);
+            }
+            spatialState = advanceSpatial(spatialState, events, active, 1, spatialCorridors, rampConnections, transfers);
         }
         renderTraffic();
     }
@@ -564,6 +687,7 @@ function initializeTraffic() {
         stopTraffic();
         simulationStartMs = next.getTime();
         spatialState = emptySpatial();
+        resetDetourFlow();
         $('traffic-issue').textContent = '';
         renderTraffic();
     });
@@ -571,6 +695,7 @@ function initializeTraffic() {
         stopTraffic();
         simulationStartMs = Math.floor(Date.now() / 60000) * 60000;
         spatialState = emptySpatial();
+        resetDetourFlow();
         startInput.value = dateTimeInputValue(new Date(simulationStartMs));
         $('traffic-issue').textContent = '';
         renderTraffic();
@@ -595,7 +720,7 @@ function initializeTraffic() {
         $('traffic-play').textContent = '⏸ Pause';
         trafficTimer = setInterval(() => stepTraffic(1), 1000);
     };
-    $('traffic-reset').onclick = () => { stopTraffic(); spatialState = emptySpatial(); renderTraffic(); };
+    $('traffic-reset').onclick = () => { stopTraffic(); spatialState = emptySpatial(); resetDetourFlow(); renderTraffic(); };
     document.addEventListener('visibilitychange', () => { if (document.hidden)
         stopTraffic(); });
 }
@@ -838,6 +963,33 @@ function drawSpatialJams() {
         context.fillText(second, x + 8, y - 12);
     }
 }
+function drawDetours() {
+    // Real connected side roads, visibly distinct from live motorway state.
+    for (const config of mappedDetours.values()) {
+        if (config.geometry.points.length < 2)
+            continue;
+        const active = activeDetours.get(config.path)?.config.id === config.id;
+        context.save();
+        context.setLineDash(active ? [] : [8, 7]);
+        stroke(config.geometry.points, active ? 4.5 : 3, '#07364a');
+        stroke(config.geometry.points, active ? 3 : 2, active ? '#4dd6ff' : '#8dcde0');
+        context.restore();
+        if (active) {
+            const state = activeDetours.get(config.path).state;
+            const p = config.geometry.points[Math.floor(config.geometry.points.length / 2)];
+            const [x, y] = toScreen(p);
+            if (x > 0 && y > 0 && x < wrapper.clientWidth - 140 && y < wrapper.clientHeight - 15) {
+                const txt = `${config.geometry.label}: ${trafficNumber(state.waitingRoad)} warten`;
+                context.font = 'bold 10px system-ui';
+                const w = Math.min(215, context.measureText(txt).width + 16);
+                context.fillStyle = '#06243add';
+                context.fillRect(x, y - 17, w, 22);
+                context.fillStyle = '#c3f4ff';
+                context.fillText(txt, x + 8, y - 3);
+            }
+        }
+    }
+}
 function draw() {
     const { width, height, scale } = size();
     context.setTransform(scale, 0, 0, scale, 0, 0);
@@ -855,6 +1007,7 @@ function draw() {
         stroke(ramp.points, lines.rampCasing, '#273b4c');
     for (const ramp of ramps)
         stroke(ramp.points, lines.ramp, '#26bb7c');
+    drawDetours();
     drawSpatialJams();
     plotLabels(width, height);
     plotRampBadges(width, height);
