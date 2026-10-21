@@ -159,17 +159,27 @@ export function bboxQuery(from:Point,to:Point):string{
  return `[out:json][timeout:25];way["highway"~"^(primary|primary_link|secondary|secondary_link|tertiary|tertiary_link|trunk|trunk_link|residential|unclassified|living_street|service)$"](${minLat.toFixed(5)},${minLon.toFixed(5)},${maxLat.toFixed(5)},${maxLon.toFixed(5)});out body geom;`;
 }
 export const OSM_OVERPASS_API='https://overpass.kumi.systems/api/interpreter';
+export const OSM_OVERPASS_FALLBACKS=[
+ OSM_OVERPASS_API,'https://overpass-api.de/api/interpreter',
+ 'https://overpass.private.coffee/api/interpreter'
+];
 export async function fetchOSMWays(query:string,fetcher:typeof fetch=fetch):Promise<OSMWay[]>{
- const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),28000);
- try{
-  const response=await fetcher(OSM_OVERPASS_API,{method:'POST',body:'data='+encodeURIComponent(query),
-   headers:{'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'},signal:controller.signal});
-  if(!response.ok)throw Error('OSM-Abfrage HTTP '+response.status);
-  const obj:unknown=await response.json();
-  const ways=parseOSMWays(obj);
-  if(!ways.length)throw Error('Keine befahrbaren OSM-Straßendaten gefunden');
-  return ways;
- }finally{clearTimeout(timer);}
+ let lastError='Keine Overpass-Verbindung';
+ for(const endpoint of OSM_OVERPASS_FALLBACKS){
+  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),28000);
+  try{
+   const response=await fetcher(endpoint,{method:'POST',body:'data='+encodeURIComponent(query),
+    headers:{'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'},signal:controller.signal});
+   if(!response.ok)throw Error('HTTP '+response.status);
+   const obj:unknown=await response.json();
+   const ways=parseOSMWays(obj);
+   if(!ways.length)throw Error('Keine befahrbaren OSM-Straßendaten gefunden');
+   return ways;
+  }catch(e){
+   lastError=e instanceof Error?e.message:'OSM-Netzwerkfehler';
+  }finally{clearTimeout(timer);}
+ }
+ throw Error('OSM-Straßen derzeit nicht abrufbar ('+lastError+'). Keine simulierte Verbindung aktiviert.');
 }
 function roadClassCapacity(ways:readonly OSMWay[]):number{
  // Conservative 1-lane-equivalent discharge on mixed local roads.
