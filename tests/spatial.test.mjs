@@ -84,7 +84,7 @@ test('SPCK main entry supports own per-stau report and compiled geometry overlay
  const html=readFileSync('index.html','utf8'),app=readFileSync('src/app.ts','utf8');
  assert.match(html,/id="traffic-jams"/);assert.match(html,/id="traffic-jams-count"/);
  assert.match(app,/drawSpatialJams\(\)/);assert.match(app,/routeSlice/);
- assert.match(app,/advanceSpatial\(spatialState,events,active,1,spatialCorridors,rampConnections\)/);
+ assert.match(app,/advanceSpatial\(spatialState,events,active,1,spatialCorridors,rampConnections,transfers\)/);
  assert.match(app,/initializeTraffic\(\);redrawEventList\(\)/);
  assert.ok(!html.includes('map-v2/'));
 });

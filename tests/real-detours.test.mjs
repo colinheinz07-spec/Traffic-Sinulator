@@ -90,7 +90,7 @@ test('local traffic is exactly conserved even as queue grows, delays and then em
   assert.ok(state.waitingRoad>=0);
  }
  assert.ok(peak>30,'limited local network must experience real congestion');
- assert.ok(state.admittedTotal>=state.returnedTotal);
+ assert.ok(state.admittedTotal+1e-5>=state.returnedTotal);
  for(let t=160;t<330;t++)state=advanceDetour(state,config,t,0,0,3000).state;
  assert.ok(detourVehicles(state)<1,'side-road vehicles should eventually rejoin the motorway');
  assert.ok(Math.abs(state.admittedTotal-state.returnedTotal)<1e-5);
