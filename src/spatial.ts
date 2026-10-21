@@ -11,7 +11,7 @@ import {colorAtSpeed,queueFundamentalDiagram,freeSpeedKmh} from './traffic-physi
 
 export interface Corridor {key:PathKey;points:Point[];metres:number[];lengthM:number}
 export interface SpeedHistorySample {minute:number;speedKmh:number}
-export interface QueuedAt {pathKey:PathKey;point:Point;vehicles:number;lanes:number;capacityVph?:number;active?:boolean;densityVehPerKm?:number;color?:TrafficColor;pendingColor?:TrafficColor;pendingTicks?:number;speedHistory?:SpeedHistorySample[]}
+export interface QueuedAt {pathKey:PathKey;point:Point;vehicles:number;lanes:number;capacityVph?:number;active?:boolean;densityVehPerKm?:number;color?:TrafficColor;pendingColor?:TrafficColor;pendingTicks?:number;speedHistory?:SpeedHistorySample[];recoveryTick?:number}
 export interface SpatialState {minute:number;queues:Record<string,QueuedAt>}
 export interface Jam {id:string;pathKey:PathKey;eventKind:SimEvent['kind']|null;point:Point;anchorM:number;queueVehicles:number;queueM:number;visibleQueueM:number;delayMin:number|null;capacityVph:number;speedKmh:number;color:TrafficColor;released:boolean;outOfBoundsM:number;speedHistory?:readonly SpeedHistorySample[]}
 const rad=Math.PI/180;
@@ -130,10 +130,21 @@ export function advanceSpatial(prev:SpatialState,events:readonly SimEvent[],dema
   let entering=Math.min(volume/60,baselineCapacity(key)/60);
   for(const node of nodes){
    const stored=current[node.id]?.vehicles??0;
-   const cap=(node.limitVph??(node.event?eventCapacity(node.event):baselineCapacity(key)))/60;
+   const previous=current[node.id];
+   const fullCapacityVph=node.limitVph??(node.event?eventCapacity(node.event,volume):baselineCapacity(key));
+   // Reopening from a total blockage does not instantly achieve the stable
+   // throughput of two reopened lanes. Vehicles restart/reorganise, so
+   // release capacity ramps from 70% to 100% over six model minutes.
+   // Applied only when the SAME real event transitions from 0 to >0 flow,
+   // not repeatedly during steady-flow operations or for unrelated ramps.
+   const startsRecovery=node.event!==null && fullCapacityVph>0 &&
+    previous!==undefined && (previous.capacityVph??baselineCapacity(key))<=0;
+   const recoveryTick=startsRecovery?0:previous?.recoveryTick!==undefined&&previous.recoveryTick<6
+    ?previous.recoveryTick+1:undefined;
+   const recoveryFactor=recoveryTick===undefined?1:.70+.30*Math.min(1,recoveryTick/6);
+   const cap=fullCapacityVph*recoveryFactor/60;
    const available=stored+entering,passing=Math.min(available,cap),waiting=Math.max(0,available-passing);
    if(waiting>1e-6){
-    const previous=current[node.id];
     const lanes=node.event?.laneCount??previous?.lanes??(key.startsWith('ramp-')?1:Math.round(baselineCapacity(key)/1800));
     const target=queueCondition(waiting,cap*60,lanes,key);
     // A queue does not instantaneously decompress along kilometres of road
@@ -161,7 +172,7 @@ export function advanceSpatial(prev:SpatialState,events:readonly SimEvent[],dema
     speedHistory.push({minute:prev.minute+tick+1,speedKmh});
     if(speedHistory.length>480)speedHistory.splice(0,speedHistory.length-480);
     current[node.id]={pathKey:key,point:node.point,vehicles:waiting,lanes,capacityVph:cap*60,
-     active:node.event!==null||node.limitVph!==undefined,densityVehPerKm,color,pendingColor,pendingTicks,speedHistory};
+     active:node.event!==null||node.limitVph!==undefined,densityVehPerKm,color,pendingColor,pendingTicks,speedHistory,recoveryTick};
    }else delete current[node.id];
    entering=passing;
   }
