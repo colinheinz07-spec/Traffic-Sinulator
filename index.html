@@ -82,6 +82,36 @@
  .map-clock-status{font-size:.63rem}
 }
 @media(max-width:345px){.map-time-symbol{display:none}.map-timebar{gap:6px}}
+
+.event-schedule{margin:16px 0 8px;background:#0d2a3d;border:1px solid #41677c;padding:13px;border-radius:13px}
+.schedule-enable{display:flex!important;align-items:center!important;gap:10px;padding:0!important;margin:0!important;cursor:pointer}
+.schedule-enable input{width:21px;height:21px;flex:none;accent-color:#38c8f4}
+.schedule-enable span{font-size:.84rem;font-weight:750;color:#e9f8ff}
+.schedule-enable small{display:block;font-size:.68rem;color:#a8c8da;font-weight:400;margin-top:2px}
+#event-schedule-fields{padding-top:13px}
+#event-schedule-fields[hidden]{display:none!important}
+.schedule-dates{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.schedule-dates label{font-size:.75rem!important;color:#b6d8e9!important;margin:3px 0!important}
+.schedule-dates input,.schedule-phase input[type="datetime-local"],.schedule-phase select{
+ display:block;width:100%;min-width:0;min-height:44px;color:#e5f7ff;background:#18374c;
+ border:1px solid #4a6d81;border-radius:9px;padding:8px;margin-top:5px;font:inherit;font-size:.82rem
+}
+.schedule-explain{color:#a8c8d9!important;font-size:.72rem!important;margin:9px 0!important;line-height:1.5}
+.schedule-heading{font-size:.82rem;margin:15px 0 9px;color:#d2edf9}
+.schedule-phase{margin:9px 0;border:1px solid #476b82;background:#112d40;border-radius:11px;padding:11px;display:grid;gap:8px}
+.schedule-phase-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.schedule-phase-head strong{font-size:.8rem}
+.schedule-phase-head button{padding:5px 9px;color:#ffc5ba;font-size:.72rem}
+.schedule-phase-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.schedule-phase label{font-size:.75rem;color:#c6dfed}
+.schedule-phase-lanes{display:flex;flex-wrap:wrap;gap:6px}
+.schedule-phase-lanes label{display:flex;align-items:center;gap:5px;background:#1d4055;border-radius:7px;padding:7px}
+.schedule-phase-lanes input{width:17px;height:17px;accent-color:#35c7ed}
+.schedule-add{width:100%;background:#153c53;border:1px dashed #6e9db8;margin-top:6px;font-size:.82rem}
+.event-row .schedule-state{display:inline-flex;width:max-content;max-width:100%;font-size:.71rem;color:#d1ecfa;border:1px solid #3b728b;border-radius:9px;padding:4px 7px;margin:5px 0 9px}
+.event-row .schedule-state.finished{color:#a0b8c7;border-color:#375061}
+.event-row .schedule-state.planned{color:#f8d29a;border-color:#907243}
+@media(max-width:410px){.schedule-dates,.schedule-phase-grid{grid-template-columns:1fr}}
 </style></head><body><main>
 <header><div><div class="eyebrow">Stausimulator · Kartenfundament</div><h1>A3 / A48 – Streckenkarte</h1></div><span class="phase">TRAFFIC 1.5.8</span></header>
 <div class="toolbar"><button id="fit" class="primary">Gesamtes Netz</button><button id="dernbach">AD Dernbach</button><button id="koblenz">AK Koblenz</button><button id="diez">AS Diez</button><button id="limburg-nord">AS Limburg-Nord</button><button id="limburg-sued">AS Limburg-Süd</button><button id="honnef">AS Bad Honnef/Linz</button></div>
@@ -141,7 +171,22 @@
  <p class="settings-note" id="event-length-note">Baustellenabschnitt individuell einstellen.</p>
  <label for="event-speed" class="row-label">Vorbeifahrgeschwindigkeit / Tempolimit (km/h)
  <select id="event-speed"><option value="0">0 – kein Durchfluss</option><option value="10">10</option><option value="20">20</option><option value="30">30</option><option value="40">40</option><option value="50">50</option><option value="60">60</option><option value="70">70</option><option value="80">80</option><option value="90">90</option><option value="100">100</option><option value="110">110</option><option value="120">120</option><option value="130">130</option></select></label>
- <p class="event-info" id="event-rule-hint">Simulationseinstellungen, keine automatischen Staus.</p>
+ <p class="event-info" id="event-rule-hint">Geschwindigkeit und Fahrstreifen werden im Simulationsmodell berücksichtigt.</p>
+<section id="event-schedule-section" class="event-schedule">
+ <label class="schedule-enable"><input type="checkbox" id="event-scheduled">
+ <span>🗓️ Ereignis zeitlich planen <small>Automatischer Beginn und automatisches Ende</small></span></label>
+ <div id="event-schedule-fields" hidden>
+  <div class="schedule-dates">
+   <label for="event-start">Beginn<input id="event-start" type="datetime-local" step="60"></label>
+   <label for="event-end">Ende<input id="event-end" type="datetime-local" step="60"></label>
+  </div>
+  <p class="schedule-explain">Ab dem Beginn gelten die oben gewählten Fahrstreifen. Ab dem Ende ist die Maßnahme nicht mehr aktiv und erscheint nicht mehr auf der Karte. Der gespeicherte Zeitplan bleibt für Wiederholungen erhalten.</p>
+  <h3 class="schedule-heading">Bauphasen / wechselnde Sperrungen</h3>
+  <div id="event-phases"></div>
+  <button id="event-add-phase" type="button" class="schedule-add">+ Weitere Verkehrsphase</button>
+  <p class="schedule-explain">Optional: Ab einer späteren Uhrzeit andere Fahrstreifen sperren oder aus einer Vollsperrung eine teilweise Freigabe machen (maximal sechs Wechsel).</p>
+ </div>
+</section>
  <div class="event-info" id="event-form-error" role="alert"></div>
  <div class="event-actions"><button id="event-cancel" type="button">Abbrechen</button><button class="primary" id="event-save" type="button">Ereignis setzen</button></div>
  </div>
