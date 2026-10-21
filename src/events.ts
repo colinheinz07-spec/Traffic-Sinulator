@@ -91,7 +91,11 @@ export function eventSummary(e:SimEvent):string{
  const parts:string[]=[`${e.settings.lengthM} m`,e.settings.speedKmh?`${e.settings.speedKmh} km/h`:'kein Durchfluss'];
  if(e.kind==='closure')parts.push('Vollsperrung · nachfolgende Fahrzeuge umleiten · Fahrzeuge im Abschnitt dürfen ausfahren');
  else if(e.closedLanes.length===e.laneCount)parts.push('Alle Fahrstreifen betroffen (ohne Vollsperrungs-Ereignis)');
- else if(e.closedLanes.length)parts.push(`${e.closedLanes.length} von ${e.laneCount} Fahrstreifen gesperrt`);
+ else if(e.closedLanes.length){
+  parts.push(`${e.closedLanes.length} von ${e.laneCount} Fahrstreifen gesperrt`);
+  const lanePositions=e.closedLanes.map(lane=>lane===0?'rechts':lane===e.laneCount-1?'links':'mittig');
+  parts.push('Betroffen: '+lanePositions.join(', '));
+ }
  else parts.push('Kein Fahrstreifen gesperrt');
  if(e.settings.shoulder==='open')parts.push('Standstreifen freigegeben (Simulation)');
  if(e.settings.shoulder==='blocked')parts.push('Standstreifen gesperrt');
