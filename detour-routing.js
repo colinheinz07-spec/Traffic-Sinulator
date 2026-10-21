@@ -26,8 +26,13 @@ export function validCarWay(w) {
         !noCar.has(tags.motorcar) && !(tags.service === 'parking_aisle') &&
         w.nodes.length >= 2 && w.geometry.length === w.nodes.length;
 }
-export function graphFromWays(ways) {
-    const adjacency = new Map(), coordinates = new Map();
+export function graphFromWays(ways, trafficSignals = new Set()) {
+    const adjacency = new Map(), coordinates = new Map(), neighbours = new Map();
+    const link = (a, b) => {
+        if (!neighbours.has(a))
+            neighbours.set(a, new Set());
+        neighbours.get(a).add(b);
+    };
     const add = (edge) => {
         const arr = adjacency.get(edge.from) ?? [];
         arr.push(edge);
@@ -45,6 +50,8 @@ export function graphFromWays(ways) {
                 continue;
             coordinates.set(a, pa);
             coordinates.set(b, pb);
+            link(a, b);
+            link(b, a);
             const weight = d * penalty[highway];
             if (!backward)
                 add({ from: a, to: b, lengthM: d, weight, roadClass: highway, points: [pa, pb] });
@@ -52,7 +59,7 @@ export function graphFromWays(ways) {
                 add({ from: b, to: a, lengthM: d, weight, roadClass: highway, points: [pb, pa] });
         }
     }
-    return { adjacency, coordinates };
+    return { adjacency, coordinates, neighbours, trafficSignals: new Set(trafficSignals) };
 }
 function nearestNode(graph, point) {
     let id = 0, distanceM = Infinity;
@@ -138,10 +145,17 @@ export function shortestOSMRoute(graph, from, to, maxSnapM = 1900) {
         points.push(e.points[1]);
         freeMinutes += e.lengthM / 1000 / (speed[e.roadClass] ?? 30) * 60;
     }
+    const routeNodes = [source.id, ...edges.map(e => e.to)];
+    const inner = routeNodes.slice(1, -1);
+    // Only intersections actually present in fetched OSM topology are counted;
+    // signals must be explicitly tagged, never invented at every turn.
+    const junctionCount = inner.filter(id => (graph.neighbours.get(id)?.size ?? 0) >= 3).length;
+    const trafficLightCount = inner.filter(id => graph.trafficSignals.has(id)).length;
     const straight = metres(from, to);
     if (lengthM < straight * .66 || lengthM > Math.max(8000, straight * 5) || lengthM > 120000)
         return null;
-    return { points, lengthM, freeMinutes, startGapM: source.distanceM, endGapM: target.distanceM };
+    return { points, lengthM, freeMinutes, startGapM: source.distanceM, endGapM: target.distanceM,
+        junctionCount, trafficLightCount };
 }
 export function parseOSMWays(data) {
     if (!data || typeof data !== 'object')
@@ -176,22 +190,37 @@ export function parseOSMWays(data) {
     }
     return [...byId.values()];
 }
+/** Only OSM-tagged signal nodes count as confirmed traffic signals. */
+export function parseTrafficSignalNodes(data) {
+    if (!data || typeof data !== 'object')
+        return new Set();
+    const elements = data.elements;
+    if (!Array.isArray(elements))
+        return new Set();
+    return new Set(elements.filter(x => {
+        if (!x || typeof x !== 'object')
+            return false;
+        const n = x;
+        return n.type === 'node' && Number.isInteger(n.id) &&
+            (n.tags?.highway === 'traffic_signals' || n.tags?.crossing === 'traffic_signals');
+    }).map(x => x.id));
+}
 export function relationQuery(id) {
     if (!Number.isInteger(id) || id < 1)
         throw Error('Ungültige OSM-Relation');
-    return `[out:json][timeout:25];relation(${id});way(r);out body geom;`;
+    return `[out:json][timeout:25];relation(${id});way(r);out body geom;node(w)["highway"="traffic_signals"];out body;`;
 }
 export function bboxQuery(from, to) {
     const minLat = Math.max(50.25, Math.min(from[0], to[0]) - .038), maxLat = Math.min(50.8, Math.max(from[0], to[0]) + .038);
     const minLon = Math.max(7.17, Math.min(from[1], to[1]) - .052), maxLon = Math.min(8.23, Math.max(from[1], to[1]) + .052);
-    return `[out:json][timeout:25];way["highway"~"^(primary|primary_link|secondary|secondary_link|tertiary|tertiary_link|trunk|trunk_link|residential|unclassified|living_street|service)$"](${minLat.toFixed(5)},${minLon.toFixed(5)},${maxLat.toFixed(5)},${maxLon.toFixed(5)});out body geom;`;
+    return `[out:json][timeout:25];way["highway"~"^(primary|primary_link|secondary|secondary_link|tertiary|tertiary_link|trunk|trunk_link|residential|unclassified|living_street|service)$"](${minLat.toFixed(5)},${minLon.toFixed(5)},${maxLat.toFixed(5)},${maxLon.toFixed(5)});out body geom;node(w)["highway"="traffic_signals"];out body;`;
 }
 export const OSM_OVERPASS_API = 'https://overpass.kumi.systems/api/interpreter';
 export const OSM_OVERPASS_FALLBACKS = [
     OSM_OVERPASS_API, 'https://overpass-api.de/api/interpreter',
     'https://overpass.private.coffee/api/interpreter'
 ];
-export async function fetchOSMWays(query, fetcher = fetch) {
+export async function fetchOSMNetwork(query, fetcher = fetch) {
     let lastError = 'Keine Overpass-Verbindung';
     for (const endpoint of OSM_OVERPASS_FALLBACKS) {
         const controller = new AbortController(), timer = setTimeout(() => controller.abort(), 28000);
@@ -204,7 +233,7 @@ export async function fetchOSMWays(query, fetcher = fetch) {
             const ways = parseOSMWays(obj);
             if (!ways.length)
                 throw Error('Keine befahrbaren OSM-Straßendaten gefunden');
-            return ways;
+            return { ways, trafficSignals: parseTrafficSignalNodes(obj) };
         }
         catch (e) {
             lastError = e instanceof Error ? e.message : 'OSM-Netzwerkfehler';
@@ -214,6 +243,9 @@ export async function fetchOSMWays(query, fetcher = fetch) {
         }
     }
     throw Error('OSM-Straßen derzeit nicht abrufbar (' + lastError + '). Keine simulierte Verbindung aktiviert.');
+}
+export async function fetchOSMWays(query, fetcher = fetch) {
+    return (await fetchOSMNetwork(query, fetcher)).ways;
 }
 function roadClassCapacity(ways) {
     // Conservative 1-lane-equivalent discharge on mixed local roads.
@@ -230,25 +262,32 @@ export async function loadDetourGeometry(link, from, to, fetcher = fetch) {
     let official = null;
     if (relationId !== null) {
         try {
-            const ways = await fetchOSMWays(relationQuery(relationId), fetcher);
-            const route = shortestOSMRoute(graphFromWays(ways), from.position, to.position);
+            const network = await fetchOSMNetwork(relationQuery(relationId), fetcher);
+            const route = shortestOSMRoute(graphFromWays(network.ways, network.trafficSignals), from.position, to.position);
             if (route && route.startGapM < 1300 && route.endGapM < 1300)
-                official = { route, ways };
+                official = { route, network };
         }
         catch { /* fallback on genuinely mapped local-road graph only */ }
     }
-    let route = official?.route ?? null, ways = official?.ways, source = 'osm-official-relation';
+    let route = official?.route ?? null, network = official?.network, source = 'osm-official-relation';
     if (!route) {
-        ways = await fetchOSMWays(bboxQuery(from.position, to.position), fetcher);
-        route = shortestOSMRoute(graphFromWays(ways), from.position, to.position);
+        network = await fetchOSMNetwork(bboxQuery(from.position, to.position), fetcher);
+        route = shortestOSMRoute(graphFromWays(network.ways, network.trafficSignals), from.position, to.position);
         source = 'osm-routed-infill';
     }
     if (!route || route.startGapM > 1900 || route.endGapM > 1900)
         throw Error('OSM-Straßennetz nicht durchgehend verbunden: Route nicht freigegeben');
     if (!Number.isFinite(route.lengthM) || !Number.isFinite(route.freeMinutes) || route.freeMinutes <= 0)
         throw Error('Ungültige Umleitungsstrecke');
+    // A few seconds per mapped junction plus additional delay for a tagged
+    // traffic light. This is static calibration, NOT fabricated signal phasing.
+    const countedJunctions = Math.min(25, route.junctionCount), signalCount = Math.min(10, route.trafficLightCount);
+    const capacityFactor = Math.max(.72, 1 - .016 * countedJunctions - .025 * signalCount);
+    const estimatedCapacity = Math.round(roadClassCapacity(network.ways) * capacityFactor);
+    const extraMinutes = .035 * countedJunctions + .12 * signalCount;
     return { id: link.id, path: link.path, sourceExitRef: from.ref, targetExitRef: to.ref, points: route.points,
-        lengthKm: route.lengthM / 1000, freeMinutes: route.freeMinutes, roadCapacityVph: roadClassCapacity(ways),
+        lengthKm: route.lengthM / 1000, freeMinutes: route.freeMinutes + extraMinutes,
+        roadCapacityVph: estimatedCapacity, junctionCount: route.junctionCount, trafficLightCount: route.trafficLightCount,
         source, relationId: source === 'osm-official-relation' ? relationId : null,
         label: source === 'osm-official-relation' ? link.code + ' · OSM-U-Relation' : link.code + ' · simulierte OSM-Verbindung' };
 }
