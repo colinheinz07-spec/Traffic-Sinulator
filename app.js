@@ -3,6 +3,7 @@ import { networkData } from './geodata.js';
 import { routeReport } from './network-report.js';
 import { makeCorridors, routeSlice, positionM, advanceSpatial, emptySpatial, jamsAt } from './spatial.js';
 import { colorAtSpeed, physicalSpeedBands, stopAndGoBands, resolveSpeedBands, freeSpeedKmh } from './traffic-physics.js';
+import { initialiseCells, advanceCells, cellSpeedBands } from './traffic-cells.js';
 import { buildRampConnections, rampSpillbacks } from './interchange.js';
 import { DIVERSION_LINKS, CROSS_MOTORWAY_DIVERSION, diversionJunctions, planDiversion } from './diversions.js';
 import { loadDetourGeometry } from './detour-routing.js';
@@ -299,6 +300,8 @@ function removeExistingEvent() {
 // Version 0.9: standalone macroscopic estimates, not live traffic measurements.
 // No fabricated traffic transfers between A3, A48, and AD Dernbach ramps.
 let spatialState = emptySpatial();
+const CELL_PATHS = PATHS.filter(key => !key.startsWith('ramp-'));
+let cellNetwork = {};
 const trafficDemands = defaultDemands();
 const mappedDetours = new Map();
 const activeDetours = new Map();
@@ -650,6 +653,13 @@ function stepTraffic(minutes) {
                 transfers.push(moved.transfer);
             }
             spatialState = advanceSpatial(spatialState, events, active, 1, spatialCorridors, rampConnections, transfers);
+            // First integration stage: separate, conservative cell ledger for the
+            // motorway SPEED FIELD. The existing event/ramp/detour ledger remains
+            // authoritative for reported vehicle totals and time delays.
+            for (const key of CELL_PATHS) {
+                const previous = cellNetwork[key] ?? initialiseCells(spatialCorridors[key], active[key]);
+                cellNetwork[key] = advanceCells(previous, spatialCorridors[key], events, active[key]);
+            }
         }
         renderTraffic();
     }
@@ -688,6 +698,7 @@ function initializeTraffic() {
         stopTraffic();
         simulationStartMs = next.getTime();
         spatialState = emptySpatial();
+        cellNetwork = {};
         resetDetourFlow();
         $('traffic-issue').textContent = '';
         renderTraffic();
@@ -696,6 +707,7 @@ function initializeTraffic() {
         stopTraffic();
         simulationStartMs = Math.floor(Date.now() / 60000) * 60000;
         spatialState = emptySpatial();
+        cellNetwork = {};
         resetDetourFlow();
         startInput.value = dateTimeInputValue(new Date(simulationStartMs));
         $('traffic-issue').textContent = '';
@@ -721,7 +733,7 @@ function initializeTraffic() {
         $('traffic-play').textContent = '⏸ Pause';
         trafficTimer = setInterval(() => stepTraffic(1), 1000);
     };
-    $('traffic-reset').onclick = () => { stopTraffic(); spatialState = emptySpatial(); resetDetourFlow(); renderTraffic(); };
+    $('traffic-reset').onclick = () => { stopTraffic(); spatialState = emptySpatial(); cellNetwork = {}; resetDetourFlow(); renderTraffic(); };
     document.addEventListener('visibilitychange', () => { if (document.hidden)
         stopTraffic(); });
 }
@@ -894,12 +906,20 @@ function drawSpatialJams() {
     // fundamental diagram. Its approach is split at actual braking-speed
     // thresholds, never at hard-coded percentages of the jam length.
     for (const jam of list) {
-        // The underlying vehicle queue remains mass-conserving; only its visual
-        // speed field has longitudinal cells and upstream-moving braking waves.
+        // Ramp colors still come from their separate queue ledger. Mainline color
+        // now comes from individually conserved OSM corridor cells instead of
+        // deterministic pulse animations; DO NOT paint the same queue twice.
+        if (cellNetwork[jam.pathKey])
+            continue;
         append(jam.pathKey, [
             ...physicalSpeedBands(jam).filter(b => b.source === 'approach'),
             ...stopAndGoBands(jam, spatialState.minute)
         ]);
+    }
+    for (const key of CELL_PATHS) {
+        const cells = cellNetwork[key];
+        if (cells)
+            append(key, cellSpeedBands(cells));
     }
     const widths = lineWidths(zoom);
     for (const [key, bands] of byPath) {
