@@ -8,11 +8,12 @@ import {buildRampConnections,rampSpillbacks} from './interchange.js';
 import {DIVERSION_LINKS,CROSS_MOTORWAY_DIVERSION,diversionJunctions,planDiversion,type DiversionLink} from './diversions.js';
 import {loadDetourGeometry,type DetourGeometry} from './detour-routing.js';
 import {advanceDetour,emptyDetour,detourVehicles,type DetourConfig,type DetourState} from './detour-flow.js';
-import {decodeEvents,eventFromHit,updatedEvent,eventNames,eventSymbols,eventSummary,flowPolicy,defaultLengthM,defaultSettings,maxLengthM,suggestedSpeed,STORAGE_KEY,isEventKind,type EventKind,type ShoulderMode,type SimEvent} from './events.js';
+import {decodeEvents,eventFromHit,updatedEvent,eventNames,eventSymbols,eventSummary,flowPolicy,defaultLengthM,defaultSettings,maxLengthM,suggestedSpeed,STORAGE_KEY,isEventKind,validEvent,effectiveEventsAt,eventScheduleStatus,type EventKind,type ShoulderMode,type SimEvent} from './events.js';
 import {roadLaneInfo,rampLaneInfo} from './lane-info.js';
 import {mapCandidates,chooseMapHits,closestJunction,lanePositions,hitLabel,type MapHit} from './selection.js';
 import {buildContinuousRoads,lineWidths,along,rampBadges,overlaps,type Rectangle,type RampBadge} from './cartography.js';
 import {placeJamCallout,type LabelRect} from './map-callouts.js';
+import {installScheduleForm} from './schedule-form.js';
 import {DIRECTIONS,validateMap,names,mercator,inverse,nearestPolyline,type Point,type Road,type Ramp,type Exit} from './core.js';
 
 const $=<T extends HTMLElement>(id:string)=>{const element=document.getElementById(id);if(!element)throw Error(`Element fehlt: ${id}`);return element as T;};
@@ -39,6 +40,20 @@ function eventPathLabel(e:SimEvent):string{
  const ramp=ramps.find(r=>r.id===e.pathKey);
  return ramp?.name??(names[e.pathKey as keyof typeof names]||'Unbekannter Fahrweg');
 }
+function activeEvents():SimEvent[]{return effectiveEventsAt(events,simulatedClock().getTime());}
+function scheduleSummary(event:SimEvent):string{
+ if(!event.schedule)return 'Ohne Enddatum';
+ const fmt=(iso:string)=>new Date(iso).toLocaleString('de-DE',{dateStyle:'short',timeStyle:'short'});
+ return fmt(event.schedule.startAt)+' – '+fmt(event.schedule.endAt)+
+  (event.schedule.phases.length?' · '+(event.schedule.phases.length+1)+' Bauphasen':'');
+}
+function eventStatus(event:SimEvent):string{
+ const state=eventScheduleStatus(event,simulatedClock().getTime());
+ return state==='planned'?'Geplant':state==='finished'?'Beendet':state==='active'?'Aktiv':'Dauerhaft aktiv';
+}
+const scheduleForm=installScheduleForm({
+ clock:()=>simulatedClock(),format:(date)=>dateTimeInputValue(date),laneCount:()=>formLaneCount()
+});
 function redrawEventList(){
  const parent=$('events-list');parent.replaceChildren();
  $('event-counter').textContent=`(${events.length})`;
@@ -50,7 +65,10 @@ function redrawEventList(){
   meta.textContent=eventSummary(event);
   jump.type='button';jump.textContent='Auf Karte ansehen';
   jump.onclick=()=>{focus=event.point;zoom=Math.max(zoom,14.4);showExistingEvent(event);refresh();};
-  item.append(title,meta,jump);parent.append(item);
+  const schedule=document.createElement('small');schedule.textContent=eventStatus(event)+' · '+scheduleSummary(event);
+  const state=document.createElement('span');state.className='schedule-state '+eventScheduleStatus(event,simulatedClock().getTime());
+  state.textContent=eventStatus(event);
+  item.append(title,meta,state,schedule,jump);parent.append(item);
  }
 }
 function clearEventUi(){
@@ -63,7 +81,7 @@ function showExistingEvent(e:SimEvent){
  $('selection-help').hidden=true;
  $('selected-title').textContent=`${eventSymbols[e.kind]} ${eventNames[e.kind]}`;
  $('selected-note').textContent=eventPathLabel(e);
- $('existing-event-desc').textContent=`${eventSummary(e)} · ${e.point[0].toFixed(6)}° N, ${e.point[1].toFixed(6)}° E · ${new Date(e.createdAt).toLocaleString('de-DE')}`;
+ $('existing-event-desc').textContent=`${eventStatus(e)} · ${scheduleSummary(e)} · ${eventSummary(e)} · ${e.point[0].toFixed(6)}° N, ${e.point[1].toFixed(6)}° E`;
  $('existing-event').hidden=false;$('detail').hidden=false;
  hint.textContent=`${eventNames[e.kind]} ausgewählt – du kannst die Verkehrsführung bearbeiten oder das Ereignis entfernen.`;
  refresh();
@@ -73,7 +91,7 @@ function laneCountFor(hit:MapHit):number{
  return info.source==='unknown'?0:info.count;
 }
 function drawEventMarkers(width:number,height:number){
- for(const event of events){const [x,y]=toScreen(event.point);
+ for(const event of activeEvents()){const [x,y]=toScreen(event.point);
   if(x < -20||y < -20||x>width+20||y>height+20)continue;
   const active=event.id===activeEventId;
   context!.beginPath();context!.arc(x,y,active?18:15,0,2*Math.PI);
@@ -140,7 +158,7 @@ function beginEventForm(){
  $<HTMLSelectElement>('event-shoulder').value='normal';
  $<HTMLInputElement>('event-length').value='500';
  $('event-save').textContent='Ereignis setzen';
- $('event-form-error').textContent='';renderEventLaneChoices([]);updateEventConfigPreview(true);
+ $('event-form-error').textContent='';scheduleForm.reset();renderEventLaneChoices([]);updateEventConfigPreview(true);
 }
 function beginEditEvent(){
  const current=events.find(x=>x.id===activeEventId);if(!current)return;
@@ -151,6 +169,7 @@ function beginEditEvent(){
  $('event-save').textContent='Änderungen speichern';
  $('event-form-error').textContent='';
  $<HTMLSelectElement>('event-kind').value=current.kind;
+ scheduleForm.reset(current.schedule);
  $<HTMLSelectElement>('event-shoulder').value=current.settings.shoulder;
  $<HTMLInputElement>('event-length').value=String(current.settings.lengthM);
  renderEventLaneChoices(current.closedLanes);
@@ -165,14 +184,17 @@ function saveNewEvent(){
  const settings={lengthM:Number($<HTMLInputElement>('event-length').value),speedKmh:Number($<HTMLSelectElement>('event-speed').value),shoulder:currentShoulder()};
  try{
   let entry:SimEvent;
+  const schedule=scheduleForm.read();
   if(editingEventId){
    const current=events.find(e=>e.id===editingEventId);if(!current)throw Error('Zu bearbeitendes Ereignis nicht gefunden.');
-   entry=updatedEvent(current,kind,closed,settings);
+   entry={...updatedEvent(current,kind,closed,settings),schedule};
+   if(!validEvent(entry))throw Error('Zeitplan ungültig: Beginn vor Ende und jede Bauphase innerhalb des Zeitraums.');
    events=events.map(e=>e.id===entry.id?entry:e);
   }else{
    if(!selected)throw Error('Wähle zuerst eine Fahrbahn.');
    const id=`ev-${Date.now()}-${Math.random().toString(36).slice(2,12)}`;
-   entry=eventFromHit(selected,kind,count,closed,id,new Date().toISOString(),settings);
+   entry={...eventFromHit(selected,kind,count,closed,id,new Date().toISOString(),settings),schedule};
+   if(!validEvent(entry))throw Error('Zeitplan ungültig: Beginn vor Ende und jede Bauphase innerhalb des Zeitraums.');
    if(events.length>=150)throw Error('Maximal 150 Ereignisse gleichzeitig möglich.');
    events=[...events,entry];
   }
@@ -834,7 +856,7 @@ function bind(){
  $('close').onclick=()=>{$('detail').hidden=true;$('event-delete').dataset.confirm='';};
  $('new-event-button').onclick=beginEventForm;
  $('event-cancel').onclick=()=>{const current=events.find(e=>e.id===editingEventId);if(current){showExistingEvent(current);}else{$('event-form').hidden=true;$('new-event-button').hidden=false;}};
- $('event-kind').addEventListener('change',()=>{renderEventLaneChoices();updateEventConfigPreview(true)});
+ $('event-kind').addEventListener('change',()=>{renderEventLaneChoices();updateEventConfigPreview(true);scheduleForm.display();});
  $('event-shoulder').addEventListener('change',()=>updateEventConfigPreview());
  $('event-speed').addEventListener('change',()=>{speedManuallyChanged=true;updateEventConfigPreview()});
  $('event-edit').onclick=beginEditEvent;
