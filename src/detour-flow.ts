@@ -24,7 +24,7 @@ export function detourVehicles(state:DetourState):number{
  return state.waitingRoad+state.waitingMerge+state.transit.reduce((n,a)=>n+a.vehicles,0);
 }
 export interface DetourStep {
- state:DetourState;transfer:SpatialTransfer;capacityVph:number;roadDelayMin:number;
+ state:DetourState;transfer:SpatialTransfer;capacityVph:number;roadDelayMin:number|null;
  entered:number;rejoined:number;remainingOnMotorway:number;
 }
 export function advanceDetour(state:DetourState,config:DetourConfig,minute:number,
