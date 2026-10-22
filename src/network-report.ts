@@ -53,7 +53,10 @@ export function routeReport(key:PathKey,jams:readonly Jam[],spillbacks:readonly 
    return v>0&&v<freeSpeed?e.settings.lengthM/1000*(1/v-1/freeSpeed)*60:0;
   }));
   const waiting=throughDelays.some(d=>d===null)?null:Math.max(0,...throughDelays.filter((d):d is number=>d!==null));
-  const delayMin=waiting===null||cap===0?null:waiting+slowing;
+  // During an active closure the physical future release is unknown.
+  // The oldest queue age is nevertheless measurable: report it as elapsed
+  // waiting, rather than suppressing time entirely just because cap is 0.
+  const delayMin=waiting===null?null:waiting+slowing;
   const exitDelayMin=exitDelays.some(d=>d===null)?null:Math.max(0,...exitDelays.filter((d):d is number=>d!==null));
   const speedKmh=Math.min(freeSpeed,...own.map(j=>Number.isFinite(j.speedKmh)?j.speedKmh:freeSpeed),
    ...restrictions.map(e=>e.settings.speedKmh));
