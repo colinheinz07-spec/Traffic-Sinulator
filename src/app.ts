@@ -851,7 +851,7 @@ function drawSpatialJams(){
   context!.lineTo(callout.x+(callout.x>x?0:callout.width),callout.y+callout.height/2);
   context!.stroke();
   context!.fillStyle='#102332e5';context!.fillRect(callout.x,callout.y,callout.width,callout.height);
-  context!.fillStyle='#fff';context!.fillText(first,callout.x+7,callout.y+13);
+  context!.fillStyle='#fff';context!.fillText(first,callout.x+7,callout.y+13,callout.width-14);
   context!.fillStyle='#bbd9e8';context!.fillText(second,callout.x+7,callout.y+26);
   context!.restore();
   labelObstacles.push(callout);
