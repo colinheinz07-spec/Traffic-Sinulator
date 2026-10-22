@@ -3,7 +3,7 @@
  * No vehicle sprites, hidden road connectors, A3/A48 transfers, or invented detours.
  */
 import {buildContinuousRoads} from './cartography.js';
-import type {Road,Ramp,Point} from './core.js';
+import type {Road,Ramp,Point,Exit} from './core.js';
 import type {SimEvent} from './events.js';
 import type {RampConnection} from './interchange.js';
 import {PATHS,baselineCapacity,eventCapacity,defaultDemand,type PathKey,type TrafficColor} from './traffic.js';
@@ -11,12 +11,12 @@ import {colorAtSpeed,queueFundamentalDiagram,freeSpeedKmh} from './traffic-physi
 
 export interface Corridor {key:PathKey;points:Point[];metres:number[];lengthM:number}
 export interface SpeedHistorySample {minute:number;speedKmh:number}
-export interface QueuedAt {pathKey:PathKey;point:Point;vehicles:number;lanes:number;capacityVph?:number;active?:boolean;densityVehPerKm?:number;color?:TrafficColor;pendingColor?:TrafficColor;pendingTicks?:number;speedHistory?:SpeedHistorySample[];recoveryTick?:number}
+export interface QueuedAt {pathKey:PathKey;point:Point;vehicles:number;lanes:number;capacityVph?:number;active?:boolean;densityVehPerKm?:number;color?:TrafficColor;pendingColor?:TrafficColor;pendingTicks?:number;speedHistory?:SpeedHistorySample[];recoveryTick?:number;firstQueuedMinute?:number}
 export interface SpatialState {minute:number;queues:Record<string,QueuedAt>}
 export interface SpatialTransfer {
  id:string;path:PathKey;fromM:number;toM:number;leaveVpm:number;joinVpm:number;
 }
-export interface Jam {id:string;pathKey:PathKey;eventKind:SimEvent['kind']|null;point:Point;anchorM:number;queueVehicles:number;queueM:number;visibleQueueM:number;delayMin:number|null;capacityVph:number;speedKmh:number;color:TrafficColor;released:boolean;outOfBoundsM:number;speedHistory?:readonly SpeedHistorySample[]}
+export interface Jam {id:string;pathKey:PathKey;eventKind:SimEvent['kind']|null;point:Point;anchorM:number;queueVehicles:number;queueM:number;visibleQueueM:number;delayMin:number|null;capacityVph:number;speedKmh:number;color:TrafficColor;released:boolean;outOfBoundsM:number;speedHistory?:readonly SpeedHistorySample[];elapsedWait?:boolean}
 const rad=Math.PI/180;
 export function metres(a:Point,b:Point):number{
  const dx=(b[1]-a[1])*111195*Math.cos((a[0]+b[0])/2*rad);
@@ -72,6 +72,28 @@ export function routeSlice(route:Corridor,fromM:number,toM:number):Point[]{
  points.push(interpolate(b));return points;
 }
 export function emptySpatial():SpatialState{return {minute:0,queues:{}}}
+/** A formal closure is a ban on NEW entry at the final regular exit,
+ * not an obstacle at the user's marker. Traffic already past this gate
+ * remains on the road and flows out; physical all-lane accidents still
+ * block their actual position. Exit snap uses the audited OSM geometry.
+ * If there is no upstream local exit in the map, deny new traffic at
+ * the network boundary rather than allowing it through the closure.
+ */
+export function closureGate(route:Corridor,event:SimEvent,exits:readonly Exit[]):{
+ metre:number;exit:Exit|null;eventM:number
+}|null{
+ if(event.kind!=='closure'||event.pathKey!==route.key||route.key.startsWith('ramp-'))return null;
+ const at=positionM(route,event.point);
+ if(at===null)return null;
+ const road=route.key.startsWith('A3')?'A3':'A48';
+ const candidates=exits.filter(x=>x.road===road&&!/^(AD |AK )/.test(x.name))
+  .map(exit=>({exit,metre:positionM(route,exit.position,900)}))
+  .filter((x):x is {exit:Exit;metre:number}=>x.metre!==null&&x.metre<at-50)
+  .sort((a,b)=>b.metre-a.metre);
+ const closest=candidates[0];
+ return {metre:closest?.metre??0,exit:closest?.exit??null,eventM:at};
+}
+
 /** Color is based ONLY on calculated km/h; density comes from the same
  * triangular-flow approximation used for the physical queue footprint.
  * It does not invent a color based on queue length or elapsed time.
@@ -91,7 +113,7 @@ export function mergeSupplyVph(ramp:PathKey,targetCapacityVph:number,targetDeman
  const supplyRatio=Math.min(1,targetCapacityVph/Math.max(targetCapacityVph,targetDemandVph));
  return Math.min(baselineCapacity(ramp),Math.round(Math.max(defaultDemand(ramp),rampDemandVph)*supplyRatio));
 }
-export function advanceSpatial(prev:SpatialState,events:readonly SimEvent[],demands:Readonly<Record<PathKey,number>>,minutes:number,corridors:Record<PathKey,Corridor>,links:readonly RampConnection[]=[],transfers:readonly SpatialTransfer[]=[]):SpatialState{
+export function advanceSpatial(prev:SpatialState,events:readonly SimEvent[],demands:Readonly<Record<PathKey,number>>,minutes:number,corridors:Record<PathKey,Corridor>,links:readonly RampConnection[]=[],transfers:readonly SpatialTransfer[]=[],exits:readonly Exit[]=[]):SpatialState{
  if(!Number.isInteger(minutes)||minutes<1||minutes>60)throw Error('Ungültiger Simulations-Zeitschritt');
  const current:Record<string,QueuedAt>={};
  for(const [id,q] of Object.entries(prev.queues))if(q.vehicles>1e-6)current[id]={...q};
@@ -105,7 +127,10 @@ export function advanceSpatial(prev:SpatialState,events:readonly SimEvent[],dema
    leavingVpm?:number;joiningVpm?:number}[]=[];
   for(const e of events)if(e.pathKey===key){
    const place=positionM(route,e.point);if(place===null)continue;
-   nodes.push({id:e.id,event:e,place,point:e.point});
+   const gate=closureGate(route,e,exits);
+   const nodeM=gate?gate.metre:place;
+   const nodePoint=gate?(routeSlice(route,Math.max(0,nodeM-1),Math.min(route.lengthM,nodeM+1))[0]??route.points[0]!):e.point;
+   nodes.push({id:e.id,event:e,place:nodeM,point:nodePoint});
   }
   // If a downstream jam reaches a REAL motorway merge, incoming ramp traffic
   // becomes a queue at that ramp. It is no longer an uncounted red overlay.
@@ -143,7 +168,10 @@ export function advanceSpatial(prev:SpatialState,events:readonly SimEvent[],dema
   for(const [id,q] of Object.entries(current))if(q.pathKey===key&&!active.has(id)){
    const place=positionM(route,q.point);if(place!==null)nodes.push({id,event:null,place,point:q.point});
   }
-  nodes.sort((a,b)=>a.place-b.place||a.id.localeCompare(b.id));
+  // Exactly at the mandatory exit, accepted vehicles must leave before
+  // the administrative no-entry gate rejects all remaining vehicles.
+  const rank=(n:typeof nodes[number])=>n.leavingVpm!==undefined?0:n.event?.kind==='closure'?1:2;
+  nodes.sort((a,b)=>a.place-b.place||rank(a)-rank(b)||a.id.localeCompare(b.id));
   // FIFO mass conservation at each serial bottleneck. Downstream gets only upstream discharge.
   let entering=Math.min(volume/60,baselineCapacity(key)/60);
   for(const node of nodes){
@@ -195,7 +223,8 @@ export function advanceSpatial(prev:SpatialState,events:readonly SimEvent[],dema
     speedHistory.push({minute:prev.minute+tick+1,speedKmh});
     if(speedHistory.length>480)speedHistory.splice(0,speedHistory.length-480);
     current[node.id]={pathKey:key,point:node.point,vehicles:waiting,lanes,capacityVph:cap*60,
-     active:node.event!==null||node.limitVph!==undefined,densityVehPerKm,color,pendingColor,pendingTicks,speedHistory,recoveryTick};
+     active:node.event!==null||node.limitVph!==undefined,densityVehPerKm,color,pendingColor,pendingTicks,speedHistory,recoveryTick,
+     firstQueuedMinute:previous?.firstQueuedMinute??prev.minute+tick+1};
    }else delete current[node.id];
    entering=passing;
   }
@@ -222,11 +251,15 @@ export function jamsAt(state:SpatialState,events:readonly SimEvent[],corridors:R
   const queueM=q.vehicles/densityVehPerKm*1000,visibleQueueM=Math.min(queueM,anchor);
   // Little's law: queue vehicles / bottleneck throughput, independent of
   // elapsed simulation time. A true zero-throughput closure is indeterminate.
-  const wait=capacity===0?null:q.vehicles/capacity*60;
+  // During a zero-discharge closure a *future* waiting time cannot be
+  // predicted without the reopening time. Report the oldest observed
+  // queue age instead. It grows by one minute per simulation minute.
+  const elapsedWait=capacity===0;
+  const wait=elapsedWait?Math.max(0,state.minute-(q.firstQueuedMinute??state.minute)):q.vehicles/capacity*60;
   const speedKmh=capacity===0?0:Math.min(freeSpeedKmh(q.pathKey),capacity/densityVehPerKm);
   const color=q.color??colorAtSpeed(speedKmh);
   result.push({id,pathKey:q.pathKey,eventKind:e?.kind??null,point:q.point,anchorM:anchor,
-   queueVehicles:q.vehicles,queueM,visibleQueueM,delayMin:wait,capacityVph:capacity,speedKmh,color,released:!e&&!q.active,outOfBoundsM:Math.max(0,queueM-anchor),speedHistory:q.speedHistory});
+   queueVehicles:q.vehicles,queueM,visibleQueueM,delayMin:wait,capacityVph:capacity,speedKmh,color,released:!e&&!q.active,outOfBoundsM:Math.max(0,queueM-anchor),speedHistory:q.speedHistory,elapsedWait});
  }
  return result.sort((a,b)=>a.pathKey.localeCompare(b.pathKey)||a.anchorM-b.anchorM);
 }
