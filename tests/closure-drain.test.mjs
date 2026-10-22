@@ -47,7 +47,7 @@ test('as closure starts, already present downstream cell vehicles continue to fl
  assert.ok(before>state0.cells.slice(Math.max(0,idx-10),idx).reduce((n,c)=>n+c.vehicles,0),
   'following drivers wait before the last exit');
 });
-test('spatial closure queue forms at AS; elapsed waiting shows real elapsed minutes, not null',()=>{
+test('spatial closure queue forms at AS but cannot predict finite through-delay',()=>{
  const path='A3-koeln',route=corridors[path],event=makeEvent(path,'40','39'),gate=closureGate(route,event,exits);
  const demand={...defaultDemands(),[path]:3300};
  let s=emptySpatial();
@@ -56,10 +56,10 @@ test('spatial closure queue forms at AS; elapsed waiting shows real elapsed minu
  assert.ok(queue&&queue.vehicles>100);
  assert.ok(Math.abs(positionM(route,queue.point)-gate.metre)<5,'queue must anchor at last usable AS');
  const jam=jamsAt(s,[event],corridors).find(j=>j.id===event.id);
- assert.ok(jam&&jam.elapsedWait);
- assert.ok(jam.delayMin>=17&&jam.delayMin<=19,'elapsed: '+jam.delayMin);
+ assert.ok(jam&&jam.capacityVph===0);
+ assert.equal(jam.delayMin,null,'closure cannot imply finite future passage');
  const report=routeReport(path,[jam],[],[event]);
- assert.ok(report.delayMin>=17,'closure must show finite accrued time: '+report.delayMin);
+ assert.equal(report.delayMin,null,'mainline delay must come from speed cells');
 });
 test('a full carriageway-blocking accident still blocks at its own location',()=>{
  const path='A3-koeln',route=corridors[path],event=makeEvent(path,'40','39','accident');
