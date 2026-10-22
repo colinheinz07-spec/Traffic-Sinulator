@@ -11,7 +11,7 @@ export function speedDelayInCells(state, fromM = 0, toM = Infinity) {
         const km = (end - start) / 1000;
         const local = Math.min(free, Math.max(0, c.speedKmh));
         // A true standstill is not equivalent to driving at a fictional 1–5 km/h.
-        if (local < .5) {
+        if (local <= 1e-6) {
             stoppedKm += km;
             continue;
         }
@@ -20,8 +20,27 @@ export function speedDelayInCells(state, fromM = 0, toM = Infinity) {
     }
     return { delayMin, blocked: stoppedKm > .0001, assessedKm, stoppedKm };
 }
-export function speedDelayLabel(value, precision = 1) {
+/** Bands must already be resolved, so overlapping queues count only once. */
+export function speedDelayInBands(path, bands) {
+    const free = freeSpeedKmh(path);
+    let delayMin = 0, assessedKm = 0, stoppedKm = 0;
+    for (const b of bands) {
+        const km = Math.max(0, b.toM - b.fromM) / 1000;
+        const speed = Math.max(0, Math.min(free, b.speedKmh));
+        if (speed <= 1e-6) {
+            stoppedKm += km;
+            continue;
+        }
+        assessedKm += km;
+        delayMin += Math.max(0, 60 * km * (1 / speed - 1 / free));
+    }
+    return { delayMin, blocked: stoppedKm > .0001, assessedKm, stoppedKm };
+}
+export function speedDelayLabel(value, precision = 1, compact = false) {
     const n = value.delayMin.toLocaleString('de-DE', { minimumFractionDigits: precision, maximumFractionDigits: precision });
+    if (compact && value.blocked)
+        return value.delayMin >= .05 ?
+            '≥ +' + n + ' min · blockiert' : 'Zeitverlust offen · blockiert';
     if (value.blocked)
         return value.delayMin >= .05 ?
             'mindestens +' + n + ' min · Durchfahrt blockiert' :

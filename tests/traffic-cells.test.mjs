@@ -81,6 +81,8 @@ test('cell road treatment leaves ramp and diversion state entirely untouched',()
  const src=readFileSync('src/app.ts','utf8');
  assert.match(src,/CELL_PATHS=PATHS\.filter\(key=>!key\.startsWith\('ramp-'\)\)/);
  assert.match(src,/cellNetwork\[key\]=advanceCells/);
- assert.match(src,/if\(cellNetwork\[jam\.pathKey\]\)continue/);
+ const view=readFileSync('src/traffic-view.ts','utf8');
+ assert.match(view,/state\?cellSpeedBands\(state\):own\.flatMap/);
+ assert.ok(src.includes('view.bands'));
  assert.match(src,/advanceSpatial\(spatialState,timeline,active,1,spatialCorridors,rampConnections,transfers,exits\)/);
 });

@@ -74,9 +74,11 @@ test('repainting after changing a posted speed without advancing simulation leav
 });
 test('SPCK app uses wave speeds in place of entire single-color queue, ramps included',()=>{
  const app=readFileSync('src/app.ts','utf8');
- assert.match(app,/stopAndGoBands\(jam,spatialState\.minute\)/);
- assert.match(app,/speedHistory:parent\.speedHistory/);
- assert.match(app,/physicalSpeedBands\(jam\)\.filter\(b=>b\.source==='approach'\)/);
+ const view=readFileSync('src/traffic-view.ts','utf8');
+ assert.ok(app.includes('view.bands'));
+ assert.match(view,/stopAndGoBands\(jam,minute\)/);
+ assert.match(view,/speedHistory:parent\.speedHistory/);
+ assert.match(view,/physicalSpeedBands\(jam\)\.filter\(b=>b\.source==='approach'\)/);
 });
 
 test('flow and standstill episodes are variable, not a uniform repeating beat',()=>{
@@ -110,11 +112,11 @@ test('there is no identical repeated 4.8-minute pattern across a long queue',()=
 test('two-line map labels and jam cards show event sign, direction, delay and km',()=>{
  const app=readFileSync('src/app.ts','utf8');
  const html=readFileSync('index.html','utf8');
- for(const token of ['jam-card','jam-card-sign','jam-card-delay','jam-card-metrics','trafficRouteLabel(jam.pathKey)','jam.queueM/1000','jam.delayMin','eventSymbols[event.kind]']){
+ for(const token of ['jam-card','jam-card-sign','jam-card-delay','jam-card-metrics','trafficRouteLabel(jam.pathKey)','jam.queueM/1000','jam.delay','eventSymbols[event.kind]']){
   assert.ok(app.includes(token),token);
  }
  assert.match(app,/shortDirection/);
  assert.match(app,/trafficNumber\(jam\.queueM\/1000,1\)/);
  assert.match(html,/jam-card-header/);
- assert.ok(html.includes('TRAFFIC 1.6.1'));
+ assert.ok(html.includes('TRAFFIC 1.6.2'));
 });

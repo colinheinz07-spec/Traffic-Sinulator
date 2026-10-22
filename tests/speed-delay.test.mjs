@@ -76,9 +76,10 @@ test('physical closure produces a blocked travel-time state while downstream car
 test('UI labels read physical speed field, never event age',()=>{
  const app=readFileSync('src/app.ts','utf8');
  const spatial=readFileSync('src/spatial.ts','utf8');
- assert.match(app,/speedDelayInCells\(grid,fromM,toM\)/);
- assert.match(app,/pathDelayLabel\(jam.pathKey,jam.delayMin/);
- assert.match(app,/pathDelayLabel\(key,result.delayMin\)/);
+ const view=readFileSync('src/traffic-view.ts','utf8');
+ assert.match(view,/speedDelayInCells\(state,group\.fromM,group\.toM\)/);
+ assert.ok(app.includes('speedDelayLabel(jam.delay)'));
+ assert.ok(app.includes('speedDelayLabel(view.delays[key])'));
  assert.doesNotMatch(app,/jam\.elapsedWait/);
  assert.doesNotMatch(spatial,/firstQueuedMinute/);
  assert.doesNotMatch(app,/min\$\{jam\.elapsedWait/);

@@ -107,10 +107,12 @@ test('A48 through-route is not slowed by a red exit-lane queue after 180 minutes
 test('latest HTML legend and linked physics are speed-based',()=>{
  const html=readFileSync('index.html','utf8');
  const app=readFileSync('src/app.ts','utf8');
- assert.match(html,/TRAFFIC 1\.6\.1/);
+ assert.match(html,/TRAFFIC 1\.6\.2/);
  for(const label of ['Frei (&gt;65 km/h)','Stockend (&gt;30–65 km/h)','Stau\/Stop-and-Go (&gt;10–30 km/h)','Stillstand\/Kriechverkehr (0–10 km/h)'])
   assert.ok(html.includes(label),label);
- assert.match(app,/physicalSpeedBands\(jam\)/);
- assert.match(app,/resolveSpeedBands\(bands\)/);
+ const view=readFileSync('src/traffic-view.ts','utf8');
+ assert.match(view,/physicalSpeedBands\(jam\)/);
+ assert.match(view,/resolveSpeedBands\(bands\)/);
+ assert.ok(app.includes('view.bands'));
  assert.match(app,/result\.speedKmh/);
 });
