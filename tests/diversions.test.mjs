@@ -93,12 +93,12 @@ test('planning is read-only and never removes A3/A48 vehicles without a route gr
  const repeat=advanceSpatial(emptySpatial(),[e],demand,12,roads);
  assert.deepEqual(state,repeat,'plan must not touch motorway conservation');
 });
-test('UI exposes OSM route planner and activation only after geometry verification',()=>{
+test('UI exposes the offline route catalog and keeps activation controls',()=>{
  const html=readFileSync('index.html','utf8'),app=readFileSync('src/app.ts','utf8');
  assert.match(html,/traffic-diversion-plans/);
  assert.match(html,/traffic-diversion-catalog/);
- assert.match(html,/OSM-Straßenverbindung online/i);
+ assert.match(html,/ohne Online-Routenabruf/i);
  assert.match(app,/renderDiversionPlanner\(key,jams,spillbacks\)/);
  assert.match(app,/planDiversion\(event,corridor,exits,traffic\.delayMin\)/);
- assert.match(app,/loadDetourGeometry\(option.link,option.from,option.to\)/);
+ assert.match(app,/bundledDetourGeometry\(k,option.path,option.from,option.to,exits\)/);
 });

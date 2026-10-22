@@ -1,7 +1,6 @@
-/** Vehicle-conserving detour on a fetched, connected real OSM road.
+/** Vehicle-conserving detour on a connected simulator side-road route.
  * Vehicle ledger: admitted = waiting-on-local-road + in-transit
- *                + returned-to-motorway (cumulative).
- * No active detour exists until the actual road geometry is validated.
+ *                + returned-to-motorway + left-modelled-network (cumulative).
  */
 import type {RoadId} from './core.js';
 import type {DetourGeometry} from './detour-routing.js';
@@ -9,11 +8,13 @@ import type {SpatialTransfer} from './spatial.js';
 export interface DetourConfig {
  id:string;path:RoadId;fromM:number;toM:number;eventId:string;geometry:DetourGeometry;
  targetPath?:RoadId;sourceEndM?:number;targetEntryM?:number;
+ exitsNetwork?:boolean;
 }
 export interface InTransit {minute:number;vehicles:number}
 export interface DetourState {
  id:string;minute:number;waitingRoad:number;waitingMerge:number;transit:InTransit[];
  admittedTotal:number;returnedTotal:number;lastDeparture:number;lastRejoined:number;
+ exitedNetworkTotal?:number;lastExitedNetwork?:number;
 }
 export function emptyDetour(config:DetourConfig):DetourState{
  if(!(config.targetPath&&config.targetPath!==config.path?config.toM>=0:config.toM>config.fromM)||config.id!==config.geometry.id||config.path!==config.geometry.path)
@@ -55,12 +56,14 @@ export function advanceDetour(state:DetourState,config:DetourConfig,minute:numbe
  });
  // The return ramp has its own queue. A busy mainline can delay merging
  // without causing vehicles to teleport back upstream on the local route.
- const mergeService=Math.min(ready,remainingMergeCapacityVph/60);
- const waitingMerge=Math.max(0,ready-mergeService);
+ const exitedNetwork=config.exitsNetwork?ready:0;
+ const mergeService=config.exitsNetwork?0:Math.min(ready,remainingMergeCapacityVph/60);
+ const waitingMerge=Math.max(0,ready-mergeService-exitedNetwork);
  const next:DetourState={id:state.id,minute:minute+1,waitingRoad:roadQueue,waitingMerge,transit:pending,
   admittedTotal:state.admittedTotal+admitted,returnedTotal:state.returnedTotal+mergeService,
-  lastDeparture:admitted,lastRejoined:mergeService};
- if(Math.abs(next.admittedTotal-next.returnedTotal-detourVehicles(next))>1e-5)
+  lastDeparture:admitted,lastRejoined:mergeService,
+  exitedNetworkTotal:(state.exitedNetworkTotal??0)+exitedNetwork,lastExitedNetwork:exitedNetwork};
+ if(Math.abs(next.admittedTotal-next.returnedTotal-(next.exitedNetworkTotal??0)-detourVehicles(next))>1e-5)
   throw Error('Umleitungs-Fahrzeugbilanz verletzt');
  return {
   state:next,entered:admitted,rejoined:mergeService,capacityVph:capacity,

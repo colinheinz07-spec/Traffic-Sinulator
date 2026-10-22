@@ -1,5 +1,5 @@
 /** Experimental first-order cell-transmission traffic on real OSM carriageways.
- * Mainline cells and verified detours share mass-conserving transfers. Their
+ * Mainline cells and simulator detours share mass-conserving transfers. Their
  * local speeds determine map shading, queue lengths and travel-time loss.
  * The legacy AD ramp turn-demand solver remains a separate approximation.
  *
@@ -99,10 +99,50 @@ function localControls(route:Corridor,events:readonly SimEvent[],demandVph:numbe
  * near the sustained capacity; short braking phases and larger releases
  * create density waves that propagate through the conserved cell fluxes.
  */
+interface DischargeEpisode {start:number;stop:number;rise:number;flow:number;fall:number;low:number;high:number}
+const dischargeHistories=new Map<string,{seed:number;end:number;episodes:DischargeEpisode[]}>();
+function dischargeSeed(id:string):number{
+ let seed=2166136261;for(const c of id)seed=Math.imul(seed^c.charCodeAt(0),16777619);
+ return seed>>>0;
+}
+function dischargeRandom(seed:number,index:number,channel:number):number{
+ let x=seed^Math.imul(index+37,0x9e3779b9)^Math.imul(channel+1,0x85ebca6b);
+ x=Math.imul(x^(x>>>16),0x7feb352d);x=Math.imul(x^(x>>>15),0x846ca68b);
+ return ((x^(x>>>16))>>>0)/4294967296;
+}
 export function platoonServiceFactor(id:string,minute:number):number{
- let seed=0;for(const c of id)seed=(Math.imul(seed,31)+c.charCodeAt(0))>>>0;
- const phase=minute/3.4+(seed%997)/997+.14*Math.sin(minute*.37+(seed%31));
- return phase-Math.floor(phase)<.16?.25:1.14;
+ if(!Number.isFinite(minute))throw Error('Ungültige Anfahrzeit');
+ // Generate a reproducible history with independently varying episode
+ // duration, braking depth and recovery. There is no repeating pulse period.
+ let history=dischargeHistories.get(id);
+ if(!history){history={seed:dischargeSeed(id),end:-300,episodes:[]};dischargeHistories.set(id,history);}
+ if(minute<-300)return 1;
+ while(history.end<=minute){
+  const i=history.episodes.length,r=(channel:number)=>dischargeRandom(history!.seed,i,channel);
+  const stop=.28+.95*r(0),rise=.22+.6*r(1),flow=2+5.1*r(2),fall=.20+.65*r(3),low=.12+.32*r(4);
+  const total=stop+rise+flow+fall,lowWeight=stop+(rise+fall)/2;
+  // Mean requested service is sustained capacity, with physical free-lane
+  // capacity still limiting the actual transfer at each substep.
+  const high=(total-low*lowWeight)/(total-lowWeight);
+  history.episodes.push({start:history.end,stop,rise,flow,fall,low,high});history.end+=total;
+ }
+ let lo=0,hi=history.episodes.length-1;
+ while(lo<hi){const mid=Math.ceil((lo+hi)/2);if(history.episodes[mid]!.start<=minute)lo=mid;else hi=mid-1;}
+ const e=history.episodes[lo]!,t=minute-e.start;
+ if(t<e.stop)return e.low;
+ if(t<e.stop+e.rise)return e.low+(e.high-e.low)*(t-e.stop)/e.rise;
+ if(t<e.stop+e.rise+e.flow)return e.high;
+ return e.high-(e.high-e.low)*(t-e.stop-e.rise-e.flow)/e.fall;
+}
+/** Correlated spatial differences in reaction time stretch/compress packets
+ * along a queue. Adjacent cells do not get independent cosmetic noise. */
+function reactionTravelMinutes(id:string,distanceM:number):number{
+ const seed=dischargeSeed(id),sectionM=2700;let time=0;
+ for(let from=0,index=0;from<distanceM;from+=sectionM,index++){
+  const speed=16+8*dischargeRandom(seed,index,9);
+  time+=Math.min(sectionM,distanceM-from)/(speed*1000/60);
+ }
+ return time;
 }
 /** Advance exactly one model minute, including six stable 10-second updates.
  * Domain demand not admitted at the map entry is retained in backlog.
@@ -141,8 +181,8 @@ export function advanceCells(previous:CellRouteState,route:Corridor,events:reado
    const next=releases.filter(r=>r.face>i).sort((a,b)=>a.face-b.face)[0];
    if(!next)continue;
    const distance=(next.face-i-.5)*previous.cellM;
-   const signal=previous.minute+sub*DT_MIN-distance/(WAVE_KMH*1000/60);
-   const reaction=platoonServiceFactor(next.event.id,signal)<1?.25:1;
+   const signal=previous.minute+sub*DT_MIN-reactionTravelMinutes(next.event.id,distance);
+   const reaction=Math.min(1,platoonServiceFactor(next.event.id,signal));
    send[i]=Math.min(send[i]!,capacity[i]!*reaction*DT_MIN/60);
   }
   const receive=density.map((k,i)=>Math.min(WAVE_KMH*Math.max(0,jam-k),capacity[i]!)*DT_MIN/60);

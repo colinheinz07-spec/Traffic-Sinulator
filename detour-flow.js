@@ -39,12 +39,14 @@ export function advanceDetour(state, config, minute, motorwayDemandVph, interest
     });
     // The return ramp has its own queue. A busy mainline can delay merging
     // without causing vehicles to teleport back upstream on the local route.
-    const mergeService = Math.min(ready, remainingMergeCapacityVph / 60);
-    const waitingMerge = Math.max(0, ready - mergeService);
+    const exitedNetwork = config.exitsNetwork ? ready : 0;
+    const mergeService = config.exitsNetwork ? 0 : Math.min(ready, remainingMergeCapacityVph / 60);
+    const waitingMerge = Math.max(0, ready - mergeService - exitedNetwork);
     const next = { id: state.id, minute: minute + 1, waitingRoad: roadQueue, waitingMerge, transit: pending,
         admittedTotal: state.admittedTotal + admitted, returnedTotal: state.returnedTotal + mergeService,
-        lastDeparture: admitted, lastRejoined: mergeService };
-    if (Math.abs(next.admittedTotal - next.returnedTotal - detourVehicles(next)) > 1e-5)
+        lastDeparture: admitted, lastRejoined: mergeService,
+        exitedNetworkTotal: (state.exitedNetworkTotal ?? 0) + exitedNetwork, lastExitedNetwork: exitedNetwork };
+    if (Math.abs(next.admittedTotal - next.returnedTotal - (next.exitedNetworkTotal ?? 0) - detourVehicles(next)) > 1e-5)
         throw Error('Umleitungs-Fahrzeugbilanz verletzt');
     return {
         state: next, entered: admitted, rejoined: mergeService, capacityVph: capacity,

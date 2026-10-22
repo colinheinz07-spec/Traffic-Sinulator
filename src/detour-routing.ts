@@ -15,7 +15,7 @@ export interface RoadGraph {adjacency:Map<number,Segment[]>;coordinates:Map<numb
  neighbours:Map<number,Set<number>>;trafficSignals:Set<number>}
 export interface DetourGeometry {
  id:string;path:RoadId;sourceExitRef:string;targetExitRef:string;points:Point[];
- lengthKm:number;freeMinutes:number;roadCapacityVph:number;junctionCount:number;trafficLightCount:number;source:'osm-official-relation'|'osm-routed-infill';
+ lengthKm:number;freeMinutes:number;roadCapacityVph:number;junctionCount:number;trafficLightCount:number;source:'osm-official-relation'|'osm-routed-infill'|'simulated-bundled';
  relationId:number|null;label:string;
 }
 export const OFFICIAL_OSM_RELATION_IDS:Readonly<Record<string,number>>={

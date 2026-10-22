@@ -16,7 +16,7 @@ jobs:
       - run: npm run check
       - name: Verify OSM motorway geometry is never fabricated
         run: python -m unittest discover -s scripts/tests -v
-      - run: git diff --exit-code -- app.js core.js geodata.js cartography.js lane-info.js lane-profiles.js selection.js events.js traffic.js traffic-physics.js traffic-cells.js speed-delay.js traffic-view.js routed-traffic.js auto-diversions.js spatial.js interchange.js network-report.js diversions.js detour-routing.js detour-flow.js map-callouts.js schedule-form.js junction-movements.js
+      - run: git diff --exit-code -- app.js core.js geodata.js cartography.js lane-info.js lane-profiles.js selection.js events.js traffic.js traffic-physics.js traffic-cells.js speed-delay.js traffic-view.js routed-traffic.js auto-diversions.js bundled-detours.js spatial.js interchange.js network-report.js diversions.js detour-routing.js detour-flow.js map-callouts.js schedule-form.js junction-movements.js
       - name: Export SPCK preview
         uses: actions/upload-artifact@v4
         with:

@@ -2,6 +2,7 @@ import { positionM } from './spatial.js';
 import { DIVERSION_LINKS, diversionJunctions } from './diversions.js';
 import { speedDelayInCells } from './speed-delay.js';
 import { cellSpeedBands } from './traffic-cells.js';
+import { bundledTargets, isNetworkDestination } from './bundled-detours.js';
 export function automaticDiversions(events, corridors, exits, cells, connections = []) {
     const plans = new Map();
     for (const event of events) {
@@ -10,10 +11,9 @@ export function automaticDiversions(events, corridors, exits, cells, connections
         const path = event.pathKey, route = corridors[path], at = positionM(route, event.point);
         if (at === null)
             continue;
-        const all = diversionJunctions(path, exits, route).filter(x => !x.isInterchange);
-        const after = all.filter(x => x.metre > at + event.settings.lengthM + 50);
-        if (!after.length)
-            continue;
+        const targets = bundledTargets(path, exits, route), all = targets.filter(x => !isNetworkDestination(x));
+        const end = Math.min(route.lengthM, at + event.settings.lengthM + 50);
+        const after = targets.filter(x => x.metre > end || isNetworkDestination(x));
         const targetGrid = cells[path];
         for (const connection of connections.filter(c => c.to === path && at > c.downstreamMergeM)) {
             if (!targetGrid || !cellSpeedBands(targetGrid).some(b => b.fromM <= connection.downstreamMergeM && b.toM >= connection.downstreamMergeM))
@@ -21,9 +21,9 @@ export function automaticDiversions(events, corridors, exits, cells, connections
             const source = connection.from, to = after[0];
             const sources = diversionJunctions(source, exits, corridors[source]).filter(x => !x.isInterchange && x.metre < connection.rampEntryM - 50);
             for (const from of sources) {
-                const link = { id: source + '-OSM-' + from.ref + '-to-' + path, code: 'SIM', path: source,
+                const link = { id: source + '-BUNDLED-' + from.ref + '-to-' + path, code: 'SIM', path: source,
                     fromRoad: from.road, fromRef: from.ref, toRoad: to.road, toRef: to.ref, evidence: 'partial',
-                    description: 'Simulierte OSM-Umfahrung des blockierten Autobahnknotens' };
+                    description: 'Enthaltene simulierte Umfahrung des blockierten Autobahnknotens' };
                 const key = link.id + ':' + to.ref;
                 plans.set(source + ':' + from.ref, { key, event, path: source, from, to, link, targetPath: path,
                     sourceEndM: connection.rampEntryM, targetEntryM: connection.downstreamMergeM, delayMin: null });
@@ -33,9 +33,9 @@ export function automaticDiversions(events, corridors, exits, cells, connections
             const documented = DIVERSION_LINKS.find(l => l.path === path && l.fromRef === from.ref);
             const officialTarget = after.find(x => x.ref === documented?.toRef);
             const to = officialTarget ?? after[0];
-            const link = officialTarget ? documented : { id: path + '-OSM-' + from.ref, code: 'SIM', path,
+            const link = officialTarget ? documented : { id: path + '-BUNDLED-' + from.ref, code: 'SIM', path,
                 fromRoad: from.road, fromRef: from.ref, toRoad: to.road, toRef: to.ref, evidence: 'partial',
-                description: 'Simulierte Verbindung auf echten OSM-Straßen' };
+                description: 'Enthaltene simulierte Umleitung mit angenähertem Verlauf' };
             const time = cells[path] ? speedDelayInCells(cells[path], from.metre, to.metre) : null;
             // Prepare roads when a lane closes, before a long queue has formed.
             // Loading geometry itself never makes drivers leave: the cell node's
