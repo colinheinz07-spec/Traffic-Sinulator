@@ -46,11 +46,11 @@ test('one A3 construction produces an upstream-only queue and four user colors',
  assert.equal(state.queues['montabaur'].pathKey,'A3-koeln');
  assert.ok(!jams.some(x=>x.pathKey==='A3-frankfurt'));
 });
-test('all-lane closure creates standstill patch but never fakes a finite delay',()=>{
+test('all-lane closure creates standstill and records only elapsed wait, not a reopening prediction',()=>{
  const e=eventAt('A3-frankfurt',.6,'closure',[0,1,2],0,'closed');
  const state=advanceSpatial(emptySpatial(),[e],demands,12,corridors);
  const jams=jamsAt(state,[e],corridors);assert.equal(jams.length,1);
- assert.equal(jams[0].delayMin,null);assert.equal(jams[0].color,'standstill');
+ assert.ok(jams[0].delayMin>=10);assert.equal(jams[0].elapsedWait,true);assert.equal(jams[0].color,'standstill');
  assert.ok(jamBands(jams[0]).some(b=>b.color==='standstill'));
 });
 test('two serial events form separate identifiable queues without double counting upstream arrival',()=>{
@@ -84,7 +84,7 @@ test('SPCK main entry supports own per-stau report and compiled geometry overlay
  const html=readFileSync('index.html','utf8'),app=readFileSync('src/app.ts','utf8');
  assert.match(html,/id="traffic-jams"/);assert.match(html,/id="traffic-jams-count"/);
  assert.match(app,/drawSpatialJams\(\)/);assert.match(app,/routeSlice/);
- assert.match(app,/advanceSpatial\(spatialState,timeline,active,1,spatialCorridors,rampConnections,transfers\)/);
+ assert.match(app,/advanceSpatial\(spatialState,timeline,active,1,spatialCorridors,rampConnections,transfers,exits\)/);
  assert.match(app,/initializeTraffic\(\);redrawEventList\(\)/);
  assert.ok(!html.includes('map-v2/'));
 });
