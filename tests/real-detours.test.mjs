@@ -124,7 +124,7 @@ test('an arriving local-road platoon rejoins AFTER an incident',()=>{
 });
 test('SPCK controls clearly label OSM-fetched routes and require activation',()=>{
  const page=readFileSync('index.html','utf8'),app=readFileSync('src/app.ts','utf8');
- assert.match(page,/TRAFFIC 1\.6\.0/);
+ assert.match(page,/TRAFFIC 1\.6\.1/);
  assert.match(page,/OSM-Straßenverbindung online/);
  assert.match(app,/loadDetourGeometry\(link,option.exit,target\)/);
  assert.match(app,/advanceSpatial\(spatialState,timeline,active,1,spatialCorridors,rampConnections,transfers,exits\)/);
