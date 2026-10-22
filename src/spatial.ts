@@ -11,12 +11,12 @@ import {colorAtSpeed,queueFundamentalDiagram,freeSpeedKmh} from './traffic-physi
 
 export interface Corridor {key:PathKey;points:Point[];metres:number[];lengthM:number}
 export interface SpeedHistorySample {minute:number;speedKmh:number}
-export interface QueuedAt {pathKey:PathKey;point:Point;vehicles:number;lanes:number;capacityVph?:number;active?:boolean;densityVehPerKm?:number;color?:TrafficColor;pendingColor?:TrafficColor;pendingTicks?:number;speedHistory?:SpeedHistorySample[];recoveryTick?:number;firstQueuedMinute?:number}
+export interface QueuedAt {pathKey:PathKey;point:Point;vehicles:number;lanes:number;capacityVph?:number;active?:boolean;densityVehPerKm?:number;color?:TrafficColor;pendingColor?:TrafficColor;pendingTicks?:number;speedHistory?:SpeedHistorySample[];recoveryTick?:number}
 export interface SpatialState {minute:number;queues:Record<string,QueuedAt>}
 export interface SpatialTransfer {
  id:string;path:PathKey;fromM:number;toM:number;leaveVpm:number;joinVpm:number;
 }
-export interface Jam {id:string;pathKey:PathKey;eventKind:SimEvent['kind']|null;point:Point;anchorM:number;queueVehicles:number;queueM:number;visibleQueueM:number;delayMin:number|null;capacityVph:number;speedKmh:number;color:TrafficColor;released:boolean;outOfBoundsM:number;speedHistory?:readonly SpeedHistorySample[];elapsedWait?:boolean}
+export interface Jam {id:string;pathKey:PathKey;eventKind:SimEvent['kind']|null;point:Point;anchorM:number;queueVehicles:number;queueM:number;visibleQueueM:number;delayMin:number|null;capacityVph:number;speedKmh:number;color:TrafficColor;released:boolean;outOfBoundsM:number;speedHistory?:readonly SpeedHistorySample[]}
 const rad=Math.PI/180;
 export function metres(a:Point,b:Point):number{
  const dx=(b[1]-a[1])*111195*Math.cos((a[0]+b[0])/2*rad);
@@ -223,8 +223,7 @@ export function advanceSpatial(prev:SpatialState,events:readonly SimEvent[],dema
     speedHistory.push({minute:prev.minute+tick+1,speedKmh});
     if(speedHistory.length>480)speedHistory.splice(0,speedHistory.length-480);
     current[node.id]={pathKey:key,point:node.point,vehicles:waiting,lanes,capacityVph:cap*60,
-     active:node.event!==null||node.limitVph!==undefined,densityVehPerKm,color,pendingColor,pendingTicks,speedHistory,recoveryTick,
-     firstQueuedMinute:previous?.firstQueuedMinute??prev.minute+tick+1};
+     active:node.event!==null||node.limitVph!==undefined,densityVehPerKm,color,pendingColor,pendingTicks,speedHistory,recoveryTick};
    }else delete current[node.id];
    entering=passing;
   }
@@ -249,17 +248,14 @@ export function jamsAt(state:SpatialState,events:readonly SimEvent[],corridors:R
   const densityVehPerKm=q.densityVehPerKm??condition.densityVehPerKm;
   // Densities are persistent state; queue length and speed evolve together.
   const queueM=q.vehicles/densityVehPerKm*1000,visibleQueueM=Math.min(queueM,anchor);
-  // Little's law: queue vehicles / bottleneck throughput, independent of
-  // elapsed simulation time. A true zero-throughput closure is indeterminate.
-  // During a zero-discharge closure a *future* waiting time cannot be
-  // predicted without the reopening time. Report the oldest observed
-  // queue age instead. It grows by one minute per simulation minute.
-  const elapsedWait=capacity===0;
-  const wait=elapsedWait?Math.max(0,state.minute-(q.firstQueuedMinute??state.minute)):q.vehicles/capacity*60;
+  // FIFO queue / actual throughput. Zero throughput gives no finite
+  // future travel time and MUST NOT turn into "time since road closure".
+  // Mainline UI computes its travel-time loss from local CTM cell speeds.
+  const wait=capacity>0?q.vehicles/capacity*60:null;
   const speedKmh=capacity===0?0:Math.min(freeSpeedKmh(q.pathKey),capacity/densityVehPerKm);
   const color=q.color??colorAtSpeed(speedKmh);
   result.push({id,pathKey:q.pathKey,eventKind:e?.kind??null,point:q.point,anchorM:anchor,
-   queueVehicles:q.vehicles,queueM,visibleQueueM,delayMin:wait,capacityVph:capacity,speedKmh,color,released:!e&&!q.active,outOfBoundsM:Math.max(0,queueM-anchor),speedHistory:q.speedHistory,elapsedWait});
+   queueVehicles:q.vehicles,queueM,visibleQueueM,delayMin:wait,capacityVph:capacity,speedKmh,color,released:!e&&!q.active,outOfBoundsM:Math.max(0,queueM-anchor),speedHistory:q.speedHistory});
  }
  return result.sort((a,b)=>a.pathKey.localeCompare(b.pathKey)||a.anchorM-b.anchorM);
 }

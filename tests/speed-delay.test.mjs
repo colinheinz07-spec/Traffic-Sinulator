@@ -1,0 +1,85 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {networkData} from '../dist/geodata.js';
+import {makeCorridors,routeSlice} from '../dist/spatial.js';
+import {initialiseCells,advanceCells} from '../dist/traffic-cells.js';
+import {speedDelayInCells,speedDelayLabel} from '../dist/speed-delay.js';
+
+const routes=makeCorridors(networkData.roads,networkData.ramps);
+function synthetic(speeds,km=1){
+ const route=routes['A3-koeln'];
+ const state=initialiseCells(route,2000);
+ state.cells=speeds.map((speed,i)=>({
+  fromM:i*km*1000,toM:(i+1)*km*1000,
+  speedKmh:speed,vehicles:35,flowVph:speed*35,densityVehKm:35
+ }));
+ return state;
+}
+test('travel delay comes from actual local speed and distance, not elapsed closure time',()=>{
+ const fast=synthetic([40,40]),slow=synthetic([10,10]);
+ const a=speedDelayInCells(fast),b=speedDelayInCells(slow);
+ assert.ok(Math.abs(a.delayMin-2)<1e-7,'2km at 40km/h adds two minutes vs 120');
+ assert.ok(Math.abs(b.delayMin-11)<1e-7,'2km at 10km/h adds eleven minutes');
+ assert.ok(b.delayMin>a.delayMin*5);
+ // Two identical traffic fields represent identical delays regardless of
+ // simulation tick or closure timestamp.
+ slow.minute=5000;
+ assert.deepEqual(speedDelayInCells(slow),b);
+ assert.equal(speedDelayLabel(b),'+11,0 min');
+});
+test('free-flow cannot invent time loss; shorter/slower affected roads have proportional loss',()=>{
+ const free=synthetic([120,120]);
+ assert.equal(speedDelayInCells(free).delayMin,0);
+ const state=synthetic([10,10]);
+ const half=speedDelayInCells(state,0,500);
+ assert.ok(Math.abs(half.delayMin-2.75)<1e-7);
+ assert.ok(speedDelayInCells(state,0,1000).delayMin<speedDelayInCells(state,0,2000).delayMin);
+});
+test('zero km/h is not an invented 1–5 km/h forecast or years since closure',()=>{
+ const state=synthetic([0,10,120]);
+ const d=speedDelayInCells(state);
+ assert.equal(d.blocked,true);
+ assert.equal(d.stoppedKm,1);
+ assert.ok(Math.abs(d.delayMin-5.5)<1e-7);
+ assert.match(speedDelayLabel(d),/mindestens \+5,5 min/);
+ assert.match(speedDelayLabel(d),/blockiert/);
+ state.minute=110000;
+ assert.equal(speedDelayInCells(state).delayMin,d.delayMin);
+ const all=speedDelayInCells(synthetic([0,0]));
+ assert.equal(all.blocked,true);
+ assert.equal(all.delayMin,0);
+ assert.match(speedDelayLabel(all),/nicht prognostizierbar/);
+ assert.doesNotMatch(speedDelayLabel(all),/\+\d/);
+});
+test('cell delay can be calculated over only the spatial footprint of one jam',()=>{
+ const state=synthetic([25,5,120,120]);
+ const local=speedDelayInCells(state,1000,2000);
+ assert.ok(Math.abs(local.delayMin-(60*(1/5-1/120)))<1e-7);
+ assert.equal(local.blocked,false);
+ assert.equal(local.assessedKm,1);
+});
+test('physical closure produces a blocked travel-time state while downstream cars clear',()=>{
+ const route=routes['A3-koeln'];
+ const {exits}=networkData;
+ const p=routeSlice(route,route.lengthM*.45,route.lengthM*.45+2)[0];
+ const event={id:'closure',kind:'closure',pathKey:'A3-koeln',point:p,laneCount:3,
+  closedLanes:[0,1,2],createdAt:'2026-10-22T09:00:00Z',
+  settings:{lengthM:100,speedKmh:0,shoulder:'blocked'}};
+ let state=initialiseCells(route,3400);
+ for(let i=0;i<12;i++)state=advanceCells(state,route,[event],3400,exits);
+ const d=speedDelayInCells(state);
+ assert.equal(d.blocked,true,'queue contains genuine stopped cells');
+ assert.ok(d.stoppedKm>0);
+ assert.ok(d.delayMin>=0&&Number.isFinite(d.delayMin));
+});
+test('UI labels read physical speed field, never event age',()=>{
+ const app=readFileSync('src/app.ts','utf8');
+ const spatial=readFileSync('src/spatial.ts','utf8');
+ assert.match(app,/speedDelayInCells\(grid,fromM,toM\)/);
+ assert.match(app,/pathDelayLabel\(jam.pathKey,jam.delayMin/);
+ assert.match(app,/pathDelayLabel\(key,result.delayMin\)/);
+ assert.doesNotMatch(app,/jam\.elapsedWait/);
+ assert.doesNotMatch(spatial,/firstQueuedMinute/);
+ assert.doesNotMatch(app,/min\$\{jam\.elapsedWait/);
+});

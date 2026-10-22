@@ -46,11 +46,11 @@ test('one A3 construction produces an upstream-only queue and four user colors',
  assert.equal(state.queues['montabaur'].pathKey,'A3-koeln');
  assert.ok(!jams.some(x=>x.pathKey==='A3-frankfurt'));
 });
-test('all-lane closure creates standstill and records only elapsed wait, not a reopening prediction',()=>{
+test('all-lane closure has zero throughput and cannot predict passage time',()=>{
  const e=eventAt('A3-frankfurt',.6,'closure',[0,1,2],0,'closed');
  const state=advanceSpatial(emptySpatial(),[e],demands,12,corridors);
  const jams=jamsAt(state,[e],corridors);assert.equal(jams.length,1);
- assert.ok(jams[0].delayMin>=10);assert.equal(jams[0].elapsedWait,true);assert.equal(jams[0].color,'standstill');
+ assert.equal(jams[0].delayMin,null);assert.equal(jams[0].color,'standstill');
  assert.ok(jamBands(jams[0]).some(b=>b.color==='standstill'));
 });
 test('two serial events form separate identifiable queues without double counting upstream arrival',()=>{

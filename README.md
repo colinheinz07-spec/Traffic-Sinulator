@@ -284,3 +284,11 @@ Bisher fest eingezeichnete orange/rote/dunkelrote Prozentanteile eines Staus ent
 - Eine Null-Durchfluss-Closure zeigt nun die **bisher verstrichene Wartezeit des ältesten noch modellierten Rückstaus** an. Das ist **keine Prognose**, wie lange bis zur Wiederfreigabe gewartet werden muss. Auf Karte, in Staukacheln und in der Richtungsübersicht steht `bisher` neben dem Minutenwert. Keine künstlichen Aufschläge, keine unbegrenzte minutengestützte Stau-Prognose.
 - Der Kartenabschnitt am Ereignis selbst wird bei einer rein administrativen Vollsperrung nicht mehr automatisch rot/dunkelrot übermalt; die vom Zellmodell berechneten Geschwindigkeiten gelten. Vorhandener Rückstau bleibt bis zum echten Abfluss bestehen. Beim Ende der Sperrung verschwindet die Beschränkung, nicht die Fahrzeuge.
 - Die freiwillig aktivierte OSM-Umleitung zieht wie bisher ausschließlich die tatsächlich aufgenommenen Fahrzeuge über ihre eigene Nebenstraßen-Bilanz ab; ein 100-%-Sollwert ist **keine 100-%-Ist-Abfahrt**. Ein vollständig einheitliches Hauptfahrbahn-, Rampen- und Umleitungs-Fahrzeugkonto bleibt eine separate Erweiterung und wird von dieser Korrektur nicht behauptet.
+
+
+## TRAFFIC 1.6.1 – Zeitverlust aus Geschwindigkeiten
+
+- Verzögerung ist **keine Sperrdauer**. Die falsche Anzeige `+N min bisher` anhand der seit Beginn verstrichenen Minuten wurde entfernt.
+- Die zusätzliche Reisezeit wird auf den Hauptfahrbahnen über lokale Verkehrszellen berechnet: `60 × Länge_km × (1/v_lokal − 1/v_frei)`. Jede Zelle trägt ihre tatsächlich berechnete Geschwindigkeit und Streckenlänge bei. Richtungsübersicht und Staukacheln verwenden die gleiche Geschwindigkeitssignalquelle mit jeweils passenden Streckenbereichen.
+- Bei v=0 ist eine endliche Prognose der Weiterfahrt **nicht berechenbar**. Der Simulator zeigt eine blockierte Durchfahrt; zusätzliche Zeitverluste aus den weiterhin fahrenden Zellen erscheinen ausdrücklich als **Mindestwert**. Keine künstlich erfundene Geschwindigkeit und keine Uhrzeit-basierte Vergrößerung der Verzögerung.
+- Die separaten Nebenstraßen- und Rampenmodelle sind noch nicht vollständig an das Hauptfahrbahn-Zellmodell gekoppelt.
