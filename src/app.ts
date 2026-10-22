@@ -4,6 +4,7 @@ import {routeReport} from './network-report.js';
 import {makeCorridors,routeSlice,positionM,advanceSpatial,emptySpatial,jamsAt} from './spatial.js';
 import {colorAtSpeed,physicalSpeedBands,stopAndGoBands,resolveSpeedBands,freeSpeedKmh,type SpeedBand} from './traffic-physics.js';
 import {initialiseCells,advanceCells,cellSpeedBands,type CellRouteState} from './traffic-cells.js';
+import {speedDelayInCells,speedDelayLabel} from './speed-delay.js';
 import {buildRampConnections,rampSpillbacks} from './interchange.js';
 import {DIVERSION_LINKS,CROSS_MOTORWAY_DIVERSION,diversionJunctions,planDiversion,type DiversionLink} from './diversions.js';
 import {junctionMovements,type RealDetourFlow,type JunctionMovement} from './junction-movements.js';
@@ -492,6 +493,16 @@ function updateMapClock(){
   spatialState.minute===0?'Bereit · Minute 0':'Pausiert · Minute '+spatialState.minute;
  state.className='map-clock-status'+(running?' running':'');
 }
+/** Delay means EXTRA TRAVEL TIME from modelled local speeds, not the age
+ * of a closure event. A true zero-speed cell has no finite through-time;
+ * in that case only the loss on still-moving sections is a lower bound.
+ */
+function pathDelayLabel(path:PathKey,fallback:number|null,fromM=0,toM=Infinity):string{
+ const grid=cellNetwork[path];
+ if(grid)return speedDelayLabel(speedDelayInCells(grid,fromM,toM));
+ return fallback===null?'Verzögerung nicht prognostizierbar':
+  '+'+trafficNumber(fallback,1)+' min';
+}
 function renderTraffic(){
  const timeline=activeEvents();
  const selector=$<HTMLSelectElement>('traffic-route');const key=selector.value as PathKey;
@@ -513,12 +524,12 @@ function renderTraffic(){
  $('traffic-queue').textContent=trafficNumber(result.queueVehicles);
  $('traffic-shared').textContent=result.sharedRampVehicles>0?`Abfahrtsstreifen betroffen (${trafficColorName[result.exitColor]}): ${trafficNumber(result.sharedRampVehicles)} Fahrzeuge der Rampenwarteschlange auf dieser Autobahn. Abbieger-Wartezeit: ${result.exitDelayMin===null?'nicht berechenbar':trafficNumber(result.exitDelayMin,1)+' min'}. Kein zusätzlich erzeugter Stau im Durchgangsverkehr.`:'Keine Rampenfahrzeuge auf diesem Abschnitt';
  $('traffic-queue-km').textContent=`${trafficNumber(result.queueKm,2)} km${result.sharedRampVehicles>0&&result.ownVehicles===0?' (Abfahrtsstreifen)':''}`;
- $('traffic-delay').textContent=result.delayMin===null?'Wartezeit noch unbekannt':`${trafficNumber(result.delayMin,1)} min${jams.some(j=>j.pathKey===key&&j.elapsedWait)?' bisher (keine Prognose)':''}${result.sharedRampVehicles>0?' (Durchgangsverkehr)':''}`;
+ $('traffic-delay').textContent=pathDelayLabel(key,result.delayMin)+(result.sharedRampVehicles>0?' · Durchgangsverkehr':'');
  $('traffic-speed').textContent=`ca. ${trafficNumber(result.speedKmh,1)} km/h${result.ownVehicles>0?' (Rückstau)':bn.count>0?' (Ereignisbereich)':' (freie Fahrt)'}`;
  $('traffic-events').textContent=bn.count===0?'Kein eigenes Ereignis auf dieser Richtung – mögliche Rückstauübertragung am AD wird berücksichtigt':
   `${bn.count} eigene(s) Ereignis(se) auf dieser Richtung`;
  const stateLabel=$('traffic-state');stateLabel.textContent=trafficColorName[result.color];stateLabel.className=`traffic-state ${result.color}`;
- $('traffic-closure-note').textContent=bn.event?.kind==='closure'?'Vollsperrung: keine neue Einfahrt hinter die letzte reguläre Ausfahrt. Fahrzeuge, die sich bereits zwischen den AS befinden, fahren weiter, sofern dort kein eigener physischer Engpass liegt. Die Zeitangabe während Stillstand ist die bisher verstrichene Wartezeit, keine Vorhersage der Wiederfreigabe. Eine geprüfte OSM-Umleitung kann den Verkehr begrenzt aufnehmen.':'';
+ $('traffic-closure-note').textContent=bn.event?.kind==='closure'?'Vollsperrung: keine neue Einfahrt hinter die letzte reguläre Ausfahrt. Fahrzeuge innerhalb dürfen weiterfahren, sofern kein zusätzlicher Unfall blockiert. Der Zeitverlust wird aus den Geschwindigkeiten der Verkehrszellen gegenüber freier Fahrt berechnet. Bei 0 km/h gibt es keine berechenbare Ankunftszeit; ein angezeigter Mindestwert betrifft nur noch befahrbare Stauabschnitte.':'';
  const mergeQueues=jams.filter(j=>j.id.startsWith('merge:')&&!j.released);
  const overflowText=spillbacks.map(s=>`${trafficRouteLabel(s.rampId)}: ${trafficNumber(s.lengthM/1000,2)} km Rückstau auf ${trafficRouteLabel(s.source)}`).join(' · ');
  const mergeText=mergeQueues.map(x=>`${trafficRouteLabel(x.pathKey)}: ${trafficNumber(x.queueVehicles)} Fahrzeuge warten wegen Rückstau an der Einmündung`).join(' · ');
@@ -528,7 +539,7 @@ function renderTraffic(){
   const button=document.createElement('button');button.type='button';button.className='traffic-summary-row';
   const label=document.createElement('span');label.textContent=trafficRouteLabel(item);
   const status=document.createElement('strong');status.className=`traffic-state ${m.color}`;
-  status.textContent=`${trafficNumber(m.queueKm,1)} km · ${m.delayMin===null?'Zeit unbestimmt':trafficNumber(m.delayMin,1)+' min'+(jams.some(j=>j.pathKey===item&&j.elapsedWait)?' bisher':'')} · ${trafficNumber(m.speedKmh)} km/h${m.sharedRampVehicles>0?' · Abfahrt '+trafficColorName[m.exitColor].toLowerCase():''}`;
+  status.textContent=`${trafficNumber(m.queueKm,1)} km · ${pathDelayLabel(item,m.delayMin)} · ${trafficNumber(m.speedKmh)} km/h${m.sharedRampVehicles>0?' · Abfahrt '+trafficColorName[m.exitColor].toLowerCase():''}`;
   button.append(label,status);button.setAttribute('aria-label',`${label.textContent}, ${status.textContent}`);
   button.onclick=()=>selectTrafficRoute(item);parent.append(button);
  }
@@ -551,7 +562,8 @@ function renderTraffic(){
    const direction=document.createElement('span');direction.textContent=trafficRouteLabel(jam.pathKey);
    heading.append(eventName,direction);
    const delay=document.createElement('strong');delay.className='jam-card-delay';
-   delay.textContent=jam.delayMin===null?'⛔ Wartezeit offen':`+${trafficNumber(jam.delayMin,1)} min${jam.elapsedWait?' bisher':''}`;
+   delay.textContent=pathDelayLabel(jam.pathKey,jam.delayMin,
+    Math.max(0,jam.anchorM-jam.visibleQueueM),jam.anchorM);
    header.append(marker,heading,delay);
    const metrics=document.createElement('div');metrics.className='jam-card-metrics';
    const length=document.createElement('span');length.textContent=`↔ ${trafficNumber(jam.queueM/1000,2)} km Rückstau`;
@@ -824,7 +836,8 @@ function drawSpatialJams(){
    :jam.pathKey==='A48-dernbach'?'A48 Dernbach':jam.pathKey==='A48-koblenz'?'A48 Koblenz'
    :jam.pathKey==='ramp-a48-to-koeln'?'A48→A3 Köln'
    :jam.pathKey==='ramp-a48-to-frankfurt'?'A48→A3 Ffm':'AD Dernbach Rampe';
-  const delay=jam.delayMin===null?'Zeit offen':`+${trafficNumber(jam.delayMin)} min${jam.elapsedWait?' bisher':''}`;
+  const delay=pathDelayLabel(jam.pathKey,jam.delayMin,
+   Math.max(0,jam.anchorM-jam.visibleQueueM),jam.anchorM);
   const first=`${sign} ${shortDirection} · ${delay}`;
   const second=`${trafficNumber(jam.queueM/1000,1)} km · ${trafficNumber(jam.speedKmh)} km/h`;
   context!.font='600 10px system-ui';
