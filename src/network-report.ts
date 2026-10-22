@@ -21,6 +21,8 @@ export interface RouteReport {
   capacityVph:number;
   /** Minimum modelled local speed on this path, not the full-route average. */
   speedKmh:number;
+  throughSpeedKmh?:number;throughColor?:TrafficColor;
+  dischargeVph?:number;
   /** Traffic on the actual through carriageway. */
   color:TrafficColor;
   /** Independently affected exit lane (not all through lanes). */

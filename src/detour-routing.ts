@@ -3,7 +3,8 @@
  * Official sources are OSM relations identified in the German U-route wiki.
  * An incomplete relation can be filled with a cost-weighted path on existing
  * non-motorway OSM ways (and MUST be marked "simulated OSM connection").
- * Requests occur on user action; no continuous Overpass polling.
+ * Requests occur automatically at congestion or on a manual load; the app
+ * limits concurrency, caches successful routes and backs off after errors.
  */
 import type {Point,Exit,RoadId} from './core.js';
 import {metres} from './spatial.js';
@@ -221,7 +222,7 @@ function roadClassCapacity(ways:readonly OSMWay[]):number{
 export async function loadDetourGeometry(
  link:DiversionLink,from:Exit,to:Exit,fetcher:typeof fetch=fetch
 ):Promise<DetourGeometry>{
- if(from.road!==link.fromRoad||from.ref!==link.fromRef||!to||from.road!==to.road)throw Error('U-Route und Ausfahrten passen nicht');
+ if(from.road!==link.fromRoad||from.ref!==link.fromRef||!to||link.toRoad&&to.road!==link.toRoad)throw Error('U-Route und Ausfahrten passen nicht');
  if(link.toRef!==null&&link.toRef!==to.ref)throw Error('U-Route endet an einer anderen Anschlussstelle');
  const relationId=OFFICIAL_OSM_RELATION_IDS[link.id]??null;
  let official:null|{route:GraphRoute;network:OSMNetwork}=null;

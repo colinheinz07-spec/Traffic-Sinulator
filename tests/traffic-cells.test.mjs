@@ -77,12 +77,12 @@ test('one free lane need not create a jam at very low demand',()=>{
  for(let i=0;i<70;i++)state=advanceCells(state,road,[work],450);
  assert.equal(cellSpeedBands(state).length,0,'low inflow should not build a queue');
 });
-test('cell road treatment leaves ramp and diversion state entirely untouched',()=>{
+test('cell network couples verified detours and retains the separate ramp projection',()=>{
  const src=readFileSync('src/app.ts','utf8');
  assert.match(src,/CELL_PATHS=PATHS\.filter\(key=>!key\.startsWith\('ramp-'\)\)/);
- assert.match(src,/cellNetwork\[key\]=advanceCells/);
+ assert.match(src,/advanceRoutedNetwork\(cellNetwork/);
  const view=readFileSync('src/traffic-view.ts','utf8');
  assert.match(view,/state\?cellSpeedBands\(state\):own\.flatMap/);
  assert.ok(src.includes('view.bands'));
- assert.match(src,/advanceSpatial\(spatialState,timeline,active,1,spatialCorridors,rampConnections,transfers,exits\)/);
+ assert.match(src,/advanceSpatial\(spatialState,timeline,active,1,spatialCorridors,rampConnections,transfers,exits(?:,physicalMainline)?\)/);
 });

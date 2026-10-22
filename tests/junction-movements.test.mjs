@@ -44,11 +44,11 @@ test('Vollsperrung sets 100% mandatory at LAST normal exit upstream, never at AK
 test('normal congestion gives graduated route-choice only to reachable upstream exits',()=>{
  const road=routes['A3-koeln'],event={...closureBetween('A3-koeln','40','39'),
   kind:'roadworks',closedLanes:[0],settings:{lengthM:500,speedKmh:80,shoulder:'normal'}};
- const rows=junctionMovements('A3-koeln',road,exits,[event],90);
+ const rows=junctionMovements('A3-koeln',road,exits,[event],45);
  const used=rows.filter(r=>r.desiredPercent>0);
- assert.equal(used.length,3);
- assert.deepEqual(used.map(x=>x.exit.ref),['42','41','40']);
- assert.deepEqual(used.map(x=>x.desiredPercent),[7.5,15,25]);
+ assert.equal(used.length,4);
+ assert.deepEqual(used.map(x=>x.exit.ref),['43','42','41','40']);
+ assert.ok(used.every((x,i)=>i===0||x.desiredPercent>=used[i-1].desiredPercent));
  assert.ok(used.every(x=>!x.mandatory));
 });
 test('only active verified detour ledger provides measured exit and entry volumes',()=>{

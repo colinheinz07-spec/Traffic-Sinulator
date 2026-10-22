@@ -28,13 +28,13 @@ export function junctionMovements(path, route, exits, events, delayMin, real = [
         }
         else {
             // The percentage is an explicitly modelled route-choice desire, NOT actual
-            // diverted volume. Only the nearest three relevant exits are considered.
+            // diverted volume. All reachable upstream exits are considered.
             const desired = potentialDiversionPercent(delayMin, false) ?? 0;
-            for (let i = 0; i < Math.min(3, upstream.length); i++) {
+            for (let i = 0; i < upstream.length; i++) {
                 const row = upstream[i];
                 if (row.mandatory)
                     continue;
-                const estimate = Math.round(desired * [1, .60, .30][i] * 10) / 10;
+                const estimate = desired >= 95 ? desired : Math.round(desired * Math.max(.25, 1 - i * .15) * 10) / 10;
                 if (estimate <= row.desiredPercent)
                     continue;
                 row.desiredPercent = estimate;
@@ -42,10 +42,12 @@ export function junctionMovements(path, route, exits, events, delayMin, real = [
             }
         }
     }
-    for (const flow of real.filter(f => f.path === path)) {
-        const from = rows.find(r => !r.exit.isInterchange && Math.abs(r.exit.metre - flow.fromM) <= 25);
-        const to = rows.find(r => !r.exit.isInterchange && Math.abs(r.exit.metre - flow.toM) <= 25);
+    for (const flow of real) {
+        const from = flow.path === path ? rows.find(r => !r.exit.isInterchange && Math.abs(r.exit.metre - flow.fromM) <= 25) : undefined;
+        const to = (flow.targetPath ?? flow.path) === path ? rows.find(r => !r.exit.isInterchange && Math.abs(r.exit.metre - flow.toM) <= 25) : undefined;
         if (from) {
+            if (!from.mandatory && flow.desiredPercent !== undefined)
+                from.desiredPercent = flow.desiredPercent;
             from.outVph += flow.outVph;
             from.vehiclesOnDetour += flow.vehiclesOnDetour;
             from.validatedRouteActive = true;

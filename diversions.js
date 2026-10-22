@@ -62,16 +62,16 @@ export function potentialDiversionPercent(delayMin, required) {
     if (delayMin === null || !Number.isFinite(delayMin) || delayMin < 0)
         return 0;
     const anchors = [
-        [0, 0], [30, .5], [45, 3], [60, 9], [90, 25], [120, 35]
+        [0, 0], [5, 2], [10, 8], [20, 22], [30, 40], [45, 65], [60, 82], [90, 95], [120, 100]
     ];
     for (let i = 1; i < anchors.length; i++) {
         const [end, to] = anchors[i], [begin, from] = anchors[i - 1];
         if (delayMin <= end)
             return Math.round((from + (to - from) * (delayMin - begin) / (end - begin)) * 10) / 10;
     }
-    return 35;
+    return 100;
 }
-export function planDiversion(event, route, exits, delayMin, maxOptions = 3) {
+export function planDiversion(event, route, exits, delayMin, maxOptions = Infinity) {
     if (route.key !== event.pathKey || route.key.startsWith('ramp-'))
         return null;
     const path = route.key;

@@ -94,7 +94,7 @@ export function trafficView(legacy, cells, corridors, events, spills, minute) {
                 pathKey: path, eventKind: event?.kind ?? null, point, anchorM: group.toM,
                 queueVehicles: vehicles, queueM: group.toM - group.fromM + feederM,
                 visibleQueueM: group.toM - group.fromM, delayMin: delay.blocked ? null : delay.delayMin,
-                capacityVph: root?.capacityVph ?? 0, speedKmh, color: colorAtSpeed(speedKmh),
+                capacityVph: state?.capacityVph ?? root?.capacityVph ?? 0, speedKmh, color: colorAtSpeed(speedKmh),
                 released: root?.released ?? false, outOfBoundsM: 0, delay, feederM });
         }
         let delay = state ? speedDelayInCells(state) : speedDelayInBands(path, mapped);
@@ -109,7 +109,9 @@ export function trafficView(legacy, cells, corridors, events, spills, minute) {
             lengthM([...queueBands, ...(spillBands.get(path) ?? [])]);
         reports[path] = { ...base, queueKm: queueM / 1000,
             ...(state ? { ownVehicles, queueVehicles: ownVehicles + base.sharedRampVehicles } : {}),
-            delayMin: delay.blocked ? null : delay.delayMin, speedKmh, color: colorAtSpeed(speedKmh) };
+            delayMin: delay.blocked ? null : delay.delayMin, speedKmh, color: colorAtSpeed(speedKmh),
+            throughSpeedKmh: speedKmh, throughColor: colorAtSpeed(speedKmh),
+            capacityVph: state?.capacityVph ?? base.capacityVph, dischargeVph: state?.dischargeVph };
         delays[path] = delay;
     }
     // Through traffic and motorists joining a backed-up exit retain separate
@@ -119,6 +121,9 @@ export function trafficView(legacy, cells, corridors, events, spills, minute) {
         if (shared.length) {
             reports[path].exitDelayMin = shared.some(d => d.blocked) ? null : Math.max(...shared.map(d => d.delayMin));
             reports[path].exitColor = colorAtSpeed(Math.min(freeSpeedKmh(path), ...(spillBands.get(path) ?? []).map(b => b.speedKmh)));
+            const exitSpeed = Math.min(freeSpeedKmh(path), ...(spillBands.get(path) ?? []).map(b => b.speedKmh));
+            reports[path].speedKmh = Math.min(reports[path].speedKmh, exitSpeed);
+            reports[path].color = colorAtSpeed(reports[path].speedKmh);
         }
     }
     return { jams, bands, spillBands, reports, delays };

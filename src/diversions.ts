@@ -89,17 +89,17 @@ export interface DiversionPlan {
 export function potentialDiversionPercent(delayMin:number|null,required:boolean):number|null{
  if(required)return null;
  if(delayMin===null||!Number.isFinite(delayMin)||delayMin<0)return 0;
- const anchors:[[number,number],[number,number],[number,number],[number,number],[number,number],[number,number]]=[
-  [0,0],[30,.5],[45,3],[60,9],[90,25],[120,35]
+ const anchors:readonly (readonly [number,number])[]=[
+  [0,0],[5,2],[10,8],[20,22],[30,40],[45,65],[60,82],[90,95],[120,100]
  ];
  for(let i=1;i<anchors.length;i++){
   const [end,to]=anchors[i]!, [begin,from]=anchors[i-1]!;
   if(delayMin<=end)return Math.round((from+(to-from)*(delayMin-begin)/(end-begin))*10)/10;
  }
- return 35;
+ return 100;
 }
 export function planDiversion(event:SimEvent,route:Corridor,exits:readonly Exit[],
- delayMin:number|null,maxOptions=3):DiversionPlan|null{
+ delayMin:number|null,maxOptions=Infinity):DiversionPlan|null{
  if(route.key!==event.pathKey||route.key.startsWith('ramp-'))return null;
  const path=route.key as RoadId;
  const at=positionM(route,event.point,100);

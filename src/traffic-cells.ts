@@ -1,7 +1,7 @@
 /** Experimental first-order cell-transmission traffic on real OSM carriageways.
- * This is a SEPARATE mass-conserving traffic ledger. Only its local SPEED
- * is used for motorway shading until the legacy node/ramps/detours solver
- * can be switched to the same ledger without double counting.
+ * Mainline cells and verified detours share mass-conserving transfers. Their
+ * local speeds determine map shading, queue lengths and travel-time loss.
+ * The legacy AD ramp turn-demand solver remains a separate approximation.
  *
  * Model: triangular fundamental diagram, homogeneous 450-500m cells,
  * 10-second time steps (CFL safe at up to 120km/h), deterministic fluxes.
@@ -12,6 +12,7 @@ import type {Exit} from './core.js';
 import {positionM,closureGate} from './spatial.js';
 import type {SimEvent} from './events.js';
 import {baselineCapacity,eventCapacity,type PathKey,type TrafficColor} from './traffic.js';
+import {flowPolicy} from './events.js';
 import {colorAtSpeed,freeSpeedKmh} from './traffic-physics.js';
 
 export interface TrafficCell {
@@ -20,7 +21,14 @@ export interface TrafficCell {
 export interface CellRouteState {
  pathKey:PathKey;minute:number;cellM:number;cells:TrafficCell[];
  backlog:number;initialVehicles:number;offeredTotal:number;exitedTotal:number;
+ divertedTotal?:number;rejoinedTotal?:number;lastTransfers?:CellTransfer[];
+ dischargeVph?:number;capacityVph?:number;
 }
+export interface CellDetourPort {
+ id:string;fromM:number|null;toM:number|null;interestPercent:number;
+ exitCapacityVph:number;returnVehicles:number;
+}
+export interface CellTransfer {id:string;leaveVpm:number;joinVpm:number}
 export interface CellSpeedBand {fromM:number;toM:number;speedKmh:number;color:TrafficColor;source:'cell'}
 const SUBSTEPS=6,DT_MIN=1/SUBSTEPS,WAVE_KMH=22,JAM_PER_LANE=95;
 export function cellLanes(path:PathKey):number{
@@ -47,8 +55,8 @@ export function cellInventory(state:CellRouteState):number{
  return state.backlog+state.cells.reduce((s,c)=>s+c.vehicles,0);
 }
 export function assertCellConservation(state:CellRouteState):void{
- const lhs=cellInventory(state)+state.exitedTotal;
- const rhs=state.initialVehicles+state.offeredTotal;
+ const lhs=cellInventory(state)+state.exitedTotal+(state.divertedTotal??0);
+ const rhs=state.initialVehicles+state.offeredTotal+(state.rejoinedTotal??0);
  const tolerance=1e-5*Math.max(1,rhs);
  if(!Number.isFinite(lhs)||!Number.isFinite(rhs)||Math.abs(lhs-rhs)>tolerance)
   throw Error('Zellmodell hat Fahrzeuge verloren oder dupliziert');
@@ -57,6 +65,7 @@ function localControls(route:Corridor,events:readonly SimEvent[],demandVph:numbe
  const free=freeSpeedKmh(route.key),laneCount=cellLanes(route.key);
  const speeds=Array(count).fill(free) as number[];
  const faceCapacity=Array(count+1).fill(Infinity) as number[];
+ const releases:{face:number;event:SimEvent;maximum:number}[]=[];
  for(const event of events){
   if(event.pathKey!==route.key)continue;
   const at=positionM(route,event.point);
@@ -77,45 +86,114 @@ function localControls(route:Corridor,events:readonly SimEvent[],demandVph:numbe
   }
   const face=Math.max(1,Math.min(count,Math.round((from+Math.min(150,event.settings.lengthM))/cellM)));
   faceCapacity[face]=Math.min(faceCapacity[face]!,eventCapacity(event,demandVph));
+  const policy=flowPolicy(event);
+  if(event.closedLanes.length&&policy.openMainLanes>0)
+   releases.push({face,event,maximum:1800*(policy.openMainLanes+(event.settings.shoulder==='open'?.65:0))});
  }
  const jam=JAM_PER_LANE*laneCount;
  const capacity=speeds.map(v=>Math.min(baselineCapacity(route.key),v*WAVE_KMH*jam/(v+WAVE_KMH)));
- return {speeds,capacity,faceCapacity,jam};
+ return {speeds,capacity,faceCapacity,jam,releases};
+}
+/** Driver/platoon discharge at an occupied lane bottleneck. This modulates
+ * actual transferred vehicles, never just map colors. Mean service stays
+ * near the sustained capacity; short braking phases and larger releases
+ * create density waves that propagate through the conserved cell fluxes.
+ */
+export function platoonServiceFactor(id:string,minute:number):number{
+ let seed=0;for(const c of id)seed=(Math.imul(seed,31)+c.charCodeAt(0))>>>0;
+ const phase=minute/3.4+(seed%997)/997+.14*Math.sin(minute*.37+(seed%31));
+ return phase-Math.floor(phase)<.16?.25:1.14;
 }
 /** Advance exactly one model minute, including six stable 10-second updates.
  * Domain demand not admitted at the map entry is retained in backlog.
  * Outflow is discharged at the far end. No arbitrary time-loss surcharges.
  */
 export function advanceCells(previous:CellRouteState,route:Corridor,events:readonly SimEvent[],
- demandVph:number,exits:readonly Exit[]=[]):CellRouteState{
+ demandVph:number,exits:readonly Exit[]=[],ports:readonly CellDetourPort[]=[]):CellRouteState{
  if(previous.pathKey!==route.key||!Number.isFinite(demandVph)||demandVph<0||demandVph>8000)
   throw Error('Zellmodell: Richtung oder Zufluss ungültig');
  const n=previous.cells.length,dx=previous.cellM/1000;
  const controls=localControls(route,events,demandVph,n,previous.cellM,exits);
- const {speeds,capacity,faceCapacity,jam}=controls;
+ const {speeds,capacity,faceCapacity,jam,releases}=controls;
+ const routed=ports.map(port=>{
+  if(!((port.fromM===null||port.fromM>=0&&port.fromM<route.lengthM)&&
+   (port.toM===null||port.toM>=0&&port.toM<=route.lengthM)&&
+   (port.fromM===null||port.toM===null||port.toM>port.fromM)&&
+   Number.isFinite(port.interestPercent)&&port.interestPercent>=0&&port.interestPercent<=100&&
+   Number.isFinite(port.exitCapacityVph)&&port.exitCapacityVph>=0&&
+   Number.isFinite(port.returnVehicles)&&port.returnVehicles>=0))throw Error('Ungültiger Umleitungsanschluss');
+  return {...port,from:port.fromM===null?-1:Math.max(1,Math.min(n-1,Math.round(port.fromM/previous.cellM))),
+   to:port.toM===null?-1:Math.max(1,Math.min(n-1,Math.round(port.toM/previous.cellM))),left:0,joined:0};
+ });
  const occupancy=previous.cells.map(c=>c.vehicles);
  let backlog=previous.backlog,offeredTotal=previous.offeredTotal,exitedTotal=previous.exitedTotal;
  const cumulativeOut=Array(n).fill(0) as number[];
+ const through=Array(n+1).fill(0) as number[];
  for(let sub=0;sub<SUBSTEPS;sub++){
   const density=occupancy.map(x=>x/dx);
   const send=density.map((k,i)=>Math.min(speeds[i]!*k,capacity[i]!)*DT_MIN/60);
+  // Slow-to-start/platoon reaction inside an ACTUAL dense queue. The
+  // bottleneck signal travels upstream at finite wave speed and limits
+  // actual sending flow. Released gaps and braking packets therefore
+  // change cell vehicle counts, local speeds and subsequent queue length.
+  for(let i=0;i<n;i++){
+   if(density[i]!<=jam*WAVE_KMH/(freeSpeedKmh(route.key)+WAVE_KMH)*1.15)continue;
+   const next=releases.filter(r=>r.face>i).sort((a,b)=>a.face-b.face)[0];
+   if(!next)continue;
+   const distance=(next.face-i-.5)*previous.cellM;
+   const signal=previous.minute+sub*DT_MIN-distance/(WAVE_KMH*1000/60);
+   const reaction=platoonServiceFactor(next.event.id,signal)<1?.25:1;
+   send[i]=Math.min(send[i]!,capacity[i]!*reaction*DT_MIN/60);
+  }
   const receive=density.map((k,i)=>Math.min(WAVE_KMH*Math.max(0,jam-k),capacity[i]!)*DT_MIN/60);
   const face=Array(n+1).fill(0) as number[];
+  const leaving=Array(n).fill(0) as number[],joining=Array(n).fill(0) as number[];
+  const currentCapacity=[...faceCapacity];
+  for(const release of releases){
+   const densityBefore=density[release.face-1]??0;
+   if(densityBefore>jam*WAVE_KMH/(freeSpeedKmh(route.key)+WAVE_KMH)*1.15){
+    currentCapacity[release.face]=Math.min(currentCapacity[release.face]!*platoonServiceFactor(
+     release.event.id,previous.minute+sub*DT_MIN),release.maximum);
+   }
+  }
   const arrived=demandVph/60*DT_MIN;
   offeredTotal+=arrived;
   const available=arrived+backlog;
   face[0]=Math.min(available,receive[0]!);
   backlog=Math.max(0,available-face[0]!);
   for(let i=1;i<n;i++){
-   face[i]=Math.min(send[i-1]!,receive[i]!,faceCapacity[i]!*DT_MIN/60);
+   const departures=routed.filter(p=>p.from===i&&p.interestPercent>0);
+   const fraction=Math.min(1,departures.reduce((s,p)=>s+p.interestPercent/100,0));
+   const totalInterest=departures.reduce((s,p)=>s+p.interestPercent,0);
+   for(const p of departures){
+    const requested=send[i-1]!*fraction*p.interestPercent/totalInterest;
+    const accepted=Math.min(requested,p.exitCapacityVph*DT_MIN/60,
+     Math.max(0,p.exitCapacityVph/60-p.left));
+    p.left+=accepted;leaving[i-1]+=accepted;
+   }
+   const mainSend=send[i-1]!*(1-fraction);
+   const returns=routed.filter(p=>p.to===i&&p.returnVehicles-p.joined>1e-9);
+   const mergeDemand=returns.reduce((s,p)=>s+Math.min(p.returnVehicles-p.joined,1200*DT_MIN/60),0);
+   const room=Math.min(receive[i]!,currentCapacity[i]!*DT_MIN/60);
+   let main=Math.min(mainSend,room),merge=0;
+   if(mergeDemand>0){
+    merge=Math.min(mergeDemand,room*.22);main=Math.min(mainSend,room-merge);
+    merge=Math.min(mergeDemand,room-main);
+   }
+   for(const p of returns){
+    const accepted=merge*Math.min(p.returnVehicles-p.joined,1200*DT_MIN/60)/mergeDemand;
+    p.joined+=accepted;joining[i]+=accepted;
+   }
+   face[i]=main;
   }
-  face[n]=Math.min(send[n-1]!,faceCapacity[n]!*DT_MIN/60);
+  face[n]=Math.min(send[n-1]!,currentCapacity[n]!*DT_MIN/60);
   exitedTotal+=face[n]!;
   for(let i=0;i<n;i++){
-   occupancy[i]=Math.max(0,occupancy[i]!+face[i]!-face[i+1]!);
-   cumulativeOut[i]+=face[i+1]!;
+   occupancy[i]=Math.max(0,occupancy[i]!+face[i]!+joining[i]!-face[i+1]!-leaving[i]!);
+   cumulativeOut[i]+=face[i+1]!+leaving[i]!;
    if(occupancy[i]>jam*dx+1e-5)throw Error('Zellmodell: Speicherdichte überschritten');
   }
+  for(let i=0;i<=n;i++)through[i]+=face[i]!;
  }
  const cells=previous.cells.map((c,i)=>{
   const densityVehKm=occupancy[i]!/dx;
@@ -127,7 +205,13 @@ export function advanceCells(previous:CellRouteState,route:Corridor,events:reado
   return {...c,vehicles:occupancy[i]!,flowVph:outflowVph,
    speedKmh:Math.max(0,speedKmh),densityVehKm};
  });
- const next={...previous,cells,minute:previous.minute+1,backlog,offeredTotal,exitedTotal};
+ const limiting=faceCapacity.reduce((best,c,i)=>c<faceCapacity[best]!?i:best,0);
+ const next={...previous,cells,minute:previous.minute+1,backlog,offeredTotal,exitedTotal,
+  divertedTotal:(previous.divertedTotal??0)+routed.reduce((s,p)=>s+p.left,0),
+  rejoinedTotal:(previous.rejoinedTotal??0)+routed.reduce((s,p)=>s+p.joined,0),
+  lastTransfers:routed.map(p=>({id:p.id,leaveVpm:p.left,joinVpm:p.joined})),
+  dischargeVph:through[Number.isFinite(faceCapacity[limiting])?limiting:n]!*60,
+  capacityVph:Math.min(baselineCapacity(route.key),...faceCapacity)};
  assertCellConservation(next);return next;
 }
 /** Display colors only where actual congested density exists; not an

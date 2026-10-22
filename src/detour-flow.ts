@@ -8,6 +8,7 @@ import type {DetourGeometry} from './detour-routing.js';
 import type {SpatialTransfer} from './spatial.js';
 export interface DetourConfig {
  id:string;path:RoadId;fromM:number;toM:number;eventId:string;geometry:DetourGeometry;
+ targetPath?:RoadId;sourceEndM?:number;targetEntryM?:number;
 }
 export interface InTransit {minute:number;vehicles:number}
 export interface DetourState {
@@ -15,7 +16,7 @@ export interface DetourState {
  admittedTotal:number;returnedTotal:number;lastDeparture:number;lastRejoined:number;
 }
 export function emptyDetour(config:DetourConfig):DetourState{
- if(!(config.toM>config.fromM)||config.id!==config.geometry.id||config.path!==config.geometry.path)
+ if(!(config.targetPath&&config.targetPath!==config.path?config.toM>=0:config.toM>config.fromM)||config.id!==config.geometry.id||config.path!==config.geometry.path)
   throw Error('Umleitungsanschlüsse ungültig oder falsche Richtung');
  return {id:config.id,minute:0,waitingRoad:0,waitingMerge:0,transit:[],admittedTotal:0,returnedTotal:0,
   lastDeparture:0,lastRejoined:0};

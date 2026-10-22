@@ -118,7 +118,7 @@ export function mergeSupplyVph(ramp, targetCapacityVph, targetDemandVph, rampDem
     const supplyRatio = Math.min(1, targetCapacityVph / Math.max(targetCapacityVph, targetDemandVph));
     return Math.min(baselineCapacity(ramp), Math.round(Math.max(defaultDemand(ramp), rampDemandVph) * supplyRatio));
 }
-export function advanceSpatial(prev, events, demands, minutes, corridors, links = [], transfers = [], exits = []) {
+export function advanceSpatial(prev, events, demands, minutes, corridors, links = [], transfers = [], exits = [], physicalMainline) {
     if (!Number.isInteger(minutes) || minutes < 1 || minutes > 60)
         throw Error('Ungültiger Simulations-Zeitschritt');
     const current = {};
@@ -127,7 +127,8 @@ export function advanceSpatial(prev, events, demands, minutes, corridors, links 
             current[id] = { ...q };
     // Each minute calculates junction supply from the ACTUAL queued vehicles.
     for (let tick = 0; tick < minutes; tick++) {
-        const existing = links.length ? jamsAt({ minute: prev.minute + tick, queues: current }, events, corridors) : [];
+        const raw = links.length ? jamsAt({ minute: prev.minute + tick, queues: current }, events, corridors) : [];
+        const existing = physicalMainline === undefined ? raw : [...raw.filter(j => j.pathKey.startsWith('ramp-')), ...physicalMainline];
         for (const key of PATHS) {
             const volume = demands[key];
             if (!Number.isFinite(volume) || volume < 0 || volume > 8000)

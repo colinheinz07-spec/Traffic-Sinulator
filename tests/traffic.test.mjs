@@ -125,5 +125,5 @@ test('traffic volume can peak then decline, creating a queue plateau without a f
  assert.equal(demandAtMinute(d,250,'constant')['A3-koeln'],d['A3-koeln']);
  const page=readFileSync('index.html','utf8'),app=readFileSync('src/app.ts','utf8');
  assert.match(page,/id="traffic-demand-mode"/);assert.match(page,/value="constant"/);
- assert.match(app,/advanceSpatial\(spatialState,timeline,active,1,spatialCorridors,rampConnections,transfers,exits\)/);
+ assert.match(app,/advanceSpatial\(spatialState,timeline,active,1,spatialCorridors,rampConnections,transfers,exits(?:,physicalMainline)?\)/);
 });

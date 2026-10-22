@@ -130,6 +130,10 @@ test('ramp cards include the actual feeder overflow and their braking approach',
  assert.ok(card.delay.delayMin>0);
  assert.equal(result.reports[spills[0].source].exitDelayMin,result.delays[ramp].delayMin);
  assert.equal(result.delays[spills[0].source].delayMin,0,'the backed-up exit is not through-traffic delay');
+ assert.equal(result.reports[spills[0].source].color,'standstill','overall status must acknowledge the mapped exit queue');
+ assert.equal(result.reports[spills[0].source].throughColor,'free');
+ assert.equal(result.reports[spills[0].source].throughSpeedKmh,100);
+ assert.ok(result.reports[spills[0].source].speedKmh<=10);
 });
 test('ramp approach is included even for a short queue which has no overflow',()=>{
  const ramp='ramp-a48-to-frankfurt',road=corridors[ramp],anchor=road.lengthM*.75;

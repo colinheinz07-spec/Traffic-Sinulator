@@ -113,13 +113,14 @@ export function mergeSupplyVph(ramp:PathKey,targetCapacityVph:number,targetDeman
  const supplyRatio=Math.min(1,targetCapacityVph/Math.max(targetCapacityVph,targetDemandVph));
  return Math.min(baselineCapacity(ramp),Math.round(Math.max(defaultDemand(ramp),rampDemandVph)*supplyRatio));
 }
-export function advanceSpatial(prev:SpatialState,events:readonly SimEvent[],demands:Readonly<Record<PathKey,number>>,minutes:number,corridors:Record<PathKey,Corridor>,links:readonly RampConnection[]=[],transfers:readonly SpatialTransfer[]=[],exits:readonly Exit[]=[]):SpatialState{
+export function advanceSpatial(prev:SpatialState,events:readonly SimEvent[],demands:Readonly<Record<PathKey,number>>,minutes:number,corridors:Record<PathKey,Corridor>,links:readonly RampConnection[]=[],transfers:readonly SpatialTransfer[]=[],exits:readonly Exit[]=[],physicalMainline?:readonly Jam[]):SpatialState{
  if(!Number.isInteger(minutes)||minutes<1||minutes>60)throw Error('Ungültiger Simulations-Zeitschritt');
  const current:Record<string,QueuedAt>={};
  for(const [id,q] of Object.entries(prev.queues))if(q.vehicles>1e-6)current[id]={...q};
  // Each minute calculates junction supply from the ACTUAL queued vehicles.
  for(let tick=0;tick<minutes;tick++){
-  const existing=links.length?jamsAt({minute:prev.minute+tick,queues:current},events,corridors):[];
+  const raw=links.length?jamsAt({minute:prev.minute+tick,queues:current},events,corridors):[];
+  const existing=physicalMainline===undefined?raw:[...raw.filter(j=>j.pathKey.startsWith('ramp-')),...physicalMainline];
   for(const key of PATHS){
   const volume=demands[key];if(!Number.isFinite(volume)||volume<0||volume>8000)throw Error('Ungültiger Zufluss');
   const route=corridors[key];

@@ -254,7 +254,7 @@ function roadClassCapacity(ways) {
     return primary > share.length * .65 ? 1100 : 700;
 }
 export async function loadDetourGeometry(link, from, to, fetcher = fetch) {
-    if (from.road !== link.fromRoad || from.ref !== link.fromRef || !to || from.road !== to.road)
+    if (from.road !== link.fromRoad || from.ref !== link.fromRef || !to || link.toRoad && to.road !== link.toRoad)
         throw Error('U-Route und Ausfahrten passen nicht');
     if (link.toRef !== null && link.toRef !== to.ref)
         throw Error('U-Route endet an einer anderen Anschlussstelle');

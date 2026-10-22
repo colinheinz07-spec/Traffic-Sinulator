@@ -74,11 +74,11 @@ test('partial/unknown road geometries cannot be silently treated as drivable det
  const complete=DIVERSION_LINKS.filter(x=>x.evidence==='named-endpoints');
  assert.ok(complete.every(x=>x.toRef!==null));
 });
-test('delay response is increasing but conservatively capped, closures are not a percentage',()=>{
+test('delay response reaches full diversion at extreme delay, closures remain mandatory',()=>{
  assert.equal(potentialDiversionPercent(0,false),0);
  assert.ok(potentialDiversionPercent(45,false)>potentialDiversionPercent(15,false));
  assert.ok(potentialDiversionPercent(90,false)>potentialDiversionPercent(45,false));
- assert.equal(potentialDiversionPercent(500,false),35);
+ assert.equal(potentialDiversionPercent(500,false),100);
  assert.equal(potentialDiversionPercent(100,true),null);
  assert.equal(potentialDiversionPercent(null,false),0);
 });
@@ -100,5 +100,5 @@ test('UI exposes OSM route planner and activation only after geometry verificati
  assert.match(html,/OSM-Straßenverbindung online/i);
  assert.match(app,/renderDiversionPlanner\(key,jams,spillbacks\)/);
  assert.match(app,/planDiversion\(event,corridor,exits,traffic\.delayMin\)/);
- assert.match(app,/loadDetourGeometry\(link,option.exit,target\)/);
+ assert.match(app,/loadDetourGeometry\(option.link,option.from,option.to\)/);
 });

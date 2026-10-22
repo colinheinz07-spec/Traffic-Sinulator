@@ -122,11 +122,11 @@ test('an arriving local-road platoon rejoins AFTER an incident',()=>{
   [{id:'test',path:'A3-koeln',fromM,toM,leaveVpm:4,joinVpm:3}]);
  assert.ok(withTraffic.queues.works.vehicles<without.queues.works.vehicles);
 });
-test('SPCK controls clearly label OSM-fetched routes and require activation',()=>{
+test('SPCK loads verified OSM routes automatically and keeps manual controls',()=>{
  const page=readFileSync('index.html','utf8'),app=readFileSync('src/app.ts','utf8');
- assert.match(page,/TRAFFIC 1\.6\.2/);
+ assert.match(page,/TRAFFIC 1\.7\.0/);
  assert.match(page,/OSM-Straßenverbindung online/);
- assert.match(app,/loadDetourGeometry\(link,option.exit,target\)/);
- assert.match(app,/advanceSpatial\(spatialState,timeline,active,1,spatialCorridors,rampConnections,transfers,exits\)/);
+ assert.match(app,/loadDetourGeometry\(option.link,option.from,option.to\)/);
+ assert.match(app,/advanceSpatial\(spatialState,timeline,active,1,spatialCorridors,rampConnections,transfers,exits(?:,physicalMainline)?\)/);
  assert.match(app,/Umleitung aktivieren/);
 });

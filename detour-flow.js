@@ -1,5 +1,5 @@
 export function emptyDetour(config) {
-    if (!(config.toM > config.fromM) || config.id !== config.geometry.id || config.path !== config.geometry.path)
+    if (!(config.targetPath && config.targetPath !== config.path ? config.toM >= 0 : config.toM > config.fromM) || config.id !== config.geometry.id || config.path !== config.geometry.path)
         throw Error('Umleitungsanschlüsse ungültig oder falsche Richtung');
     return { id: config.id, minute: 0, waitingRoad: 0, waitingMerge: 0, transit: [], admittedTotal: 0, returnedTotal: 0,
         lastDeparture: 0, lastRejoined: 0 };
