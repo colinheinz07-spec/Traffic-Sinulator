@@ -14,7 +14,7 @@ import { emptyDetour, detourVehicles } from './detour-flow.js';
 import { decodeEvents, eventFromHit, updatedEvent, eventNames, eventSymbols, eventSummary, defaultLengthM, maxLengthM, suggestedSpeed, STORAGE_KEY, isEventKind, validEvent, effectiveEventsAt, eventScheduleStatus } from './events.js';
 import { roadLaneInfo, rampLaneInfo } from './lane-info.js';
 import { mapCandidates, chooseMapHits, closestJunction, lanePositions, hitLabel } from './selection.js';
-import { buildContinuousRoads, lineWidths, rampBadges, overlaps } from './cartography.js';
+import { buildContinuousRoads, lineWidths, rampBadges, layoutJunctionLabels } from './cartography.js';
 import { placeJamCallout } from './map-callouts.js';
 import { installScheduleForm } from './schedule-form.js';
 import { DIRECTIONS, validateMap, names, mercator, inverse } from './core.js';
@@ -33,6 +33,7 @@ const drawnRoads = buildContinuousRoads(allRoads);
 const spatialCorridors = makeCorridors(allRoads, ramps);
 const rampConnections = buildRampConnections(ramps, spatialCorridors);
 let badges = [];
+let junctionLabels = [];
 const pointerPositions = new Map();
 let pointerDown = null;
 let selected = null;
@@ -495,9 +496,9 @@ function renderJunctionMovements(path) {
             const note = document.createElement('span');
             note.className = 'junction-note';
             note.textContent = row.mandatory ?
-                '⛔ Letzte reguläre Ausfahrt vor der Vollsperrung: 100 % sollen abfahren. Erst bei aktivierter OSM-Umleitung entsteht tatsächlicher Abfluss; sonst stauen sich die Fahrzeuge vor der Sperrung.' :
+                '⛔ Letzte reguläre Ausfahrt vor der Vollsperrung: 100 % sollen abfahren. Die tatsächliche Abfahrt wird durch die Kapazität von Ausfahrt und Nebenstraßen begrenzt.' :
                 row.validatedRouteActive ?
-                    'OSM-Route aktiv · ' + trafficNumber(row.vehiclesOnDetour) + ' Fzg unterwegs/wartend · ' + trafficNumber(row.waitingAtReentry) + ' vor Wiedereinfädelung' :
+                    'Umleitung aktiv · ' + trafficNumber(row.vehiclesOnDetour) + ' Fzg unterwegs/wartend · ' + trafficNumber(row.waitingAtReentry) + ' vor Wiedereinfädelung' :
                     row.desiredPercent > 0 ? 'Unverbindlicher Umfahrungswunsch aufgrund des geschätzten Zeitverlusts; noch keine Abfahrten erfasst.' :
                         'Keine Ereignis-Umleitung an dieser Anschlussstelle; normale Ein-/Ausfahrten noch nicht als eigene Ströme simuliert.';
             card.append(note);
@@ -972,17 +973,18 @@ function stroke(points, width, color) {
     context.stroke();
 }
 function plotLabels(width, height) {
-    if (zoom < 11)
-        return;
-    const labels = [];
-    const sorted = [...exits].sort((a, b) => {
-        const pa = toScreen(a.position), pb = toScreen(b.position);
-        return Math.hypot(pa[0] - width / 2, pa[1] - height / 2) - Math.hypot(pb[0] - width / 2, pb[1] - height / 2);
+    const bounds = canvas.getBoundingClientRect();
+    const obstacles = Array.from(wrapper.querySelectorAll('.map-status,.map-controls,.legend')).map(element => {
+        const r = element.getBoundingClientRect();
+        return { x: r.left - bounds.left, y: r.top - bounds.top, w: r.width, h: r.height };
     });
-    for (const exit of sorted) {
-        const [x, y] = toScreen(exit.position);
-        if (x < 14 || x > width - 14 || y < 55 || y > height - 44)
-            continue;
+    for (const event of activeEvents()) {
+        const [x, y] = toScreen(event.point);
+        obstacles.push({ x: x - 24, y: y - 24, w: 48, h: 48 });
+    }
+    context.font = '600 10px system-ui';
+    junctionLabels = layoutJunctionLabels(exits, toScreen, { width, height }, zoom, text => context.measureText(text).width, obstacles);
+    for (const { point: [x, y], text, box } of junctionLabels) {
         context.beginPath();
         context.arc(x, y, 3.4, 0, 2 * Math.PI);
         context.fillStyle = '#09283d';
@@ -990,25 +992,20 @@ function plotLabels(width, height) {
         context.strokeStyle = '#f3f8fc';
         context.lineWidth = 1.3;
         context.stroke();
-        if (zoom < 12.1)
-            continue;
-        const label = `${exit.road} ${exit.ref} · ${exit.name}`;
-        context.font = '600 11px system-ui';
-        const wide = context.measureText(label).width;
-        const choices = [
-            { x: x + 8, y: y - 23, w: wide + 10, h: 17 }, { x: x + 8, y: y + 7, w: wide + 10, h: 17 },
-            { x: x - wide - 18, y: y - 23, w: wide + 10, h: 17 }, { x: x - wide - 18, y: y + 7, w: wide + 10, h: 17 }
-        ];
-        const box = choices.find(b => b.x >= 6 && b.x + b.w <= width - 6 && b.y >= 56 && b.y + b.h <= height - 46 && !labels.some(used => overlaps(b, used)));
         if (!box)
             continue;
-        labels.push(box);
-        context.fillStyle = '#0a2236e8';
+        context.beginPath();
+        context.moveTo(x, y);
+        context.lineTo(Math.max(box.x, Math.min(box.x + box.w, x)), Math.max(box.y, Math.min(box.y + box.h, y)));
+        context.strokeStyle = '#66899d';
+        context.lineWidth = .8;
+        context.stroke();
+        context.fillStyle = '#0a2236ed';
         context.fillRect(box.x, box.y, box.w, box.h);
         context.strokeStyle = '#3d657a';
         context.strokeRect(box.x, box.y, box.w, box.h);
         context.fillStyle = '#fff';
-        context.fillText(label, box.x + 5, box.y + 12);
+        context.fillText(text, box.x + 6, box.y + 13);
     }
 }
 function plotRampBadges(width, height) {
@@ -1113,34 +1110,6 @@ function drawSpatialJams() {
         labelObstacles.push(callout);
     }
 }
-function drawDetours() {
-    // Approximate simulator side roads, distinct from calculated motorway state.
-    for (const config of mappedDetours.values()) {
-        if (config.geometry.points.length < 2)
-            continue;
-        const routeState = activeDetours.get(config.id);
-        const active = !!routeState && (routeState.enabled !== false || detourVehicles(routeState.state) > 0);
-        context.save();
-        context.setLineDash(active ? [] : [8, 7]);
-        stroke(config.geometry.points, active ? 4.5 : 3, '#07364a');
-        stroke(config.geometry.points, active ? 3 : 2, active ? '#4dd6ff' : '#8dcde0');
-        context.restore();
-        if (active && zoom >= 12) {
-            const state = routeState.state;
-            const p = config.geometry.points[Math.floor(config.geometry.points.length / 2)];
-            const [x, y] = toScreen(p);
-            if (x > 0 && y > 0 && x < wrapper.clientWidth - 140 && y < wrapper.clientHeight - 15) {
-                const txt = `${config.geometry.source === 'simulated-bundled' ? 'SIM' : 'Umleitung'} · ${trafficNumber(detourVehicles(state))} Fzg`;
-                context.font = 'bold 10px system-ui';
-                const w = Math.min(215, context.measureText(txt).width + 16);
-                context.fillStyle = '#06243add';
-                context.fillRect(x, y - 17, w, 22);
-                context.fillStyle = '#c3f4ff';
-                context.fillText(txt, x + 8, y - 3);
-            }
-        }
-    }
-}
 function draw() {
     const { width, height, scale } = size();
     context.setTransform(scale, 0, 0, scale, 0, 0);
@@ -1158,7 +1127,6 @@ function draw() {
         stroke(ramp.points, lines.rampCasing, '#273b4c');
     for (const ramp of ramps)
         stroke(ramp.points, lines.ramp, '#26bb7c');
-    drawDetours();
     drawSpatialJams();
     plotLabels(width, height);
     plotRampBadges(width, height);
@@ -1215,6 +1183,13 @@ function selectAt(x, y) {
         showExistingEvent(picked);
         return;
     }
+    const junction = junctionLabels.find(label => label.box && x >= label.box.x && x <= label.box.x + label.box.w &&
+        y >= label.box.y && y <= label.box.y + label.box.h);
+    if (junction) {
+        focusOn(junction.exit.position, 13.8);
+        hint.textContent = `${junction.exit.road} ${junction.exit.ref} ${junction.exit.name}. Tippe auf die zugehörige Fahrbahn.`;
+        return;
+    }
     // Ramp badges are independent explicit controls, not generic near-road guesses.
     const badge = badges.find(b => Math.hypot(b.bubble[0] - x, b.bubble[1] - y) <= 17);
     if (badge) {
@@ -1259,6 +1234,11 @@ function makeExitButtons() {
     const parent = $('junctions');
     parent.replaceChildren();
     const sorted = [...exits].sort((a, b) => a.road === b.road ? (a.road === 'A3' ? Number(b.ref) - Number(a.ref) : Number(a.ref) - Number(b.ref)) : a.road === 'A3' ? -1 : 1);
+    const toolbar = document.querySelector('.toolbar');
+    const oldButtons = new Map([['A3:39', $('dernbach')], ['A48:9', $('koblenz')], ['A3:41', $('diez')],
+        ['A3:42', $('limburg-nord')], ['A3:43', $('limburg-sued')], ['A3:34', $('honnef')]]);
+    toolbar.replaceChildren($('fit'));
+    $('junction-count').textContent = String(sorted.length);
     for (const exit of sorted) {
         const button = document.createElement('button');
         const heading = document.createElement('span');
@@ -1266,6 +1246,11 @@ function makeExitButtons() {
         button.append(heading, document.createTextNode(exit.name));
         button.addEventListener('click', () => { focusOn(exit.position, 13.8); hint.textContent = `${exit.road} AS/Knoten ${exit.ref} – ${exit.name}. Tippe auf die zugehörige Fahrbahn.`; });
         parent.append(button);
+        const key = exit.road + ':' + exit.ref, shortcut = oldButtons.get(key) ?? document.createElement('button');
+        shortcut.dataset.junctionKey = key;
+        shortcut.textContent = /^(AD|AK) /.test(exit.name) ? exit.name : 'AS ' + exit.name;
+        shortcut.onclick = () => { focusOn(exit.position, 13.8); hint.textContent = `${exit.road} ${exit.ref} ${exit.name}`; };
+        toolbar.append(shortcut);
     }
 }
 function fillMetrics() {
@@ -1362,7 +1347,7 @@ function start() {
     initializeTraffic();
     redrawEventList();
     fit();
-    status.textContent = `✓ ${allRoads.length} OSM-Fahrbahnstücke · ${drawnRoads.length} durchgehende Zeichenlinien · 4 AD-Rampen · ${exits.length} Anschlussstellen`;
+    status.textContent = `✓ ${exits.length} AS/Knoten · ${allRoads.length} OSM-Fahrbahnstücke · 4 AD-Rampen`;
     refresh();
 }
 start();

@@ -98,3 +98,37 @@ export function rampBadges(ramps, project, size) {
     return chosen;
 }
 export function overlaps(a, b, margin = 3) { return a.x < b.x + b.w + margin && a.x + a.w + margin > b.x && a.y < b.y + b.h + margin && a.y + a.h + margin > b.y; }
+/** Show every in-view junction even in the whole-network view. Long names
+ * may fall back to compact AS/AD/AK numbers, never to a hidden junction.
+ * Label leaders retain the exact geographic anchor in dense interchanges.
+ */
+export function layoutJunctionLabels(exits, project, viewport, zoom, measure, obstacles = []) {
+    const result = [];
+    const inView = exits.map(exit => ({ exit, point: project(exit.position) })).filter(({ point: [x, y] }) => x >= 0 && x <= viewport.width && y >= 0 && y <= viewport.height).sort((a, b) => a.point[1] - b.point[1] || a.exit.road.localeCompare(b.exit.road) || a.exit.ref.localeCompare(b.exit.ref));
+    const used = [...obstacles, ...inView.map(({ point: [x, y] }) => ({ x: x - 5, y: y - 5, w: 10, h: 10 }))];
+    for (const { exit, point: [x, y] } of inView) {
+        const kind = exit.name.startsWith('AD ') ? 'AD' : exit.name.startsWith('AK ') ? 'AK' : 'AS';
+        const compact = kind + ' ' + exit.ref, full = compact + ' ' + exit.name.replace(/^(AD|AK) /, '');
+        const variants = zoom >= 11.4 ? [full, compact] : [compact];
+        let box = null, text = compact;
+        for (const candidate of variants) {
+            const w = Math.min(viewport.width - 16, Math.ceil(measure(candidate)) + 12), h = 19;
+            const locations = [];
+            for (const gap of [9, 28, 48, 72]) {
+                for (const [left, top] of [[x + 9, y - gap - h], [x - w - 9, y - gap - h], [x + 9, y + gap],
+                    [x - w - 9, y + gap], [x - w / 2, y - gap - h], [x - w / 2, y + gap]])
+                    locations.push({ x: left, y: top, w, h });
+            }
+            box = locations.find(r => r.x >= 5 && r.y >= 5 && r.x + r.w <= viewport.width - 5 && r.y + r.h <= viewport.height - 5 &&
+                !used.some(other => overlaps(r, other, 3))) ?? null;
+            if (box) {
+                text = candidate;
+                break;
+            }
+        }
+        if (box)
+            used.push(box);
+        result.push({ exit, point: [x, y], text, box });
+    }
+    return result;
+}

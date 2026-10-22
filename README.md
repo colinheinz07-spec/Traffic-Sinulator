@@ -1,4 +1,4 @@
-# A3/A48 Stausimulator – TRAFFIC 1.8.0
+# A3/A48 Stausimulator – TRAFFIC 1.8.1
 
 **Ein Repository, eine Startdatei:** `index.html` im Hauptverzeichnis direkt in SPCK öffnen. Keine Cloudflare-Konfiguration und keine externe Kartenbibliothek.
 
@@ -323,3 +323,10 @@ Bisher fest eingezeichnete orange/rote/dunkelrote Prozentanteile eines Staus ent
 - **Abbau nach Spurfreigabe:** Mehr freie Fahrstreifen erhöhen den tatsächlichen Abfluss. Die Entlastung läuft durch die Schlange, statt die gesamte Strecke sofort umzufärben. Mit geringerem Zufluss und tatsächlichen Abfahrten sinken Bestand und Staulänge. Vollständig stehende Abschnitte bekommen weiterhin keine erfundene endliche Reisezeit und keinen Sperrdauer-Zähler als Zeitverlust.
 
 Prüfung: Tests für alle 24 Ausfahrten, alle nachgelagerten Zielkombinationen, lange Sperren bis zum Netzende, A48/A3-Umfahrungen, vollständige Fahrzeugbilanz am Kartenrand und veränderliche Farbabschnittslängen nach Spurfreigabe. Zusätzlich bleiben Typprüfung, die gesamte vorhandene Testsuite und der OSM-Geometrie-Audit erforderlich. Die App wird mit einem mobilen Browser-Viewport bei blockierten externen Routingdiensten geprüft; das ersetzt keine Prüfung auf einem physischen iPhone. Hintergrundkartenkacheln benötigen weiterhin Internet, die enthaltenen Autobahnlinien und Simulationsrouten nicht.
+
+
+## TRAFFIC 1.8.1 – Verkehrskarte ohne Umleitungszüge, sichtbare AS
+
+- Umleitungsgeometrien werden auf der Karte vollständig nicht mehr gezeichnet: weder vorbereitete Strecken bei Minute 0 noch benutzte oder früher gespeicherte Routen. Die massenerhaltende Abfahrts-, Nebenstraßen- und Rückkehrberechnung bleibt aktiv. Die Karte zeigt dadurch wieder die Autobahn- und Rampenzustände.
+- Alle im Kartenausschnitt liegenden AS/AD/AK erhalten bereits in der Gesamtansicht einen geografisch verankerten Punkt und eine kompakte Nummernbeschriftung, soweit neben Bedienelementen Platz ist. Bei höherer Zoomstufe erscheinen Namen; bei engem Platz fällt nur der Name auf die Nummer zurück. Der frühere vollständige Ausschluss unter Zoom 11 entfällt. Beschriftungen lassen sich antippen, um den Anschluss zu vergrößern.
+- Die obere Schnellnavigation enthält jetzt alle 15 Einträge des Streckendatensatzes. Die vollständige Anschlussstellenliste steht direkt unter der Karte und lässt sich aufklappen. Es wurden dabei keine erfundenen zusätzlichen Anschlussstellen oder Koordinaten ergänzt; behoben werden die bisher ausgeblendeten Markierungen und die unvollständigen Schnellzugriffe.
