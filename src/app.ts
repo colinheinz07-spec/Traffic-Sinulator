@@ -513,12 +513,12 @@ function renderTraffic(){
  $('traffic-queue').textContent=trafficNumber(result.queueVehicles);
  $('traffic-shared').textContent=result.sharedRampVehicles>0?`Abfahrtsstreifen betroffen (${trafficColorName[result.exitColor]}): ${trafficNumber(result.sharedRampVehicles)} Fahrzeuge der Rampenwarteschlange auf dieser Autobahn. Abbieger-Wartezeit: ${result.exitDelayMin===null?'nicht berechenbar':trafficNumber(result.exitDelayMin,1)+' min'}. Kein zusätzlich erzeugter Stau im Durchgangsverkehr.`:'Keine Rampenfahrzeuge auf diesem Abschnitt';
  $('traffic-queue-km').textContent=`${trafficNumber(result.queueKm,2)} km${result.sharedRampVehicles>0&&result.ownVehicles===0?' (Abfahrtsstreifen)':''}`;
- $('traffic-delay').textContent=result.delayMin===null?'Bei Stillstand nicht berechenbar':`${trafficNumber(result.delayMin,1)} min${result.sharedRampVehicles>0?' (Durchgangsverkehr)':''}`;
+ $('traffic-delay').textContent=result.delayMin===null?'Wartezeit noch unbekannt':`${trafficNumber(result.delayMin,1)} min${jams.some(j=>j.pathKey===key&&j.elapsedWait)?' bisher (keine Prognose)':''}${result.sharedRampVehicles>0?' (Durchgangsverkehr)':''}`;
  $('traffic-speed').textContent=`ca. ${trafficNumber(result.speedKmh,1)} km/h${result.ownVehicles>0?' (Rückstau)':bn.count>0?' (Ereignisbereich)':' (freie Fahrt)'}`;
  $('traffic-events').textContent=bn.count===0?'Kein eigenes Ereignis auf dieser Richtung – mögliche Rückstauübertragung am AD wird berücksichtigt':
   `${bn.count} eigene(s) Ereignis(se) auf dieser Richtung`;
  const stateLabel=$('traffic-state');stateLabel.textContent=trafficColorName[result.color];stateLabel.className=`traffic-state ${result.color}`;
- $('traffic-closure-note').textContent=bn.event?.kind==='closure'?'Vollsperrung: an der letzten regulären Ausfahrt davor gilt 100 % Umleitungsziel. Tatsächlich abfahrende Fahrzeuge werden nur bei einer geprüften, aktivierten OSM-Umleitung gezählt; überschüssiger Verkehr bleibt im Rückstau vor der Sperre.':'';
+ $('traffic-closure-note').textContent=bn.event?.kind==='closure'?'Vollsperrung: keine neue Einfahrt hinter die letzte reguläre Ausfahrt. Fahrzeuge, die sich bereits zwischen den AS befinden, fahren weiter, sofern dort kein eigener physischer Engpass liegt. Die Zeitangabe während Stillstand ist die bisher verstrichene Wartezeit, keine Vorhersage der Wiederfreigabe. Eine geprüfte OSM-Umleitung kann den Verkehr begrenzt aufnehmen.':'';
  const mergeQueues=jams.filter(j=>j.id.startsWith('merge:')&&!j.released);
  const overflowText=spillbacks.map(s=>`${trafficRouteLabel(s.rampId)}: ${trafficNumber(s.lengthM/1000,2)} km Rückstau auf ${trafficRouteLabel(s.source)}`).join(' · ');
  const mergeText=mergeQueues.map(x=>`${trafficRouteLabel(x.pathKey)}: ${trafficNumber(x.queueVehicles)} Fahrzeuge warten wegen Rückstau an der Einmündung`).join(' · ');
@@ -528,7 +528,7 @@ function renderTraffic(){
   const button=document.createElement('button');button.type='button';button.className='traffic-summary-row';
   const label=document.createElement('span');label.textContent=trafficRouteLabel(item);
   const status=document.createElement('strong');status.className=`traffic-state ${m.color}`;
-  status.textContent=`${trafficNumber(m.queueKm,1)} km · ${m.delayMin===null?'Zeit unbestimmt':trafficNumber(m.delayMin,1)+' min'} · ${trafficNumber(m.speedKmh)} km/h${m.sharedRampVehicles>0?' · Abfahrt '+trafficColorName[m.exitColor].toLowerCase():''}`;
+  status.textContent=`${trafficNumber(m.queueKm,1)} km · ${m.delayMin===null?'Zeit unbestimmt':trafficNumber(m.delayMin,1)+' min'+(jams.some(j=>j.pathKey===item&&j.elapsedWait)?' bisher':'')} · ${trafficNumber(m.speedKmh)} km/h${m.sharedRampVehicles>0?' · Abfahrt '+trafficColorName[m.exitColor].toLowerCase():''}`;
   button.append(label,status);button.setAttribute('aria-label',`${label.textContent}, ${status.textContent}`);
   button.onclick=()=>selectTrafficRoute(item);parent.append(button);
  }
@@ -551,7 +551,7 @@ function renderTraffic(){
    const direction=document.createElement('span');direction.textContent=trafficRouteLabel(jam.pathKey);
    heading.append(eventName,direction);
    const delay=document.createElement('strong');delay.className='jam-card-delay';
-   delay.textContent=jam.delayMin===null?'⛔ Sperrung':`+${trafficNumber(jam.delayMin,1)} min`;
+   delay.textContent=jam.delayMin===null?'⛔ Wartezeit offen':`+${trafficNumber(jam.delayMin,1)} min${jam.elapsedWait?' bisher':''}`;
    header.append(marker,heading,delay);
    const metrics=document.createElement('div');metrics.className='jam-card-metrics';
    const length=document.createElement('span');length.textContent=`↔ ${trafficNumber(jam.queueM/1000,2)} km Rückstau`;
@@ -613,13 +613,13 @@ function stepTraffic(minutes:number){
     activeDetours.set(path,{...entry,state:moved.state});
     transfers.push(moved.transfer);
    }
-   spatialState=advanceSpatial(spatialState,timeline,active,1,spatialCorridors,rampConnections,transfers);
+   spatialState=advanceSpatial(spatialState,timeline,active,1,spatialCorridors,rampConnections,transfers,exits);
    // First integration stage: separate, conservative cell ledger for the
    // motorway SPEED FIELD. The existing event/ramp/detour ledger remains
    // authoritative for reported vehicle totals and time delays.
    for(const key of CELL_PATHS){
     const previous=cellNetwork[key]??initialiseCells(spatialCorridors[key],active[key]);
-    cellNetwork[key]=advanceCells(previous,spatialCorridors[key],timeline,active[key]);
+    cellNetwork[key]=advanceCells(previous,spatialCorridors[key],timeline,active[key],exits);
    }
   }
   renderTraffic();
@@ -751,6 +751,10 @@ function drawSpatialJams(){
   const route=spatialCorridors[event.pathKey as PathKey];
   const at=positionM(route,event.point);
   if(at===null)continue;
+  // Administrative closure has an admission gate at the preceding exit.
+  // Do not paint its full road segment dark red: pre-existing vehicles
+  // already inside must be shown moving away from the closure.
+  if(event.kind==='closure')continue;
   const speed=Math.min(freeSpeedKmh(route.key),Math.max(0,event.settings.speedKmh));
   const end=Math.min(route.lengthM,at+event.settings.lengthM);
   if(end-at>=.5)append(route.key,[{fromM:at,toM:end,color:colorAtSpeed(speed),speedKmh:speed,source:'restriction'}]);
@@ -820,7 +824,7 @@ function drawSpatialJams(){
    :jam.pathKey==='A48-dernbach'?'A48 Dernbach':jam.pathKey==='A48-koblenz'?'A48 Koblenz'
    :jam.pathKey==='ramp-a48-to-koeln'?'A48→A3 Köln'
    :jam.pathKey==='ramp-a48-to-frankfurt'?'A48→A3 Ffm':'AD Dernbach Rampe';
-  const delay=jam.delayMin===null?'gesperrt':`+${trafficNumber(jam.delayMin)} min`;
+  const delay=jam.delayMin===null?'Zeit offen':`+${trafficNumber(jam.delayMin)} min${jam.elapsedWait?' bisher':''}`;
   const first=`${sign} ${shortDirection} · ${delay}`;
   const second=`${trafficNumber(jam.queueM/1000,1)} km · ${trafficNumber(jam.speedKmh)} km/h`;
   context!.font='600 10px system-ui';
