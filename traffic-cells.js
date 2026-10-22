@@ -1,4 +1,4 @@
-import { positionM } from './spatial.js';
+import { positionM, closureGate } from './spatial.js';
 import { baselineCapacity, eventCapacity } from './traffic.js';
 import { colorAtSpeed, freeSpeedKmh } from './traffic-physics.js';
 const SUBSTEPS = 6, DT_MIN = 1 / SUBSTEPS, WAVE_KMH = 22, JAM_PER_LANE = 95;
@@ -32,7 +32,7 @@ export function assertCellConservation(state) {
     if (!Number.isFinite(lhs) || !Number.isFinite(rhs) || Math.abs(lhs - rhs) > tolerance)
         throw Error('Zellmodell hat Fahrzeuge verloren oder dupliziert');
 }
-function localControls(route, events, demandVph, count, cellM) {
+function localControls(route, events, demandVph, count, cellM, exits = []) {
     const free = freeSpeedKmh(route.key), laneCount = cellLanes(route.key);
     const speeds = Array(count).fill(free);
     const faceCapacity = Array(count + 1).fill(Infinity);
@@ -43,6 +43,17 @@ function localControls(route, events, demandVph, count, cellM) {
         if (at === null)
             continue;
         const from = Math.max(0, at), to = Math.min(route.lengthM, from + event.settings.lengthM);
+        // An administrative closure forbids entry at the last exit, NOT travel
+        // for cars already in the road segment after that exit. Do not reduce
+        // free speeds downstream of that gate.
+        if (event.kind === 'closure' && exits.length) {
+            const gate = closureGate(route, event, exits);
+            if (!gate)
+                continue;
+            const face = Math.max(1, Math.min(count, Math.round(gate.metre / cellM)));
+            faceCapacity[face] = 0;
+            continue;
+        }
         for (let c = Math.floor(from / cellM); c < Math.min(count, Math.ceil(to / cellM)); c++) {
             speeds[c] = Math.min(speeds[c], event.settings.speedKmh === 0 ? free : event.settings.speedKmh);
         }
@@ -57,11 +68,11 @@ function localControls(route, events, demandVph, count, cellM) {
  * Domain demand not admitted at the map entry is retained in backlog.
  * Outflow is discharged at the far end. No arbitrary time-loss surcharges.
  */
-export function advanceCells(previous, route, events, demandVph) {
+export function advanceCells(previous, route, events, demandVph, exits = []) {
     if (previous.pathKey !== route.key || !Number.isFinite(demandVph) || demandVph < 0 || demandVph > 8000)
         throw Error('Zellmodell: Richtung oder Zufluss ungültig');
     const n = previous.cells.length, dx = previous.cellM / 1000;
-    const controls = localControls(route, events, demandVph, n, previous.cellM);
+    const controls = localControls(route, events, demandVph, n, previous.cellM, exits);
     const { speeds, capacity, faceCapacity, jam } = controls;
     const occupancy = previous.cells.map(c => c.vehicles);
     let backlog = previous.backlog, offeredTotal = previous.offeredTotal, exitedTotal = previous.exitedTotal;
