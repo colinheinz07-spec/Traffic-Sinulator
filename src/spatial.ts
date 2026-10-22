@@ -127,7 +127,7 @@ export function advanceSpatial(prev:SpatialState,events:readonly SimEvent[],dema
    leavingVpm?:number;joiningVpm?:number}[]=[];
   for(const e of events)if(e.pathKey===key){
    const place=positionM(route,e.point);if(place===null)continue;
-   const gate=closureGate(route,e,exits);
+   const gate=exits.length?closureGate(route,e,exits):null;
    const nodeM=gate?gate.metre:place;
    const nodePoint=gate?(routeSlice(route,Math.max(0,nodeM-1),Math.min(route.lengthM,nodeM+1))[0]??route.points[0]!):e.point;
    nodes.push({id:e.id,event:e,place:nodeM,point:nodePoint});
