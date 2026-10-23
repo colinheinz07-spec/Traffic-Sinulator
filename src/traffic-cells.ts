@@ -19,6 +19,12 @@ import {normalJunctionTraffic,type JunctionTrafficDemand,type JunctionTrafficSta
 export interface TrafficCell {
  fromM:number;toM:number;vehicles:number;flowVph:number;speedKmh:number;densityVehKm:number;
  blockedAtM?:number;
+ /** Time-averaged observations for travel-time estimation. Instantaneous
+  * speed remains the source for map colors and the actual cell fluxes. */
+ travelFlowVph?:number;limitKmh?:number;
+ /** Keep an observed bottleneck cross-section after reopening so that
+  * its release flow can serve the queue still waiting upstream. */
+ travelDetector?:{control:string;capacityVph:number;meanFlowVph:number;active:boolean;samples:number};
 }
 export interface CellRouteState {
  pathKey:PathKey;minute:number;cellM:number;cells:TrafficCell[];
@@ -37,6 +43,8 @@ export interface CellDetourPort {
 export interface CellTransfer {id:string;leaveVpm:number;joinVpm:number}
 export interface CellSpeedBand {fromM:number;toM:number;speedKmh:number;color:TrafficColor;source:'cell'}
 const SUBSTEPS=6,DT_MIN=1/SUBSTEPS,WAVE_KMH=22,JAM_PER_LANE=95;
+// One observation per MODEL minute; repainting/pause never advances this.
+const TRAVEL_ALPHA=1-Math.exp(-1/6);
 export function cellLanes(path:PathKey):number{
  return path.startsWith('ramp-')?1:path.startsWith('A48')?2:3;
 }
@@ -80,6 +88,7 @@ function localControls(route:Corridor,events:readonly SimEvent[],demandVph:numbe
  const free=freeSpeedKmh(route.key),laneCount=cellLanes(route.key);
  const speeds=Array(count).fill(free) as number[];
  const faceCapacity=Array(count+1).fill(Infinity) as number[];
+ const faceControls=Array.from({length:count+1},()=>[] as string[]);
  const releases:{face:number;event:SimEvent;maximum:number}[]=[];
  const closedEntries:{fromM:number;toM:number}[]=[];
  for(const event of events){
@@ -95,6 +104,7 @@ function localControls(route:Corridor,events:readonly SimEvent[],demandVph:numbe
    if(!gate)continue;
    const face=Math.max(1,Math.min(count,Math.round(gate.metre/cellM)));
    faceCapacity[face]=0;
+   faceControls[face]!.push(event.id+':closure');
    closedEntries.push({fromM:gate.metre-25,toM:to});
    continue;
   }
@@ -103,13 +113,14 @@ function localControls(route:Corridor,events:readonly SimEvent[],demandVph:numbe
   }
   const face=Math.max(1,Math.min(count,Math.round((from+Math.min(150,event.settings.lengthM))/cellM)));
   faceCapacity[face]=Math.min(faceCapacity[face]!,eventCapacity(event,demandVph));
+  faceControls[face]!.push(JSON.stringify([event.id,event.kind,event.closedLanes,event.settings]));
   const policy=flowPolicy(event);
   if(event.closedLanes.length&&policy.openMainLanes>0)
    releases.push({face,event,maximum:1800*(policy.openMainLanes+(event.settings.shoulder==='open'?.65:0))});
  }
  const jam=JAM_PER_LANE*laneCount;
  const capacity=speeds.map(v=>Math.min(baselineCapacity(route.key),v*WAVE_KMH*jam/(v+WAVE_KMH)));
- return {speeds,capacity,faceCapacity,jam,releases,closedEntries};
+ return {speeds,capacity,faceCapacity,faceControls:faceControls.map(c=>c.sort().join('|')),jam,releases,closedEntries};
 }
 /** Driver/platoon discharge at an occupied lane bottleneck. This modulates
  * actual transferred vehicles, never just map colors. Mean service stays
@@ -172,7 +183,7 @@ export function advanceCells(previous:CellRouteState,route:Corridor,events:reado
   throw Error('Zellmodell: Richtung oder Zufluss ungültig');
  const n=previous.cells.length,dx=previous.cellM/1000;
  const controls=localControls(route,events,demandVph,n,previous.cellM,exits);
- const {speeds,capacity,faceCapacity,jam,releases,closedEntries}=controls;
+ const {speeds,capacity,faceCapacity,faceControls,jam,releases,closedEntries}=controls;
  const junctions=junctionDemand.map(d=>{
   if(!Number.isFinite(d.entryVph)||d.entryVph<0||!Number.isFinite(d.exitPercent)||d.exitPercent<0||d.exitPercent>100||
    !Number.isFinite(d.metre)||d.metre<0||d.metre>=route.lengthM||
@@ -295,8 +306,35 @@ export function advanceCells(previous:CellRouteState,route:Corridor,events:reado
   // remains green when the cell has no vehicles or is initially settling.
   const speedKmh=densityVehKm<.05?freeSpeedKmh(route.key):
    Math.min(speeds[i]!,outflowVph/Math.max(.05,densityVehKm));
+  const travelFlowVph=(c.travelFlowVph??c.flowVph)*(1-TRAVEL_ALPHA)+outflowVph*TRAVEL_ALPHA;
+  const active=Number.isFinite(faceCapacity[i+1]),oldDetector=c.travelDetector;
+  const detectorCapacity=active?faceCapacity[i+1]!:capacity[i]!;
+  const detectorFlow=through[i+1]!*60;
+  // Changing time-of-day demand may slightly change effective capacity.
+  // Only an edited/opened physical control resets the observations.
+  const control=faceControls[i+1]!,sameControl=oldDetector?.control===control;
+  let queued=0,found=false;
+  if(active&&detectorCapacity>0)for(let k=i;k>=0;k--){
+   if(occupancy[k]!/dx>=jam*WAVE_KMH/(freeSpeedKmh(route.key)+WAVE_KMH)*1.10){
+    queued+=occupancy[k]!;found=true;
+   }else if(found)break;
+  }
+  // A journey lasting many minutes spans several braking/platoon phases.
+  // Estimate its service from a representative period, instead of making
+  // every car ahead inherit the latest ten-second braking phase. Warm up
+  // new/edited detectors quickly; reopened detectors must recover promptly.
+  const window=active&&sameControl&&oldDetector.samples>=12?
+   Math.max(6,queued/Math.max(1,oldDetector.meanFlowVph)*60):6;
+  const detectorAlpha=1-Math.exp(-1/window);
+  const travelDetector=active||oldDetector?{
+   control,capacityVph:detectorCapacity,active,
+   samples:sameControl?oldDetector.samples+1:1,
+   meanFlowVph:!sameControl?detectorFlow:
+    oldDetector.meanFlowVph*(1-detectorAlpha)+detectorFlow*detectorAlpha
+  }:undefined;
   return {...c,vehicles:occupancy[i]!,flowVph:outflowVph,
    speedKmh:Math.max(0,speedKmh),densityVehKm,
+   travelFlowVph,limitKmh:speeds[i],travelDetector,
    blockedAtM:faceCapacity[i+1]===0?c.toM:undefined};
  });
  const limiting=faceCapacity.reduce((best,c,i)=>c<faceCapacity[best]!?i:best,0);

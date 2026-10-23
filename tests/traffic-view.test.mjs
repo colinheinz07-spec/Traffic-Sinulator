@@ -70,6 +70,25 @@ test('one connected queue is counted once when two incident queues overlap it',(
  assert.ok(Math.abs(result.jams[0].queueM-mapM)<1e-6);
  assert.ok(result.jams[0].queueM<a.queueM+b.queueM);
 });
+test('one clearing cell inside a stop-and-go wave does not split and halve its card delay',()=>{
+ const state=grid([[3,12,10],[13,23,10]]),root=oldQueue(state,13,23);
+ const result=view(state,[root]),actual=unionLength(result.bands.get(path));
+ assert.equal(result.jams.length,1);
+ assert.equal(result.jams[0].queueOwnerId,root.id);
+ assert.equal(result.physicalJams.length,2,'the traffic solver must retain the actual free-flow gap');
+ assert.ok(Math.abs(result.jams[0].queueM-actual)<1e-6,'free gap is excluded from displayed length');
+ assert.ok(result.jams[0].visibleQueueM>result.jams[0].queueM,'tail span still covers both fragments');
+ assert.ok(Math.abs(result.jams[0].delay.delayMin-60*actual/1000*(1/10-1/120))<1e-6);
+ const before=view(grid([[3,23,10]]),[root]).jams[0].delay.delayMin;
+ assert.ok(Math.abs(before-result.jams[0].delay.delayMin)<3,'only the cleared cell can remove delay');
+});
+test('two distinct incident queues remain separate even with only one free cell between them',()=>{
+ const state=grid([[3,12,10],[13,23,10]]),first=oldQueue(state,3,12,'one'),last=oldQueue(state,13,23,'two');
+ const result=view(state,[first,last]);
+ assert.equal(result.jams.length,2);
+ assert.deepEqual(result.jams.map(j=>j.queueOwnerId),['one','two']);
+ assert.ok(Math.abs(result.jams.reduce((n,j)=>n+j.queueM,0)-unionLength(result.bands.get(path)))<1e-6);
+});
 test('adjacent orange, red and stopped cells form one full-length traffic jam',()=>{
  const state=grid([[4,8,45],[8,11,20],[11,15,0]]),result=view(state);
  assert.equal(result.jams.length,1);

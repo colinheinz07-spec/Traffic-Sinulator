@@ -32,6 +32,30 @@ function addDelay(a, b) {
     return { delayMin: a.delayMin + b.delayMin, blocked: a.blocked || b.blocked,
         assessedKm: a.assessedKm + b.assessedKm, stoppedKm: a.stoppedKm + b.stoppedKm };
 }
+/** Clearing cells inside a stop-and-go wave are not a second incident.
+ * Fragments served by the same observed bottleneck retain one card. Count only
+ * colored lengths and their individual travel losses. Keep the true
+ * geographic span for card positioning; the solver gets raw sections. */
+function joinWaveFragments(jams, cellM) {
+    const joined = [];
+    for (const jam of [...jams].reverse()) {
+        const next = joined.at(-1), gap = next ? next.anchorM - next.visibleQueueM - jam.anchorM : Infinity;
+        const differentOwners = jam.queueOwnerId && next?.queueOwnerId && jam.queueOwnerId !== next.queueOwnerId;
+        const sameHead = jam.waveHeadM !== undefined && jam.waveHeadM === next?.waveHeadM;
+        if (next && next.pathKey === jam.pathKey && !differentOwners && gap >= 0 && (sameHead || gap <= cellM + .1)) {
+            const delay = addDelay(jam.delay, next.delay), speedKmh = Math.min(jam.speedKmh, next.speedKmh);
+            joined[joined.length - 1] = { ...next, eventId: next.eventId ?? jam.eventId,
+                queueOwnerId: next.queueOwnerId ?? jam.queueOwnerId, eventKind: next.eventKind ?? jam.eventKind,
+                waveHeadM: next.waveHeadM ?? jam.waveHeadM,
+                queueM: next.queueM + jam.queueM, visibleQueueM: next.anchorM - (jam.anchorM - jam.visibleQueueM),
+                queueVehicles: next.queueVehicles + jam.queueVehicles, feederM: next.feederM + jam.feederM,
+                delay, delayMin: delay.blocked ? null : delay.delayMin, speedKmh, color: colorAtSpeed(speedKmh) };
+        }
+        else
+            joined.push(jam);
+    }
+    return joined.reverse();
+}
 export function trafficView(legacy, cells, corridors, events, spills, minute) {
     const bands = new Map(), spillBands = new Map();
     const jams = [], reports = {}, delays = {};
@@ -90,7 +114,10 @@ export function trafficView(legacy, cells, corridors, events, spills, minute) {
             }, 0) : roots.reduce((n, r) => n + r.jam.queueVehicles * r.overlap / Math.max(.1, r.jam.visibleQueueM), 0);
             ownVehicles += vehicles;
             const point = routeSlice(route, Math.max(0, group.toM - 1), group.toM)[0] ?? route.points.at(-1);
-            jams.push({ id: 'display:' + path + ':' + Math.round(group.toM), eventId: event?.id, queueOwnerId: root?.id,
+            // The congestion front may extend one cell past its capacity face,
+            // e.g. where the speed-restricted accident straddles a cell boundary.
+            const waveHeadM = state?.cells.find(c => c.toM > group.fromM + .1 && c.travelDetector)?.toM;
+            jams.push({ id: 'display:' + path + ':' + Math.round(group.toM), eventId: event?.id, queueOwnerId: root?.id, waveHeadM,
                 pathKey: path, eventKind: event?.kind ?? null, point, anchorM: group.toM,
                 queueVehicles: vehicles, queueM: group.toM - group.fromM + feederM,
                 visibleQueueM: group.toM - group.fromM, delayMin: delay.blocked ? null : delay.delayMin,
@@ -126,5 +153,9 @@ export function trafficView(legacy, cells, corridors, events, spills, minute) {
             reports[path].color = colorAtSpeed(reports[path].speedKmh);
         }
     }
-    return { jams, bands, spillBands, reports, delays };
+    const display = PATHS.flatMap(path => {
+        const own = jams.filter(j => j.pathKey === path), state = cells[path];
+        return state ? joinWaveFragments(own, state.cellM) : own;
+    });
+    return { jams: display, physicalJams: jams, bands, spillBands, reports, delays };
 }

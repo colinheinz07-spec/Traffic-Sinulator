@@ -631,7 +631,7 @@ function stepTraffic(minutes:number){
    for(const entry of next.detours)activeDetours.set(entry.config.id,entry);
    transfers.push(...next.transfers);
    const physicalMainline=trafficView(jams,cellNetwork,spatialCorridors,timeline,spillbacks,spatialState.minute+1)
-    .jams.filter(j=>!j.pathKey.startsWith('ramp-'));
+    .physicalJams.filter(j=>!j.pathKey.startsWith('ramp-'));
    spatialState=advanceSpatial(spatialState,timeline,active,1,spatialCorridors,rampConnections,transfers,exits,physicalMainline);
   }
   renderTraffic();

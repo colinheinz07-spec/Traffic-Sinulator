@@ -42,7 +42,7 @@ test('zero km/h is not an invented 1–5 km/h forecast or years since closure',(
  assert.equal(d.blocked,true);
  assert.equal(d.stoppedKm,1);
  assert.ok(Math.abs(d.delayMin-5.5)<1e-7);
- assert.match(speedDelayLabel(d),/mindestens \+5,5 min/);
+ assert.doesNotMatch(speedDelayLabel(d),/\+\d/,'partial moving sections cannot predict a blocked journey');
  assert.match(speedDelayLabel(d),/blockiert/);
  state.minute=110000;
  assert.equal(speedDelayInCells(state).delayMin,d.delayMin);
