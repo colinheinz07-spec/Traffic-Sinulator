@@ -1,6 +1,6 @@
 /** Direction-specific entrance/exit situation for the A3/A48 simulator.
  * Targets are PLANNED route-choice percentages, not counted departures.
- * Counted values come only from validated, activated OSM detour ledgers.
+ * Counted values come only from activated simulator detour ledgers.
  * Every normal AS is covered; AK/AD are separate motorway nodes and cannot
  * be misrepresented as exits onto local roads.
  */
@@ -10,6 +10,7 @@ import type {SimEvent} from './events.js';
 import type {Exit} from './core.js';
 import {positionM} from './spatial.js';
 import {diversionJunctions,potentialDiversionPercent,type JunctionAnchor} from './diversions.js';
+import {earlierExitPercent} from './diversion-policy.js';
 
 export interface JunctionMovement {
  path:RoadId;exit:JunctionAnchor;
@@ -25,8 +26,8 @@ export interface RealDetourFlow {
  outVph:number;inVph:number;vehiclesOnDetour:number;waitingAtReentry:number;
 }
 /** 100% is reserved for the LAST normal exit that can be reached before
- * a formal complete road closure. Earlier exits remain alternative choices
- * with unquantified demand unless a distinct incident affects their traffic.
+ * a formal complete road closure. Earlier exits are voluntary alternatives
+ * recruited in stages as actual queue/side-road waiting grows.
  * The 100% value is the requested exit intention, never a claim that a
  * ramp can absorb an unlimited traffic stream.
  */
@@ -46,6 +47,12 @@ export function junctionMovements(path:RoadId,route:Corridor,exits:readonly Exit
    const nearest=upstream[0]!;
    nearest.desiredPercent=100;nearest.mandatory=true;nearest.eventId=event.id;
    nearest.distanceBeforeClosureKm=(at-nearest.exit.metre)/1000;
+   for(let i=1;i<upstream.length;i++){
+    const row=upstream[i]!;
+    if(row.mandatory)continue;
+    const percent=earlierExitPercent(delayMin??0,i);
+    if(percent>row.desiredPercent){row.desiredPercent=percent;row.eventId=event.id;}
+   }
   }else{
    // The percentage is an explicitly modelled route-choice desire, NOT actual
    // diverted volume. All reachable upstream exits are considered.
@@ -59,11 +66,15 @@ export function junctionMovements(path:RoadId,route:Corridor,exits:readonly Exit
    }
   }
  }
+ const measured=new Set<JunctionMovement>();
  for(const flow of real){
   const from=flow.path===path?rows.find(r=>!r.exit.isInterchange&&Math.abs(r.exit.metre-flow.fromM)<=25):undefined;
   const to=(flow.targetPath??flow.path)===path?rows.find(r=>!r.exit.isInterchange&&Math.abs(r.exit.metre-flow.toM)<=25):undefined;
   if(from){
-   if(!from.mandatory&&flow.desiredPercent!==undefined)from.desiredPercent=flow.desiredPercent;
+   if(!from.mandatory&&flow.desiredPercent!==undefined){
+    if(!measured.has(from))from.desiredPercent=0;
+    from.desiredPercent=Math.max(from.desiredPercent,flow.desiredPercent);measured.add(from);
+   }
    from.outVph+=flow.outVph;
    from.vehiclesOnDetour+=flow.vehiclesOnDetour;
    from.validatedRouteActive=true;

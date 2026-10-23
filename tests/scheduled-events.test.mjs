@@ -85,7 +85,7 @@ test('UI has one clock above map, iOS selection defense and date-range event edi
  const clock=html.indexOf('id="traffic-clock"'),map=html.indexOf('class="map-shell"');
  assert.ok(clock>=0&&clock<map,'clock must sit above the map');
  assert.equal((html.match(/id="traffic-clock"/g)||[]).length,1);
- for(const id of ['event-scheduled','event-start','event-end','event-add-phase','event-phases'])
+ for(const id of ['event-scheduled','event-start-date','event-start-time','event-end-date','event-end-time','event-schedule-mode','event-repeat-from','event-repeat-through','event-repeat-start-time','event-repeat-end-time','event-add-phase','event-phases'])
   assert.ok(html.includes(`id="${id}"`),'missing '+id);
  assert.match(html,/-webkit-touch-callout:none/);
  assert.match(src,/mapRegion\.addEventListener\(type,event=>event\.preventDefault\(\)\)/);

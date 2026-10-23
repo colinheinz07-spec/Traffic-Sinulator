@@ -1,3 +1,4 @@
+import { validDailyRecurrence, dailyRecurrenceBounds, dailyOccurrenceAt } from './recurring-events.js';
 export const EVENT_KINDS = ['roadworks', 'accident', 'breakdown', 'closure'];
 export const eventNames = { roadworks: 'Baustelle', accident: 'Unfall', breakdown: 'Lkw-Panne', closure: 'Vollsperrung' };
 export const eventSymbols = { roadworks: '🚧', accident: '💥', breakdown: '🚛', closure: '⛔' };
@@ -57,6 +58,13 @@ export function validEvent(v) {
             || Date.parse(sch.startAt) >= Date.parse(sch.endAt)
             || !Array.isArray(sch.phases) || sch.phases.length > 6)
             return false;
+        if (sch.recurrence !== undefined) {
+            if (!validDailyRecurrence(sch.recurrence) || sch.phases.length)
+                return false;
+            const bounds = dailyRecurrenceBounds(sch.recurrence);
+            if (!bounds || Date.parse(bounds.startAt) !== Date.parse(sch.startAt) || Date.parse(bounds.endAt) !== Date.parse(sch.endAt))
+                return false;
+        }
         let previous = Date.parse(sch.startAt);
         for (const phase of sch.phases) {
             if (!phase || typeof phase !== 'object' || typeof phase.startAt !== 'string'
@@ -166,6 +174,8 @@ export function effectiveEventAt(event, at) {
         return event;
     if (!Number.isFinite(at) || at < Date.parse(schedule.startAt) || at >= Date.parse(schedule.endAt))
         return null;
+    if (schedule.recurrence && !dailyOccurrenceAt(schedule.recurrence, at))
+        return null;
     let active = null;
     for (const phase of schedule.phases) {
         if (Date.parse(phase.startAt) <= at)
@@ -188,5 +198,7 @@ export function eventScheduleStatus(event, at) {
         return 'planned';
     if (at >= Date.parse(event.schedule.endAt))
         return 'finished';
+    if (event.schedule.recurrence && !dailyOccurrenceAt(event.schedule.recurrence, at))
+        return 'between';
     return 'active';
 }

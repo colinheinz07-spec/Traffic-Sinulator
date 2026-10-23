@@ -124,7 +124,7 @@ test('an arriving local-road platoon rejoins AFTER an incident',()=>{
 });
 test('SPCK uses bundled routes automatically and keeps manual controls',()=>{
  const page=readFileSync('index.html','utf8'),app=readFileSync('src/app.ts','utf8');
- assert.match(page,/TRAFFIC 1\.8\.1/);
+ assert.match(page,/TRAFFIC 1\.9\.0/);
  assert.match(page,/ohne Online-Routenabruf/);
  assert.match(app,/bundledDetourGeometry\(k,option.path,option.from,option.to,exits\)/);
  assert.match(app,/advanceSpatial\(spatialState,timeline,active,1,spatialCorridors,rampConnections,transfers,exits(?:,physicalMainline)?\)/);

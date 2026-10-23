@@ -93,6 +93,7 @@
 .schedule-dates{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
 .schedule-dates label{font-size:.75rem!important;color:#b6d8e9!important;margin:3px 0!important}
 .schedule-dates input,.schedule-phase input[type="datetime-local"],.schedule-phase select{
+ color-scheme:dark;
  display:block;width:100%;min-width:0;min-height:44px;color:#e5f7ff;background:#18374c;
  border:1px solid #4a6d81;border-radius:9px;padding:8px;margin-top:5px;font:inherit;font-size:.82rem
 }
@@ -110,6 +111,7 @@
 .schedule-add{width:100%;background:#153c53;border:1px dashed #6e9db8;margin-top:6px;font-size:.82rem}
 .event-row .schedule-state{display:inline-flex;width:max-content;max-width:100%;font-size:.71rem;color:#d1ecfa;border:1px solid #3b728b;border-radius:9px;padding:4px 7px;margin:5px 0 9px}
 .event-row .schedule-state.finished{color:#a0b8c7;border-color:#375061}
+.event-row .schedule-state.between{color:#c2dbeb;border-color:#58798e}
 .event-row .schedule-state.planned{color:#f8d29a;border-color:#907243}
 @media(max-width:410px){.schedule-dates,.schedule-phase-grid{grid-template-columns:1fr}}
 
@@ -126,8 +128,11 @@
 .junction-movement.critical .junction-note{color:#f4cbaa}
 @media(max-width:520px){.junction-movements{grid-template-columns:1fr}}
 .junction-directory summary{cursor:pointer;font-size:.85rem;font-weight:750;color:#b8e5f7}.junction-directory[open] summary{margin-bottom:12px}
+.map-playbar{margin:0 10px 10px;padding:0 3px}.map-playbar button{min-height:44px}.map-playbar strong{font-variant-numeric:tabular-nums}
+#event-once-fields[hidden],#event-daily-fields[hidden],#event-phase-program[hidden]{display:none!important}
+.schedule-weekdays{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}.schedule-weekdays label{display:flex!important;align-items:center;gap:5px;padding:7px!important;background:#1d4055;border-radius:7px}.schedule-weekdays input{width:18px;height:18px;accent-color:#35c7ed}
 </style></head><body><main>
-<header><div><div class="eyebrow">Stausimulator · Kartenfundament</div><h1>A3 / A48 – Streckenkarte</h1></div><span class="phase">TRAFFIC 1.8.1</span></header>
+<header><div><div class="eyebrow">Stausimulator · Kartenfundament</div><h1>A3 / A48 – Streckenkarte</h1></div><span class="phase">TRAFFIC 1.9.0</span></header>
 <div class="toolbar"><button id="fit" class="primary">Gesamtes Netz</button><button id="dernbach">AD Dernbach</button><button id="koblenz">AK Koblenz</button><button id="diez">AS Diez</button><button id="limburg-nord">AS Limburg-Nord</button><button id="limburg-sued">AS Limburg-Süd</button><button id="honnef">AS Bad Honnef/Linz</button></div>
 <section class="map-timebar" aria-label="Aktuelles Simulationsdatum und Uhrzeit">
  <span class="map-time-symbol" aria-hidden="true">◷</span>
@@ -140,29 +145,30 @@
   <span id="map-clock-status" class="map-clock-status">Bereit · Minute 0</span>
  </div>
 </section>
+<div class="traffic-playbar map-playbar" aria-label="Simulation steuern"><button id="traffic-play" class="primary" aria-pressed="false">▶ Start</button><button id="traffic-reset">Zurücksetzen</button><strong id="traffic-minute">Minute 0</strong></div>
 <section class="map-shell"><canvas id="map" aria-label="Interaktive Karte der A3 und A48 mit allen Anschlussstellen und vier Rampen"></canvas><div class="map-status" id="status">Geprüfte Autobahndaten werden geladen …</div><div class="map-controls"><button id="plus" aria-label="Vergrößern">+</button><button id="minus" aria-label="Verkleinern">−</button></div><div class="legend"><span><i class="swatch" style="background:#26bb7c"></i>Frei (&gt;65 km/h)</span><span><i class="swatch" style="background:#f59e0b"></i>Stockend (&gt;30–65 km/h)</span><span><i class="swatch" style="background:#dc2626"></i>Stau/Stop-and-Go (&gt;10–30 km/h)</span><span><i class="swatch" style="background:#7f1d1d"></i>Stillstand/Kriechverkehr (0–10 km/h)</span></div></section>
 <div id="hint" class="subline" aria-live="polite">Fahrbahn oder Rampe antippen, um den exakten Kartenpunkt auszuwählen.</div>
 <details class="panel junction-directory"><summary>Alle Anschlussstellen &amp; Knotenpunkte (<span id="junction-count">15</span>)</summary><div id="junctions" class="junctions"><p>Anschlussstellen werden geladen …</p></div></details>
-<section class="panel" id="traffic-panel"><h2>🚗 Verkehrsfluss – Modell 1.8.1</h2>
+<section class="panel" id="traffic-panel"><h2>🚗 Verkehrsfluss – Modell 1.9.0</h2>
 <p class="model-summary">Interaktive A3/A48-Stausimulation mit Streckenzellen, Ereignissen und Umleitungen. <strong>Rechenmodell, keine Live-Verkehrsdaten.</strong></p>
-<details class="model-info"><summary>Berechnungsmodell und Grenzen anzeigen</summary><p>Vereinfachte Simulation, <b>keine Live-Verkehrsdaten</b>. Karte, Staukarten und Richtungsübersicht verwenden dieselben berechneten Stauabschnitte. Die Länge umfasst zusammenhängenden stockenden Verkehr, Stop-and-Go und Stillstand; getrennte Staus werden einzeln angezeigt. Ein Tempolimit allein zählt nicht als Rückstau. Bei Rampen wird auch ein Rückstau auf dem Abfahrtsstreifen der zuführenden Autobahn berücksichtigt. Zeitverlust ist zusätzliche Fahrzeit gegenüber freier Fahrt, berechnet aus den lokalen Geschwindigkeiten. Bei vollständigem Stillstand ohne bekannte Freigabe ist die Ankunftszeit offen; ein Mindestwert umfasst nur die noch fahrenden Abschnitte. Die Berechnung ist vereinfacht. Hauptfahrbahn und enthaltene Umleitungen verrechnen tatsächliche Aus- und Einfahrten gemeinsam. Verkehrsströme an Verzweigungen und AD-Rampen sind noch nicht vollständig miteinander gekoppelt. An Engpässen entstehen durch wechselnde Abflüsse und verzögertes Anfahren Schübe im berechneten Verkehrsfluss. Bremsdauer, Anfahrdauer und Abstände wechseln; die Veränderungen betreffen tatsächlich bewegte Fahrzeugmengen. <b>Keine Fahrzeugdarstellung.</b></p></details>
+<details class="model-info"><summary>Berechnungsmodell und Grenzen anzeigen</summary><p>Vereinfachte Simulation, <b>keine Live-Verkehrsdaten</b>. Karte, Staukarten und Richtungsübersicht verwenden dieselben berechneten Stauabschnitte. Die Länge umfasst zusammenhängenden stockenden Verkehr, Stop-and-Go und Stillstand; getrennte Staus werden einzeln angezeigt. Ein Tempolimit allein zählt nicht als Rückstau. Bei Rampen wird auch ein Rückstau auf dem Abfahrtsstreifen der zuführenden Autobahn berücksichtigt. Zeitverlust ist zusätzliche Fahrzeit gegenüber freier Fahrt, berechnet aus den lokalen Geschwindigkeiten. Bei vollständigem Stillstand ohne bekannte Freigabe ist die Ankunftszeit offen; ein Mindestwert umfasst nur die noch fahrenden Abschnitte. Bei Vollsperrung gilt 100 % Pflichtabfahrt nur an der letzten regulären AS davor. Frühere AS beginnen im Modell ab 45 Minuten zusätzlicher Wartezeit mit freiwilligen Abfahrten; jede weitere vorgelagerte AS benötigt 15 Minuten mehr. Mehrweg und Nebenstraßenwarteschlangen senken die Quote. Die Berechnung ist vereinfacht. Hauptfahrbahn und enthaltene Umleitungen verrechnen tatsächliche Aus- und Einfahrten gemeinsam. Verkehrsströme an Verzweigungen und AD-Rampen sind noch nicht vollständig miteinander gekoppelt. An Engpässen entstehen durch wechselnde Abflüsse und verzögertes Anfahren Schübe im berechneten Verkehrsfluss. Bremsdauer, Anfahrdauer und Abstände wechseln; die Veränderungen betreffen tatsächlich bewegte Fahrzeugmengen. <b>Keine Fahrzeugdarstellung.</b></p></details>
 <div class="traffic-controls"><label for="traffic-route">Fahrtrichtung / Rampe
 <select id="traffic-route"><option value="A3-koeln">A3 Richtung Köln</option><option value="A3-frankfurt">A3 Richtung Frankfurt</option><option value="A48-dernbach">A48 Richtung Dernbach</option><option value="A48-koblenz">A48 Richtung Koblenz</option><option value="ramp-a3-to-a48-from-frankfurt">A3 Richtung Köln → A48</option><option value="ramp-a48-to-koeln">A48 → A3 Köln</option><option value="ramp-a3-to-a48-from-koeln">A3 Richtung Frankfurt → A48</option><option value="ramp-a48-to-frankfurt">A48 → A3 Frankfurt</option></select></label><label for="traffic-inflow">Referenzzufluss (Fahrzeuge pro Stunde)
 <input type="number" id="traffic-inflow" inputmode="numeric" min="0" max="8000" step="100" value="4200"></label><label for="traffic-demand-mode">Verkehrsverlauf
 <select id="traffic-demand-mode"><option value="clock" selected>Datum &amp; Uhrzeit (automatisch)</option><option value="wave">Abklingende Stoßzeit (Test)</option><option value="constant">Konstanter Zufluss (Dauertest)</option></select></label><label for="traffic-start-datetime">Simulationsstart · Datum &amp; Uhrzeit
 <input type="datetime-local" id="traffic-start-datetime" step="60"></label></div><p class="traffic-datetime-note">Geräte-Ortszeit · Die Simulation zählt die Minuten ab dem eingestellten Start fort. Änderungen an Datum und Uhrzeit setzen bestehende Rückstaus zurück. <button id="traffic-now" type="button">Jetzt einsetzen</button></p>
 <p id="traffic-demand-hint" class="settings-note">Modellannahme: Die Stoßzeit lässt allmählich nach. Keine Echtzeit-Verkehrsdaten.</p>
-<div class="traffic-playbar"><button id="traffic-play" class="primary">▶ Start</button><button id="traffic-reset">Zurücksetzen</button><strong id="traffic-minute">Minute 0</strong></div>
+
 <div id="traffic-issue" role="alert" class="traffic-issue"></div>
 <p id="traffic-shared" class="event-info">Keine Rampenfahrzeuge auf diesem Abschnitt</p><div class="traffic-stat-grid"><div>Zufluss<strong id="traffic-demand">–</strong><small>Fzg/h</small></div><div>Kapazität<strong id="traffic-capacity">–</strong><small>Fzg/h</small></div><div>Durchfluss<strong id="traffic-outflow">–</strong><small>Fzg/h</small></div><div>Wartende Fahrzeuge<strong id="traffic-queue">–</strong></div><div>Staulänge auf der Karte<strong id="traffic-queue-km">–</strong></div><div>Geschätzter Zeitverlust<strong id="traffic-delay">–</strong></div><div>Geschätzte niedrigste Geschwindigkeit<strong id="traffic-speed">–</strong><small>km/h im betroffenen Abschnitt</small></div><div>Verkehrszustand<strong id="traffic-state" class="traffic-state">–</strong></div></div>
 <p id="traffic-events" class="event-info"></p><p id="traffic-interchange" class="event-info" aria-live="polite">AD Dernbach: noch keine Rampenüberläufe.</p><p id="traffic-closure-note" class="event-info"></p>
 <h3 class="traffic-subtitle">Einzelne Rückstaus <span id="traffic-jams-count">(0)</span></h3><div class="traffic-summary" id="traffic-jams"></div>
 <h3 class="traffic-subtitle">Alle acht Fahrwege</h3><div id="traffic-summary" class="traffic-summary"></div>
 <h3 class="traffic-subtitle">↘↗ Anschlussstellen · Abfahrten und Auffahrten</h3>
-<p class="diversion-subtitle">Fahrtrichtungsbezogene Übersicht aller Anschlussstellen. <strong>Umfahrung % = Soll-Anteil</strong> für herannahende Fahrzeuge. Bei Vollsperrung 100 % an der letzten geeigneten Ausfahrt davor. Bei sehr hohem Zeitverlust sind auch vorher bis zu 100 % Ausweichwunsch möglich. <strong>Ist ↓ / ↑</strong> zeigt nur tatsächlich über eine aktivierte Simulationsumleitung abgezweigte und wieder eingefädelte Fahrzeuge; gewöhnlicher Anschlussstellenverkehr ist noch nicht modelliert.</p>
+<p class="diversion-subtitle">Fahrtrichtungsbezogene Übersicht aller Anschlussstellen. <strong>Umfahrung % = Soll-Anteil</strong> für herannahende Fahrzeuge. Bei Vollsperrung 100 % an der letzten geeigneten Ausfahrt davor. Frühere Ausfahrten werden erst mit wachsender Wartezeit genutzt: zuerst die vorherige AS, dann schrittweise weitere. <strong>Ist ↓ / ↑</strong> zeigt nur tatsächlich über eine aktivierte Simulationsumleitung abgezweigte und wieder eingefädelte Fahrzeuge; gewöhnlicher Anschlussstellenverkehr ist noch nicht modelliert.</p>
 <div id="junction-movements" class="junction-movements" aria-live="polite"></div>
 <h3 class="traffic-subtitle">🛣️ Automatische Stauumfahrungen</h3>
-<p class="diversion-subtitle">Für alle 12 regulären Anschlussstellen sind in beiden Richtungen Umleitungen enthalten: 24 sofort verfügbare Abfahrtsmöglichkeiten, ohne Online-Routenabruf. Längere Sperren werden über mehrere Nebenstraßenabschnitte umfahren. Am Kartenrand wird die Weiterfahrt außerhalb des Netzes gezählt. Die Verläufe sind angenäherte Simulationsrouten und werden auf der Verkehrskarte nicht eingezeichnet. Die Ausweichbereitschaft steigt mit dem Zeitverlust bis auf 100 %. Ausfahrt, Nebenstraßen und Wiedereinfahrt begrenzen den tatsächlichen Abfluss.</p>
+<p class="diversion-subtitle">Für alle 12 regulären Anschlussstellen sind in beiden Richtungen Umleitungen enthalten: 24 sofort verfügbare Abfahrtsmöglichkeiten, ohne Online-Routenabruf. Längere Sperren werden über mehrere Nebenstraßenabschnitte umfahren. Am Kartenrand wird die Weiterfahrt außerhalb des Netzes gezählt. Die Verläufe sind angenäherte Simulationsrouten und werden auf der Verkehrskarte nicht eingezeichnet. Bei Vollsperrung ist nur die letzte AS davor Pflichtabfahrt. Frühere Ausfahrten werden mit wachsendem Rückstau und längerer Wartezeit schrittweise genutzt. Ausfahrt, Nebenstraßen und Wiedereinfahrt begrenzen den tatsächlichen Abfluss.</p>
 <div id="traffic-diversion-plans" class="diversion-options" aria-live="polite"></div>
 <details class="diversion-catalog"><summary>Enthaltene Routen · jede Ausfahrt dieser Richtung</summary><div id="traffic-diversion-catalog"></div></details>
 <p class="diversion-subtitle">Quellen: <a href="https://wiki.openstreetmap.org/wiki/DE:Germany/Bedarfsumleitung/Rheinland-Pfalz" target="_blank" rel="noopener noreferrer">OSM Rheinland-Pfalz</a>, <a href="https://wiki.openstreetmap.org/wiki/DE:Germany/Bedarfsumleitung/Hessen" target="_blank" rel="noopener noreferrer">OSM Hessen</a> und Autobahn GmbH. Der U-Katalog dient als Hintergrundinformation. Die enthaltenen Umleitungen sind <strong>Simulationsrouten mit angenähertem Verlauf</strong>, keine bestätigte offizielle Beschilderung oder Navigation.</p>
@@ -194,15 +200,35 @@
  <label class="schedule-enable"><input type="checkbox" id="event-scheduled">
  <span>🗓️ Ereignis zeitlich planen <small>Automatischer Beginn und automatisches Ende</small></span></label>
  <div id="event-schedule-fields" hidden>
-  <div class="schedule-dates">
-   <label for="event-start">Beginn<input id="event-start" type="datetime-local" step="60"></label>
-   <label for="event-end">Ende<input id="event-end" type="datetime-local" step="60"></label>
+  <label for="event-schedule-mode">Wiederholung
+   <select id="event-schedule-mode"><option value="once">Einmaliger Zeitraum</option><option value="daily">Täglich / nach Wochentagen wiederholen</option></select>
+  </label>
+  <div id="event-once-fields" class="schedule-dates">
+   <label for="event-start-date">Beginn · Datum<input id="event-start-date" type="date"></label>
+   <label for="event-start-time">Beginn · Uhrzeit<input id="event-start-time" type="time" step="60"></label>
+   <label for="event-end-date">Ende · Datum<input id="event-end-date" type="date"></label>
+   <label for="event-end-time">Ende · Uhrzeit<input id="event-end-time" type="time" step="60"></label>
   </div>
-  <p class="schedule-explain">Ab dem Beginn gelten die oben gewählten Fahrstreifen. Ab dem Ende ist die Maßnahme nicht mehr aktiv und erscheint nicht mehr auf der Karte. Der gespeicherte Zeitplan bleibt für Wiederholungen erhalten.</p>
+  <div id="event-daily-fields" hidden>
+   <div class="schedule-dates">
+    <label for="event-repeat-from">Erster Starttag<input id="event-repeat-from" type="date"></label>
+    <label for="event-repeat-through">Letzter Starttag (einschließlich)<input id="event-repeat-through" type="date"></label>
+    <label for="event-repeat-start-time">Beginn je Zeitfenster<input id="event-repeat-start-time" type="time" step="60" value="19:00"></label>
+    <label for="event-repeat-end-time">Ende je Zeitfenster<input id="event-repeat-end-time" type="time" step="60" value="05:00"></label>
+   </div>
+   <div id="event-repeat-weekdays" class="schedule-weekdays" aria-label="Wochentage des Beginns">
+    <label><input type="checkbox" value="1" checked>Mo</label><label><input type="checkbox" value="2" checked>Di</label><label><input type="checkbox" value="3" checked>Mi</label><label><input type="checkbox" value="4" checked>Do</label><label><input type="checkbox" value="5" checked>Fr</label><label><input type="checkbox" value="6" checked>Sa</label><label><input type="checkbox" value="0" checked>So</label>
+   </div>
+   <p class="schedule-explain">Die oben gewählten Spuren und das Tempo gelten in jedem Zeitfenster. Beispiel 19:00–05:00: Ende am Folgetag, auch nach dem letzten Starttag. Außerhalb der Zeitfenster wird die Sperrung aufgehoben; vorhandener Rückstau kann sich abbauen.</p>
+   <p id="event-repeat-zone" class="schedule-explain"></p>
+  </div>
+  <div id="event-phase-program">
+  <p class="schedule-explain">Ab Beginn gelten die oben gewählten Fahrstreifen. Ab Ende wird die Maßnahme aufgehoben. Datum und Uhrzeit lassen sich getrennt auswählen.</p>
   <h3 class="schedule-heading">Bauphasen / wechselnde Sperrungen</h3>
   <div id="event-phases"></div>
   <button id="event-add-phase" type="button" class="schedule-add">+ Weitere Verkehrsphase</button>
   <p class="schedule-explain">Optional: Ab einer späteren Uhrzeit andere Fahrstreifen sperren oder aus einer Vollsperrung eine teilweise Freigabe machen (maximal sechs Wechsel).</p>
+  </div>
  </div>
 </section>
  <div class="event-info" id="event-form-error" role="alert"></div>

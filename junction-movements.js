@@ -1,8 +1,9 @@
 import { positionM } from './spatial.js';
 import { diversionJunctions, potentialDiversionPercent } from './diversions.js';
+import { earlierExitPercent } from './diversion-policy.js';
 /** 100% is reserved for the LAST normal exit that can be reached before
- * a formal complete road closure. Earlier exits remain alternative choices
- * with unquantified demand unless a distinct incident affects their traffic.
+ * a formal complete road closure. Earlier exits are voluntary alternatives
+ * recruited in stages as actual queue/side-road waiting grows.
  * The 100% value is the requested exit intention, never a claim that a
  * ramp can absorb an unlimited traffic stream.
  */
@@ -25,6 +26,16 @@ export function junctionMovements(path, route, exits, events, delayMin, real = [
             nearest.mandatory = true;
             nearest.eventId = event.id;
             nearest.distanceBeforeClosureKm = (at - nearest.exit.metre) / 1000;
+            for (let i = 1; i < upstream.length; i++) {
+                const row = upstream[i];
+                if (row.mandatory)
+                    continue;
+                const percent = earlierExitPercent(delayMin ?? 0, i);
+                if (percent > row.desiredPercent) {
+                    row.desiredPercent = percent;
+                    row.eventId = event.id;
+                }
+            }
         }
         else {
             // The percentage is an explicitly modelled route-choice desire, NOT actual
@@ -42,12 +53,17 @@ export function junctionMovements(path, route, exits, events, delayMin, real = [
             }
         }
     }
+    const measured = new Set();
     for (const flow of real) {
         const from = flow.path === path ? rows.find(r => !r.exit.isInterchange && Math.abs(r.exit.metre - flow.fromM) <= 25) : undefined;
         const to = (flow.targetPath ?? flow.path) === path ? rows.find(r => !r.exit.isInterchange && Math.abs(r.exit.metre - flow.toM) <= 25) : undefined;
         if (from) {
-            if (!from.mandatory && flow.desiredPercent !== undefined)
-                from.desiredPercent = flow.desiredPercent;
+            if (!from.mandatory && flow.desiredPercent !== undefined) {
+                if (!measured.has(from))
+                    from.desiredPercent = 0;
+                from.desiredPercent = Math.max(from.desiredPercent, flow.desiredPercent);
+                measured.add(from);
+            }
             from.outVph += flow.outVph;
             from.vehiclesOnDetour += flow.vehiclesOnDetour;
             from.validatedRouteActive = true;

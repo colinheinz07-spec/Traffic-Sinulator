@@ -5,6 +5,7 @@ import { initialiseCells } from './traffic-cells.js';
 import { speedDelayLabel } from './speed-delay.js';
 import { trafficView } from './traffic-view.js';
 import { advanceRoutedNetwork } from './routed-traffic.js';
+import { routedDiversionChoice } from './diversion-policy.js';
 import { automaticDiversions } from './auto-diversions.js';
 import { buildRampConnections, rampSpillbacks } from './interchange.js';
 import { planDiversion } from './diversions.js';
@@ -63,13 +64,21 @@ function activeEvents() { return effectiveEventsAt(events, simulatedClock().getT
 function scheduleSummary(event) {
     if (!event.schedule)
         return 'Ohne Enddatum';
+    const repeated = event.schedule.recurrence;
+    if (repeated) {
+        const date = (value) => new Date(value + 'T12:00:00').toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        const days = repeated.weekdays.length === 7 ? 'täglich' : [1, 2, 3, 4, 5, 6, 0].filter(day => repeated.weekdays.includes(day))
+            .map(day => ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'][day]).join(', ');
+        return `Starttage ${date(repeated.firstDate)} – ${date(repeated.lastDate)} · ${days} ${repeated.startTime}–${repeated.endTime}` +
+            (repeated.endTime < repeated.startTime ? ' (Folgetag)' : '');
+    }
     const fmt = (iso) => new Date(iso).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' });
     return fmt(event.schedule.startAt) + ' – ' + fmt(event.schedule.endAt) +
         (event.schedule.phases.length ? ' · ' + (event.schedule.phases.length + 1) + ' Bauphasen' : '');
 }
 function eventStatus(event) {
     const state = eventScheduleStatus(event, simulatedClock().getTime());
-    return state === 'planned' ? 'Geplant' : state === 'finished' ? 'Beendet' : state === 'active' ? 'Aktiv' : 'Dauerhaft aktiv';
+    return state === 'planned' ? 'Geplant' : state === 'finished' ? 'Beendet' : state === 'active' ? 'Aktiv' : state === 'between' ? 'Außerhalb des Zeitfensters' : 'Dauerhaft aktiv';
 }
 const scheduleForm = installScheduleForm({
     clock: () => simulatedClock(), format: (date) => dateTimeInputValue(date), laneCount: () => formLaneCount()
@@ -364,7 +373,7 @@ function readCachedDetours() {
 }
 function resetDetourFlow() {
     for (const [key, route] of activeDetours)
-        activeDetours.set(key, { ...route, state: emptyDetour(route.config) });
+        activeDetours.set(key, { ...route, state: emptyDetour(route.config), desiredPercent: 0 });
 }
 function detourKey(link, targetRef) { return link.id + ':' + targetRef; }
 function simulatedLink(path, from, to) {
@@ -583,7 +592,7 @@ function renderDiversionPlanner(key, jams, spillbacks) {
             const title = document.createElement('strong');
             title.textContent = `${eventSymbols[event.kind]} ${eventNames[event.kind]} · ${trafficRouteLabel(direction)}`;
             const demand = document.createElement('p');
-            demand.textContent = plan.requiredDiversion ? '⛔ Vor der Vollsperrung: Ableiten oder Fahrzeuge zurückhalten'
+            demand.textContent = plan.requiredDiversion ? '⛔ 100 % Pflichtabfahrt nur an der letzten AS vor der Sperre; frühere Ausfahrten abhängig von Rückstau und Wartezeit.'
                 : `Ausweichinteresse (Modellannahme): ${trafficNumber(plan.interestPercent ?? 0, 1)} % bei ${traffic.delayMin === null ? 'unbestimmter' : trafficNumber(traffic.delayMin, 1) + ' min'} Verzögerung`;
             block.append(title, demand);
             if (!plan.candidateExits.length) {
@@ -624,7 +633,7 @@ function renderDiversionPlanner(key, jams, spillbacks) {
                     line.append(button);
                     if (running?.config.id === k) {
                         const st = running.state, report = document.createElement('span');
-                        report.textContent = `Aktiv · ${trafficNumber(detourVehicles(st))} Fahrzeuge insgesamt · ${trafficNumber(st.waitingRoad)} warten vor Nebenstraßen-Engpass · ${trafficNumber(st.waitingMerge)} vor Wiedereinfädelung · ${trafficNumber(st.lastDeparture * 60)} Fzg/h abgezweigt · ${running.config.exitsNetwork ? trafficNumber((st.lastExitedNetwork ?? 0) * 60) + ' Fzg/h verlassen das Netz' : trafficNumber(st.lastRejoined * 60) + ' Fzg/h zurück'}`;
+                        report.textContent = `${detourVehicles(st) > 0 || st.lastDeparture > 0 ? 'In Nutzung' : 'Bereit'} · ${trafficNumber(detourVehicles(st))} Fahrzeuge insgesamt · ${trafficNumber(st.waitingRoad)} warten vor Nebenstraßen-Engpass · ${trafficNumber(st.waitingMerge)} vor Wiedereinfädelung · ${trafficNumber(st.lastDeparture * 60)} Fzg/h abgezweigt · ${running.config.exitsNetwork ? trafficNumber((st.lastExitedNetwork ?? 0) * 60) + ' Fzg/h verlassen das Netz' : trafficNumber(st.lastRejoined * 60) + ' Fzg/h zurück'}`;
                         line.append(report);
                     }
                 }
@@ -673,6 +682,13 @@ function updateMapClock() {
 function renderTraffic() {
     prepareAutomaticDetours();
     const timeline = activeEvents();
+    const choices = [...activeDetours.values()], demands = currentDemands();
+    for (const entry of choices) {
+        const target = entry.config.targetPath ?? entry.config.path;
+        const percent = cellNetwork[entry.config.path] && cellNetwork[target] ?
+            routedDiversionChoice(entry, choices, cellNetwork, spatialCorridors, timeline, exits, demands).percent : 0;
+        activeDetours.set(entry.config.id, { ...entry, desiredPercent: percent });
+    }
     const selector = $('traffic-route');
     const key = selector.value;
     if (!PATHS.includes(key))
@@ -795,10 +811,11 @@ function selectTrafficRoute(path) {
 function stopTraffic() { if (trafficTimer !== null) {
     clearInterval(trafficTimer);
     trafficTimer = null;
-} $('traffic-play').textContent = '▶ Start'; updateMapClock(); }
+} $('traffic-play').textContent = '▶ Start'; $('traffic-play').setAttribute('aria-pressed', 'false'); updateMapClock(); }
 function stepTraffic(minutes) {
     try {
         for (let i = 0; i < minutes; i++) {
+            prepareAutomaticDetours();
             const active = currentDemands();
             const timeline = activeEvents();
             const transfers = [];
@@ -886,6 +903,7 @@ function initializeTraffic() {
             return;
         }
         $('traffic-play').textContent = '⏸ Pause';
+        $('traffic-play').setAttribute('aria-pressed', 'true');
         trafficTimer = setInterval(() => stepTraffic(1), 1000);
         updateMapClock();
     };

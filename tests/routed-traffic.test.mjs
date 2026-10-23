@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {networkData} from '../dist/geodata.js';
-import {makeCorridors,routeSlice,emptySpatial,advanceSpatial} from '../dist/spatial.js';
+import {makeCorridors,routeSlice,emptySpatial,advanceSpatial,closureGate} from '../dist/spatial.js';
 import {initialiseCells,advanceCells,cellInventory,cellSpeedBands,assertCellConservation} from '../dist/traffic-cells.js';
 import {advanceRoutedPath,advanceRoutedNetwork} from '../dist/routed-traffic.js';
 import {emptyDetour,detourVehicles} from '../dist/detour-flow.js';
@@ -79,7 +79,7 @@ test('routes can load in advance without forcing low-delay traffic off the motor
 });
 test('a disabled diversion retains its cars and lets all of them finish their journey',()=>{
  const closure=event(route.lengthM*.6,'closure',[0,1,2],0);
- let cells=initialiseCells(route,2300),entries=[detour('finish',route.lengthM*.3,route.lengthM*.8)];
+ let cells=initialiseCells(route,2300),entries=[detour('finish',closureGate(route,closure,exits).metre,route.lengthM*.8)];
  for(let t=0;t<15;t++){const next=advanceRoutedPath(cells,route,[closure],2300,exits,entries);cells=next.cells;entries=next.detours;}
  const admitted=entries[0].state.admittedTotal;assert.ok(admitted>20);
  entries=entries.map(e=>({...e,enabled:false}));
@@ -110,12 +110,15 @@ test('an A3 queue reaching AD Dernbach offers A48 exits including Höhr to rejoi
 test('cross-motorway detours leave A48 and return on A3 exactly once with global conservation',()=>{
  const source='A48-dernbach',a=junction(source,'12'),target=junction(path,'41');
  const connection=links.find(c=>c.rampId==='ramp-a48-to-frankfurt');
- const closure=event(connection.downstreamMergeM+1000,'closure',[0,1,2],0);
+ const closure=event(connection.downstreamMergeM+1000,'accident',[0,1,2],0);
  const geometry={id:'cross',path:source,sourceExitRef:'12',targetExitRef:'41',points:[[50.5,7.7],[50.4,7.9]],
  lengthKm:18,freeMinutes:10,roadCapacityVph:900,junctionCount:3,trafficLightCount:1,source:'osm-routed-infill',relationId:null,label:'Cross test fixture'};
  const config={id:'cross',path:source,targetPath:path,fromM:a.metre,toM:target.metre,
  sourceEndM:connection.rampEntryM,targetEntryM:connection.downstreamMergeM,eventId:closure.id,geometry};
- let entries=[{config,state:emptyDetour(config)}],cells={[source]:initialiseCells(routes[source],2000),[path]:initialiseCells(route,1500)};
+ let congested=initialiseCells(route,1500);
+ for(let i=0;i<45;i++)congested=advanceCells(congested,route,[closure],1500,exits);
+ const sourceGrid=initialiseCells(routes[source],2000);sourceGrid.minute=congested.minute;
+ let entries=[{config,state:emptyDetour(config)}],cells={[source]:sourceGrid,[path]:congested};
  const demands={...defaultDemands(),[source]:2000,[path]:1500};
  for(let minute=0;minute<55;minute++){
   const next=advanceRoutedNetwork(cells,routes,[closure],demands,exits,entries);cells=next.cells;entries=next.detours;

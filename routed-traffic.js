@@ -4,21 +4,14 @@
  */
 import { advanceCells, cellInventory } from './traffic-cells.js';
 import { advanceDetour, detourVehicles } from './detour-flow.js';
-import { potentialDiversionPercent } from './diversions.js';
-import { speedDelayInCells } from './speed-delay.js';
-import { freeSpeedKmh } from './traffic-physics.js';
+import { routedDiversionChoice } from './diversion-policy.js';
 export function detourReadyToReturn(state, minute) {
     return state.waitingMerge + state.transit.filter(x => x.minute <= minute).reduce((n, x) => n + x.vehicles, 0);
 }
 export function advanceRoutedPath(previous, route, events, demandVph, exits, detours) {
-    const ports = detours.map(({ config, state, enabled }) => {
-        const event = events.find(e => e.id === config.eventId && e.pathKey === route.key);
-        const time = speedDelayInCells(previous, config.fromM, config.toM);
-        const motorwayFree = (config.toM - config.fromM) / 1000 / freeSpeedKmh(route.key) * 60;
-        const localQueue = state.waitingRoad / Math.max(1, config.geometry.roadCapacityVph) * 60;
-        const extra = Math.max(0, config.geometry.freeMinutes - motorwayFree) + localQueue;
-        const wanted = enabled === false ? 0 : event?.kind === 'closure' || time.blocked ? 100 :
-            potentialDiversionPercent(Math.max(0, time.delayMin - extra), false) ?? 0;
+    const ports = detours.map(entry => {
+        const { config, state } = entry;
+        const wanted = routedDiversionChoice(entry, detours, { [route.key]: previous }, { [route.key]: route }, events, exits, { [route.key]: demandVph }).percent;
         const storage = Math.max(80, config.geometry.lengthKm * 90);
         return { id: config.id, fromM: config.fromM, toM: config.exitsNetwork ? null : config.toM, interestPercent: wanted,
             exitCapacityVph: Math.min(1200, Math.max(0, storage - detourVehicles(state)) * 60),
@@ -49,21 +42,12 @@ export function advanceRoutedNetwork(previous, routes, events, demands, exits, d
     const ports = new Map();
     const add = (path, port) => ports.set(path, [...(ports.get(path) ?? []), port]);
     for (const entry of detours) {
-        const { config, state, enabled } = entry, target = config.targetPath ?? config.path;
+        const { config, state } = entry, target = config.targetPath ?? config.path;
         const sourceGrid = previous[config.path], targetGrid = previous[target];
         if (!sourceGrid || !targetGrid)
             throw Error('Umleitung hat keinen verbundenen Fahrbahnzustand');
         const cross = target !== config.path;
-        const first = speedDelayInCells(sourceGrid, config.fromM, cross ? config.sourceEndM ?? Infinity : config.toM);
-        const last = cross ? speedDelayInCells(targetGrid, config.targetEntryM ?? 0, config.toM) : null;
-        const lost = first.delayMin + (last?.delayMin ?? 0), blocked = first.blocked || last?.blocked;
-        const free = cross ? ((config.sourceEndM ?? routes[config.path].lengthM) - config.fromM) / 1000 / freeSpeedKmh(config.path) * 60 +
-            (config.toM - (config.targetEntryM ?? 0)) / 1000 / freeSpeedKmh(target) * 60 :
-            (config.toM - config.fromM) / 1000 / freeSpeedKmh(config.path) * 60;
-        const roadQueue = state.waitingRoad / Math.max(1, config.geometry.roadCapacityVph) * 60;
-        const extra = Math.max(0, config.geometry.freeMinutes - free) + roadQueue;
-        const closed = events.some(e => e.id === config.eventId && e.kind === 'closure');
-        const interest = enabled === false ? 0 : closed || blocked ? 100 : potentialDiversionPercent(Math.max(0, lost - extra), false) ?? 0;
+        const interest = routedDiversionChoice(entry, detours, previous, routes, events, exits, demands).percent;
         const capacity = Math.min(1200, Math.max(0, Math.max(80, config.geometry.lengthKm * 90) - detourVehicles(state)) * 60);
         add(config.path, { id: config.id, fromM: config.fromM, toM: cross || config.exitsNetwork ? null : config.toM,
             interestPercent: interest, exitCapacityVph: capacity, returnVehicles: cross || config.exitsNetwork ? 0 : detourReadyToReturn(state, sourceGrid.minute) });

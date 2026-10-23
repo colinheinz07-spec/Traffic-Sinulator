@@ -1,6 +1,7 @@
 /** User-defined simulation events and configuration; no actual moving vehicles yet. */
 import type {Point,RoadId} from './core.js';
 import type {MapHit} from './selection.js';
+import {validDailyRecurrence,dailyRecurrenceBounds,dailyOccurrenceAt,type DailyRecurrence} from './recurring-events.js';
 
 export const EVENT_KINDS=['roadworks','accident','breakdown','closure'] as const;
 export type EventKind=typeof EVENT_KINDS[number];
@@ -11,7 +12,7 @@ export const eventSymbols:Record<EventKind,string>={roadworks:'ðŸš§',accident:'ð
 export const STORAGE_KEY='traffic-sinulator-events-v1';
 export interface EventSettings {lengthM:number;speedKmh:number;shoulder:ShoulderMode}
 export interface EventPhase {startAt:string;kind:'roadworks'|'closure';closedLanes:number[];speedKmh:number;shoulder:ShoulderMode}
-export interface EventSchedule {startAt:string;endAt:string;phases:EventPhase[]}
+export interface EventSchedule {startAt:string;endAt:string;phases:EventPhase[];recurrence?:DailyRecurrence}
 export interface SimEvent {id:string;kind:EventKind;pathKey:string;point:Point;closedLanes:number[];laneCount:number;createdAt:string;settings:EventSettings;schedule?:EventSchedule}
 export interface FlowPolicy {openMainLanes:number;openTotalLanes:number;canEnter:boolean;occupantsMayLeave:boolean;rerouteApproaching:boolean;speedKmh:number}
 const directions:ReadonlySet<string>=new Set<RoadId>(['A3-koeln','A3-frankfurt','A48-koblenz','A48-dernbach']);
@@ -56,6 +57,11 @@ export function validEvent(v:unknown):v is SimEvent{
    ||!Number.isFinite(Date.parse(sch.startAt))||!Number.isFinite(Date.parse(sch.endAt))
    ||Date.parse(sch.startAt)>=Date.parse(sch.endAt)
    ||!Array.isArray(sch.phases)||sch.phases.length>6)return false;
+  if(sch.recurrence!==undefined){
+   if(!validDailyRecurrence(sch.recurrence)||sch.phases.length)return false;
+   const bounds=dailyRecurrenceBounds(sch.recurrence);
+   if(!bounds||Date.parse(bounds.startAt)!==Date.parse(sch.startAt)||Date.parse(bounds.endAt)!==Date.parse(sch.endAt))return false;
+  }
   let previous=Date.parse(sch.startAt);
   for(const phase of sch.phases){
    if(!phase||typeof phase!=='object'||typeof phase.startAt!=='string'
@@ -133,6 +139,7 @@ export function effectiveEventAt(event:SimEvent,at:number):SimEvent|null{
  const schedule=event.schedule;
  if(!schedule)return event;
  if(!Number.isFinite(at)||at<Date.parse(schedule.startAt)||at>=Date.parse(schedule.endAt))return null;
+ if(schedule.recurrence&&!dailyOccurrenceAt(schedule.recurrence,at))return null;
  let active:EventPhase|null=null;
  for(const phase of schedule.phases){
   if(Date.parse(phase.startAt)<=at)active=phase;
@@ -145,9 +152,10 @@ export function effectiveEventAt(event:SimEvent,at:number):SimEvent|null{
 export function effectiveEventsAt(events:readonly SimEvent[],at:number):SimEvent[]{
  return events.flatMap(e=>{const active=effectiveEventAt(e,at);return active?[active]:[]});
 }
-export function eventScheduleStatus(event:SimEvent,at:number):'permanent'|'planned'|'active'|'finished'{
+export function eventScheduleStatus(event:SimEvent,at:number):'permanent'|'planned'|'active'|'between'|'finished'{
  if(!event.schedule)return 'permanent';
  if(at<Date.parse(event.schedule.startAt))return 'planned';
  if(at>=Date.parse(event.schedule.endAt))return 'finished';
+ if(event.schedule.recurrence&&!dailyOccurrenceAt(event.schedule.recurrence,at))return 'between';
  return 'active';
 }
