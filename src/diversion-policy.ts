@@ -1,26 +1,28 @@
-/** Route choice is separate from route availability. A formal closure has
- * exactly one mandatory local exit on its own carriageway. Earlier exits
- * become attractive in stages as the queue at that exit actually grows.
+/** Route availability does not recruit drivers. Voluntary diversion needs
+ * 45 minutes of queue disadvantage AND an exit at the physical queue tail.
+ * When the queue passes an AS, the previous AS joins in. Downstream exits
+ * remain available to cars still reaching them.
  */
-import type {Exit} from './core.js';
+import type {Exit,RoadId} from './core.js';
 import type {SimEvent} from './events.js';
 import type {DetourConfig,DetourState} from './detour-flow.js';
-import type {CellRouteState} from './traffic-cells.js';
+import {cellSpeedBands,type CellRouteState} from './traffic-cells.js';
 import type {PathKey} from './traffic.js';
-import {closureGate,type Corridor} from './spatial.js';
+import {closureGate,positionM,type Corridor} from './spatial.js';
 import {diversionJunctions,potentialDiversionPercent} from './diversions.js';
 import {speedDelayInCells} from './speed-delay.js';
 import {freeSpeedKmh} from './traffic-physics.js';
 
 interface ChoiceRoute {config:DetourConfig;state:DetourState;enabled?:boolean}
 export interface DiversionChoice {percent:number;mandatory:boolean;delayMin:number;upstreamRank:number}
-/** Forty-five minutes before the previous exit starts to become attractive;
- * each further AS needs another fifteen minutes of net queue disadvantage.
- * These are explicit simulator assumptions, not measured driver statistics.
+/** Small uptake at 45 minutes, rising with delay. A costly/full bypass
+ * reduces willingness. Neither incident age nor a blocked-speed flag is
+ * interpreted as infinite delay or as a mandatory off-ramp movement.
  */
-export function earlierExitPercent(delayMin:number,upstreamRank:number,extraMinutes=0):number{
- const threshold=45+15*Math.max(0,upstreamRank-1);
- return potentialDiversionPercent(Math.max(0,delayMin-Math.max(0,extraMinutes)-threshold),false)??0;
+export function voluntaryDiversionPercent(delayMin:number,extraMinutes=0):number{
+ if(delayMin<45||!Number.isFinite(delayMin))return 0;
+ const saving=Math.max(0,delayMin-Math.max(0,extraMinutes))/delayMin;
+ return Math.round((potentialDiversionPercent(delayMin,false)??0)*saving*10)/10;
 }
 function excessQueue(state:CellRouteState,fromM:number,toM:number,demandVph:number):number{
  const freeDensity=demandVph/freeSpeedKmh(state.pathKey);let vehicles=0;
@@ -30,6 +32,23 @@ function excessQueue(state:CellRouteState,fromM:number,toM:number,demandVph:numb
   vehicles+=Math.max(0,cell.vehicles-freeDensity*(cell.toM-cell.fromM)/1000)*length/(cell.toM-cell.fromM);
  }
  return vehicles;
+}
+/** First AS before the actual queue; all downstream AS remain usable too,
+ * including those now inside it. A backed-up target motorway recruits only
+ * the last source AS before its AD until the source queue spreads further.
+ */
+export function firstDiversionExit(state:CellRouteState,route:Corridor,exits:readonly Exit[],
+ approachEndM:number,backedUpConnection=false):number|null{
+ if(route.key.startsWith('ramp-'))return null;
+ const junctions=diversionJunctions(route.key as RoadId,exits,route)
+  .filter(j=>!j.isInterchange&&j.metre<=approachEndM+25);
+ if(!junctions.length)return null;
+ const bands=cellSpeedBands(state).filter(b=>b.fromM<approachEndM+state.cellM/2);
+ if(!bands.length)return backedUpConnection?junctions.at(-1)!.metre:null;
+ const tail=Math.min(...bands.map(b=>b.fromM));
+ // At approximately 500 m resolution, the previous AS joins only when
+ // the visible congested cells actually cover the current AS.
+ return (junctions.filter(j=>j.metre<tail-.1).at(-1)??junctions[0]!).metre;
 }
 export function routedDiversionChoice(entry:ChoiceRoute,entries:readonly ChoiceRoute[],
  cells:Readonly<Partial<Record<PathKey,CellRouteState>>>,routes:Readonly<Partial<Record<PathKey,Corridor>>>,
@@ -42,30 +61,37 @@ export function routedDiversionChoice(entry:ChoiceRoute,entries:readonly ChoiceR
  const mandatory=!!gate?.exit&&Math.abs(config.fromM-gate.metre)<=25;
  if(entry.enabled===false)return {percent:0,mandatory,delayMin:0,upstreamRank:0};
  if(mandatory)return {percent:100,mandatory:true,delayMin:0,upstreamRank:0};
+ const eventM=event&&event.pathKey===path?positionM(route,event.point):null;
+ const approachEnd=gate?.metre??(cross?config.sourceEndM??route.lengthM:eventM??config.toM);
+ const backedUpConnection=cross&&cellSpeedBands(destination).some(b=>
+  b.fromM<=(config.targetEntryM??0)&&b.toM>=(config.targetEntryM??0));
+ const firstExit=firstDiversionExit(source,route,exits,approachEnd,backedUpConnection);
+ const upstreamRank=route.key.startsWith('ramp-')?0:diversionJunctions(path as RoadId,exits,route)
+  .filter(j=>!j.isInterchange&&j.metre>config.fromM+25&&j.metre<=approachEnd+25).length+1;
+ const eligible=firstExit!==null&&config.fromM>=firstExit-25&&config.fromM<=approachEnd+25;
+ // Cars still reaching an AS inside the queue have already suffered part
+ // of its delay. Use the same full queue disadvantage for all recruited
+ // exits, so extending the tail does not turn the previously used AS off.
+ const decisionFrom=Math.min(config.fromM,firstExit??config.fromM);
  if(gate&&config.fromM<gate.metre){
   const normal=entries.find(e=>e.enabled!==false&&e.config.path===path&&e.config.eventId===config.eventId&&
    (e.config.targetPath??path)===path&&Math.abs(e.config.fromM-gate.metre)<=25);
   const service=Math.max(1,Math.min(1200,normal?.config.geometry.roadCapacityVph??config.geometry.roadCapacityVph));
-  const approachWait=excessQueue(source,config.fromM,gate.metre,demands[path]??0)/service*60;
+  const approachWait=excessQueue(source,decisionFrom,gate.metre,demands[path]??0)/service*60;
   const offRampWait=normal?(normal.state.waitingRoad+normal.state.waitingMerge)/service*60:0;
-  // Compare with reaching the mandatory exit and taking its bypass, never
-  // with driving through the prohibited carriageway (which has no ETA).
   const normalFree=(gate.metre-config.fromM)/1000/freeSpeedKmh(path)*60+
    (normal?.config.geometry.freeMinutes??0);
   const ownWait=(state.waitingRoad+state.waitingMerge)/Math.max(1,config.geometry.roadCapacityVph)*60;
   const extra=Math.max(0,config.geometry.freeMinutes-normalFree)+ownWait;
-  const upstreamRank=Math.max(1,diversionJunctions(path,exits,route).filter(j=>!j.isInterchange&&
-   j.metre>config.fromM+25&&j.metre<=gate.metre+25).length);
-  // The closed motorway gate has zero through-speed by definition. Its
-  // inverse speed is not the wait for taking the working off-ramp.
+  // The working mandatory exit is the reference, not the prohibited road.
   const delayMin=approachWait+offRampWait;
-  return {percent:earlierExitPercent(delayMin,upstreamRank,extra),mandatory:false,delayMin,upstreamRank};
+  return {percent:eligible?voluntaryDiversionPercent(delayMin,extra):0,mandatory:false,delayMin,upstreamRank};
  }
  const sourceEnd=cross?config.sourceEndM??route.lengthM:config.toM;
- const first=speedDelayInCells(source,config.fromM,sourceEnd);
+ const first=speedDelayInCells(source,decisionFrom,sourceEnd);
  const last=cross?speedDelayInCells(destination,config.targetEntryM??0,config.toM):null;
  const service=Math.max(1,Math.min(1200,config.geometry.roadCapacityVph));
- const queueWait=(excessQueue(source,config.fromM,sourceEnd,demands[path]??0)+
+ const queueWait=(excessQueue(source,decisionFrom,sourceEnd,demands[path]??0)+
   (cross?excessQueue(destination,config.targetEntryM??0,config.toM,demands[target]??0):0))/service*60;
  const delayMin=Math.max(first.delayMin+(last?.delayMin??0),queueWait);
  const motorwayFree=cross?(sourceEnd-config.fromM)/1000/freeSpeedKmh(path)*60+
@@ -73,11 +99,5 @@ export function routedDiversionChoice(entry:ChoiceRoute,entries:readonly ChoiceR
   (config.toM-config.fromM)/1000/freeSpeedKmh(path)*60;
  const extra=Math.max(0,config.geometry.freeMinutes-motorwayFree)+
   (state.waitingRoad+state.waitingMerge)/service*60;
- // A block, or an accident affecting every lane, does not make every
- // remote exit mandatory. Cross-motorway alternatives are voluntary too.
- const upstreamRank=cross?1+diversionJunctions(path,exits,route).filter(j=>!j.isInterchange&&
-  j.metre>config.fromM+25&&j.metre<sourceEnd-25).length:0;
- const percent=event?.kind==='closure'?earlierExitPercent(delayMin,Math.max(1,upstreamRank),extra):
-  potentialDiversionPercent(Math.max(0,delayMin-extra),false)??0;
- return {percent,mandatory:false,delayMin,upstreamRank};
+ return {percent:eligible?voluntaryDiversionPercent(delayMin,extra):0,mandatory:false,delayMin,upstreamRank};
 }

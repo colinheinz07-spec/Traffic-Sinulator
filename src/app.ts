@@ -324,9 +324,8 @@ function prepareAutomaticDetours(){
   if(!suppressedDetours.has(option.key))prepareAutomaticDetour(option);
  }
 }
-/** Render junction intention separately from measured off- and on-ramp flow.
- * The existing detour ledger remains the ONLY source of real diverted vehicles.
- * Never invent normal ramp movements, or equate 100% target with discharge.
+/** Keep ordinary local trips and additional detour movements distinguishable.
+ * Both counts come from accepted cell transfers, not requested percentages.
  */
 function realJunctionFlows():RealDetourFlow[]{
  return [...activeDetours.values()].map(entry=>({
@@ -338,10 +337,7 @@ function realJunctionFlows():RealDetourFlow[]{
 }
 function junctionRows(path:typeof DIRECTIONS[number]):JunctionMovement[]{
  const timeline=activeEvents();
- const jams=jamsAt(spatialState,timeline,spatialCorridors);
- const spill=rampSpillbacks(jams,rampConnections,spatialCorridors);
- const delay=trafficView(jams,cellNetwork,spatialCorridors,timeline,spill,spatialState.minute).reports[path].delayMin;
- return junctionMovements(path,spatialCorridors[path],exits,timeline,delay,realJunctionFlows());
+ return junctionMovements(path,spatialCorridors[path],exits,timeline,null,realJunctionFlows(),cellNetwork[path]?.junctions??[]);
 }
 function renderJunctionMovements(path:PathKey){
  const host=$('junction-movements');host.replaceChildren();
@@ -364,22 +360,25 @@ function renderJunctionMovements(path:PathKey){
    flow.textContent='Überleitungen A3 ↔ A48 werden separat berechnet.';
   }else{
    const out=document.createElement('span');out.textContent='Abfahrt ↓ ';
-   const count=document.createElement('b');count.textContent=row.validatedRouteActive?
-    trafficNumber(row.outVph)+' Fzg/h':'—';
+   const count=document.createElement('b');count.textContent=trafficNumber(row.outVph)+' Fzg/h';
    const up=document.createElement('span');up.textContent=' · Auffahrt ↑ ';
-   const entering=document.createElement('b');entering.textContent=row.validatedRouteActive?
-    trafficNumber(row.inVph)+' Fzg/h':'—';
+   const entering=document.createElement('b');entering.textContent=trafficNumber(row.inVph)+' Fzg/h';
    flow.append(out,count,up,entering);
   }
   card.append(header,flow);
   if(!row.exit.isInterchange){
+   const split=document.createElement('div');split.className='junction-note';
+   split.textContent='Regulär ↓ '+trafficNumber(row.normalOutVph)+' / ↑ '+trafficNumber(row.normalInVph)+
+    ' Fzg/h · Stauumfahrung ↓ '+trafficNumber(row.diversionOutVph)+
+    ' · Rückkehr ↑ '+trafficNumber(row.returningInVph)+' Fzg/h';
+   if(row.waitingToEnter>.1)split.textContent+=' · '+trafficNumber(row.waitingToEnter)+' Fzg warten auf der Auffahrt';
+   card.append(split);
    const note=document.createElement('span');note.className='junction-note';
    note.textContent=row.mandatory?
     '⛔ Letzte reguläre Ausfahrt vor der Vollsperrung: 100 % sollen abfahren. Die tatsächliche Abfahrt wird durch die Kapazität von Ausfahrt und Nebenstraßen begrenzt.':
-    row.validatedRouteActive?
-     'Umleitung aktiv · '+trafficNumber(row.vehiclesOnDetour)+' Fzg unterwegs/wartend · '+trafficNumber(row.waitingAtReentry)+' vor Wiedereinfädelung':
-    row.desiredPercent>0?'Unverbindlicher Umfahrungswunsch aufgrund des geschätzten Zeitverlusts; noch keine Abfahrten erfasst.':
-     'Keine Ereignis-Umleitung an dieser Anschlussstelle; normale Ein-/Ausfahrten noch nicht als eigene Ströme simuliert.';
+    row.vehiclesOnDetour>0||row.waitingAtReentry>0||row.desiredPercent>0?
+     'Stauumfahrung · '+trafficNumber(row.vehiclesOnDetour)+' Fzg unterwegs/wartend · '+trafficNumber(row.waitingAtReentry)+' vor Wiedereinfädelung':
+     'Keine zusätzliche Stauumfahrung an dieser AS.';
    card.append(note);
   }
   host.append(card);

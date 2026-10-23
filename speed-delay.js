@@ -11,7 +11,9 @@ export function speedDelayInCells(state, fromM = 0, toM = Infinity) {
         const km = (end - start) / 1000;
         const local = Math.min(free, Math.max(0, c.speedKmh));
         // A true standstill is not equivalent to driving at a fictional 1–5 km/h.
-        if (local <= 1e-6) {
+        // Exit-bound cars may still move in a cell whose through edge is closed.
+        // Their off-ramp flow must not imply an available motorway passage.
+        if (local <= 1e-6 || c.blockedAtM !== undefined && end >= c.blockedAtM - .1) {
             stoppedKm += km;
             continue;
         }

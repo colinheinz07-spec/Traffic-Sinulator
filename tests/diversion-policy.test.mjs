@@ -1,22 +1,22 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {networkData} from '../dist/geodata.js';
-import {makeCorridors,routeSlice,closureGate} from '../dist/spatial.js';
+import {makeCorridors,routeSlice,closureGate,positionM} from '../dist/spatial.js';
 import {automaticDiversions} from '../dist/auto-diversions.js';
-import {diversionJunctions} from '../dist/diversions.js';
+import {diversionJunctions,potentialDiversionPercent} from '../dist/diversions.js';
 import {bundledDetourGeometry,isNetworkDestination} from '../dist/bundled-detours.js';
 import {emptyDetour,detourVehicles} from '../dist/detour-flow.js';
 import {advanceRoutedNetwork} from '../dist/routed-traffic.js';
-import {routedDiversionChoice,earlierExitPercent} from '../dist/diversion-policy.js';
+import {routedDiversionChoice,voluntaryDiversionPercent,firstDiversionExit} from '../dist/diversion-policy.js';
 import {initialiseCells,cellInventory} from '../dist/traffic-cells.js';
 import {defaultDemands} from '../dist/traffic.js';
 import {junctionMovements} from '../dist/junction-movements.js';
 import {buildRampConnections} from '../dist/interchange.js';
 const routes=makeCorridors(networkData.roads,networkData.ramps),{exits}=networkData;
-function closure(path,from,to){
- const js=diversionJunctions(path,exits,routes[path]),a=js.find(j=>j.ref===from),b=js.find(j=>j.ref===to);
- const at=(a.metre+b.metre)/2,laneCount=path.startsWith('A48')?2:3;
- return {id:'policy-'+path,kind:'closure',pathKey:path,point:routeSlice(routes[path],at,at+2)[0],
+const anchor=(path,ref)=>diversionJunctions(path,exits,routes[path]).find(j=>j.ref===ref);
+function incident(path,from,to,kind='closure'){
+ const a=anchor(path,from),b=anchor(path,to),at=(a.metre+b.metre)/2,laneCount=path.startsWith('A48')?2:3;
+ return {id:'policy-'+path,kind,pathKey:path,point:routeSlice(routes[path],at,at+2)[0],
   laneCount,closedLanes:Array.from({length:laneCount},(_,i)=>i),createdAt:'2026-10-23T10:00:00Z',
   settings:{lengthM:200,speedKmh:0,shoulder:'blocked'}};
 }
@@ -25,10 +25,70 @@ function prepare(event){return automaticDiversions([event],routes,exits,{}).map(
   geometry:bundledDetourGeometry(option.key,option.path,option.from,option.to,exits),exitsNetwork:isNetworkDestination(option.to)};
  return {config,state:emptyDetour(config)};
 });}
+// A real spatial field at known density and travel loss; changing its extent
+// changes the tail. The lower fallback from excess vehicles stays below 45.
+function withQueue(path,tail,head,delay=60){
+ const grid=initialiseCells(routes[path],2000);
+ const selected=grid.cells.filter(c=>c.toM>tail&&c.fromM<head);
+ const km=selected.reduce((n,c)=>n+(c.toM-c.fromM)/1000,0),free=path.startsWith('A48')?100:120;
+ const speed=60*km/(delay+60*km/free);
+ for(const c of selected){c.densityVehKm=60;c.vehicles=60*(c.toM-c.fromM)/1000;c.speedKmh=speed;c.flowVph=speed*60;}
+ grid.initialVehicles=cellInventory(grid);return grid;
+}
+function wanted(entries,cells,event,demands=defaultDemands()){
+ return entries.map(e=>({ref:e.config.geometry.sourceExitRef,...routedDiversionChoice(e,entries,cells,routes,[event],exits,demands)}));
+}
 
-test('a new formal closure actually diverts ONLY the last AS, in both A3 and A48 directions',()=>{
+test('voluntary diversion is zero below 45 min and starts with a few drivers, for every incident type',()=>{
+ for(const delay of [0,5,15,30,44,44.999,44.99999]){
+  assert.equal(potentialDiversionPercent(delay,false),0);assert.equal(voluntaryDiversionPercent(delay),0);
+ }
+ assert.equal(voluntaryDiversionPercent(45),2);
+ assert.ok(voluntaryDiversionPercent(45,10)>0&&voluntaryDiversionPercent(45,10)<2);
+ assert.ok(voluntaryDiversionPercent(60)>voluntaryDiversionPercent(45));
+ assert.equal(voluntaryDiversionPercent(500),100);
+ for(const kind of ['accident','roadworks','breakdown']){
+  const path='A3-koeln',event=incident(path,'38','37',kind),entries=prepare(event),at=positionM(routes[path],event.point);
+  const low=withQueue(path,at-3000,at,44),high=withQueue(path,at-3000,at,45);
+  assert.ok(wanted(entries,{[path]:low},event).every(c=>c.percent===0),kind);
+  const used=wanted(entries,{[path]:high},event).filter(c=>c.percent>0);
+  assert.deepEqual(used.map(c=>c.ref),['38'],kind);
+  assert.ok(used.every(c=>c.percent<=2&&!c.mandatory));
+ }
+});
+test('a new incident between Limburg-Nord and Süd does not recruit remote AS, while normal trips continue',()=>{
+ for(const [path,a,b] of [['A3-koeln','43','42'],['A3-frankfurt','42','43']]){
+  for(const kind of ['accident','roadworks']){
+   const event={...incident(path,a,b,kind),closedLanes:[0,1],settings:{lengthM:100,speedKmh:40,shoulder:'normal'}};
+   let entries=prepare(event),cells={[path]:initialiseCells(routes[path],2000)};
+   for(let t=0;t<4;t++){
+    const next=advanceRoutedNetwork(cells,routes,[event],defaultDemands(),exits,entries);cells=next.cells;entries=next.detours;
+    assert.ok(entries.every(d=>d.desiredPercent===0&&d.state.admittedTotal===0),path+' '+kind+' '+t);
+    assert.ok(cells[path].junctions.every(j=>j.lastEntered>0&&j.lastExited>0));
+   }
+  }
+ }
+});
+test('all ordinary incident kinds recruit the previous AS only when the queue covers the current AS; previous exits keep working',()=>{
+ const path='A3-koeln',demands={...defaultDemands(),[path]:2000};
+ for(const kind of ['accident','roadworks','breakdown']){
+  const event=incident(path,'38','37',kind),entries=prepare(event),at=positionM(routes[path],event.point);
+  for(const [tail,expected] of [
+   [anchor(path,'38').metre+1000,['38']],
+   [anchor(path,'38').metre-500,['40','38']],
+   [anchor(path,'40').metre-500,['41','40','38']]
+  ]){
+   const grid=withQueue(path,tail,at,100),cells={[path]:grid};
+   assert.deepEqual(wanted(entries,cells,event,demands).filter(c=>c.percent>0).map(c=>c.ref).sort(),[...expected].sort(),kind+' '+tail);
+   const next=advanceRoutedNetwork(cells,routes,[event],demands,exits,entries);
+   assert.deepEqual(next.detours.filter(d=>d.state.lastDeparture>0).map(d=>d.config.geometry.sourceExitRef).sort(),[...expected].sort());
+   assert.ok(next.detours.every(d=>d.state.lastDeparture*60+(next.cells[path].junctions.find(j=>j.ref===d.config.geometry.sourceExitRef)?.lastExited??0)*60<=1200+1e-6));
+  }
+ }
+});
+test('a new formal closure diverts ONLY the last AS, in both A3 and A48 directions',()=>{
  for(const [path,from,to] of [['A3-koeln','38','37'],['A3-frankfurt','41','42'],['A48-dernbach','11','12'],['A48-koblenz','11','10']]){
-  const event=closure(path,from,to),entries=prepare(event),demands=defaultDemands();
+  const event=incident(path,from,to),entries=prepare(event),demands=defaultDemands();
   const cells=Object.fromEntries(['A3-koeln','A3-frankfurt','A48-dernbach','A48-koblenz'].map(p=>[p,initialiseCells(routes[p],demands[p])]));
   const next=advanceRoutedNetwork(cells,routes,[event],demands,exits,entries);
   const used=next.detours.filter(d=>d.state.lastDeparture>1e-6);
@@ -38,84 +98,72 @@ test('a new formal closure actually diverts ONLY the last AS, in both A3 and A48
   for(const opposite of Object.keys(cells).filter(p=>p!==path))assert.equal(next.cells[opposite].divertedTotal,0);
   const actual=next.detours.map(d=>({path,fromM:d.config.fromM,toM:d.config.toM,eventId:event.id,
    desiredPercent:d.desiredPercent,outVph:d.state.lastDeparture*60,inVph:0,vehiclesOnDetour:detourVehicles(d.state),waitingAtReentry:0}));
-  const displayed=junctionMovements(path,routes[path],exits,[event],0,actual);
+  const displayed=junctionMovements(path,routes[path],exits,[event],0,actual,next.cells[path].junctions);
   assert.deepEqual(displayed.filter(r=>r.desiredPercent>0).map(r=>r.exit.ref),[from]);
  }
 });
-test('earlier exits start one by one as the real mandatory-exit queue grows, without an elapsed-closure clock',()=>{
- const path='A3-koeln',event=closure(path,'38','37'),entries=prepare(event),demands=defaultDemands();
- const cells={[path]:initialiseCells(routes[path],demands[path])},gate=closureGate(routes[path],event,exits);
- const nearest=entries.find(d=>Math.abs(d.config.fromM-gate.metre)<25);
- const early=entries.filter(d=>d!==nearest).sort((a,b)=>b.config.fromM-a.config.fromM);
- assert.deepEqual(early.map(d=>d.config.geometry.sourceExitRef),['40','41','42','43']);
- const firstUse=[];
- for(let minutes=0;minutes<=240;minutes++){
-  nearest.state.waitingRoad=minutes*nearest.config.geometry.roadCapacityVph/60;
-  for(let i=0;i<early.length;i++){
-   const choice=routedDiversionChoice(early[i],entries,cells,routes,[event],exits,demands);
-   assert.equal(choice.mandatory,false);assert.equal(choice.upstreamRank,i+1);
-   if(choice.percent>0&&firstUse[i]===undefined)firstUse[i]=minutes;
-  }
+test('huge waiting at a closure cannot skip free upstream AS; the next one joins as the tail reaches each AS',()=>{
+ const path='A3-koeln',event=incident(path,'38','37'),entries=prepare(event),gate=closureGate(routes[path],event,exits);
+ const mandatory=entries.find(d=>Math.abs(d.config.fromM-gate.metre)<25);
+ mandatory.state.waitingRoad=2000;
+ // A queue at AS 38 permits AS 40, but even enormous delay cannot recruit
+ // Diez/Limburg while the queue has not yet reached Montabaur.
+ for(const [tail,expected] of [[gate.metre-500,['40','38']],[anchor(path,'40').metre-500,['41','40','38']]]){
+  const cells={[path]:withQueue(path,tail,gate.metre,100)};
+  assert.deepEqual(wanted(entries,cells,event).filter(c=>c.percent>0).map(c=>c.ref).sort(),[...expected].sort());
  }
- assert.ok(firstUse.every(Number.isFinite));assert.ok(firstUse[0]>=45);
- assert.ok(firstUse.every((n,i)=>!i||n>firstUse[i-1]),JSON.stringify(firstUse));
- // Minutes of simulation alone cannot make remote exits mandatory.
- nearest.state.waitingRoad=0;cells[path].minute=10000;
- assert.ok(early.every(d=>routedDiversionChoice(d,entries,cells,routes,[event],exits,demands).percent===0));
+ const free=initialiseCells(routes[path],2000);free.minute=10000;
+ assert.deepEqual(wanted(entries,{[path]:free},event).filter(c=>c.percent>0).map(c=>c.ref),['38']);
 });
-test('zero speed at the closed gate does not turn a short queue into 100 percent at every earlier exit',()=>{
- const path='A3-koeln',event=closure(path,'38','37'),entries=prepare(event),demands=defaultDemands();
- const grid=initialiseCells(routes[path],demands[path]),gate=closureGate(routes[path],event,exits);
- const cell=grid.cells.find(c=>c.fromM<gate.metre&&c.toM>=gate.metre);
+test('zero gate speed does not turn a short queue into remote mandatory exits',()=>{
+ const path='A3-koeln',event=incident(path,'38','37'),entries=prepare(event),grid=initialiseCells(routes[path],2000);
+ const gate=closureGate(routes[path],event,exits),cell=grid.cells.find(c=>c.fromM<gate.metre&&c.toM>=gate.metre);
  cell.speedKmh=0;cell.vehicles+=8;
- for(const entry of entries){
-  const choice=routedDiversionChoice(entry,entries,{[path]:grid},routes,[event],exits,demands);
-  assert.equal(choice.percent,Math.abs(entry.config.fromM-gate.metre)<=25?100:0);
- }
+ for(const c of wanted(entries,{[path]:grid},event))assert.equal(c.percent,c.ref==='38'?100:0);
 });
-test('a long live closure recruits the previous AS before distant exits and conserves cars',()=>{
- const path='A3-koeln',event=closure(path,'38','37'),demands={...defaultDemands(),[path]:3800};
+test('a live long closure recruits AS in spatial order and conserves boundary, local and detour vehicles',()=>{
+ const path='A3-koeln',event=incident(path,'38','37'),demands={...defaultDemands(),[path]:3800};
  let entries=prepare(event),cells={[path]:initialiseCells(routes[path],3800)};
  const initial=cellInventory(cells[path]);let firstPrevious=null,firstDistant=null;
  for(let t=0;t<100;t++){
+  const floor=firstDiversionExit(cells[path],routes[path],exits,closureGate(routes[path],event,exits).metre);
   const next=advanceRoutedNetwork(cells,routes,[event],demands,exits,entries);cells=next.cells;entries=next.detours;
+  for(const d of entries)if(d.config.geometry.sourceExitRef!=='38'&&(floor===null||d.config.fromM<floor-25))assert.equal(d.desiredPercent,0);
   const previous=entries.find(d=>d.config.geometry.sourceExitRef==='40');
   const distant=entries.filter(d=>['41','42','43'].includes(d.config.geometry.sourceExitRef));
   if(previous.state.lastDeparture>0&&firstPrevious===null)firstPrevious=t;
   if(distant.some(d=>d.state.lastDeparture>0)&&firstDistant===null)firstDistant=t;
-  if(t<5)assert.ok(entries.filter(d=>d.config.geometry.sourceExitRef!=='38').every(d=>d.state.admittedTotal===0));
   const completed=entries.reduce((n,d)=>n+(d.state.exitedNetworkTotal??0),0);
   const total=cellInventory(cells[path])+entries.reduce((n,d)=>n+detourVehicles(d.state),0);
   assert.ok(Math.abs(total+cells[path].exitedTotal+completed-initial-cells[path].offeredTotal)<1e-5);
  }
  assert.ok(firstPrevious!==null&&firstPrevious>5);assert.ok(firstDistant===null||firstDistant>firstPrevious);
 });
-test('a full-lane accident has no mandatory 100-percent exit; lifting a closure removes the obligation',()=>{
- const path='A3-koeln',closed=closure(path,'38','37'),entries=prepare(closed),demands=defaultDemands();
- const cells={[path]:initialiseCells(routes[path],demands[path])};
- for(const timeline of [[{...closed,kind:'accident'}],[]]){
-  for(const entry of entries){const choice=routedDiversionChoice(entry,entries,cells,routes,timeline,exits,demands);
-   assert.equal(choice.mandatory,false);assert.equal(choice.percent,0);}
+test('full-lane accidents have no mandatory exit; closure lifting removes its obligation',()=>{
+ const path='A3-koeln',closed=incident(path,'38','37'),entries=prepare(closed),cells={[path]:initialiseCells(routes[path],2000)};
+ for(const timeline of [[{...closed,kind:'accident'}],[]])for(const entry of entries){
+  const choice=routedDiversionChoice(entry,entries,cells,routes,timeline,exits,defaultDemands());
+  assert.equal(choice.mandatory,false);assert.equal(choice.percent,0);
  }
- assert.equal(earlierExitPercent(45,1),0);assert.ok(earlierExitPercent(75,1)>earlierExitPercent(75,2));
 });
-
-test('A48 alternatives for an A3 closure are voluntary and ordered Höhr, Bendorf, Koblenz-Nord',()=>{
- const path='A3-frankfurt',source='A48-dernbach',event=closure(path,'40','41'),demands=defaultDemands();
+test('a queued A3 connection recruits Höhr first; Bendorf and Koblenz-Nord require a source queue reaching the next AS',()=>{
+ const path='A3-frankfurt',source='A48-dernbach',event=incident(path,'40','41');
  const merge=buildRampConnections(networkData.ramps,routes).find(c=>c.rampId==='ramp-a48-to-frankfurt');
- const gate=closureGate(routes[path],event,exits),target=diversionJunctions(path,exits,routes[path]).find(j=>j.ref==='41');
- const grid=initialiseCells(routes[path],demands[path]);
- for(const c of grid.cells)if(c.fromM<gate.metre&&c.toM>merge.downstreamMergeM){
-  c.vehicles=260*(c.toM-c.fromM)/1000;c.densityVehKm=260;c.speedKmh=2;c.flowVph=520;
- }
+ const gate=closureGate(routes[path],event,exits),target=anchor(path,'41');
+ const grid=withQueue(path,merge.downstreamMergeM-500,gate.metre,120);
  const entries=diversionJunctions(source,exits,routes[source]).filter(j=>!j.isInterchange).map(from=>{
   const id='cross-'+from.ref,config={id,path:source,targetPath:path,fromM:from.metre,toM:target.metre,
    sourceEndM:merge.rampEntryM,targetEntryM:merge.downstreamMergeM,eventId:event.id,
    geometry:bundledDetourGeometry(id,source,from,target,exits)};
   return {config,state:emptyDetour(config)};
  });
- const cells={[source]:initialiseCells(routes[source],demands[source]),[path]:grid};
- const choices=entries.map(entry=>routedDiversionChoice(entry,entries,cells,routes,[event],exits,demands)).reverse();
- assert.deepEqual(choices.map(c=>c.upstreamRank),[1,2,3]);assert.ok(choices.every(c=>!c.mandatory));
- assert.ok(choices[0].percent>choices[1].percent&&choices[1].percent>choices[2].percent);
+ for(const [sourceGrid,expected] of [
+  [initialiseCells(routes[source],2000),['12']],
+  [withQueue(source,anchor(source,'12').metre-500,merge.rampEntryM,60),['11','12']],
+  [withQueue(source,anchor(source,'11').metre-500,merge.rampEntryM,60),['10','11','12']]
+ ]){
+  const choices=wanted(entries,{[source]:sourceGrid,[path]:grid},event);
+  assert.ok(choices.every(c=>!c.mandatory));
+  assert.deepEqual(choices.filter(c=>c.percent>0).map(c=>c.ref),expected);
+ }
 });

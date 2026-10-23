@@ -50,7 +50,14 @@ test('two reopened lanes discharge more and clear a long queue faster than keepi
 });
 test('multiple simultaneous exits remove only cars reaching those cells, then return them after travel',()=>{
  const at=route.lengthM*.6,closure=event(at,'closure',[0,1,2],0);
- let cells=initialiseCells(route,2400),detours=[detour('first',route.lengthM*.2,route.lengthM*.8),detour('second',route.lengthM*.4,route.lengthM*.85)];
+ // Both exits must actually have been reached by the queue. Merely having
+ // two geometries upstream of a closure no longer recruits both AS.
+ const last=closureGate(route,closure,exits).metre,previous=junction(path,'37').metre;
+ let cells=initialiseCells(route,2400),detours=[detour('first',previous,route.lengthM*.8),detour('second',last,route.lengthM*.85)];
+ for(const c of cells.cells)if(c.toM>previous-500&&c.fromM<last){
+  c.densityVehKm=180;c.vehicles=180*(c.toM-c.fromM)/1000;c.speedKmh=4;c.flowVph=720;
+ }
+ cells.initialVehicles=cellInventory(cells);
  const initial=cellInventory(cells);let offered=0,departures=0;
  for(let t=0;t<90;t++){
   const before=cells;const next=advanceRoutedPath(cells,route,t<35?[closure]:[],t<35?2400:400,exits,detours);
@@ -110,13 +117,13 @@ test('an A3 queue reaching AD Dernbach offers A48 exits including Höhr to rejoi
 test('cross-motorway detours leave A48 and return on A3 exactly once with global conservation',()=>{
  const source='A48-dernbach',a=junction(source,'12'),target=junction(path,'41');
  const connection=links.find(c=>c.rampId==='ramp-a48-to-frankfurt');
- const closure=event(connection.downstreamMergeM+1000,'accident',[0,1,2],0);
+ const closure=event(connection.downstreamMergeM+5000,'accident',[0,1,2],0);
  const geometry={id:'cross',path:source,sourceExitRef:'12',targetExitRef:'41',points:[[50.5,7.7],[50.4,7.9]],
  lengthKm:18,freeMinutes:10,roadCapacityVph:900,junctionCount:3,trafficLightCount:1,source:'osm-routed-infill',relationId:null,label:'Cross test fixture'};
  const config={id:'cross',path:source,targetPath:path,fromM:a.metre,toM:target.metre,
  sourceEndM:connection.rampEntryM,targetEntryM:connection.downstreamMergeM,eventId:closure.id,geometry};
  let congested=initialiseCells(route,1500);
- for(let i=0;i<45;i++)congested=advanceCells(congested,route,[closure],1500,exits);
+ for(let i=0;i<60;i++)congested=advanceCells(congested,route,[closure],1500,exits);
  const sourceGrid=initialiseCells(routes[source],2000);sourceGrid.minute=congested.minute;
  let entries=[{config,state:emptyDetour(config)}],cells={[source]:sourceGrid,[path]:congested};
  const demands={...defaultDemands(),[source]:2000,[path]:1500};

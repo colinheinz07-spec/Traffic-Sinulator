@@ -59,10 +59,10 @@ export function diversionJunctions(path, exits, corridor) {
 export function potentialDiversionPercent(delayMin, required) {
     if (required)
         return null;
-    if (delayMin === null || !Number.isFinite(delayMin) || delayMin < 0)
+    if (delayMin === null || !Number.isFinite(delayMin) || delayMin < 45)
         return 0;
     const anchors = [
-        [0, 0], [5, 2], [10, 8], [20, 22], [30, 40], [45, 65], [60, 82], [90, 95], [120, 100]
+        [0, 0], [45, 2], [50, 8], [60, 25], [75, 50], [90, 75], [105, 90], [120, 100]
     ];
     for (let i = 1; i < anchors.length; i++) {
         const [end, to] = anchors[i], [begin, from] = anchors[i - 1];

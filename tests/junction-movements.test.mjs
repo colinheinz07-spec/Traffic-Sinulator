@@ -41,15 +41,17 @@ test('Vollsperrung sets 100% mandatory at LAST normal exit upstream, never at AK
   assert.ok(rows.every(x=>!x.exit.isInterchange||x.desiredPercent===0));
  }
 });
-test('normal congestion gives graduated route-choice only to reachable upstream exits',()=>{
+test('a global delay alone cannot paint voluntary diversion at every upstream exit',()=>{
  const road=routes['A3-koeln'],event={...closureBetween('A3-koeln','40','39'),
   kind:'roadworks',closedLanes:[0],settings:{lengthM:500,speedKmh:80,shoulder:'normal'}};
  const rows=junctionMovements('A3-koeln',road,exits,[event],45);
  const used=rows.filter(r=>r.desiredPercent>0);
- assert.equal(used.length,4);
- assert.deepEqual(used.map(x=>x.exit.ref),['43','42','41','40']);
- assert.ok(used.every((x,i)=>i===0||x.desiredPercent>=used[i-1].desiredPercent));
- assert.ok(used.every(x=>!x.mandatory));
+ assert.equal(used.length,0,'a cell-policy choice is required, not a direction-wide estimate');
+ const at=diversionJunctions('A3-koeln',exits,road).find(j=>j.ref==='40').metre;
+ const actual=junctionMovements('A3-koeln',road,exits,[event],150,[{
+  path:'A3-koeln',fromM:at,toM:at+10000,eventId:event.id,desiredPercent:2,
+  outVph:12,inVph:0,vehiclesOnDetour:1,waitingAtReentry:0}]);
+ assert.deepEqual(actual.filter(r=>r.desiredPercent>0).map(r=>r.exit.ref),['40']);
 });
 test('only active verified detour ledger provides measured exit and entry volumes',()=>{
  const path='A3-koeln',event=closureBetween(path,'40','39');
