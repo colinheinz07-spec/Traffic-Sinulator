@@ -1,4 +1,4 @@
-# A3/A48 Stausimulator – TRAFFIC 1.10.0
+# A3/A48 Stausimulator – TRAFFIC 1.10.1
 
 **Ein Repository, eine Startdatei:** `index.html` im Hauptverzeichnis direkt in SPCK öffnen. Keine Cloudflare-Konfiguration und keine externe Kartenbibliothek.
 
@@ -354,3 +354,14 @@ Regressionen prüfen unter anderem die anfänglich einzige tatsächliche Abfahrt
 - **Gesperrte Durchfahrt bleibt gesperrt:** Abfahrende Fahrzeuge können sich noch bewegen, während die Geradeauskante geschlossen ist. Deren Ausfahrtsfluss erzeugt deshalb keine fiktive endliche Autobahn-Reisezeit über die gesperrte Kante. Verzögerung bleibt aus dem Verkehrszustand berechnet; es wird keine Sperrdauer als Zeitverlust verwendet.
 
 Geprüft: Typprüfung, 219 JavaScript-Tests und zwei Python-Geometrieprüfungen, einschließlich beider Richtungen bei Limburg-Nord/Süd, 45-Minuten-Grenze, räumlicher Staffelung bei verschiedenen Ereignistypen, weiter benutzter früherer Abfahrten, sämtlicher 24 lokalen Zu-/Abflüsse, Rampenwarteschlangen, gemeinsamer Kapazitäten und Fahrzeugerhaltung. Zusätzlich mobile Chromium-Prüfung mit 390 × 844 CSS-Pixeln: echte Simulationsschritte für neue Ereignisse und reguläre AS-Flüsse, definierte Zellzustände für die Staurand-/45-Minuten-Prüfung, alle vier Vollsperrungsrichtungen, getrennte Ist-Anzeige sowie Start/Pause an der Karte. Keine Laufzeitfehler und keine externen Routingabrufe. Das ersetzt keine Prüfung auf einem physischen iPhone. Wiederkehrende Nachtfenster und ausgeblendete Umleitungsgeometrien bleiben erhalten.
+
+
+## TRAFFIC 1.10.1 – keine Kettenreaktion aus getrennten Ausfahrtsstaus
+
+Die Staurandprüfung aus 1.10.0 nahm fälschlich das am weitesten vorgelagerte überlastete Zellband der gesamten Fahrtrichtung. Damit konnte ein kurzer, vom Unfallstau getrennter Ausfahrtsrückstau die nächste AS aktivieren. Deren Abfahrer erzeugten wiederum einen eigenen Rückstau. So entstanden ungerechtfertigte Umfahrungen und einzelne zusätzliche Engpässe bei weit entfernten AS.
+
+Die Abfahrtsstaffel folgt jetzt ausschließlich der räumlich mit dem jeweiligen Engpass verbundenen Warteschlange. Freie Strecken trennen einen lokalen Ausfahrtsstau vom Unfallstau, auch bei hohem Zeitverlust. Eine einzelne schnellere Zelle zwischen Stop-and-Go-Paketen verbindet die Schlange nur bei weiterhin überlasteter Dichte; längere freie Lücken werden nicht überbrückt. Montabaur wird für einen Limburg-Stau erst berücksichtigt, wenn dessen verbundener Rückstau Diez erreicht; Ransbach erst beim Erreichen von Montabaur. Bereits genutzte nachgelagerte AS, die 45-Minuten-Schwelle, regulärer AS-Verkehr und das AD-Dernbach-Modell bleiben erhalten.
+
+Zusätzliche Regressionen enthalten ausdrücklich getrennte Rückstaus bei Diez, Montabaur und Ransbach, eine freie Zelle zwischen Ausfahrts- und Unfallstau sowie zwei tatsächliche 120-Minuten-Unfallläufe bei Limburg mit einer bzw. keiner offenen Spur. Dabei werden der erste geringe Umfahrungsanteil bei Diez, noch freier Verkehr an dieser Ausfahrt beim ersten Abfahren und die räumliche Voraussetzung für jede weiter entfernte AS geprüft. Die bisherigen ausschließlich zusammenhängend gesetzten Teststaus hätten diesen Fehler nicht erkennen können.
+
+Prüfung: Typen, 222 JavaScript-Tests und zwei Python-Geometrieprüfungen bestanden. Im mobilen Chromium-Viewport (390 × 844) wurden getrennte Rückstaus bei Diez/Montabaur/Ransbach zusätzlich in die tatsächliche App eingesetzt: Diez nimmt Umfahrer auf, Montabaur und Ransbach bleiben dabei bei null zusätzlicher Umfahrung. Weiter geprüft: 45-Minuten-Grenze, normale AS-Flüsse, weiter benutzte nachgelagerte Abfahrten, vier Vollsperrungsrichtungen und Start/Pause. Keine Browser-Laufzeitfehler. Keine Prüfung auf einem physischen iPhone.

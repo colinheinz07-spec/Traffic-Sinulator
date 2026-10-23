@@ -167,3 +167,67 @@ test('a queued A3 connection recruits Höhr first; Bendorf and Koblenz-Nord requ
   assert.deepEqual(choices.filter(c=>c.percent>0).map(c=>c.ref),expected);
  }
 });
+
+test('detached Diez, Montabaur and Ransbach exit queues cannot recursively recruit remote exits for a Limburg incident',()=>{
+ const path='A3-frankfurt',event=incident(path,'42','43','accident'),at=positionM(routes[path],event.point);
+ const entries=prepare(event),grid=withQueue(path,at-2500,at,100);
+ const addExitQueue=ref=>{
+  const at=anchor(path,ref).metre;
+  for(const c of grid.cells)if(c.toM>at-800&&c.fromM<at){
+   c.densityVehKm=180;c.vehicles=180*(c.toM-c.fromM)/1000;c.speedKmh=5;c.flowVph=900;
+  }
+ };
+ addExitQueue('41');addExitQueue('40');addExitQueue('38');
+ const chosen=wanted(entries,{[path]:grid},event);
+ assert.ok(chosen.find(c=>c.ref==='41').percent>0,'Diez remains the next AS before the incident queue');
+ for(const ref of ['40','38','37','36','35','34'])assert.equal(chosen.find(c=>c.ref===ref).percent,0,'isolated queues must not recruit '+ref);
+});
+test('a genuinely free cell cannot bridge an exit queue to the incident, but a dense moving packet can',()=>{
+ const path='A3-frankfurt',event=incident(path,'42','43','accident'),at=positionM(routes[path],event.point);
+ const grid=withQueue(path,anchor(path,'41').metre-500,at,90),asCell=grid.cells.findIndex(c=>c.fromM<anchor(path,'41').metre&&c.toM>=anchor(path,'41').metre);
+ const gap=grid.cells[asCell+2];
+ gap.densityVehKm=15;gap.vehicles=15*(gap.toM-gap.fromM)/1000;gap.speedKmh=120;
+ assert.equal(firstDiversionExit(grid,routes[path],exits,at),anchor(path,'41').metre,'free gap keeps the isolated Diez exit queue separate');
+ gap.densityVehKm=100;gap.vehicles=100*(gap.toM-gap.fromM)/1000;gap.speedKmh=70;
+ assert.equal(firstDiversionExit(grid,routes[path],exits,at),anchor(path,'40').metre,'a moving but still dense packet is part of the same queue');
+});
+test('long real Unfall runs cannot activate an AS behind a free intervening AS: regress the 109-minute video, not only seeded fields',()=>{
+ const path='A3-frankfurt',route=routes[path];
+ for(const closedLanes of [[0,1],[0,1,2]]){
+  const event={...incident(path,'42','43','accident'),id:'limburg-incident',closedLanes,
+   settings:{lengthM:100,speedKmh:closedLanes.length===3?0:40,shoulder:'normal'}};
+  let cells={[path]:initialiseCells(route,4200)},entries=prepare(event),firstDiez=null;
+  const at=positionM(route,event.point);
+  for(let t=0;t<120;t++){
+   const previous=cells[path];
+   const next=advanceRoutedNetwork(cells,routes,[event],{...defaultDemands(),[path]:4200},exits,entries);
+   cells=next.cells;entries=next.detours;
+   for(const d of entries.filter(d=>d.state.lastDeparture>1e-6)){
+    const ref=d.config.geometry.sourceExitRef;
+    if(ref==='41'&&firstDiez===null){
+     firstDiez=t;assert.ok(d.desiredPercent<20,'first Diez uptake must leave most drivers on the motorway');
+     const exitCell=cells[path].cells.find(c=>c.fromM<d.config.fromM&&c.toM>=d.config.fromM);
+     assert.ok(exitCell.speedKmh>65,'the first few Diez departures must not instantly create an exit jam');
+    }
+    if(['40','38','37','36','35','34'].includes(ref)){
+     // Independently walk the physical dense cells back from the crash.
+     // An isolated queue at a candidate exit does not satisfy this chain.
+     const congested=previous.cells.filter(c=>c.speedKmh<=65&&c.densityVehKm>=50);
+     let tail=congested.filter(c=>Math.abs(c.toM-at)<=previous.cellM).at(-1)?.fromM;
+     assert.notEqual(tail,undefined);
+     while(true){
+      const before=congested.filter(c=>c.toM<=tail+.1&&tail-c.toM<=previous.cellM+1).at(-1);
+      if(!before)break;
+      const gap=previous.cells.filter(c=>c.fromM>=before.toM-.1&&c.toM<=tail+.1);
+      if(gap.some(c=>c.densityVehKm<50))break;
+      tail=before.fromM;
+     }
+     const nextAS=diversionJunctions(path,exits,route).filter(j=>!j.isInterchange&&j.metre>d.config.fromM+25&&j.metre<at).at(0);
+     assert.ok(nextAS&&tail<=nextAS.metre,'cannot use AS '+ref+' while queue tail '+tail+' has not reached '+nextAS?.ref);
+    }
+   }
+   if(t<60)assert.ok(entries.filter(d=>['40','38','37','36','35','34'].includes(d.config.geometry.sourceExitRef)).every(d=>d.state.admittedTotal===0));
+  }
+  assert.notEqual(firstDiez,null);
+ }
+});

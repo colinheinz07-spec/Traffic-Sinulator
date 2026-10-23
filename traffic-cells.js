@@ -7,6 +7,9 @@ const SUBSTEPS = 6, DT_MIN = 1 / SUBSTEPS, WAVE_KMH = 22, JAM_PER_LANE = 95;
 export function cellLanes(path) {
     return path.startsWith('ramp-') ? 1 : path.startsWith('A48') ? 2 : 3;
 }
+export function cellCriticalDensity(path) {
+    return JAM_PER_LANE * cellLanes(path) * WAVE_KMH / (freeSpeedKmh(path) + WAVE_KMH);
+}
 export function initialiseCells(route, initialDemandVph) {
     if (!Number.isFinite(initialDemandVph) || initialDemandVph < 0 || initialDemandVph > 8000)
         throw Error('Ungültiger Zufluss für Zellmodell');
@@ -307,8 +310,7 @@ export function advanceCells(previous, route, events, demandVph, exits = [], por
  * arbitrary static strip. A separate speed-limit overlay covers worksites.
  */
 export function cellSpeedBands(state) {
-    const free = freeSpeedKmh(state.pathKey), jam = JAM_PER_LANE * cellLanes(state.pathKey);
-    const critical = jam * WAVE_KMH / (free + WAVE_KMH);
+    const critical = cellCriticalDensity(state.pathKey);
     const bands = [];
     for (const c of state.cells) {
         if (c.densityVehKm < critical * 1.10 || c.speedKmh > 65)

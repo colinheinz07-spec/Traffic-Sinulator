@@ -1,4 +1,4 @@
-import { cellSpeedBands } from './traffic-cells.js';
+import { cellSpeedBands, cellCriticalDensity } from './traffic-cells.js';
 import { closureGate, positionM } from './spatial.js';
 import { diversionJunctions, potentialDiversionPercent } from './diversions.js';
 import { speedDelayInCells } from './speed-delay.js';
@@ -35,10 +35,31 @@ export function firstDiversionExit(state, route, exits, approachEndM, backedUpCo
         .filter(j => !j.isInterchange && j.metre <= approachEndM + 25);
     if (!junctions.length)
         return null;
-    const bands = cellSpeedBands(state).filter(b => b.fromM < approachEndM + state.cellM / 2);
-    if (!bands.length)
+    const bands = cellSpeedBands(state).filter(b => b.fromM < approachEndM + state.cellM);
+    // Only follow the queue connected to this bottleneck. Taking the minimum
+    // over ALL upstream bands also picks isolated off-ramp queues: their
+    // diverted cars would then recruit the next remote AS recursively.
+    // Moving packets may bridge color gaps only while their density still
+    // belongs to the queue. Even one genuinely free cell separates queues.
+    let root = -1;
+    for (let i = bands.length - 1; i >= 0; i--)
+        if (bands[i].toM >= approachEndM - state.cellM &&
+            bands[i].fromM <= approachEndM + state.cellM) {
+            root = i;
+            break;
+        }
+    if (root < 0)
         return backedUpConnection ? junctions.at(-1).metre : null;
-    const tail = Math.min(...bands.map(b => b.fromM));
+    let tail = bands[root].fromM;
+    for (let i = root - 1; i >= 0; i--) {
+        const band = bands[i];
+        if (tail - band.toM > state.cellM + 1)
+            break;
+        if (tail - band.toM > .1 && state.cells.some(c => c.toM > band.toM + .1 && c.fromM < tail - .1 &&
+            c.densityVehKm < cellCriticalDensity(state.pathKey) * 1.10))
+            break;
+        tail = band.fromM;
+    }
     // At approximately 500 m resolution, the previous AS joins only when
     // the visible congested cells actually cover the current AS.
     return (junctions.filter(j => j.metre < tail - .1).at(-1) ?? junctions[0]).metre;
