@@ -6,10 +6,10 @@
  * This module produces ROUTE PLANNING PREVIEWS only. It must never silently
  * subtract or teleport vehicles from the conserved A3/A48 motorway queues.
  */
-import type {Exit,RoadId} from './core.js';
+import {exitPosition,type Exit,type RoadId} from './core.js';
 import type {SimEvent} from './events.js';
 import type {Corridor} from './spatial.js';
-import {positionM} from './spatial.js';
+import {positionM,closureGate} from './spatial.js';
 
 export type DiversionEvidence='named-endpoints'|'partial';
 export interface DiversionLink {
@@ -66,7 +66,7 @@ export function diversionJunctions(path:RoadId,exits:readonly Exit[],corridor:Co
  if(path!==corridor.key)throw Error('Fahrtrichtung und Geometrie passen nicht zusammen');
  const road=path.startsWith('A3')?'A3':'A48';
  return exits.filter(e=>e.road===road).map(e=>({
-  ...e,metre:positionM(corridor,e.position,900),
+  ...e,position:exitPosition(e,path),metre:positionM(corridor,exitPosition(e,path),900),
   isInterchange:e.name.startsWith('AD ')||e.name.startsWith('AK ')
  })).filter((e):e is JunctionAnchor=>e.metre!==null)
   .sort((a,b)=>a.metre-b.metre||a.ref.localeCompare(b.ref));
@@ -105,7 +105,8 @@ export function planDiversion(event:SimEvent,route:Corridor,exits:readonly Exit[
  const at=positionM(route,event.point,100);
  if(at===null)return null;
  const all=diversionJunctions(path,exits,route);
- const upstream=all.filter(x=>!x.isInterchange&&x.metre<at-50).reverse().slice(0,maxOptions);
+ const section=closureGate(route,event,exits);
+ const upstream=all.filter(x=>!x.isInterchange&&(section?x.metre<=section.metre+1:x.metre<at-50)).reverse().slice(0,maxOptions);
  const candidates=upstream.map((exit,index)=>{
   const link=DIVERSION_LINKS.find(u=>u.path===path&&u.fromRoad===exit.road&&u.fromRef===exit.ref)??null;
   return {exit,link,upstreamKm:Math.max(0,(at-exit.metre)/1000),

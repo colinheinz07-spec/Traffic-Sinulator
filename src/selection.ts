@@ -1,7 +1,7 @@
 /** Map hit-testing remains separate from rendering and transport logic.
  * All snapped positions are interpolated ONLY on verified OSM road geometries.
  */
-import {nearestPolyline,type Point,type Road,type Ramp,type Exit,type RoadId} from './core.js';
+import {nearestPolyline,exitPosition,type Point,type Road,type Ramp,type Exit,type RoadId} from './core.js';
 
 export type MapHit =
   | {kind:'road';road:Road;ramp?:never;point:Point;distance:number;fraction:number;key:RoadId}
@@ -47,7 +47,7 @@ export function closestJunction(hit:MapHit,exits:readonly Exit[]):{exit:Exit;dis
  let best:{exit:Exit;distanceKm:number}|null=null;
  for(const exit of exits){
   if(exit.road!==motorway)continue;
-  const distanceKm=airDistanceMetres(hit.point,exit.position)/1000;
+  const distanceKm=airDistanceMetres(hit.point,exitPosition(exit,hit.key))/1000;
   if(!best||distanceKm<best.distanceKm)best={exit,distanceKm};
  }
  return best;

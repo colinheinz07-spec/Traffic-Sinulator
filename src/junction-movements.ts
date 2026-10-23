@@ -8,7 +8,7 @@ import type {RoadId} from './core.js';
 import type {Corridor} from './spatial.js';
 import type {SimEvent} from './events.js';
 import type {Exit} from './core.js';
-import {positionM} from './spatial.js';
+import {positionM,closureGate} from './spatial.js';
 import {diversionJunctions,type JunctionAnchor} from './diversions.js';
 import type {JunctionTrafficState} from './junction-traffic.js';
 
@@ -44,10 +44,10 @@ export function junctionMovements(path:RoadId,route:Corridor,exits:readonly Exit
  for(const event of events.filter(x=>x.pathKey===path)){
   const at=positionM(route,event.point);
   if(at===null)continue;
-  const upstream=rows.filter(r=>!r.exit.isInterchange&&r.exit.metre<at-50).reverse();
-  if(!upstream.length)continue;
   if(event.kind==='closure'){
-   const nearest=upstream[0]!;
+   const gate=closureGate(route,event,exits);
+   const nearest=rows.find(r=>r.exit.ref===gate?.exit?.ref);
+   if(!nearest)continue;
    nearest.desiredPercent=100;nearest.mandatory=true;nearest.eventId=event.id;
    nearest.distanceBeforeClosureKm=(at-nearest.exit.metre)/1000;
   }

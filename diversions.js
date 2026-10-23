@@ -1,4 +1,13 @@
-import { positionM } from './spatial.js';
+/** Publicly documented emergency diversion (Bedarfsumleitung) INVENTORY.
+ * Sources:
+ *  - OSM Wiki Germany/Bedarfsumleitung/Rheinland-Pfalz and Hessen (Oct 2026)
+ *  - Autobahn GmbH A3 U5 (Jan 2025) and U8 (Jul 2026)
+ * No local-road geometry, journey time or official active diversion is assumed.
+ * This module produces ROUTE PLANNING PREVIEWS only. It must never silently
+ * subtract or teleport vehicles from the conserved A3/A48 motorway queues.
+ */
+import { exitPosition } from './core.js';
+import { positionM, closureGate } from './spatial.js';
 const r = (code, path, fromRef, toRef, evidence = 'named-endpoints') => ({
     id: path + '-' + code, code, path, fromRoad: path.startsWith('A3') ? 'A3' : 'A48', fromRef,
     toRoad: toRef ? (path.startsWith('A3') ? 'A3' : 'A48') : null, toRef, evidence,
@@ -47,7 +56,7 @@ export function diversionJunctions(path, exits, corridor) {
         throw Error('Fahrtrichtung und Geometrie passen nicht zusammen');
     const road = path.startsWith('A3') ? 'A3' : 'A48';
     return exits.filter(e => e.road === road).map(e => ({
-        ...e, metre: positionM(corridor, e.position, 900),
+        ...e, position: exitPosition(e, path), metre: positionM(corridor, exitPosition(e, path), 900),
         isInterchange: e.name.startsWith('AD ') || e.name.startsWith('AK ')
     })).filter((e) => e.metre !== null)
         .sort((a, b) => a.metre - b.metre || a.ref.localeCompare(b.ref));
@@ -79,7 +88,8 @@ export function planDiversion(event, route, exits, delayMin, maxOptions = Infini
     if (at === null)
         return null;
     const all = diversionJunctions(path, exits, route);
-    const upstream = all.filter(x => !x.isInterchange && x.metre < at - 50).reverse().slice(0, maxOptions);
+    const section = closureGate(route, event, exits);
+    const upstream = all.filter(x => !x.isInterchange && (section ? x.metre <= section.metre + 1 : x.metre < at - 50)).reverse().slice(0, maxOptions);
     const candidates = upstream.map((exit, index) => {
         const link = DIVERSION_LINKS.find(u => u.path === path && u.fromRoad === exit.road && u.fromRef === exit.ref) ?? null;
         return { exit, link, upstreamKm: Math.max(0, (at - exit.metre) / 1000),

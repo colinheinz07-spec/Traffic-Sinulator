@@ -91,7 +91,9 @@ export function routedDiversionChoice(entry, entries, cells, routes, events, exi
         const normal = entries.find(e => e.enabled !== false && e.config.path === path && e.config.eventId === config.eventId &&
             (e.config.targetPath ?? path) === path && Math.abs(e.config.fromM - gate.metre) <= 25);
         const service = Math.max(1, Math.min(1200, normal?.config.geometry.roadCapacityVph ?? config.geometry.roadCapacityVph));
-        const approachWait = excessQueue(source, decisionFrom, gate.metre, demands[path] ?? 0) / service * 60;
+        const measured = speedDelayInCells(source, decisionFrom, Math.min(route.lengthM, gate.metre + source.cellM));
+        const approachWait = measured.diversionExitRef && !measured.blocked ? measured.delayMin :
+            excessQueue(source, decisionFrom, gate.metre, demands[path] ?? 0) / service * 60;
         const offRampWait = normal ? (normal.state.waitingRoad + normal.state.waitingMerge) / service * 60 : 0;
         const normalFree = (gate.metre - config.fromM) / 1000 / freeSpeedKmh(path) * 60 +
             (normal?.config.geometry.freeMinutes ?? 0);

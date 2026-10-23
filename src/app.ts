@@ -1,7 +1,7 @@
 import {PATHS,pathBottleneck,eventCapacity,baselineCapacity,defaultDemand,defaultDemands,demandAtMinute,demandAtClock,type DemandMode,type PathKey,type TrafficColor} from './traffic.js';
 import {networkData} from './geodata.js';
 import {routeReport} from './network-report.js';
-import {makeCorridors,routeSlice,positionM,advanceSpatial,emptySpatial,jamsAt} from './spatial.js';
+import {makeCorridors,routeSlice,positionM,closureGate,advanceSpatial,emptySpatial,jamsAt} from './spatial.js';
 import {initialiseCells,type CellRouteState} from './traffic-cells.js';
 import {speedDelayLabel} from './speed-delay.js';
 import {trafficView} from './traffic-view.js';
@@ -19,7 +19,7 @@ import {mapCandidates,chooseMapHits,closestJunction,lanePositions,hitLabel,type 
 import {buildContinuousRoads,lineWidths,along,rampBadges,layoutJunctionLabels,type Rectangle,type RampBadge,type JunctionLabel} from './cartography.js';
 import {placeJamCallout,type LabelRect} from './map-callouts.js';
 import {installScheduleForm} from './schedule-form.js';
-import {DIRECTIONS,validateMap,names,mercator,inverse,nearestPolyline,type Point,type Road,type Ramp,type Exit} from './core.js';
+import {DIRECTIONS,validateMap,names,mercator,inverse,nearestPolyline,exitPosition,type RoadId,type Point,type Road,type Ramp,type Exit} from './core.js';
 
 const $=<T extends HTMLElement>(id:string)=>{const element=document.getElementById(id);if(!element)throw Error(`Element fehlt: ${id}`);return element as T;};
 const canvas=$<HTMLCanvasElement>('map'),wrapper=canvas.parentElement!;
@@ -152,7 +152,7 @@ function updateEventConfigPreview(resetSpeed=false){
  const length=Number(input.value);
  if(resetSpeed||!(length>=1&&length<=maxLengthM(kind)))input.value=String(defaultLengthM(kind));
  $('event-length-note').textContent=kind==='accident'||kind==='breakdown'
-  ?'Punktuelles Ereignis: maximal 200 m.':kind==='roadworks'?'Baustellenabschnitt: bis 20 km einstellbar.':'Sperrabschnitt: bis 10 km einstellbar.';
+  ?'Punktuelles Ereignis: maximal 200 m.':kind==='roadworks'?'Baustellenabschnitt: bis 20 km einstellbar.':'Sperrabschnitt: bis 100 km einstellbar; kann mehrere Anschlussstellen umfassen.';
  const speed=$<HTMLSelectElement>('event-speed');
  const suggested=suggestedSpeed(kind,count,closed,mode);
  if(resetSpeed||!speedManuallyChanged||suggested===0){speed.value=String(suggested);speedManuallyChanged=false;}
@@ -160,7 +160,7 @@ function updateEventConfigPreview(resetSpeed=false){
  const zero=speed.querySelector<HTMLOptionElement>('option[value="0"]');if(zero)zero.disabled=suggested!==0;
  const open=Math.max(0,count-closed.length)+(mode==='open'?1:0);
  $('event-rule-hint').textContent=kind==='closure'
-  ?'Vollsperrung: keine neuen Fahrzeuge in den Sperrabschnitt; bereits darin befindliche Fahrzeuge dürfen später ausfahren. Nachfolgender Verkehr wird künftig über zulässige Ausfahrten/Umleitungen geleitet. Noch keine Verkehrsberechnung.'
+  ?'Vollsperrung: Ausleitung an der letzten regulären AS davor. Auffahrten bleiben bis zur Wiedereinfahrts-AS geschlossen. Fahrzeuge im Abschnitt fahren weiter heraus.'
   :open===0?'Kein freier Fahrstreifen: derzeit kein Durchfluss. Ein Unfall ist trotzdem KEIN formales Vollsperrungs-Ereignis.'
   :`${open} nutzbare Fahrstreifen (davon ${mode==='open'?'1 Standstreifen':'0 Standstreifen'}). Geschwindigkeitsvorschlag ${suggested} km/h – frei anpassbar. Nur Simulationsannahme, keine StVO-Vorgabe.`;
 }
@@ -288,8 +288,9 @@ function findDetourTarget(path:typeof DIRECTIONS[number],event:SimEvent,
  exit:ReturnType<typeof diversionJunctions>[number],link:DiversionLink|null){
  const route=spatialCorridors[path],where=positionM(route,event.point);
  if(where===null)return null;
+ const section=closureGate(route,event,exits);
  const downstream=bundledTargets(path,exits,route).filter(x=>x.ref!==exit.ref
-  &&(isNetworkDestination(x)||x.metre>where+event.settings.lengthM+50)&&x.metre>exit.metre+50);
+  &&(isNetworkDestination(x)||(section?x.metre>=section.endM-1:x.metre>where+event.settings.lengthM+50))&&x.metre>exit.metre+50);
  if(link?.toRef){
   const documented=downstream.find(x=>x.ref===link.toRef);
   // Prefer its documented destination when it is beyond the entire event.
@@ -550,7 +551,7 @@ function renderTraffic(){
  $('traffic-events').textContent=bn.count===0?'Kein eigenes Ereignis auf dieser Richtung – mögliche Rückstauübertragung am AD wird berücksichtigt':
   `${bn.count} eigene(s) Ereignis(se) auf dieser Richtung`;
  const stateLabel=$('traffic-state');stateLabel.textContent=result.sharedRampVehicles>0?trafficColorName[result.exitColor].split(' / ')[0]+' (Abfahrt) · Durchgang '+trafficColorName[result.throughColor??result.color].toLowerCase():trafficColorName[result.color];stateLabel.className=`traffic-state ${result.color}`;
- $('traffic-closure-note').textContent=bn.event?.kind==='closure'?'Vollsperrung: keine neue Einfahrt hinter die letzte reguläre Ausfahrt. Fahrzeuge innerhalb dürfen weiterfahren, sofern kein zusätzlicher Unfall blockiert. Der Zeitverlust wird aus den Geschwindigkeiten der Verkehrszellen gegenüber freier Fahrt berechnet. Bei 0 km/h gibt es keine berechenbare Ankunftszeit; ein angezeigter Mindestwert betrifft nur noch befahrbare Stauabschnitte.':'';
+ $('traffic-closure-note').textContent=bn.event?.kind==='closure'?'Vollsperrung: Fahrzeuge fahren an der letzten regulären Ausfahrt ab. Der Zeitverlust gilt für den Rückstau bis zu dieser Ausleitung. Auffahrten im gesperrten Abschnitt bleiben geschlossen; vorhandene Fahrzeuge fahren heraus. Für die gesperrte Geradeausfahrt gibt es keine Durchfahrtsprognose.':'';
  const mergeQueues=jams.filter(j=>j.id.startsWith('merge:')&&!j.released);
  const overflowText=spillbacks.map(s=>`${trafficRouteLabel(s.rampId)}: ${trafficNumber(s.lengthM/1000,2)} km Rückstau auf ${trafficRouteLabel(s.source)}`).join(' · ');
  const mergeText=mergeQueues.map(x=>`${trafficRouteLabel(x.pathKey)}: ${trafficNumber(x.queueVehicles)} Fahrzeuge warten wegen Rückstau an der Einmündung`).join(' · ');
@@ -726,7 +727,9 @@ function plotLabels(width:number,height:number){
   const [x,y]=toScreen(event.point);obstacles.push({x:x-24,y:y-24,w:48,h:48});
  }
  context!.font='600 10px system-ui';
- junctionLabels=layoutJunctionLabels(exits,toScreen,{width,height},zoom,text=>context!.measureText(text).width,obstacles);
+ const key=$<HTMLSelectElement>('traffic-route').value as RoadId;
+ const mapExits=DIRECTIONS.includes(key)?exits.map(e=>({...e,position:exitPosition(e,key)})):exits;
+ junctionLabels=layoutJunctionLabels(mapExits,toScreen,{width,height},zoom,text=>context!.measureText(text).width,obstacles);
  for(const {point:[x,y],text,box} of junctionLabels){
   context!.beginPath();context!.arc(x,y,3.4,0,2*Math.PI);context!.fillStyle='#09283d';context!.fill();context!.strokeStyle='#f3f8fc';context!.lineWidth=1.3;context!.stroke();
   if(!box)continue;
@@ -913,7 +916,8 @@ function fillMetrics(){const parent=$('metrics');parent.replaceChildren();
 function bind(){
  $('fit').onclick=()=>fit();$('dernbach').onclick=()=>focusOn([50.460264,7.767549],14.2);
  for(const [id,road,ref] of [['koblenz','A48','9'],['diez','A3','41'],['limburg-nord','A3','42'],['limburg-sued','A3','43'],['honnef','A3','34']]){
-  $(id!).onclick=()=>{const exit=exits.find(e=>e.road===road&&e.ref===ref);if(exit)focusOn(exit.position,13.8)};
+  $(id!).onclick=()=>{const exit=exits.find(e=>e.road===road&&e.ref===ref),key=$<HTMLSelectElement>('traffic-route').value as RoadId;
+   if(exit)focusOn(DIRECTIONS.includes(key)?exitPosition(exit,key):exit.position,13.8)};
  }
  $('plus').onclick=()=>{zoom=Math.min(17,zoom+1);refresh()};$('minus').onclick=()=>{zoom=Math.max(8,zoom-1);refresh()};
  $('close').onclick=()=>{$('detail').hidden=true;$('event-delete').dataset.confirm='';};

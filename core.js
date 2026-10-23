@@ -1,3 +1,5 @@
+/** A junction may have different off-ramp nodes in each direction. */
+export function exitPosition(exit, path) { return exit.directional?.[path]?.position ?? exit.position; }
 export const DIRECTIONS = ['A3-koeln', 'A3-frankfurt', 'A48-dernbach', 'A48-koblenz'];
 export const names = { 'A3-koeln': 'A3 Richtung Köln', 'A3-frankfurt': 'A3 Richtung Frankfurt', 'A48-dernbach': 'A48 Richtung Dernbach', 'A48-koblenz': 'A48 Richtung Koblenz' };
 export const exitRefs = { A3: ['34', '35', '36', '37', '38', '39', '40', '41', '42', '43'], A48: ['9', '10', '11', '12', '13'] };

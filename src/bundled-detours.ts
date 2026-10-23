@@ -3,7 +3,7 @@
  * Every normal AS has a route in both directions, including network exits.
  * Longer bypasses concatenate the same sections; no routing server is used.
  */
-import {DIRECTIONS,names,type Exit,type Point,type RoadId} from './core.js';
+import {DIRECTIONS,names,exitPosition,type Exit,type Point,type RoadId} from './core.js';
 import {diversionJunctions,type JunctionAnchor} from './diversions.js';
 import {metres,type Corridor} from './spatial.js';
 import type {DetourGeometry} from './detour-routing.js';
@@ -41,7 +41,9 @@ interface Edge {to:string;points:Point[];lengthM:number;capacity:number}
 /** Pure synchronous lookup/composition: deliberately has no fetch argument. */
 export function bundledDetourGeometry(id:string,path:RoadId,from:Exit,to:Exit,
  exits:readonly Exit[]):DetourGeometry{
- const graph=new Map<string,Edge[]>(),coordinates=new Map(exits.map(e=>[e.road+':'+e.ref,e.position]));
+ const graph=new Map<string,Edge[]>(),coordinates=new Map(exits.map(e=>[e.road+':'+e.ref,exitPosition(e,path)]));
+ const start=from.road+':'+from.ref,finish=isNetworkDestination(to)?to.ref:to.road+':'+to.ref;
+ coordinates.set(start,from.position);coordinates.set(finish,to.position);
  const add=(a:string,b:string,via:Point[],capacity:number)=>{
   const start=coordinates.get(a),end=coordinates.get(b);
   if(!start||!end)throw Error('Enthaltenes Umleitungsnetz ist unvollständig: '+a+' → '+b);
@@ -52,7 +54,6 @@ export function bundledDetourGeometry(id:string,path:RoadId,from:Exit,to:Exit,
  for(const p of DIRECTIONS)coordinates.set('end-'+p,ends[p].point);
  for(const s of BUNDLED_SECTIONS)add(s.from,s.to,s.via,s.capacity);
  for(const p of DIRECTIONS)add(ends[p].from,'end-'+p,ends[p].via,760);
- const start=from.road+':'+from.ref,finish=isNetworkDestination(to)?to.ref:to.road+':'+to.ref;
  const costs=new Map([[start,0]]),previous=new Map<string,{from:string;edge:Edge}>(),done=new Set<string>();
  while(true){
   let current:string|undefined,best=Infinity;

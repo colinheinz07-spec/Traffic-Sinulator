@@ -44,7 +44,8 @@ function lengthM(bands:readonly SpeedBand[]):number{
 }
 function addDelay(a:SpeedDelay,b:SpeedDelay):SpeedDelay{
  return {delayMin:a.delayMin+b.delayMin,blocked:a.blocked||b.blocked,
-  assessedKm:a.assessedKm+b.assessedKm,stoppedKm:a.stoppedKm+b.stoppedKm};
+  assessedKm:a.assessedKm+b.assessedKm,stoppedKm:a.stoppedKm+b.stoppedKm,
+  ...(a.diversionExitRef||b.diversionExitRef?{diversionExitRef:a.diversionExitRef??b.diversionExitRef}:{})};
 }
 /** Clearing cells inside a stop-and-go wave are not a second incident.
  * Fragments served by the same observed bottleneck retain one card. Count only

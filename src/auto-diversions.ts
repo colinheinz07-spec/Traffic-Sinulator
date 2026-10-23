@@ -4,7 +4,7 @@
  */
 import type {Exit,RoadId} from './core.js';
 import type {SimEvent} from './events.js';
-import {positionM,type Corridor} from './spatial.js';
+import {positionM,closureGate,type Corridor} from './spatial.js';
 import {DIVERSION_LINKS,diversionJunctions,type DiversionLink,type JunctionAnchor} from './diversions.js';
 import {speedDelayInCells} from './speed-delay.js';
 import type {CellRouteState} from './traffic-cells.js';
@@ -25,8 +25,9 @@ export function automaticDiversions(events:readonly SimEvent[],corridors:Readonl
   const path=event.pathKey as RoadId,route=corridors[path],at=positionM(route,event.point);
   if(at===null)continue;
   const targets=bundledTargets(path,exits,route),all=targets.filter(x=>!isNetworkDestination(x));
+  const section=closureGate(route,event,exits);
   const end=Math.min(route.lengthM,at+event.settings.lengthM+50);
-  const after=targets.filter(x=>x.metre>end||isNetworkDestination(x));
+  const after=targets.filter(x=>isNetworkDestination(x)||(section?x.metre>=section.endM-1:x.metre>end));
   const targetGrid=cells[path];
   for(const connection of connections.filter(c=>c.to===path&&at>c.downstreamMergeM)){
    if(!targetGrid||!cellSpeedBands(targetGrid).some(b=>b.fromM<=connection.downstreamMergeM&&b.toM>=connection.downstreamMergeM))continue;
@@ -41,7 +42,7 @@ export function automaticDiversions(events:readonly SimEvent[],corridors:Readonl
      sourceEndM:connection.rampEntryM,targetEntryM:connection.downstreamMergeM,delayMin:null});
    }
   }
-  for(const from of all.filter(x=>x.metre<at-50)){
+  for(const from of all.filter(x=>section?x.metre<=section.metre+1:x.metre<at-50)){
    const documented=DIVERSION_LINKS.find(l=>l.path===path&&l.fromRef===from.ref);
    const officialTarget=after.find(x=>x.ref===documented?.toRef);
    const to=officialTarget??after[0]!;

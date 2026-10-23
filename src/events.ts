@@ -21,7 +21,7 @@ export function isKnownPath(key:string):boolean{return directions.has(key)||know
 export function isEventKind(v:unknown):v is EventKind{return typeof v==='string'&&(EVENT_KINDS as readonly string[]).includes(v)}
 const isShoulder=(x:unknown):x is ShoulderMode=>x==='normal'||x==='open'||x==='blocked';
 function isPoint(p:unknown):p is Point{return Array.isArray(p)&&p.length===2&&p.every(n=>typeof n==='number'&&Number.isFinite(n))&&p[0]>=50.32&&p[0]<=50.73&&p[1]>=7.27&&p[1]<=8.16}
-export function maxLengthM(kind:EventKind):number{return kind==='accident'||kind==='breakdown'?200:kind==='closure'?10000:20000}
+export function maxLengthM(kind:EventKind):number{return kind==='accident'||kind==='breakdown'?200:kind==='closure'?100000:20000}
 export function defaultLengthM(kind:EventKind):number{return kind==='roadworks'?500:kind==='closure'?200:kind==='accident'?100:50}
 /** These are adjustable *simulation assumptions*, not German traffic-law speed limits. */
 export function suggestedSpeed(kind:EventKind,laneCount:number,closedLanes:readonly number[],shoulder:ShoulderMode):number{

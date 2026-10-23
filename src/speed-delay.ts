@@ -4,6 +4,8 @@
  * reciprocal with local density. A short brake must not multiply the whole
  * journey time. A closed through edge has NO finite predictive travel time;
  * its asymptotically tiny numerical upstream flow is not a travel forecast.
+ * A working mandatory off-ramp is a different traversable destination: its
+ * actual discharge yields the time loss to that exit, labelled explicitly.
  * This calculation depends on NO clock, event age or queue-created timestamp.
  */
 import {cellCriticalDensity,type CellRouteState} from './traffic-cells.js';
@@ -11,17 +13,23 @@ import {freeSpeedKmh,type SpeedBand} from './traffic-physics.js';
 import type {PathKey} from './traffic.js';
 export interface SpeedDelay {
  delayMin:number;blocked:boolean;assessedKm:number;stoppedKm:number;
+ diversionExitRef?:string;
 }
 export function speedDelayInCells(state:CellRouteState,fromM=0,toM=Infinity):SpeedDelay{
  const free=freeSpeedKmh(state.pathKey);
  if(!Number.isFinite(fromM)||Number.isNaN(toM)||fromM<0||toM<=fromM)
   throw Error('Ungültiger Streckenbereich zur Zeitverlustberechnung');
+ if(state.closures?.some(c=>fromM>=c.fromM-.1&&fromM<c.toM-.1))
+  return {delayMin:0,blocked:true,assessedKm:0,stoppedKm:0};
  const selected=state.cells.filter(c=>c.toM>fromM&&c.fromM<toM);
+ const barrier=selected.find(c=>c.blockedAtM!==undefined&&c.blockedAtM>fromM&&c.blockedAtM<=toM+.1);
+ let diversionExitRef=barrier?.travelDetector?.diversionExitRef;
+ const endM=diversionExitRef?Math.min(toM,barrier!.toM):toM;
  // Resolve a physical road block BEFORE any divisions. Cells upstream of
  // a zero-capacity edge approach zero speed without necessarily reaching
  // floating-point zero. Summing their inverse speeds produced years of
  // fictitious "minimum" delay despite the explicit blocked state.
- if(selected.some(c=>c.blockedAtM!==undefined&&c.blockedAtM>fromM&&c.blockedAtM<=toM+.1)){
+ if(barrier&&!diversionExitRef){
   const stoppedKm=selected.filter(c=>c.vehicles>=.01&&c.speedKmh<=10)
    .reduce((n,c)=>n+(Math.min(c.toM,toM)-Math.max(c.fromM,fromM))/1000,0);
   return {delayMin:0,blocked:true,assessedKm:0,stoppedKm};
@@ -30,7 +38,7 @@ export function speedDelayInCells(state:CellRouteState,fromM=0,toM=Infinity):Spe
  const detectors=state.cells.filter(d=>d.travelDetector);
  let delayMin=0,assessedKm=0,stoppedKm=0;
  for(const c of selected){
-  const start=Math.max(c.fromM,fromM),end=Math.min(c.toM,toM);
+  const start=Math.max(c.fromM,fromM),end=Math.min(c.toM,endM);
   if(end<=start||c.vehicles<.01)continue;
   const km=(end-start)/1000;
   // Free-flow and speed-limit cells use their current velocity. Once a
@@ -42,6 +50,7 @@ export function speedDelayInCells(state:CellRouteState,fromM=0,toM=Infinity):Spe
   // throughout the journey. Detectors persist while a released queue drains.
   const congested=c.speedKmh<=65&&c.densityVehKm>=critical*1.10;
   const detector=congested?detectors.find(d=>d.toM>=c.toM-.1)?.travelDetector:undefined;
+  diversionExitRef??=detector?.diversionExitRef;
   const flow=detector?.meanFlowVph??c.travelFlowVph;
   const observed=congested&&flow!==undefined&&c.densityVehKm>0?
    Math.min(c.limitKmh??free,flow/c.densityVehKm):c.speedKmh;
@@ -49,11 +58,11 @@ export function speedDelayInCells(state:CellRouteState,fromM=0,toM=Infinity):Spe
   // A true standstill is not equivalent to driving at a fictional 1–5 km/h.
   // Exit-bound cars may still move in a cell whose through edge is closed.
   // Their off-ramp flow must not imply an available motorway passage.
-  if(local<=1e-6||c.blockedAtM!==undefined&&end>=c.blockedAtM-.1){stoppedKm+=km;continue;}
+  if(local<=1e-6||c.blockedAtM!==undefined&&end>=c.blockedAtM-.1&&!c.travelDetector?.diversionExitRef){stoppedKm+=km;continue;}
   assessedKm+=km;
   delayMin+=Math.max(0,60*km*(1/local-1/free));
  }
- return {delayMin,blocked:stoppedKm>.0001,assessedKm,stoppedKm};
+ return {delayMin,blocked:stoppedKm>.0001,assessedKm,stoppedKm,...(diversionExitRef?{diversionExitRef}:{})};
 }
 /** Bands must already be resolved, so overlapping queues count only once. */
 export function speedDelayInBands(path:PathKey,bands:readonly SpeedBand[]):SpeedDelay{
@@ -72,5 +81,6 @@ export function speedDelayLabel(value:SpeedDelay,precision=1,compact=false):stri
  if(compact&&value.blocked)return 'Durchfahrt blockiert';
  if(value.blocked)return 'Durchfahrt blockiert · Verzögerung nicht prognostizierbar';
  const n=value.delayMin.toLocaleString('de-DE',{minimumFractionDigits:precision,maximumFractionDigits:precision});
+ if(value.diversionExitRef)return '+'+n+' min'+(compact?' · Ausleitung AS ':' bis Ausleitung AS ')+value.diversionExitRef;
  return '+'+n+' min';
 }

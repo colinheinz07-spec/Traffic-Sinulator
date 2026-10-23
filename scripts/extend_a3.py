@@ -101,20 +101,26 @@ def compile_extension(data, elements):
           'points':points, 'lanes':lanes, 'km':round(length/1000,4),
           'posKm':-round(span,4),
           'tags':{k:str(tags[k]) for k in ('ref','maxspeed','lanes','lanes:forward') if tags.get(k)}})
-    # OSM junction nodes must be named and numbered, never hand-placed.
+    # A named interchange can have off-ramps far apart in each direction.
+    # Match OSM junction nodes to the actual carriageway, not the closest
+    # point to a coarse corridor (which mixed Limburg's two directions).
+    mainline_points={road:{tuple(p) for w in data['roads']+roads if w['road']==road for p in w['points']}
+        for road in ('A3-frankfurt','A3-koeln')}
     for ref,label in [('42','Limburg-Nord'),('43','Limburg-Süd')]:
-        candidates=[]
+        directional={}
         for e in elements:
             if e['type']!='node' or e.get('tags',{}).get('highway')!='motorway_junction':continue
             refs={s.strip() for s in str(e.get('tags',{}).get('ref','')).replace(' ','').split(';')}
             if ref not in refs:continue
             p=[e['lat'],e['lon']]
-            if nearest_to_polyline(p,CORRIDOR)>3000:continue
-            candidates.append((nearest_to_polyline(p,CORRIDOR),p))
-        if not candidates:raise RuntimeError(f'Missing official OSM junction {ref} {label}')
-        candidates.sort(key=lambda t:t[0])
+            for road,points in mainline_points.items():
+                if tuple(p) not in points:continue
+                if road in directional:raise RuntimeError(f'Ambiguous OSM junction {ref} on {road}')
+                directional[road]={'position':p,'nodeId':e['id']}
+        if len(directional)!=2:raise RuntimeError(f'Missing directional OSM junction {ref} {label}')
         data['exits']=[x for x in data['exits'] if not(x['road']=='A3' and x['ref']==ref)]
-        data['exits'].append({'road':'A3','ref':ref,'name':label,'position':candidates[0][1],'source':'osm-junction'})
+        data['exits'].append({'road':'A3','ref':ref,'name':label,
+            'position':directional['A3-frankfurt']['position'],'source':'osm-junction','directional':directional})
     for road in ('A3-frankfurt','A3-koeln'):
         south=[x for x in roads if x['road']==road]
         if len(south)<8 or sum(r['km'] for r in south)<9:

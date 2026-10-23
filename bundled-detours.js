@@ -3,7 +3,7 @@
  * Every normal AS has a route in both directions, including network exits.
  * Longer bypasses concatenate the same sections; no routing server is used.
  */
-import { DIRECTIONS, names } from './core.js';
+import { DIRECTIONS, names, exitPosition } from './core.js';
 import { diversionJunctions } from './diversions.js';
 import { metres } from './spatial.js';
 export const BUNDLED_SECTIONS = [
@@ -36,7 +36,10 @@ export function bundledTargets(path, exits, route) {
 }
 /** Pure synchronous lookup/composition: deliberately has no fetch argument. */
 export function bundledDetourGeometry(id, path, from, to, exits) {
-    const graph = new Map(), coordinates = new Map(exits.map(e => [e.road + ':' + e.ref, e.position]));
+    const graph = new Map(), coordinates = new Map(exits.map(e => [e.road + ':' + e.ref, exitPosition(e, path)]));
+    const start = from.road + ':' + from.ref, finish = isNetworkDestination(to) ? to.ref : to.road + ':' + to.ref;
+    coordinates.set(start, from.position);
+    coordinates.set(finish, to.position);
     const add = (a, b, via, capacity) => {
         const start = coordinates.get(a), end = coordinates.get(b);
         if (!start || !end)
@@ -51,7 +54,6 @@ export function bundledDetourGeometry(id, path, from, to, exits) {
         add(s.from, s.to, s.via, s.capacity);
     for (const p of DIRECTIONS)
         add(ends[p].from, 'end-' + p, ends[p].via, 760);
-    const start = from.road + ':' + from.ref, finish = isNetworkDestination(to) ? to.ref : to.road + ':' + to.ref;
     const costs = new Map([[start, 0]]), previous = new Map(), done = new Set();
     while (true) {
         let current, best = Infinity;

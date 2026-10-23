@@ -52,6 +52,7 @@ function localControls(route, events, demandVph, count, cellM, exits = []) {
     const faceControls = Array.from({ length: count + 1 }, () => []);
     const releases = [];
     const closedEntries = [];
+    const closureGates = [];
     for (const event of events) {
         if (event.pathKey !== route.key)
             continue;
@@ -66,10 +67,11 @@ function localControls(route, events, demandVph, count, cellM, exits = []) {
             const gate = closureGate(route, event, exits);
             if (!gate)
                 continue;
-            const face = Math.max(1, Math.min(count, Math.round(gate.metre / cellM)));
+            const face = gate.exit ? Math.max(1, Math.min(count, Math.round(gate.metre / cellM))) : 0;
             faceCapacity[face] = 0;
             faceControls[face].push(event.id + ':closure');
-            closedEntries.push({ fromM: gate.metre - 25, toM: to });
+            closedEntries.push({ fromM: gate.metre - 25, toM: gate.endM - 25 });
+            closureGates.push({ face, fromM: gate.metre, toM: gate.endM, exitRef: gate.exit?.ref ?? null, eventId: event.id });
             continue;
         }
         for (let c = Math.floor(from / cellM); c < Math.min(count, Math.ceil(to / cellM)); c++) {
@@ -84,7 +86,7 @@ function localControls(route, events, demandVph, count, cellM, exits = []) {
     }
     const jam = JAM_PER_LANE * laneCount;
     const capacity = speeds.map(v => Math.min(baselineCapacity(route.key), v * WAVE_KMH * jam / (v + WAVE_KMH)));
-    return { speeds, capacity, faceCapacity, faceControls: faceControls.map(c => c.sort().join('|')), jam, releases, closedEntries };
+    return { speeds, capacity, faceCapacity, faceControls: faceControls.map(c => c.sort().join('|')), jam, releases, closedEntries, closureGates };
 }
 const dischargeHistories = new Map();
 function dischargeSeed(id) {
@@ -168,7 +170,7 @@ export function advanceCells(previous, route, events, demandVph, exits = [], por
         return { ...d, waiting: old?.waiting ?? 0, offeredTotal: old?.offeredTotal ?? 0,
             enteredTotal: old?.enteredTotal ?? 0, exitedTotal: old?.exitedTotal ?? 0, lastEntered: 0, lastExited: 0,
             face: Math.max(1, Math.min(n - 1, Math.round(d.metre / previous.cellM))),
-            entryBlocked: closedEntries.some(c => d.metre >= c.fromM && d.metre <= c.toM) };
+            entryBlocked: closedEntries.some(c => d.metre >= c.fromM && d.metre < c.toM) };
     });
     // An existing ramp queue is a vehicle inventory, even if a caller stops
     // offering new local demand. It may still merge and must never be dropped.
@@ -176,7 +178,7 @@ export function advanceCells(previous, route, events, demandVph, exits = [], por
         if (!junctions.some(j => j.id === old.id))
             junctions.push({
                 ...old, entryVph: 0, lastEntered: 0, lastExited: 0, face: Math.max(1, Math.min(n - 1, Math.round(old.metre / previous.cellM))),
-                entryBlocked: closedEntries.some(c => old.metre >= c.fromM && old.metre <= c.toM)
+                entryBlocked: closedEntries.some(c => old.metre >= c.fromM && old.metre < c.toM)
             });
     const routed = ports.map(port => {
         if (!((port.fromM === null || port.fromM >= 0 && port.fromM < route.lengthM) &&
@@ -190,6 +192,8 @@ export function advanceCells(previous, route, events, demandVph, exits = [], por
             to: port.toM === null ? -1 : Math.max(1, Math.min(n - 1, Math.round(port.toM / previous.cellM))), left: 0, joined: 0 };
     });
     const occupancy = previous.cells.map(c => c.vehicles);
+    const closures = controls.closureGates.map(g => ({ ...g, diverting: g.exitRef !== null &&
+            routed.filter(p => p.from === g.face).reduce((n, p) => n + p.interestPercent, 0) >= 100 - .001 }));
     let backlog = previous.backlog, offeredTotal = previous.offeredTotal, exitedTotal = previous.exitedTotal;
     const cumulativeOut = Array(n).fill(0);
     const through = Array(n + 1).fill(0);
@@ -224,7 +228,7 @@ export function advanceCells(previous, route, events, demandVph, exits = [], por
         const arrived = demandVph / 60 * DT_MIN;
         offeredTotal += arrived;
         const available = arrived + backlog;
-        face[0] = Math.min(available, receive[0]);
+        face[0] = Math.min(available, receive[0], currentCapacity[0] * DT_MIN / 60);
         backlog = Math.max(0, available - face[0]);
         for (const j of junctions) {
             const arrived = j.entryVph * DT_MIN / 60;
@@ -253,7 +257,8 @@ export function advanceCells(previous, route, events, demandVph, exits = [], por
                 leaving[i - 1] += accepted;
             }
             const mainSend = send[i - 1] * (1 - fraction);
-            const returns = routed.filter(p => p.to === i && p.returnVehicles - p.joined > 1e-9);
+            const returns = routed.filter(p => p.to === i && p.returnVehicles - p.joined > 1e-9 && p.toM !== null &&
+                !closedEntries.some(c => p.toM >= c.fromM && p.toM < c.toM));
             const localEntry = local && !local.entryBlocked ? Math.min(local.waiting, local.entryCapacityVph * DT_MIN / 60) : 0;
             const mergeDemand = localEntry + returns.reduce((s, p) => s + Math.min(p.returnVehicles - p.joined, 1200 * DT_MIN / 60), 0);
             const mergeLimit = Math.min(mergeDemand, (local?.entryCapacityVph ?? 1200) * DT_MIN / 60);
@@ -298,11 +303,12 @@ export function advanceCells(previous, route, events, demandVph, exits = [], por
             Math.min(speeds[i], outflowVph / Math.max(.05, densityVehKm));
         const travelFlowVph = (c.travelFlowVph ?? c.flowVph) * (1 - TRAVEL_ALPHA) + outflowVph * TRAVEL_ALPHA;
         const active = Number.isFinite(faceCapacity[i + 1]), oldDetector = c.travelDetector;
-        const detectorCapacity = active ? faceCapacity[i + 1] : capacity[i];
-        const detectorFlow = through[i + 1] * 60;
+        const exit = closures.find(g => g.face === i + 1 && g.diverting);
+        const detectorCapacity = exit ? 1200 : active ? faceCapacity[i + 1] : capacity[i];
+        const detectorFlow = (exit ? cumulativeOut[i] - through[i + 1] : through[i + 1]) * 60;
         // Changing time-of-day demand may slightly change effective capacity.
         // Only an edited/opened physical control resets the observations.
-        const control = faceControls[i + 1], sameControl = oldDetector?.control === control;
+        const control = faceControls[i + 1] + (exit ? '|exit:' + exit.exitRef : ''), sameControl = oldDetector?.control === control;
         let queued = 0, found = false;
         if (active && detectorCapacity > 0)
             for (let k = i; k >= 0; k--) {
@@ -321,7 +327,7 @@ export function advanceCells(previous, route, events, demandVph, exits = [], por
             Math.max(6, queued / Math.max(1, oldDetector.meanFlowVph) * 60) : 6;
         const detectorAlpha = 1 - Math.exp(-1 / window);
         const travelDetector = active || oldDetector ? {
-            control, capacityVph: detectorCapacity, active,
+            control, capacityVph: detectorCapacity, active, diversionExitRef: exit?.exitRef ?? undefined,
             samples: sameControl ? oldDetector.samples + 1 : 1,
             meanFlowVph: !sameControl ? detectorFlow :
                 oldDetector.meanFlowVph * (1 - detectorAlpha) + detectorFlow * detectorAlpha
@@ -332,7 +338,7 @@ export function advanceCells(previous, route, events, demandVph, exits = [], por
             blockedAtM: faceCapacity[i + 1] === 0 ? c.toM : undefined };
     });
     const limiting = faceCapacity.reduce((best, c, i) => c < faceCapacity[best] ? i : best, 0);
-    const next = { ...previous, cells, minute: previous.minute + 1, backlog, offeredTotal, exitedTotal,
+    const next = { ...previous, cells, closures, minute: previous.minute + 1, backlog, offeredTotal, exitedTotal,
         junctions: junctions.map(({ face: _, entryBlocked: __, ...j }) => j),
         divertedTotal: (previous.divertedTotal ?? 0) + routed.reduce((s, p) => s + p.left, 0),
         rejoinedTotal: (previous.rejoinedTotal ?? 0) + routed.reduce((s, p) => s + p.joined, 0),

@@ -1,4 +1,4 @@
-import { positionM } from './spatial.js';
+import { positionM, closureGate } from './spatial.js';
 import { diversionJunctions } from './diversions.js';
 /** 100% is reserved for the LAST normal exit that can be reached before
  * a formal complete road closure. Earlier exits are voluntary alternatives
@@ -17,11 +17,11 @@ export function junctionMovements(path, route, exits, events, _delayMin, real = 
         const at = positionM(route, event.point);
         if (at === null)
             continue;
-        const upstream = rows.filter(r => !r.exit.isInterchange && r.exit.metre < at - 50).reverse();
-        if (!upstream.length)
-            continue;
         if (event.kind === 'closure') {
-            const nearest = upstream[0];
+            const gate = closureGate(route, event, exits);
+            const nearest = rows.find(r => r.exit.ref === gate?.exit?.ref);
+            if (!nearest)
+                continue;
             nearest.desiredPercent = 100;
             nearest.mandatory = true;
             nearest.eventId = event.id;

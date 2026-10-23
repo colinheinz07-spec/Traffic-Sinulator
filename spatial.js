@@ -3,6 +3,7 @@
  * No vehicle sprites, hidden road connectors, A3/A48 transfers, or invented detours.
  */
 import { buildContinuousRoads } from './cartography.js';
+import { exitPosition } from './core.js';
 import { PATHS, baselineCapacity, eventCapacity, defaultDemand } from './traffic.js';
 import { colorAtSpeed, queueFundamentalDiagram, freeSpeedKmh } from './traffic-physics.js';
 const rad = Math.PI / 180;
@@ -93,12 +94,19 @@ export function closureGate(route, event, exits) {
     if (at === null)
         return null;
     const road = route.key.startsWith('A3') ? 'A3' : 'A48';
-    const candidates = exits.filter(x => x.road === road && !/^(AD |AK )/.test(x.name))
-        .map(exit => ({ exit, metre: positionM(route, exit.position, 900) }))
-        .filter((x) => x.metre !== null && x.metre < at - 50)
-        .sort((a, b) => b.metre - a.metre);
-    const closest = candidates[0];
-    return { metre: closest?.metre ?? 0, exit: closest?.exit ?? null, eventM: at };
+    const junctions = exits.filter(x => x.road === road && !/^(AD |AK )/.test(x.name))
+        .map(exit => {
+        const position = exitPosition(exit, route.key);
+        return { exit: { ...exit, position }, metre: positionM(route, position, 900) };
+    })
+        .filter((x) => x.metre !== null).sort((a, b) => a.metre - b.metre);
+    // A marker on or immediately after an off-ramp belongs to that AS.
+    // The former 50m exclusion incorrectly moved the gate to the previous AS.
+    const closest = junctions.filter(j => j.metre <= at + 1).at(-1);
+    const physicalEnd = Math.min(route.lengthM, at + event.settings.lengthM);
+    const end = junctions.find(j => j.metre > at + 1 && j.metre >= physicalEnd - 1);
+    return { metre: closest?.metre ?? 0, exit: closest?.exit ?? null, eventM: at,
+        endM: end?.metre ?? route.lengthM, endExit: end?.exit ?? null };
 }
 /** Color is based ONLY on calculated km/h; density comes from the same
  * triangular-flow approximation used for the physical queue footprint.

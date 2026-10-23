@@ -1,0 +1,1125 @@
+{
+  "source": "https://api.openstreetmap.org/api/0.6/",
+  "wayIds": [
+    3991660,
+    4007899,
+    4007901,
+    4008010,
+    4008011,
+    4452555,
+    4452556,
+    4854600,
+    4854601,
+    5984297,
+    5984298,
+    9643028,
+    9643029,
+    9643030,
+    9643031,
+    23463704,
+    23463705,
+    23463706,
+    23463707,
+    23478517,
+    23678742,
+    23678744,
+    23678745,
+    23769315,
+    23769316,
+    23769317,
+    23769320,
+    23875983,
+    23875984,
+    23875985,
+    23875986,
+    23924428,
+    23924429,
+    23924430,
+    25317672,
+    25317673,
+    25317674,
+    25317675,
+    25341154,
+    25445391,
+    25445392,
+    25445393,
+    25445394,
+    25848300,
+    25848772,
+    25848773,
+    25908356,
+    25908357,
+    25908358,
+    25908359,
+    25973963,
+    25973964,
+    25973965,
+    25973978,
+    25973979,
+    25973981,
+    25993912,
+    25993913,
+    25993914,
+    25993915,
+    25995357,
+    25995358,
+    25995359,
+    25995360,
+    25995384,
+    25995385,
+    25995386,
+    25995387,
+    26199127,
+    26199128,
+    26199130,
+    26199134,
+    26462960,
+    27075414,
+    27075415,
+    27075416,
+    27075417,
+    27162908,
+    28058193,
+    28315305,
+    28371038,
+    28371039,
+    28371042,
+    28371043,
+    28371046,
+    28371047,
+    28371050,
+    28371051,
+    29225583,
+    30135388,
+    30135389,
+    30135394,
+    30135395,
+    30769514,
+    30769521,
+    30891654,
+    30891655,
+    30891656,
+    30891657,
+    31353443,
+    31353494,
+    31747901,
+    31747902,
+    32824359,
+    32824360,
+    32824361,
+    33890589,
+    33996285,
+    33996286,
+    33996287,
+    33996288,
+    33996289,
+    33996292,
+    35484150,
+    35484153,
+    35484155,
+    35484157,
+    35484162,
+    35484176,
+    35484185,
+    35484187,
+    35484192,
+    35484193,
+    35484196,
+    35484203,
+    35484206,
+    35539167,
+    35869416,
+    35869430,
+    35902811,
+    37668162,
+    37668165,
+    37668168,
+    37696715,
+    37696759,
+    37696762,
+    37696764,
+    37696765,
+    37909192,
+    37909193,
+    37909194,
+    42703832,
+    42703840,
+    60760421,
+    88046203,
+    88046205,
+    88046228,
+    88046255,
+    88046326,
+    89994351,
+    110535620,
+    110535623,
+    110535625,
+    110535634,
+    116002592,
+    116002594,
+    116002595,
+    116002597,
+    116002598,
+    116002599,
+    129244856,
+    129251868,
+    141212943,
+    150282072,
+    155409339,
+    160664970,
+    165187684,
+    167214102,
+    168140875,
+    168140879,
+    168140891,
+    168140906,
+    168140922,
+    168140925,
+    172539561,
+    172629544,
+    186371298,
+    196288593,
+    196288594,
+    196288595,
+    196288596,
+    206396187,
+    206396191,
+    224110312,
+    224110313,
+    224110316,
+    224110317,
+    224110318,
+    224110321,
+    224110322,
+    224110323,
+    224110325,
+    224110326,
+    224110327,
+    224110328,
+    224110329,
+    224110330,
+    224110331,
+    224110332,
+    229636247,
+    229636248,
+    229636249,
+    229636250,
+    229637568,
+    229637569,
+    229637570,
+    229637571,
+    232272186,
+    232272188,
+    232305393,
+    232305394,
+    232305396,
+    232305398,
+    310863190,
+    310863191,
+    310863192,
+    310863193,
+    310863194,
+    310863195,
+    310863196,
+    313068049,
+    313068050,
+    313068051,
+    313068052,
+    313068053,
+    313069180,
+    313069181,
+    313069182,
+    313069183,
+    313069184,
+    314097339,
+    314097340,
+    314097341,
+    314097342,
+    314097343,
+    314097418,
+    314097419,
+    314097420,
+    314180027,
+    314180028,
+    314180029,
+    314180030,
+    314180031,
+    314180032,
+    314180033,
+    314276150,
+    314276151,
+    314276152,
+    326086092,
+    326086094,
+    326086096,
+    326086097,
+    326086100,
+    326086101,
+    326086102,
+    326086108,
+    326138751,
+    326138752,
+    326138753,
+    326138754,
+    326138755,
+    326138756,
+    326138757,
+    326138758,
+    326138759,
+    326138760,
+    326138761,
+    326138763,
+    326138764,
+    326138765,
+    326138766,
+    326138767,
+    326138768,
+    326138769,
+    328486612,
+    328486613,
+    328486615,
+    348130010,
+    348130011,
+    348130012,
+    353253619,
+    371466056,
+    376899325,
+    386369678,
+    386568816,
+    389046041,
+    390574333,
+    390574335,
+    390574337,
+    390574340,
+    390574342,
+    390574344,
+    400065577,
+    439717484,
+    467958788,
+    477567190,
+    478834552,
+    489943812,
+    490944907,
+    490944908,
+    490944909,
+    493767001,
+    496709664,
+    546851731,
+    546851733,
+    546851734,
+    546894146,
+    546894147,
+    546894148,
+    546894149,
+    546896034,
+    546896035,
+    546896036,
+    546896037,
+    591586554,
+    603899127,
+    603899128,
+    605398590,
+    605398591,
+    647918376,
+    647918382,
+    647918391,
+    664728600,
+    714018328,
+    714018329,
+    714018330,
+    714074016,
+    714074017,
+    714074018,
+    714118084,
+    731799807,
+    807709876,
+    888003578,
+    888003579,
+    949350175,
+    956670411,
+    992480213,
+    1127521640,
+    1149657706,
+    1306038043,
+    1306038044,
+    1320432763,
+    1322908523,
+    1322908527,
+    1322909028,
+    1330167667,
+    1338571521,
+    1338571522,
+    1338571523,
+    1338571524,
+    1338571525,
+    1338571527,
+    1343420597,
+    1343420598,
+    1344530319,
+    1352049123,
+    1359343937,
+    1359343938,
+    1553488815,
+    1553488816,
+    1553488817,
+    1553488818,
+    1553488819
+  ],
+  "junctions": [
+    {
+      "id": 378120,
+      "lat": 50.4460877,
+      "lon": 7.8283121,
+      "tags": {
+        "highway": "motorway_junction",
+        "name": "Montabaur",
+        "ref": "40",
+        "TMC:cid_58:tabcd_1:Class": "Point",
+        "TMC:cid_58:tabcd_1:Direction": "negative",
+        "TMC:cid_58:tabcd_1:LCLversion": "9.00",
+        "TMC:cid_58:tabcd_1:LocationCode": "10889",
+        "TMC:cid_58:tabcd_1:NextLocationCode": "10890",
+        "TMC:cid_58:tabcd_1:PrevLocationCode": "10888"
+      },
+      "paths": [
+        "A3-frankfurt"
+      ]
+    },
+    {
+      "id": 378146,
+      "lat": 50.4490799,
+      "lon": 7.8542642,
+      "tags": {
+        "highway": "motorway_junction",
+        "name": "Montabaur",
+        "ref": "40",
+        "TMC:cid_58:tabcd_1:Class": "Point",
+        "TMC:cid_58:tabcd_1:Direction": "positive",
+        "TMC:cid_58:tabcd_1:LCLversion": "9.00",
+        "TMC:cid_58:tabcd_1:LocationCode": "10889",
+        "TMC:cid_58:tabcd_1:NextLocationCode": "10890",
+        "TMC:cid_58:tabcd_1:PrevLocationCode": "10888"
+      },
+      "paths": [
+        "A3-koeln"
+      ]
+    },
+    {
+      "id": 378256,
+      "lat": 50.4125455,
+      "lon": 7.9407959,
+      "tags": {
+        "highway": "motorway_junction",
+        "name": "Diez",
+        "ref": "41",
+        "TMC:cid_58:tabcd_1:Class": "Point",
+        "TMC:cid_58:tabcd_1:Direction": "negative",
+        "TMC:cid_58:tabcd_1:LCLversion": "9.00",
+        "TMC:cid_58:tabcd_1:LocationCode": "10885",
+        "TMC:cid_58:tabcd_1:NextLocationCode": "10886",
+        "TMC:cid_58:tabcd_1:PrevLocationCode": "10884"
+      },
+      "paths": [
+        "A3-frankfurt"
+      ]
+    },
+    {
+      "id": 378259,
+      "lat": 50.4136072,
+      "lon": 7.9481574,
+      "tags": {
+        "highway": "motorway_junction",
+        "name": "Diez",
+        "ref": "41",
+        "TMC:cid_58:tabcd_1:Class": "Point",
+        "TMC:cid_58:tabcd_1:Direction": "positive",
+        "TMC:cid_58:tabcd_1:LCLversion": "9.00",
+        "TMC:cid_58:tabcd_1:LocationCode": "10885",
+        "TMC:cid_58:tabcd_1:NextLocationCode": "10886",
+        "TMC:cid_58:tabcd_1:PrevLocationCode": "10884"
+      },
+      "paths": [
+        "A3-koeln"
+      ]
+    },
+    {
+      "id": 398262,
+      "lat": 50.4019571,
+      "lon": 8.063502,
+      "tags": {
+        "highway": "motorway_junction",
+        "name": "Limburg-Nord",
+        "ref": "42",
+        "TMC:cid_58:tabcd_1:Class": "Point",
+        "TMC:cid_58:tabcd_1:Direction": "negative",
+        "TMC:cid_58:tabcd_1:LCLversion": "9.00",
+        "TMC:cid_58:tabcd_1:LocationCode": "10884",
+        "TMC:cid_58:tabcd_1:NextLocationCode": "10885",
+        "TMC:cid_58:tabcd_1:PrevLocationCode": "10883",
+        "wikidata": "Q15868732"
+      },
+      "paths": [
+        "A3-frankfurt"
+      ]
+    },
+    {
+      "id": 398265,
+      "lat": 50.3912799,
+      "lon": 8.0790455,
+      "tags": {
+        "highway": "motorway_junction",
+        "name": "Limburg-Nord",
+        "ref": "42",
+        "TMC:cid_58:tabcd_1:Class": "Point",
+        "TMC:cid_58:tabcd_1:Direction": "positive",
+        "TMC:cid_58:tabcd_1:LCLversion": "9.00",
+        "TMC:cid_58:tabcd_1:LocationCode": "10884",
+        "TMC:cid_58:tabcd_1:NextLocationCode": "10885",
+        "TMC:cid_58:tabcd_1:PrevLocationCode": "10883"
+      },
+      "paths": [
+        "A3-koeln"
+      ]
+    },
+    {
+      "id": 398290,
+      "lat": 50.4838633,
+      "lon": 7.7532927,
+      "tags": {
+        "highway": "motorway_junction",
+        "name": "Ransbach-Baumbach",
+        "ref": "38",
+        "TMC:cid_58:tabcd_1:Class": "Point",
+        "TMC:cid_58:tabcd_1:Direction": "positive",
+        "TMC:cid_58:tabcd_1:LCLversion": "9.00",
+        "TMC:cid_58:tabcd_1:LocationCode": "10891",
+        "TMC:cid_58:tabcd_1:NextLocationCode": "55253",
+        "TMC:cid_58:tabcd_1:PrevLocationCode": "10890"
+      },
+      "paths": [
+        "A3-koeln"
+      ]
+    },
+    {
+      "id": 398293,
+      "lat": 50.4851548,
+      "lon": 7.750632,
+      "tags": {
+        "highway": "motorway_junction",
+        "name": "Ransbach-Baumbach",
+        "ref": "38",
+        "TMC:cid_58:tabcd_1:Class": "Point",
+        "TMC:cid_58:tabcd_1:Direction": "negative",
+        "TMC:cid_58:tabcd_1:LCLversion": "9.00",
+        "TMC:cid_58:tabcd_1:LocationCode": "10891",
+        "TMC:cid_58:tabcd_1:NextLocationCode": "55253",
+        "TMC:cid_58:tabcd_1:PrevLocationCode": "10890"
+      },
+      "paths": [
+        "A3-frankfurt"
+      ]
+    },
+    {
+      "id": 398646,
+      "lat": 50.5454273,
+      "lon": 7.5870271,
+      "tags": {
+        "highway": "motorway_junction",
+        "name": "Rastplatz Urbacher Wald",
+        "TMC:cid_58:tabcd_1:Class": "Point",
+        "TMC:cid_58:tabcd_1:Direction": "positive",
+        "TMC:cid_58:tabcd_1:LCLversion": "9.00",
+        "TMC:cid_58:tabcd_1:LocationCode": "10895",
+        "TMC:cid_58:tabcd_1:NextLocationCode": "55254",
+        "TMC:cid_58:tabcd_1:PrevLocationCode": "10894"
+      },
+      "paths": [
+        "A3-koeln"
+      ]
+    },
+    {
+      "id": 32345398,
+      "lat": 50.5669705,
+      "lon": 7.5206307,
+      "tags": {
+        "highway": "motorway_junction",
+        "name": "Neuwied",
+        "name:etymology:wikidata": "Q3967",
+        "ref": "36",
+        "TMC:cid_58:tabcd_1:Class": "Point",
+        "TMC:cid_58:tabcd_1:Direction": "negative",
+        "TMC:cid_58:tabcd_1:LCLversion": "9.00",
+        "TMC:cid_58:tabcd_1:LocationCode": "10896",
+        "TMC:cid_58:tabcd_1:NextLocationCode": "10897",
+        "TMC:cid_58:tabcd_1:PrevLocationCode": "55254"
+      },
+      "paths": [
+        "A3-frankfurt"
+      ]
+    },
+    {
+      "id": 36321144,
+      "lat": 50.6035077,
+      "lon": 7.4302242,
+      "tags": {
+        "highway": "motorway_junction",
+        "name": "Neustadt/Wied",
+        "ref": "35",
+        "TMC:cid_58:tabcd_1:Class": "Point",
+        "TMC:cid_58:tabcd_1:Direction": "negative",
+        "TMC:cid_58:tabcd_1:LCLversion": "9.00",
+        "TMC:cid_58:tabcd_1:LocationCode": "10899",
+        "TMC:cid_58:tabcd_1:NextLocationCode": "55255",
+        "TMC:cid_58:tabcd_1:PrevLocationCode": "10898"
+      },
+      "paths": [
+        "A3-frankfurt"
+      ]
+    },
+    {
+      "id": 235277087,
+      "lat": 50.3790374,
+      "lon": 8.0893933,
+      "tags": {
+        "highway": "motorway_junction",
+        "name": "Limburg-Süd",
+        "ref": "43",
+        "TMC:cid_58:tabcd_1:Class": "Point",
+        "TMC:cid_58:tabcd_1:Direction": "positive",
+        "TMC:cid_58:tabcd_1:LCLversion": "9.00",
+        "TMC:cid_58:tabcd_1:LocationCode": "10882",
+        "TMC:cid_58:tabcd_1:NextLocationCode": "10883",
+        "TMC:cid_58:tabcd_1:PrevLocationCode": "10881"
+      },
+      "paths": [
+        "A3-koeln"
+      ]
+    },
+    {
+      "id": 259042765,
+      "lat": 50.4655358,
+      "lon": 7.7641518,
+      "tags": {
+        "highway": "motorway_junction",
+        "name": "Dreieck Dernbach",
+        "ref": "39",
+        "TMC:cid_58:tabcd_1:Class": "Point",
+        "TMC:cid_58:tabcd_1:Direction": "negative",
+        "TMC:cid_58:tabcd_1:LCLversion": "9.00",
+        "TMC:cid_58:tabcd_1:LocationCode": "10890",
+        "TMC:cid_58:tabcd_1:NextLocationCode": "10891",
+        "TMC:cid_58:tabcd_1:PrevLocationCode": "10889"
+      },
+      "paths": [
+        "A3-frankfurt"
+      ]
+    },
+    {
+      "id": 266181300,
+      "lat": 50.4979358,
+      "lon": 7.7330701,
+      "tags": {
+        "highway": "motorway_junction",
+        "name": "Rastplatz Welschehahn",
+        "noref": "yes"
+      },
+      "paths": [
+        "A3-frankfurt"
+      ]
+    },
+    {
+      "id": 266320207,
+      "lat": 50.562787,
+      "lon": 7.5300162,
+      "tags": {
+        "highway": "motorway_junction",
+        "name": "Neuwied",
+        "name:etymology:wikidata": "Q3967",
+        "ref": "36",
+        "TMC:cid_58:tabcd_1:Class": "Point",
+        "TMC:cid_58:tabcd_1:Direction": "positive",
+        "TMC:cid_58:tabcd_1:LCLversion": "9.00",
+        "TMC:cid_58:tabcd_1:LocationCode": "10896",
+        "TMC:cid_58:tabcd_1:NextLocationCode": "10897",
+        "TMC:cid_58:tabcd_1:PrevLocationCode": "55254"
+      },
+      "paths": [
+        "A3-koeln"
+      ]
+    },
+    {
+      "id": 266326295,
+      "lat": 50.53355,
+      "lon": 7.6000565,
+      "tags": {
+        "highway": "motorway_junction",
+        "name": "Dierdorf",
+        "ref": "37",
+        "TMC:cid_58:tabcd_1:Class": "Point",
+        "TMC:cid_58:tabcd_1:Direction": "positive",
+        "TMC:cid_58:tabcd_1:LCLversion": "9.00",
+        "TMC:cid_58:tabcd_1:LocationCode": "10894",
+        "TMC:cid_58:tabcd_1:NextLocationCode": "10895",
+        "TMC:cid_58:tabcd_1:PrevLocationCode": "10893"
+      },
+      "paths": [
+        "A3-koeln"
+      ]
+    },
+    {
+      "id": 274088514,
+      "lat": 50.4450609,
+      "lon": 7.6684256,
+      "tags": {
+        "highway": "motorway_junction",
+        "name": "Höhr-Grenzhausen",
+        "ref": "12"
+      },
+      "paths": [
+        "A48-koblenz"
+      ]
+    },
+    {
+      "id": 321454875,
+      "lat": 50.6476108,
+      "lon": 7.3335064,
+      "tags": {
+        "highway": "motorway_junction",
+        "name": "Bad Honnef / Linz",
+        "ref": "34",
+        "TMC:cid_58:tabcd_1:Class": "Point",
+        "TMC:cid_58:tabcd_1:Direction": "positive",
+        "TMC:cid_58:tabcd_1:LCLversion": "9.00",
+        "TMC:cid_58:tabcd_1:LocationCode": "10900",
+        "TMC:cid_58:tabcd_1:NextLocationCode": "39912",
+        "TMC:cid_58:tabcd_1:PrevLocationCode": "60113"
+      },
+      "paths": [
+        "A3-koeln"
+      ]
+    },
+    {
+      "id": 321470089,
+      "lat": 50.6488879,
+      "lon": 7.3314832,
+      "tags": {
+        "highway": "motorway_junction",
+        "name": "Bad Honnef / Linz",
+        "ref": "34",
+        "TMC:cid_58:tabcd_1:Class": "Point",
+        "TMC:cid_58:tabcd_1:Direction": "negative",
+        "TMC:cid_58:tabcd_1:LCLversion": "9.00",
+        "TMC:cid_58:tabcd_1:LocationCode": "10900",
+        "TMC:cid_58:tabcd_1:NextLocationCode": "39912",
+        "TMC:cid_58:tabcd_1:PrevLocationCode": "60113"
+      },
+      "paths": [
+        "A3-frankfurt"
+      ]
+    },
+    {
+      "id": 330813902,
+      "lat": 50.4375702,
+      "lon": 7.6436014,
+      "tags": {
+        "highway": "motorway_junction",
+        "name": "Rastplatz Grenzau",
+        "noref": "yes",
+        "TMC:cid_58:tabcd_1:Class": "Point",
+        "TMC:cid_58:tabcd_1:Direction": "positive",
+        "TMC:cid_58:tabcd_1:LCLversion": "11",
+        "TMC:cid_58:tabcd_1:LocationCode": "11520",
+        "type": "TMC"
+      },
+      "paths": [
+        "A48-dernbach"
+      ]
+    },
+    {
+      "id": 442034796,
+      "lat": 50.3960916,
+      "lon": 7.5524858,
+      "tags": {
+        "highway": "motorway_junction",
+        "name": "Koblenz-Nord",
+        "ref": "10"
+      },
+      "paths": [
+        "A48-koblenz"
+      ]
+    },
+    {
+      "id": 1076114588,
+      "lat": 50.3804724,
+      "lon": 7.5351489,
+      "tags": {
+        "highway": "motorway_junction",
+        "name": "Rastplatz Schießer Weg",
+        "noref": "yes"
+      },
+      "paths": [
+        "A48-koblenz"
+      ]
+    },
+    {
+      "id": 1309209211,
+      "lat": 50.4143192,
+      "lon": 7.5841106,
+      "tags": {
+        "highway": "motorway_junction",
+        "name": "Bendorf / Neuwied",
+        "ref": "11"
+      },
+      "paths": [
+        "A48-koblenz"
+      ]
+    },
+    {
+      "id": 1416531468,
+      "lat": 50.4438848,
+      "lon": 7.6646021,
+      "tags": {
+        "highway": "motorway_junction",
+        "name": "Höhr-Grenzhausen",
+        "ref": "12"
+      },
+      "paths": [
+        "A48-dernbach"
+      ]
+    },
+    {
+      "id": 1440554552,
+      "lat": 50.5353056,
+      "lon": 7.5970228,
+      "tags": {
+        "highway": "motorway_junction",
+        "name": "Dierdorf",
+        "ref": "37",
+        "TMC:cid_58:tabcd_1:Class": "Point",
+        "TMC:cid_58:tabcd_1:Direction": "negative",
+        "TMC:cid_58:tabcd_1:LCLversion": "9.00",
+        "TMC:cid_58:tabcd_1:LocationCode": "10894",
+        "TMC:cid_58:tabcd_1:NextLocationCode": "10895",
+        "TMC:cid_58:tabcd_1:PrevLocationCode": "10893"
+      },
+      "paths": [
+        "A3-frankfurt"
+      ]
+    },
+    {
+      "id": 1545947778,
+      "lat": 50.6014576,
+      "lon": 7.4317384,
+      "tags": {
+        "highway": "motorway_junction",
+        "name": "Neustadt/Wied",
+        "ref": "35",
+        "TMC:cid_58:tabcd_1:Class": "Point",
+        "TMC:cid_58:tabcd_1:Direction": "positive",
+        "TMC:cid_58:tabcd_1:LCLversion": "9.00",
+        "TMC:cid_58:tabcd_1:LocationCode": "10899",
+        "TMC:cid_58:tabcd_1:NextLocationCode": "55255",
+        "TMC:cid_58:tabcd_1:PrevLocationCode": "10898"
+      },
+      "paths": [
+        "A3-koeln"
+      ]
+    },
+    {
+      "id": 1989662110,
+      "lat": 50.3887697,
+      "lon": 7.5402983,
+      "tags": {
+        "highway": "motorway_junction",
+        "name": "Koblenz-Nord",
+        "ref": "10",
+        "wikidata": "Q4303099"
+      },
+      "paths": [
+        "A48-dernbach"
+      ]
+    },
+    {
+      "id": 4026966591,
+      "lat": 50.3846957,
+      "lon": 8.0827406,
+      "tags": {
+        "highway": "motorway_junction",
+        "name": "Limburg-Süd",
+        "ref": "43"
+      },
+      "paths": [
+        "A3-frankfurt"
+      ]
+    },
+    {
+      "id": 4159253170,
+      "lat": 50.4139064,
+      "lon": 7.5810087,
+      "tags": {
+        "highway": "motorway_junction",
+        "name": "Bendorf / Neuwied",
+        "ref": "11"
+      },
+      "paths": [
+        "A48-dernbach"
+      ]
+    }
+  ],
+  "checkedAt": "2026-10-23T23:03:41.973414+00:00",
+  "method": "motorway_junction nodes connected to the actual A3/A48 carriageway way IDs, independently for each travel direction; exactly one verified node per regular AS and direction",
+  "selected": [
+    {
+      "road": "A3",
+      "ref": "41",
+      "name": "Diez",
+      "directional": {
+        "A3-frankfurt": {
+          "position": [
+            50.4125455,
+            7.9407959
+          ],
+          "nodeId": 378256
+        },
+        "A3-koeln": {
+          "position": [
+            50.4136072,
+            7.9481574
+          ],
+          "nodeId": 378259
+        }
+      }
+    },
+    {
+      "road": "A3",
+      "ref": "40",
+      "name": "Montabaur",
+      "directional": {
+        "A3-frankfurt": {
+          "position": [
+            50.4460877,
+            7.8283121
+          ],
+          "nodeId": 378120
+        },
+        "A3-koeln": {
+          "position": [
+            50.4490799,
+            7.8542642
+          ],
+          "nodeId": 378146
+        }
+      }
+    },
+    {
+      "road": "A3",
+      "ref": "38",
+      "name": "Ransbach-Baumbach",
+      "directional": {
+        "A3-koeln": {
+          "position": [
+            50.4838633,
+            7.7532927
+          ],
+          "nodeId": 398290
+        },
+        "A3-frankfurt": {
+          "position": [
+            50.4851548,
+            7.750632
+          ],
+          "nodeId": 398293
+        }
+      }
+    },
+    {
+      "road": "A3",
+      "ref": "37",
+      "name": "Dierdorf",
+      "directional": {
+        "A3-koeln": {
+          "position": [
+            50.53355,
+            7.6000565
+          ],
+          "nodeId": 266326295
+        },
+        "A3-frankfurt": {
+          "position": [
+            50.5353056,
+            7.5970228
+          ],
+          "nodeId": 1440554552
+        }
+      }
+    },
+    {
+      "road": "A3",
+      "ref": "36",
+      "name": "Neuwied",
+      "directional": {
+        "A3-frankfurt": {
+          "position": [
+            50.5669705,
+            7.5206307
+          ],
+          "nodeId": 32345398
+        },
+        "A3-koeln": {
+          "position": [
+            50.562787,
+            7.5300162
+          ],
+          "nodeId": 266320207
+        }
+      }
+    },
+    {
+      "road": "A3",
+      "ref": "35",
+      "name": "Neustadt/Wied",
+      "directional": {
+        "A3-frankfurt": {
+          "position": [
+            50.6035077,
+            7.4302242
+          ],
+          "nodeId": 36321144
+        },
+        "A3-koeln": {
+          "position": [
+            50.6014576,
+            7.4317384
+          ],
+          "nodeId": 1545947778
+        }
+      }
+    },
+    {
+      "road": "A3",
+      "ref": "34",
+      "name": "Bad Honnef/Linz",
+      "directional": {
+        "A3-koeln": {
+          "position": [
+            50.6476108,
+            7.3335064
+          ],
+          "nodeId": 321454875
+        },
+        "A3-frankfurt": {
+          "position": [
+            50.6488879,
+            7.3314832
+          ],
+          "nodeId": 321470089
+        }
+      }
+    },
+    {
+      "road": "A48",
+      "ref": "10",
+      "name": "Koblenz-Nord",
+      "directional": {
+        "A48-koblenz": {
+          "position": [
+            50.3960916,
+            7.5524858
+          ],
+          "nodeId": 442034796
+        },
+        "A48-dernbach": {
+          "position": [
+            50.3887697,
+            7.5402983
+          ],
+          "nodeId": 1989662110
+        }
+      }
+    },
+    {
+      "road": "A48",
+      "ref": "11",
+      "name": "Bendorf/Neuwied",
+      "directional": {
+        "A48-koblenz": {
+          "position": [
+            50.4143192,
+            7.5841106
+          ],
+          "nodeId": 1309209211
+        },
+        "A48-dernbach": {
+          "position": [
+            50.4139064,
+            7.5810087
+          ],
+          "nodeId": 4159253170
+        }
+      }
+    },
+    {
+      "road": "A48",
+      "ref": "12",
+      "name": "Höhr-Grenzhausen",
+      "directional": {
+        "A48-koblenz": {
+          "position": [
+            50.4450609,
+            7.6684256
+          ],
+          "nodeId": 274088514
+        },
+        "A48-dernbach": {
+          "position": [
+            50.4438848,
+            7.6646021
+          ],
+          "nodeId": 1416531468
+        }
+      }
+    },
+    {
+      "road": "A3",
+      "ref": "42",
+      "name": "Limburg-Nord",
+      "directional": {
+        "A3-frankfurt": {
+          "position": [
+            50.4019571,
+            8.063502
+          ],
+          "nodeId": 398262
+        },
+        "A3-koeln": {
+          "position": [
+            50.3912799,
+            8.0790455
+          ],
+          "nodeId": 398265
+        }
+      }
+    },
+    {
+      "road": "A3",
+      "ref": "43",
+      "name": "Limburg-Süd",
+      "directional": {
+        "A3-koeln": {
+          "position": [
+            50.3790374,
+            8.0893933
+          ],
+          "nodeId": 235277087
+        },
+        "A3-frankfurt": {
+          "position": [
+            50.3846957,
+            8.0827406
+          ],
+          "nodeId": 4026966591
+        }
+      }
+    }
+  ]
+}

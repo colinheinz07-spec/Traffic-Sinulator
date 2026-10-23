@@ -10,7 +10,7 @@ export function isKnownPath(key) { return directions.has(key) || knownRampIds.ha
 export function isEventKind(v) { return typeof v === 'string' && EVENT_KINDS.includes(v); }
 const isShoulder = (x) => x === 'normal' || x === 'open' || x === 'blocked';
 function isPoint(p) { return Array.isArray(p) && p.length === 2 && p.every(n => typeof n === 'number' && Number.isFinite(n)) && p[0] >= 50.32 && p[0] <= 50.73 && p[1] >= 7.27 && p[1] <= 8.16; }
-export function maxLengthM(kind) { return kind === 'accident' || kind === 'breakdown' ? 200 : kind === 'closure' ? 10000 : 20000; }
+export function maxLengthM(kind) { return kind === 'accident' || kind === 'breakdown' ? 200 : kind === 'closure' ? 100000 : 20000; }
 export function defaultLengthM(kind) { return kind === 'roadworks' ? 500 : kind === 'closure' ? 200 : kind === 'accident' ? 100 : 50; }
 /** These are adjustable *simulation assumptions*, not German traffic-law speed limits. */
 export function suggestedSpeed(kind, laneCount, closedLanes, shoulder) {

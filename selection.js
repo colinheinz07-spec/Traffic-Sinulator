@@ -1,7 +1,7 @@
 /** Map hit-testing remains separate from rendering and transport logic.
  * All snapped positions are interpolated ONLY on verified OSM road geometries.
  */
-import { nearestPolyline } from './core.js';
+import { nearestPolyline, exitPosition } from './core.js';
 /** Reduce hundreds of OSM ways to one candidate for each motorway direction and each ramp. */
 export function mapCandidates(roads, ramps, tap, project, tolerance = 18) {
     const hits = new Map();
@@ -47,7 +47,7 @@ export function closestJunction(hit, exits) {
     for (const exit of exits) {
         if (exit.road !== motorway)
             continue;
-        const distanceKm = airDistanceMetres(hit.point, exit.position) / 1000;
+        const distanceKm = airDistanceMetres(hit.point, exitPosition(exit, hit.key)) / 1000;
         if (!best || distanceKm < best.distanceKm)
             best = { exit, distanceKm };
     }
