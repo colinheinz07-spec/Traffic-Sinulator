@@ -5,8 +5,9 @@ import {networkData} from '../dist/geodata.js';
 import {makeCorridors,routeSlice} from '../dist/spatial.js';
 import {initialiseCells,advanceCells} from '../dist/traffic-cells.js';
 import {speedDelayInCells,speedDelayLabel} from '../dist/speed-delay.js';
+import {freeSpeedKmh} from '../dist/traffic-physics.js';
 
-const routes=makeCorridors(networkData.roads,networkData.ramps);
+const routes=makeCorridors(networkData.roads,networkData.ramps),free=freeSpeedKmh('A3-koeln');
 function synthetic(speeds,km=1){
  const route=routes['A3-koeln'];
  const state=initialiseCells(route,2000);
@@ -19,29 +20,29 @@ function synthetic(speeds,km=1){
 test('travel delay comes from actual local speed and distance, not elapsed closure time',()=>{
  const fast=synthetic([40,40]),slow=synthetic([10,10]);
  const a=speedDelayInCells(fast),b=speedDelayInCells(slow);
- assert.ok(Math.abs(a.delayMin-2)<1e-7,'2km at 40km/h adds two minutes vs 120');
- assert.ok(Math.abs(b.delayMin-11)<1e-7,'2km at 10km/h adds eleven minutes');
+ assert.ok(Math.abs(a.delayMin-60*2*(1/40-1/free))<1e-7,'travel loss must use the current free-speed reference');
+ assert.ok(Math.abs(b.delayMin-60*2*(1/10-1/free))<1e-7,'slow traffic has its actual distance/speed penalty');
  assert.ok(b.delayMin>a.delayMin*5);
  // Two identical traffic fields represent identical delays regardless of
  // simulation tick or closure timestamp.
  slow.minute=5000;
  assert.deepEqual(speedDelayInCells(slow),b);
- assert.equal(speedDelayLabel(b),'+11,0 min');
+ assert.equal(speedDelayLabel(b),'+11,1 min');
 });
 test('free-flow cannot invent time loss; shorter/slower affected roads have proportional loss',()=>{
- const free=synthetic([120,120]);
- assert.equal(speedDelayInCells(free).delayMin,0);
+ const freeState=synthetic([free,free]);
+ assert.equal(speedDelayInCells(freeState).delayMin,0);
  const state=synthetic([10,10]);
  const half=speedDelayInCells(state,0,500);
- assert.ok(Math.abs(half.delayMin-2.75)<1e-7);
+ assert.ok(Math.abs(half.delayMin-60*.5*(1/10-1/free))<1e-7);
  assert.ok(speedDelayInCells(state,0,1000).delayMin<speedDelayInCells(state,0,2000).delayMin);
 });
 test('zero km/h is not an invented 1–5 km/h forecast or years since closure',()=>{
- const state=synthetic([0,10,120]);
+ const state=synthetic([0,10,free]);
  const d=speedDelayInCells(state);
  assert.equal(d.blocked,true);
  assert.equal(d.stoppedKm,1);
- assert.ok(Math.abs(d.delayMin-5.5)<1e-7);
+ assert.ok(Math.abs(d.delayMin-60*(1/10-1/free))<1e-7);
  assert.doesNotMatch(speedDelayLabel(d),/\+\d/,'partial moving sections cannot predict a blocked journey');
  assert.match(speedDelayLabel(d),/blockiert/);
  state.minute=110000;
@@ -55,7 +56,7 @@ test('zero km/h is not an invented 1–5 km/h forecast or years since closure',(
 test('cell delay can be calculated over only the spatial footprint of one jam',()=>{
  const state=synthetic([25,5,120,120]);
  const local=speedDelayInCells(state,1000,2000);
- assert.ok(Math.abs(local.delayMin-(60*(1/5-1/120)))<1e-7);
+ assert.ok(Math.abs(local.delayMin-(60*(1/5-1/free)))<1e-7);
  assert.equal(local.blocked,false);
  assert.equal(local.assessedKm,1);
 });

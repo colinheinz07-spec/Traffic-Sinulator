@@ -37,7 +37,7 @@ const demandDefaults:Record<PathKey,number>={
 const motorwayBaseLanes:Record<RoadId,number>={
  'A3-koeln':3,'A3-frankfurt':3,'A48-dernbach':2,'A48-koblenz':2
 };
-const defaultKmH=(key:PathKey)=>key.startsWith('ramp-')?80:key.startsWith('A48')?100:120;
+const defaultKmH=(key:PathKey)=>key.startsWith('ramp-')?80:130;
 export function defaultDemand(key:PathKey):number{return demandDefaults[key]}
 export function baselineCapacity(key:PathKey):number{
  return key.startsWith('ramp-')?1500:1800*motorwayBaseLanes[key as RoadId];

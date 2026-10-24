@@ -1,9 +1,10 @@
-import { validDailyRecurrence, dailyRecurrenceBounds, dailyOccurrenceAt } from './recurring-events.js?build=b0a387e5cb5e18cc';
+import { validDailyRecurrence, dailyRecurrenceBounds, dailyOccurrenceAt } from './recurring-events.js?build=664144dd1ec54d7b';
 export const EVENT_KINDS = ['roadworks', 'accident', 'breakdown', 'closure'];
 export const eventNames = { roadworks: 'Baustelle', accident: 'Unfall', breakdown: 'Lkw-Panne', closure: 'Vollsperrung' };
 export const eventSymbols = { roadworks: '🚧', accident: '💥', breakdown: '🚛', closure: '⛔' };
 /** Keep old key so 0.7 events do not disappear after updating to 0.8. */
 export const STORAGE_KEY = 'traffic-sinulator-events-v1';
+export const DEFAULT_CLEARANCE_MIN = 30;
 const directions = new Set(['A3-koeln', 'A3-frankfurt', 'A48-koblenz', 'A48-dernbach']);
 const knownRampIds = new Set(['ramp-a3-to-a48-from-frankfurt', 'ramp-a3-to-a48-from-koeln', 'ramp-a48-to-koeln', 'ramp-a48-to-frankfurt']);
 export function isKnownPath(key) { return directions.has(key) || knownRampIds.has(key); }
@@ -39,6 +40,8 @@ export function validEvent(v) {
         && typeof x.createdAt === 'string' && Number.isFinite(Date.parse(x.createdAt))))
         return false;
     if (!s || !Number.isInteger(s.lengthM) || s.lengthM < 1 || s.lengthM > maxLengthM(x.kind))
+        return false;
+    if (s.clearanceMin !== undefined && (!Number.isInteger(s.clearanceMin) || s.clearanceMin < 0 || s.clearanceMin > 720))
         return false;
     if (!isShoulder(s.shoulder) || (!directions.has(x.pathKey) && s.shoulder !== 'normal' && x.kind !== 'closure'))
         return false;
@@ -162,6 +165,8 @@ export function eventSummary(e) {
         parts.push('Standstreifen freigegeben (Simulation)');
     if (e.settings.shoulder === 'blocked')
         parts.push('Standstreifen gesperrt');
+    if (e.kind !== 'closure' && !flowPolicy(e).canEnter)
+        parts.push('Prognose: Freigabe eines Fahrstreifens in angenommenen ' + (e.settings.clearanceMin ?? DEFAULT_CLEARANCE_MIN) + ' min');
     return parts.join(' · ');
 }
 /** A planned event is active in [start,end). Phases replace lane settings

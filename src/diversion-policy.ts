@@ -33,7 +33,8 @@ export function requiredDiversionGate(config:DetourConfig,route:Corridor,
  * interpreted as infinite delay or as a mandatory off-ramp movement.
  */
 export function voluntaryDiversionPercent(delayMin:number,extraMinutes=0):number{
- if(delayMin<45||!Number.isFinite(delayMin))return 0;
+ if(delayMin<45-1e-9||!Number.isFinite(delayMin))return 0;
+ delayMin=Math.max(45,delayMin);
  const saving=Math.max(0,delayMin-Math.max(0,extraMinutes))/delayMin;
  return Math.round((potentialDiversionPercent(delayMin,false)??0)*saving*10)/10;
 }
@@ -56,6 +57,15 @@ export function firstDiversionExit(state:CellRouteState,route:Corridor,exits:rea
  const junctions=diversionJunctions(route.key as RoadId,exits,route)
   .filter(j=>!j.isInterchange&&j.metre<=approachEndM+25);
  if(!junctions.length)return null;
+ const tail=connectedQueueTail(state,approachEndM);
+ if(tail===null)return backedUpConnection?junctions.at(-1)!.metre:null;
+ // At approximately 100 m resolution, the previous AS joins only when
+ // the visible congested cells actually cover the current AS.
+ return (junctions.filter(j=>j.metre<tail-.1).at(-1)??junctions[0]!).metre;
+}
+/** Follow only the queue connected to this bottleneck, including dense
+ * moving packets. A genuinely free gap ends its physical footprint. */
+export function connectedQueueTail(state:CellRouteState,approachEndM:number):number|null{
  const bands=cellSpeedBands(state).filter(b=>b.fromM<approachEndM+state.cellM);
  // Only follow the queue connected to this bottleneck. Taking the minimum
  // over ALL upstream bands also picks isolated off-ramp queues: their
@@ -65,7 +75,7 @@ export function firstDiversionExit(state:CellRouteState,route:Corridor,exits:rea
  let root=-1;
  for(let i=bands.length-1;i>=0;i--)if(bands[i]!.toM>=approachEndM-state.cellM&&
   bands[i]!.fromM<=approachEndM+state.cellM){root=i;break;}
- if(root<0)return backedUpConnection?junctions.at(-1)!.metre:null;
+ if(root<0)return null;
  let tail=bands[root]!.fromM;
  for(let i=root-1;i>=0;i--){
   const band=bands[i]!;
@@ -74,9 +84,7 @@ export function firstDiversionExit(state:CellRouteState,route:Corridor,exits:rea
    c.densityVehKm<cellCriticalDensity(state.pathKey)*1.10))break;
   tail=band.fromM;
  }
- // At approximately 500 m resolution, the previous AS joins only when
- // the visible congested cells actually cover the current AS.
- return (junctions.filter(j=>j.metre<tail-.1).at(-1)??junctions[0]!).metre;
+ return tail;
 }
 export function routedDiversionChoice(entry:ChoiceRoute,entries:readonly ChoiceRoute[],
  cells:Readonly<Partial<Record<PathKey,CellRouteState>>>,routes:Readonly<Partial<Record<PathKey,Corridor>>>,
@@ -108,7 +116,8 @@ export function routedDiversionChoice(entry:ChoiceRoute,entries:readonly ChoiceR
  // Cars still reaching an AS inside the queue have already suffered part
  // of its delay. Use the same full queue disadvantage for all recruited
  // exits, so extending the tail does not turn the previously used AS off.
- const decisionFrom=Math.min(config.fromM,firstExit??config.fromM);
+ const decisionFrom=Math.min(config.fromM,firstExit??config.fromM,
+  connectedQueueTail(source,approachEnd)??config.fromM);
  if(gate&&config.fromM<gate.metre){
   const normal=entries.find(e=>e.enabled!==false&&e.config.path===path&&e.config.eventId===config.eventId&&
    (e.config.targetPath??path)===path&&Math.abs(e.config.fromM-gate.metre)<=25);
@@ -131,7 +140,10 @@ export function routedDiversionChoice(entry:ChoiceRoute,entries:readonly ChoiceR
  const service=Math.max(1,Math.min(1200,config.geometry.roadCapacityVph));
  const queueWait=(excessQueue(source,decisionFrom,sourceEnd,demands[path]??0)+
   (cross?excessQueue(destination,config.targetEntryM??0,config.toM,demands[target]??0):0))/service*60;
- const delayMin=Math.max(first.delayMin+(last?.delayMin??0),queueWait);
+ // The visible motorway estimate is the 45-minute decision input. A
+ // side-road service rate must not inflate it and recruit cars earlier.
+ const visibleDelay=first.delayMin+(last?.delayMin??0);
+ const delayMin=first.blocked||last?.blocked?Math.max(visibleDelay,queueWait):visibleDelay;
  const motorwayFree=cross?(sourceEnd-config.fromM)/1000/freeSpeedKmh(path)*60+
   (config.toM-(config.targetEntryM??0))/1000/freeSpeedKmh(target)*60:
   (config.toM-config.fromM)/1000/freeSpeedKmh(path)*60;

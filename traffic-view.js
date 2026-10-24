@@ -3,13 +3,13 @@
  * Legacy queues remain the simulation input for the separate ramp ledger;
  * their synthetic lengths never truncate a mainline display queue.
  */
-import { PATHS } from './traffic.js?build=b0a387e5cb5e18cc';
-import { routeSlice } from './spatial.js?build=b0a387e5cb5e18cc';
-import { cellSpeedBands } from './traffic-cells.js?build=b0a387e5cb5e18cc';
-import { physicalSpeedBands, stopAndGoBands, resolveSpeedBands, freeSpeedKmh, colorAtSpeed } from './traffic-physics.js?build=b0a387e5cb5e18cc';
-import { speedDelayInCells, speedDelayInBands } from './speed-delay.js?build=b0a387e5cb5e18cc';
-import { routeReport } from './network-report.js?build=b0a387e5cb5e18cc';
-import { positionM } from './spatial.js?build=b0a387e5cb5e18cc';
+import { PATHS } from './traffic.js?build=664144dd1ec54d7b';
+import { routeSlice } from './spatial.js?build=664144dd1ec54d7b';
+import { cellSpeedBands } from './traffic-cells.js?build=664144dd1ec54d7b';
+import { physicalSpeedBands, stopAndGoBands, resolveSpeedBands, freeSpeedKmh, colorAtSpeed } from './traffic-physics.js?build=664144dd1ec54d7b';
+import { speedDelayInCells, speedDelayInBands } from './speed-delay.js?build=664144dd1ec54d7b';
+import { routeReport } from './network-report.js?build=664144dd1ec54d7b';
+import { positionM } from './spatial.js?build=664144dd1ec54d7b';
 function extents(bands) {
     const groups = [];
     for (const b of bands) {
@@ -29,9 +29,11 @@ function lengthM(bands) {
     return extents(resolveSpeedBands(bands)).reduce((n, g) => n + g.toM - g.fromM, 0);
 }
 function addDelay(a, b) {
-    return { delayMin: a.delayMin + b.delayMin, blocked: a.blocked || b.blocked,
+    const forecast = a.forecastWaitMin !== undefined || b.forecastWaitMin !== undefined;
+    return { delayMin: a.delayMin + b.delayMin - (forecast ? Math.min(a.forecastWaitMin ?? 0, b.forecastWaitMin ?? 0) : 0), blocked: a.blocked || b.blocked,
         assessedKm: a.assessedKm + b.assessedKm, stoppedKm: a.stoppedKm + b.stoppedKm,
-        ...(a.diversionExitRef || b.diversionExitRef ? { diversionExitRef: a.diversionExitRef ?? b.diversionExitRef } : {}) };
+        ...(a.diversionExitRef || b.diversionExitRef ? { diversionExitRef: a.diversionExitRef ?? b.diversionExitRef } : {}),
+        ...(forecast ? { forecastWaitMin: Math.max(a.forecastWaitMin ?? 0, b.forecastWaitMin ?? 0) } : {}) };
 }
 /** Clearing cells inside a stop-and-go wave are not a second incident.
  * Fragments served by the same observed bottleneck retain one card. Count only

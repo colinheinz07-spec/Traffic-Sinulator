@@ -13,7 +13,7 @@ import {diversionJunctions,planDiversion,type DiversionLink} from './diversions.
 import {junctionMovements,junctionMovementHint,type RealDetourFlow,type JunctionMovement} from './junction-movements.js';
 import {bundledDetourGeometry,bundledExitRoutes,bundledTargets,isNetworkDestination} from './bundled-detours.js';
 import {emptyDetour,detourVehicles,type DetourConfig} from './detour-flow.js';
-import {decodeEvents,eventFromHit,updatedEvent,eventNames,eventSymbols,eventSummary,flowPolicy,defaultLengthM,defaultSettings,maxLengthM,suggestedSpeed,STORAGE_KEY,isEventKind,validEvent,effectiveEventsAt,eventScheduleStatus,type EventKind,type ShoulderMode,type SimEvent} from './events.js';
+import {decodeEvents,eventFromHit,updatedEvent,eventNames,eventSymbols,eventSummary,flowPolicy,defaultLengthM,defaultSettings,maxLengthM,suggestedSpeed,DEFAULT_CLEARANCE_MIN,STORAGE_KEY,isEventKind,validEvent,effectiveEventsAt,eventScheduleStatus,type EventKind,type ShoulderMode,type SimEvent} from './events.js';
 import {roadLaneInfo,rampLaneInfo} from './lane-info.js';
 import {mapCandidates,chooseMapHits,closestJunction,lanePositions,hitLabel,type MapHit} from './selection.js';
 import {buildContinuousRoads,lineWidths,along,rampBadges,layoutJunctionLabels,type Rectangle,type RampBadge,type JunctionLabel} from './cartography.js';
@@ -33,6 +33,7 @@ const spatialCorridors=makeCorridors(allRoads,ramps);
 const rampConnections=buildRampConnections(ramps,spatialCorridors);
 let badges:RampBadge[]=[];
 let junctionLabels:JunctionLabel[]=[];
+let trafficLabelRects:LabelRect[]=[];
 const pointerPositions=new Map<number,[number,number]>();let pointerDown:{x:number;y:number;at:number}|null=null;
 let selected:MapHit|null=null;
 let events:SimEvent[]=readStoredEvents();
@@ -159,6 +160,7 @@ function updateEventConfigPreview(resetSpeed=false){
  speed.disabled=suggested===0;
  const zero=speed.querySelector<HTMLOptionElement>('option[value="0"]');if(zero)zero.disabled=suggested!==0;
  const open=Math.max(0,count-closed.length)+(mode==='open'?1:0);
+ $('event-forecast-row').hidden=kind==='closure'||open>0||isRamp;
  $('event-rule-hint').textContent=kind==='closure'
   ?'Vollsperrung: Ausleitung an der letzten regulären AS davor. Auffahrten bleiben bis zur Wiedereinfahrts-AS geschlossen. Fahrzeuge im Abschnitt fahren weiter heraus.'
   :open===0?'Kein freier Fahrstreifen: derzeit kein Durchfluss. Ein Unfall ist trotzdem KEIN formales Vollsperrungs-Ereignis.'
@@ -171,6 +173,7 @@ function beginEventForm(){
  $<HTMLSelectElement>('event-kind').value='roadworks';
  $<HTMLSelectElement>('event-shoulder').value='normal';
  $<HTMLInputElement>('event-length').value='500';
+ $<HTMLInputElement>('event-clearance').value=String(DEFAULT_CLEARANCE_MIN);
  $('event-save').textContent='Ereignis setzen';
  $('event-form-error').textContent='';scheduleForm.reset();renderEventLaneChoices([]);updateEventConfigPreview(true);
 }
@@ -187,6 +190,7 @@ function beginEditEvent(){
  scheduleForm.reset(current.schedule);
  $<HTMLSelectElement>('event-shoulder').value=current.settings.shoulder;
  $<HTMLInputElement>('event-length').value=String(current.settings.lengthM);
+ $<HTMLInputElement>('event-clearance').value=String(current.settings.clearanceMin??DEFAULT_CLEARANCE_MIN);
  renderEventLaneChoices(current.closedLanes);
  updateEventConfigPreview(false);
  $<HTMLSelectElement>('event-speed').value=String(current.settings.speedKmh);
@@ -196,7 +200,8 @@ function saveNewEvent(){
  if(!isEventKind(kind))return;
  const count=formLaneCount();
  const closed=chosenLanes();
- const settings={lengthM:Number($<HTMLInputElement>('event-length').value),speedKmh:Number($<HTMLSelectElement>('event-speed').value),shoulder:currentShoulder()};
+ const settings={lengthM:Number($<HTMLInputElement>('event-length').value),speedKmh:Number($<HTMLSelectElement>('event-speed').value),shoulder:currentShoulder(),
+  ...(!$('event-forecast-row').hidden?{clearanceMin:Number($<HTMLInputElement>('event-clearance').value)}:{})};
  try{
   let entry:SimEvent;
   const schedule=scheduleForm.read();
@@ -403,6 +408,7 @@ function drawJunctionMovementHints(width:number,height:number){
   .filter(row=>path===key||row.entryClosed))
   .sort((a,b)=>Number(b.mandatory)-Number(a.mandatory)||Number(b.entryClosed)-Number(a.entryClosed));
  const used:LabelRect[]=[
+  ...trafficLabelRects,
   ...junctionLabels.flatMap(label=>label.box?[{x:label.box.x,y:label.box.y,width:label.box.w,height:label.box.h}]:[]),
   ...activeEvents().map(event=>{const [x,y]=toScreen(event.point);return {x:x-25,y:y-25,width:50,height:50};})
  ];
@@ -562,13 +568,14 @@ function renderTraffic(){
  $('traffic-outflow').textContent=trafficNumber(result.dischargeVph??Math.min(result.capacityVph,activeDemands[key]+result.ownVehicles*60));
  $('traffic-queue').textContent=trafficNumber(result.queueVehicles);
  $('traffic-shared').textContent=result.sharedRampVehicles>0?`Abfahrtsstreifen betroffen (${trafficColorName[result.exitColor]}): ${trafficNumber(result.sharedRampVehicles)} Fahrzeuge der Rampenwarteschlange auf dieser Autobahn. Abbieger-Wartezeit: ${result.exitDelayMin===null?'nicht berechenbar':trafficNumber(result.exitDelayMin,1)+' min'}. Kein zusätzlich erzeugter Stau im Durchgangsverkehr.`:'Keine Rampenfahrzeuge auf diesem Abschnitt';
- $('traffic-queue-km').textContent=`${trafficNumber(result.queueKm,2)} km${result.sharedRampVehicles>0&&result.ownVehicles===0?' · Abfahrt':''}`;
+ $('traffic-queue-km').textContent=`${trafficNumber(result.queueKm,1)} km${result.sharedRampVehicles>0&&result.ownVehicles===0?' · Abfahrt':''}`;
  $('traffic-delay').textContent=speedDelayLabel(view.delays[key])+(result.sharedRampVehicles>0?' durchgehend · Abfahrt '+(result.exitDelayMin===null?'blockiert':'+'+trafficNumber(result.exitDelayMin,1)+' min'):'');
  $('traffic-speed').textContent=`ca. ${trafficNumber(result.speedKmh,1)} km/h${result.sharedRampVehicles>0?' · Abfahrt / Durchgang '+trafficNumber(result.throughSpeedKmh??result.speedKmh)+' km/h':result.ownVehicles>0?' (Rückstau)':bn.count>0?' (Ereignisbereich)':' (freie Fahrt)'}`;
  $('traffic-events').textContent=bn.count===0?'Kein eigenes Ereignis auf dieser Richtung – mögliche Rückstauübertragung am AD wird berücksichtigt':
   `${bn.count} eigene(s) Ereignis(se) auf dieser Richtung`;
  const stateLabel=$('traffic-state');stateLabel.textContent=result.sharedRampVehicles>0?trafficColorName[result.exitColor].split(' / ')[0]+' (Abfahrt) · Durchgang '+trafficColorName[result.throughColor??result.color].toLowerCase():trafficColorName[result.color];stateLabel.className=`traffic-state ${result.color}`;
- $('traffic-closure-note').textContent=bn.event?.kind==='closure'?'Vollsperrung: Fahrzeuge fahren an der letzten regulären Ausfahrt ab. Der Zeitverlust gilt für den Rückstau bis zu dieser Ausleitung. Auffahrten im gesperrten Abschnitt bleiben geschlossen; vorhandene Fahrzeuge fahren heraus. Für die gesperrte Geradeausfahrt gibt es keine Durchfahrtsprognose.':'';
+ $('traffic-closure-note').textContent=bn.event?.kind==='closure'?'Vollsperrung: Fahrzeuge fahren an der letzten regulären Ausfahrt ab. Der Zeitverlust gilt für den Rückstau bis zu dieser Ausleitung. Auffahrten im gesperrten Abschnitt bleiben geschlossen; vorhandene Fahrzeuge fahren heraus. Für die gesperrte Geradeausfahrt gibt es keine Durchfahrtsprognose.':
+  view.delays[key].forecastWaitMin!==undefined?'Geschätzter Zeitverlust: angenommene Restdauer bis zur Freigabe '+trafficNumber(view.delays[key].forecastWaitMin!)+' min, anschließend zunächst ein freier Fahrstreifen mit 40 km/h. Die Restdauer lässt sich im Ereignis ändern; Fahrstreifen werden dadurch nicht automatisch geöffnet.':'';
  const mergeQueues=jams.filter(j=>j.id.startsWith('merge:')&&!j.released);
  const overflowText=spillbacks.map(s=>`${trafficRouteLabel(s.rampId)}: ${trafficNumber(s.lengthM/1000,2)} km Rückstau auf ${trafficRouteLabel(s.source)}`).join(' · ');
  const mergeText=mergeQueues.map(x=>`${trafficRouteLabel(x.pathKey)}: ${trafficNumber(x.queueVehicles)} Fahrzeuge warten wegen Rückstau an der Einmündung`).join(' · ');
@@ -604,7 +611,7 @@ function renderTraffic(){
    delay.textContent=speedDelayLabel(jam.delay);
    header.append(marker,heading,delay);
    const metrics=document.createElement('div');metrics.className='jam-card-metrics';
-   const length=document.createElement('span');length.textContent=`↔ ${trafficNumber(jam.queueM/1000,2)} km Rückstau`;
+   const length=document.createElement('span');length.textContent=`↔ ${trafficNumber(jam.queueM/1000,1)} km Rückstau`;
    const speed=document.createElement('span');speed.className=`traffic-state ${jam.color}`;
    speed.textContent=`ca. ${trafficNumber(jam.speedKmh)} km/h · ${trafficColorName[jam.color]}`;
    metrics.append(length,speed);
@@ -740,6 +747,7 @@ function plotLabels(width:number,height:number){
  const obstacles:Rectangle[]=Array.from(wrapper.querySelectorAll<HTMLElement>('.map-status,.map-controls,.legend')).map(element=>{
   const r=element.getBoundingClientRect();return {x:r.left-bounds.left,y:r.top-bounds.top,w:r.width,h:r.height};
  });
+ obstacles.push(...trafficLabelRects.map(box=>({x:box.x,y:box.y,w:box.width,h:box.height})));
  for(const event of activeEvents()){
   const [x,y]=toScreen(event.point);obstacles.push({x:x-24,y:y-24,w:48,h:48});
  }
@@ -770,6 +778,7 @@ function plotRampBadges(width:number,height:number){
 }
 const jamColors={slow:'#f59e0b',jam:'#dc2626',standstill:'#7f1d1d'} as const;
 function drawSpatialJams(){
+ trafficLabelRects=[];
  const timeline=activeEvents();
  const list=jamsAt(spatialState,timeline,spatialCorridors);
  const spillbacks=rampSpillbacks(list,rampConnections,spatialCorridors);
@@ -831,6 +840,7 @@ function drawSpatialJams(){
   context!.fillStyle='#bbd9e8';context!.fillText(second,callout.x+7,callout.y+26);
   context!.restore();
   labelObstacles.push(callout);
+  trafficLabelRects.push(callout);
  }
 }
 function draw(){

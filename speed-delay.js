@@ -2,14 +2,14 @@
  * For a traversable cell: delta=t_at_local_speed - t_at_free_speed.
  * Observed discharge is averaged in the simulation, before taking its
  * reciprocal with local density. A short brake must not multiply the whole
- * journey time. A closed through edge has NO finite predictive travel time;
- * its asymptotically tiny numerical upstream flow is not a travel forecast.
+ * journey time. A closed through edge needs an explicit reopening scenario
+ * for a finite forecast; tiny numerical flow is never its denominator.
  * A working mandatory off-ramp is a different traversable destination: its
  * actual discharge yields the time loss to that exit, labelled explicitly.
  * This calculation depends on NO clock, event age or queue-created timestamp.
  */
-import { cellCriticalDensity } from './traffic-cells.js?build=b0a387e5cb5e18cc';
-import { freeSpeedKmh } from './traffic-physics.js?build=b0a387e5cb5e18cc';
+import { cellCriticalDensity } from './traffic-cells.js?build=664144dd1ec54d7b';
+import { freeSpeedKmh } from './traffic-physics.js?build=664144dd1ec54d7b';
 export function speedDelayInCells(state, fromM = 0, toM = Infinity) {
     const free = freeSpeedKmh(state.pathKey);
     if (!Number.isFinite(fromM) || Number.isNaN(toM) || fromM < 0 || toM <= fromM)
@@ -17,21 +17,28 @@ export function speedDelayInCells(state, fromM = 0, toM = Infinity) {
     if (state.closures?.some(c => fromM >= c.fromM - .1 && fromM < c.toM - .1))
         return { delayMin: 0, blocked: true, assessedKm: 0, stoppedKm: 0 };
     const selected = state.cells.filter(c => c.toM > fromM && c.fromM < toM);
-    const barrier = selected.find(c => c.blockedAtM !== undefined && c.blockedAtM > fromM && c.blockedAtM <= toM + .1);
-    let diversionExitRef = barrier?.travelDetector?.diversionExitRef;
-    const endM = diversionExitRef ? Math.min(toM, barrier.toM) : toM;
+    const barriers = selected.filter(c => c.blockedAtM !== undefined && c.blockedAtM > fromM && c.blockedAtM <= toM + .1);
+    const exit = barriers.find(c => c.travelDetector?.diversionExitRef);
+    let diversionExitRef = exit?.travelDetector?.diversionExitRef;
+    const endM = exit ? Math.min(toM, exit.toM) : toM;
+    const barrier = barriers.find(c => c.toM <= endM + .1 && !c.travelDetector?.diversionExitRef && !c.reopeningForecast);
     // Resolve a physical road block BEFORE any divisions. Cells upstream of
     // a zero-capacity edge approach zero speed without necessarily reaching
     // floating-point zero. Summing their inverse speeds produced years of
     // fictitious "minimum" delay despite the explicit blocked state.
-    if (barrier && !diversionExitRef) {
+    if (barrier) {
         const stoppedKm = selected.filter(c => c.vehicles >= .01 && c.speedKmh <= 10)
             .reduce((n, c) => n + (Math.min(c.toM, toM) - Math.max(c.fromM, fromM)) / 1000, 0);
         return { delayMin: 0, blocked: true, assessedKm: 0, stoppedKm };
     }
     const critical = cellCriticalDensity(state.pathKey);
     const detectors = state.cells.filter(d => d.travelDetector);
+    const activeDetectors = detectors.filter(d => d.travelDetector?.active);
     let delayMin = 0, assessedKm = 0, stoppedKm = 0;
+    let forecastWaitMin;
+    for (const b of barriers)
+        if (b.toM <= endM + .1 && b.reopeningForecast)
+            forecastWaitMin = Math.max(forecastWaitMin ?? 0, b.reopeningForecast.waitMin);
     for (const c of selected) {
         const start = Math.max(c.fromM, fromM), end = Math.min(c.toM, endM);
         if (end <= start || c.vehicles < .01)
@@ -45,23 +52,29 @@ export function speedDelayInCells(state, fromM = 0, toM = Infinity) {
         // in a stationary queue, without assuming a temporary local stop lasts
         // throughout the journey. Detectors persist while a released queue drains.
         const congested = c.speedKmh <= 65 && c.densityVehKm >= critical * 1.10;
-        const detector = congested ? detectors.find(d => d.toM >= c.toM - .1)?.travelDetector : undefined;
+        const head = c.speedKmh <= 65 ? (activeDetectors.find(d => d.toM >= c.toM - .1) ??
+            detectors.find(d => d.toM >= c.toM - .1)) : undefined;
+        const forecast = head?.reopeningForecast;
+        const detector = congested || forecast ? head?.travelDetector : undefined;
         diversionExitRef ??= detector?.diversionExitRef;
-        const flow = detector?.meanFlowVph ?? c.travelFlowVph;
-        const observed = congested && flow !== undefined && c.densityVehKm > 0 ?
-            Math.min(c.limitKmh ?? free, flow / c.densityVehKm) : c.speedKmh;
+        if (forecast)
+            forecastWaitMin = Math.max(forecastWaitMin ?? 0, forecast.waitMin);
+        const flow = forecast?.serviceVph ?? detector?.meanFlowVph ?? c.travelFlowVph;
+        const observed = (congested || forecast) && flow !== undefined && c.densityVehKm > 0 ?
+            Math.min(forecast ? 40 : c.limitKmh ?? free, flow / c.densityVehKm) : c.speedKmh;
         const local = Math.min(free, Math.max(0, observed));
         // A true standstill is not equivalent to driving at a fictional 1–5 km/h.
         // Exit-bound cars may still move in a cell whose through edge is closed.
         // Their off-ramp flow must not imply an available motorway passage.
-        if (local <= 1e-6 || c.blockedAtM !== undefined && end >= c.blockedAtM - .1 && !c.travelDetector?.diversionExitRef) {
+        if (local <= 1e-6 || c.blockedAtM !== undefined && end >= c.blockedAtM - .1 && !c.travelDetector?.diversionExitRef && !c.reopeningForecast) {
             stoppedKm += km;
             continue;
         }
         assessedKm += km;
         delayMin += Math.max(0, 60 * km * (1 / local - 1 / free));
     }
-    return { delayMin, blocked: stoppedKm > .0001, assessedKm, stoppedKm, ...(diversionExitRef ? { diversionExitRef } : {}) };
+    return { delayMin: delayMin + (forecastWaitMin ?? 0), blocked: stoppedKm > .0001, assessedKm, stoppedKm,
+        ...(diversionExitRef ? { diversionExitRef } : {}), ...(forecastWaitMin !== undefined ? { forecastWaitMin } : {}) };
 }
 /** Bands must already be resolved, so overlapping queues count only once. */
 export function speedDelayInBands(path, bands) {
@@ -85,7 +98,9 @@ export function speedDelayLabel(value, precision = 1, compact = false) {
     if (value.blocked)
         return 'Durchfahrt blockiert · Verzögerung nicht prognostizierbar';
     const n = value.delayMin.toLocaleString('de-DE', { minimumFractionDigits: precision, maximumFractionDigits: precision });
+    const prefix = value.forecastWaitMin !== undefined ? '~+' : '+';
+    const estimate = value.forecastWaitMin !== undefined && !compact ? ' (geschätzt)' : '';
     if (value.diversionExitRef)
-        return '+' + n + ' min' + (compact ? ' · Ausleitung AS ' : ' bis Ausleitung AS ') + value.diversionExitRef;
-    return '+' + n + ' min';
+        return prefix + n + ' min' + (compact ? ' · Ausleitung AS ' : ' bis Ausleitung AS ') + value.diversionExitRef + estimate;
+    return prefix + n + ' min' + estimate;
 }

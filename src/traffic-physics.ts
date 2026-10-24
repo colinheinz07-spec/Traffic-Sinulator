@@ -9,7 +9,7 @@ export interface SpeedBand {
 }
 const RANK:Record<TrafficColor,number>={free:0,slow:1,jam:2,standstill:3};
 export function freeSpeedKmh(path:PathKey):number{
- return path.startsWith('ramp-')?80:path.startsWith('A48')?100:120;
+ return path.startsWith('ramp-')?80:130;
 }
 /** One consistent definition for UI, queues, ramps and OSM map overlays. */
 export function colorAtSpeed(speedKmh:number):TrafficColor{
@@ -104,7 +104,7 @@ export interface MovingQueue extends Pick<SpeedBand,'speedKmh'> {
  speedHistory?:readonly HistoricalSpeed[];offsetBackM?:number;
 }
 const WAVE_UPSTREAM_M_PER_MIN=230; // -13.8 km/h kinematic wave assumption
-const CELL_M=160;
+const CELL_M=100;
 function sourceSpeed(history:readonly HistoricalSpeed[]|undefined,time:number,fallback:number):number{
  if(!history?.length)return fallback;
  let lo=0,hi=history.length-1;

@@ -41,10 +41,10 @@ test('a long mapped mainline jam is not truncated to a much shorter legacy queue
  assert.ok(Math.abs(result.jams[0].queueM-actual)<1e-6);
  assert.ok(Math.abs(result.reports[path].queueKm-actual/1000)<1e-6);
  assert.ok(Math.abs(unionLength(result.bands.get(path))-actual)<1e-6);
- assert.ok(Math.abs(result.jams[0].delay.delayMin-60*actual/1000*(1/5-1/120))<1e-6);
+ assert.ok(Math.abs(result.jams[0].delay.delayMin-60*actual/1000*(1/5-1/freeSpeedKmh(path)))<1e-6);
 });
 test('a CTM queue appears in cards even without an old event queue',()=>{
- const result=view(grid([[8,15,15]]));
+ const result=view(grid([[40,75,15]]));
  assert.equal(result.jams.length,1);
  assert.equal(result.jams[0].color,'jam');
  assert.ok(result.jams[0].queueM>3000);
@@ -78,7 +78,7 @@ test('one clearing cell inside a stop-and-go wave does not split and halve its c
  assert.equal(result.physicalJams.length,2,'the traffic solver must retain the actual free-flow gap');
  assert.ok(Math.abs(result.jams[0].queueM-actual)<1e-6,'free gap is excluded from displayed length');
  assert.ok(result.jams[0].visibleQueueM>result.jams[0].queueM,'tail span still covers both fragments');
- assert.ok(Math.abs(result.jams[0].delay.delayMin-60*actual/1000*(1/10-1/120))<1e-6);
+ assert.ok(Math.abs(result.jams[0].delay.delayMin-60*actual/1000*(1/10-1/freeSpeedKmh(path)))<1e-6);
  const before=view(grid([[3,23,10]]),[root]).jams[0].delay.delayMin;
  assert.ok(Math.abs(before-result.jams[0].delay.delayMin)<3,'only the cleared cell can remove delay');
 });
@@ -109,7 +109,7 @@ test('recovery reduces both displayed length and delay despite a stale old queue
  assert.equal(view(grid([]),[legacy]).reports[path].queueKm,0);
 });
 test('near-zero moving traffic gives a high speed-based loss, with no closure clock',()=>{
- const state=grid([[4,8,.2]]);
+ const state=grid([[20,40,.2]]);
  const first=view(state);
  assert.equal(first.delays[path].blocked,false);
  assert.ok(first.delays[path].delayMin>500);
@@ -119,7 +119,7 @@ test('near-zero moving traffic gives a high speed-based loss, with no closure cl
  assert.deepEqual(later.delays[path],first.delays[path]);
  assert.equal(later.jams[0].queueM,length);
  assert.doesNotMatch(speedDelayLabel(later.delays[path]),/bisher/);
- const stopped=view(grid([[4,8,0]]));
+ const stopped=view(grid([[20,40,0]]));
  assert.equal(stopped.delays[path].blocked,true);
  assert.match(speedDelayLabel(stopped.delays[path]),/blockiert/);
  assert.doesNotMatch(speedDelayLabel(stopped.delays[path]),/\+\d/);
@@ -151,7 +151,7 @@ test('ramp cards include the actual feeder overflow and their braking approach',
  assert.equal(result.delays[spills[0].source].delayMin,0,'the backed-up exit is not through-traffic delay');
  assert.equal(result.reports[spills[0].source].color,'standstill','overall status must acknowledge the mapped exit queue');
  assert.equal(result.reports[spills[0].source].throughColor,'free');
- assert.equal(result.reports[spills[0].source].throughSpeedKmh,100);
+ assert.equal(result.reports[spills[0].source].throughSpeedKmh,freeSpeedKmh(spills[0].source));
  assert.ok(result.reports[spills[0].source].speedKmh<=10);
 });
 test('ramp approach is included even for a short queue which has no overflow',()=>{

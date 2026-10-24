@@ -1,6 +1,6 @@
 const RANK = { free: 0, slow: 1, jam: 2, standstill: 3 };
 export function freeSpeedKmh(path) {
-    return path.startsWith('ramp-') ? 80 : path.startsWith('A48') ? 100 : 120;
+    return path.startsWith('ramp-') ? 80 : 130;
 }
 /** One consistent definition for UI, queues, ramps and OSM map overlays. */
 export function colorAtSpeed(speedKmh) {
@@ -91,7 +91,7 @@ export function resolveSpeedBands(bands) {
     return out;
 }
 const WAVE_UPSTREAM_M_PER_MIN = 230; // -13.8 km/h kinematic wave assumption
-const CELL_M = 160;
+const CELL_M = 100;
 function sourceSpeed(history, time, fallback) {
     if (!history?.length)
         return fallback;

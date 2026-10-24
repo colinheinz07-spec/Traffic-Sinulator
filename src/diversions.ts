@@ -88,7 +88,8 @@ export interface DiversionPlan {
  */
 export function potentialDiversionPercent(delayMin:number|null,required:boolean):number|null{
  if(required)return null;
- if(delayMin===null||!Number.isFinite(delayMin)||delayMin<45)return 0;
+ if(delayMin===null||!Number.isFinite(delayMin)||delayMin<45-1e-9)return 0;
+ delayMin=Math.max(45,delayMin);
  const anchors:readonly (readonly [number,number])[]=[
   [0,0],[45,2],[50,8],[60,25],[75,50],[90,75],[105,90],[120,100]
  ];

@@ -3,7 +3,7 @@
  * NOT measured flows, road regulations, official diversion routes, or observed jams.
  * One controlling bottleneck per directional path; no A3/A48 ramp transfer yet.
  */
-import { flowPolicy } from './events.js?build=b0a387e5cb5e18cc';
+import { flowPolicy } from './events.js?build=664144dd1ec54d7b';
 export const PATHS = [
     'A3-koeln', 'A3-frankfurt', 'A48-dernbach', 'A48-koblenz',
     'ramp-a3-to-a48-from-frankfurt', 'ramp-a48-to-koeln',
@@ -18,7 +18,7 @@ const demandDefaults = {
 const motorwayBaseLanes = {
     'A3-koeln': 3, 'A3-frankfurt': 3, 'A48-dernbach': 2, 'A48-koblenz': 2
 };
-const defaultKmH = (key) => key.startsWith('ramp-') ? 80 : key.startsWith('A48') ? 100 : 120;
+const defaultKmH = (key) => key.startsWith('ramp-') ? 80 : 130;
 export function defaultDemand(key) { return demandDefaults[key]; }
 export function baselineCapacity(key) {
     return key.startsWith('ramp-') ? 1500 : 1800 * motorwayBaseLanes[key];

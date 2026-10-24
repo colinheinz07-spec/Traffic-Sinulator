@@ -8,7 +8,8 @@ import {bundledDetourGeometry,isNetworkDestination} from '../dist/bundled-detour
 import {emptyDetour,detourVehicles} from '../dist/detour-flow.js';
 import {advanceRoutedNetwork} from '../dist/routed-traffic.js';
 import {routedDiversionChoice,voluntaryDiversionPercent,firstDiversionExit} from '../dist/diversion-policy.js';
-import {initialiseCells,cellInventory} from '../dist/traffic-cells.js';
+import {initialiseCells,cellInventory,cellCriticalDensity} from '../dist/traffic-cells.js';
+import {freeSpeedKmh} from '../dist/traffic-physics.js';
 import {defaultDemands} from '../dist/traffic.js';
 import {junctionMovements} from '../dist/junction-movements.js';
 import {buildRampConnections} from '../dist/interchange.js';
@@ -30,7 +31,7 @@ function prepare(event){return automaticDiversions([event],routes,exits,{}).map(
 function withQueue(path,tail,head,delay=60){
  const grid=initialiseCells(routes[path],2000);
  const selected=grid.cells.filter(c=>c.toM>tail&&c.fromM<head);
- const km=selected.reduce((n,c)=>n+(c.toM-c.fromM)/1000,0),free=path.startsWith('A48')?100:120;
+ const km=selected.reduce((n,c)=>n+(c.toM-c.fromM)/1000,0),free=freeSpeedKmh(path);
  const speed=60*km/(delay+60*km/free);
  for(const c of selected){c.densityVehKm=60;c.vehicles=60*(c.toM-c.fromM)/1000;c.speedKmh=speed;c.flowVph=speed*60;}
  grid.initialVehicles=cellInventory(grid);return grid;
@@ -197,7 +198,7 @@ test('long real Unfall runs cannot activate an AS behind a free intervening AS: 
   const event={...incident(path,'42','43','accident'),id:'limburg-incident',closedLanes,
    settings:{lengthM:100,speedKmh:closedLanes.length===3?0:40,shoulder:'normal'}};
   let cells={[path]:initialiseCells(route,4200)},entries=prepare(event),firstDiez=null;
-  const at=positionM(route,event.point);
+  const at=positionM(route,event.point),dense=cellCriticalDensity(path)*1.10;
   for(let t=0;t<120;t++){
    const previous=cells[path];
    const next=advanceRoutedNetwork(cells,routes,[event],{...defaultDemands(),[path]:4200},exits,entries);
@@ -212,21 +213,22 @@ test('long real Unfall runs cannot activate an AS behind a free intervening AS: 
     if(['40','38','37','36','35','34'].includes(ref)){
      // Independently walk the physical dense cells back from the crash.
      // An isolated queue at a candidate exit does not satisfy this chain.
-     const congested=previous.cells.filter(c=>c.speedKmh<=65&&c.densityVehKm>=50);
+     const congested=previous.cells.filter(c=>c.speedKmh<=65&&c.densityVehKm>=dense);
      let tail=congested.filter(c=>Math.abs(c.toM-at)<=previous.cellM).at(-1)?.fromM;
      assert.notEqual(tail,undefined);
      while(true){
       const before=congested.filter(c=>c.toM<=tail+.1&&tail-c.toM<=previous.cellM+1).at(-1);
       if(!before)break;
       const gap=previous.cells.filter(c=>c.fromM>=before.toM-.1&&c.toM<=tail+.1);
-      if(gap.some(c=>c.densityVehKm<50))break;
+      if(gap.some(c=>c.densityVehKm<dense))break;
       tail=before.fromM;
      }
      const nextAS=diversionJunctions(path,exits,route).filter(j=>!j.isInterchange&&j.metre>d.config.fromM+25&&j.metre<at).at(0);
      assert.ok(nextAS&&tail<=nextAS.metre,'cannot use AS '+ref+' while queue tail '+tail+' has not reached '+nextAS?.ref);
     }
    }
-   if(t<60)assert.ok(entries.filter(d=>['40','38','37','36','35','34'].includes(d.config.geometry.sourceExitRef)).every(d=>d.state.admittedTotal===0));
+   if(firstDiez===null)assert.ok(entries.filter(d=>['40','38','37','36','35','34'].includes(d.config.geometry.sourceExitRef)).every(d=>d.state.admittedTotal===0),
+    'upstream exits cannot start before the physically next exit at Diez');
   }
   assert.notEqual(firstDiez,null);
  }

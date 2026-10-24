@@ -6,8 +6,8 @@
  * This module produces ROUTE PLANNING PREVIEWS only. It must never silently
  * subtract or teleport vehicles from the conserved A3/A48 motorway queues.
  */
-import { exitPosition } from './core.js?build=b0a387e5cb5e18cc';
-import { positionM, closureGate } from './spatial.js?build=b0a387e5cb5e18cc';
+import { exitPosition } from './core.js?build=664144dd1ec54d7b';
+import { positionM, closureGate } from './spatial.js?build=664144dd1ec54d7b';
 const r = (code, path, fromRef, toRef, evidence = 'named-endpoints') => ({
     id: path + '-' + code, code, path, fromRoad: path.startsWith('A3') ? 'A3' : 'A48', fromRef,
     toRoad: toRef ? (path.startsWith('A3') ? 'A3' : 'A48') : null, toRef, evidence,
@@ -68,8 +68,9 @@ export function diversionJunctions(path, exits, corridor) {
 export function potentialDiversionPercent(delayMin, required) {
     if (required)
         return null;
-    if (delayMin === null || !Number.isFinite(delayMin) || delayMin < 45)
+    if (delayMin === null || !Number.isFinite(delayMin) || delayMin < 45 - 1e-9)
         return 0;
+    delayMin = Math.max(45, delayMin);
     const anchors = [
         [0, 0], [45, 2], [50, 8], [60, 25], [75, 50], [90, 75], [105, 90], [120, 100]
     ];

@@ -3,8 +3,8 @@
  * local speeds determine map shading, queue lengths and travel-time loss.
  * The legacy AD ramp turn-demand solver remains a separate approximation.
  *
- * Model: triangular fundamental diagram, homogeneous 450-500m cells,
- * 10-second time steps (CFL safe at up to 120km/h), deterministic fluxes.
+ * Model: triangular fundamental diagram, homogeneous cells up to 100m,
+ * steps of at most two seconds (CFL checked per route), deterministic fluxes.
  * Every cell stores VEHICLES rather than a cosmetic pulse phase.
  */
 import type {Corridor} from './spatial.js';
@@ -12,7 +12,7 @@ import type {Exit} from './core.js';
 import {positionM,closureGate} from './spatial.js';
 import type {SimEvent} from './events.js';
 import {baselineCapacity,eventCapacity,type PathKey,type TrafficColor} from './traffic.js';
-import {flowPolicy} from './events.js';
+import {flowPolicy,DEFAULT_CLEARANCE_MIN} from './events.js';
 import {colorAtSpeed,freeSpeedKmh} from './traffic-physics.js';
 import {normalJunctionTraffic,type JunctionTrafficDemand,type JunctionTrafficState} from './junction-traffic.js';
 
@@ -25,6 +25,9 @@ export interface TrafficCell {
  /** Keep an observed bottleneck cross-section after reopening so that
   * its release flow can serve the queue still waiting upstream. */
  travelDetector?:{control:string;capacityVph:number;meanFlowVph:number;active:boolean;samples:number;diversionExitRef?:string};
+ /** A declared reopening scenario, separate from the measured zero flow.
+  * It never releases vehicles or changes road colors. */
+ reopeningForecast?:{waitMin:number;serviceVph:number};
 }
 export interface CellClosure {face:number;fromM:number;toM:number;exitRef:string|null;eventId:string;diverting:boolean}
 export interface CellRouteState {
@@ -44,7 +47,7 @@ export interface CellDetourPort {
 }
 export interface CellTransfer {id:string;leaveVpm:number;joinVpm:number}
 export interface CellSpeedBand {fromM:number;toM:number;speedKmh:number;color:TrafficColor;source:'cell'}
-const SUBSTEPS=6,DT_MIN=1/SUBSTEPS,WAVE_KMH=22,JAM_PER_LANE=95;
+const TARGET_CELL_M=100,WAVE_KMH=22,JAM_PER_LANE=95;
 // One observation per MODEL minute; repainting/pause never advances this.
 const TRAVEL_ALPHA=1-Math.exp(-1/6);
 export function cellLanes(path:PathKey):number{
@@ -56,7 +59,7 @@ export function cellCriticalDensity(path:PathKey):number{
 export function initialiseCells(route:Corridor,initialDemandVph:number):CellRouteState{
  if(!Number.isFinite(initialDemandVph)||initialDemandVph<0||initialDemandVph>8000)
   throw Error('Ungültiger Zufluss für Zellmodell');
- const count=Math.ceil(route.lengthM/500);
+ const count=Math.ceil(route.lengthM/TARGET_CELL_M);
  const cellM=route.lengthM/count,dx=cellM/1000;
  const v=freeSpeedKmh(route.key),lanes=cellLanes(route.key);
  const jam=JAM_PER_LANE*lanes;
@@ -94,6 +97,7 @@ function localControls(route:Corridor,events:readonly SimEvent[],demandVph:numbe
  const releases:{face:number;event:SimEvent;maximum:number}[]=[];
  const closedEntries:{fromM:number;toM:number}[]=[];
  const closureGates:Omit<CellClosure,'diverting'>[]=[];
+ const forecasts=new Map<number,{waitMin:number;serviceVph:number}>(),unknownBlocks=new Set<number>();
  for(const event of events){
   if(event.pathKey!==route.key)continue;
   const at=positionM(route,event.point);
@@ -107,6 +111,7 @@ function localControls(route:Corridor,events:readonly SimEvent[],demandVph:numbe
    if(!gate)continue;
    const face=gate.exit?Math.max(1,Math.min(count,Math.round(gate.metre/cellM))):0;
    faceCapacity[face]=0;
+   unknownBlocks.add(face);
    faceControls[face]!.push(event.id+':closure');
    closedEntries.push({fromM:gate.metre-25,toM:gate.endM-25});
    closureGates.push({face,fromM:gate.metre,toM:gate.endM,exitRef:gate.exit?.ref??null,eventId:event.id});
@@ -116,7 +121,20 @@ function localControls(route:Corridor,events:readonly SimEvent[],demandVph:numbe
    speeds[c]=Math.min(speeds[c]!,event.settings.speedKmh===0?free:event.settings.speedKmh);
   }
   const face=Math.max(1,Math.min(count,Math.round((from+Math.min(150,event.settings.lengthM))/cellM)));
-  faceCapacity[face]=Math.min(faceCapacity[face]!,eventCapacity(event,demandVph));
+  const limit=eventCapacity(event,demandVph);
+  faceCapacity[face]=Math.min(faceCapacity[face]!,limit);
+  if(limit===0){
+   if(event.kind==='closure')unknownBlocks.add(face);
+   else{
+    // Forecast one reopened lane at 40 km/h. This is an explicit scenario;
+    // the physical event remains completely blocked until the user edits it.
+    const release={...event,closedLanes:Array.from({length:event.laneCount-1},(_,i)=>i),
+     settings:{...event.settings,speedKmh:40,shoulder:'normal' as const}};
+    const old=forecasts.get(face);
+    forecasts.set(face,{waitMin:Math.max(old?.waitMin??0,event.settings.clearanceMin??DEFAULT_CLEARANCE_MIN),
+     serviceVph:Math.min(old?.serviceVph??Infinity,eventCapacity(release,demandVph))});
+   }
+  }
   faceControls[face]!.push(JSON.stringify([event.id,event.kind,event.closedLanes,event.settings]));
   const policy=flowPolicy(event);
   if(event.closedLanes.length&&policy.openMainLanes>0)
@@ -124,7 +142,8 @@ function localControls(route:Corridor,events:readonly SimEvent[],demandVph:numbe
  }
  const jam=JAM_PER_LANE*laneCount;
  const capacity=speeds.map(v=>Math.min(baselineCapacity(route.key),v*WAVE_KMH*jam/(v+WAVE_KMH)));
- return {speeds,capacity,faceCapacity,faceControls:faceControls.map(c=>c.sort().join('|')),jam,releases,closedEntries,closureGates};
+ for(const face of unknownBlocks)forecasts.delete(face);
+ return {speeds,capacity,faceCapacity,faceControls:faceControls.map(c=>c.sort().join('|')),jam,releases,closedEntries,closureGates,forecasts};
 }
 /** Driver/platoon discharge at an occupied lane bottleneck. This modulates
  * actual transferred vehicles, never just map colors. Mean service stays
@@ -176,7 +195,7 @@ function reactionTravelMinutes(id:string,distanceM:number):number{
  }
  return time;
 }
-/** Advance exactly one model minute, including six stable 10-second updates.
+/** Advance exactly one model minute, including stable updates of at most 2s.
  * Domain demand not admitted at the map entry is retained in backlog.
  * Outflow is discharged at the far end. No arbitrary time-loss surcharges.
  */
@@ -186,6 +205,7 @@ export function advanceCells(previous:CellRouteState,route:Corridor,events:reado
  if(previous.pathKey!==route.key||!Number.isFinite(demandVph)||demandVph<0||demandVph>8000)
   throw Error('Zellmodell: Richtung oder Zufluss ungültig');
  const n=previous.cells.length,dx=previous.cellM/1000;
+ const substeps=Math.max(30,Math.ceil(freeSpeedKmh(route.key)*1000/(60*previous.cellM))),dtMin=1/substeps;
  const controls=localControls(route,events,demandVph,n,previous.cellM,exits);
  const {speeds,capacity,faceCapacity,faceControls,jam,releases,closedEntries}=controls;
  const junctions=junctionDemand.map(d=>{
@@ -220,74 +240,97 @@ export function advanceCells(previous:CellRouteState,route:Corridor,events:reado
  let backlog=previous.backlog,offeredTotal=previous.offeredTotal,exitedTotal=previous.exitedTotal;
  const cumulativeOut=Array(n).fill(0) as number[];
  const through=Array(n+1).fill(0) as number[];
- for(let sub=0;sub<SUBSTEPS;sub++){
-  const density=occupancy.map(x=>x/dx);
-  const send=density.map((k,i)=>Math.min(speeds[i]!*k,capacity[i]!)*DT_MIN/60);
+ // Index sparse junctions once, rather than scanning every detour at every
+ // 100m face and two-second update. Ordinary road faces use the fast path.
+ const localAt=new Map(junctions.map(j=>[j.face,j]));
+ const departuresAt=new Map<number,typeof routed>(),returnsAt=new Map<number,typeof routed>();
+ const noPorts:typeof routed=[];
+ for(const port of routed){
+  if(port.from>=1&&port.interestPercent>0)
+   departuresAt.set(port.from,[...(departuresAt.get(port.from)??[]),port]);
+  if(port.to>=1&&port.toM!==null&&!closedEntries.some(c=>port.toM!>=c.fromM&&port.toM!<c.toM))
+   returnsAt.set(port.to,[...(returnsAt.get(port.to)??[]),port]);
+ }
+ const sortedReleases=[...releases].sort((a,b)=>a.face-b.face);
+ let releaseIndex=0;
+ const reactionAt=Array.from({length:n},(_,i)=>{
+  while(sortedReleases[releaseIndex]&&sortedReleases[releaseIndex]!.face<=i)releaseIndex++;
+  const release=sortedReleases[releaseIndex];
+  return release?{release,minutes:reactionTravelMinutes(release.event.id,(release.face-i-.5)*previous.cellM)}:null;
+ });
+ const density=new Float64Array(n),send=new Float64Array(n),receive=new Float64Array(n);
+ const face=new Float64Array(n+1),leaving=new Float64Array(n),joining=new Float64Array(n);
+ const currentCapacity=new Float64Array(n+1);
+ const critical=jam*WAVE_KMH/(freeSpeedKmh(route.key)+WAVE_KMH);
+ for(let sub=0;sub<substeps;sub++){
+  for(let i=0;i<n;i++){
+   const k=occupancy[i]!/dx;density[i]=k;
+   send[i]=Math.min(speeds[i]!*k,capacity[i]!)*dtMin/60;
+   receive[i]=Math.min(WAVE_KMH*Math.max(0,jam-k),capacity[i]!)*dtMin/60;
+  }
   // Slow-to-start/platoon reaction inside an ACTUAL dense queue. The
   // bottleneck signal travels upstream at finite wave speed and limits
   // actual sending flow. Released gaps and braking packets therefore
   // change cell vehicle counts, local speeds and subsequent queue length.
   for(let i=0;i<n;i++){
-   if(density[i]!<=jam*WAVE_KMH/(freeSpeedKmh(route.key)+WAVE_KMH)*1.15)continue;
-   const next=releases.filter(r=>r.face>i).sort((a,b)=>a.face-b.face)[0];
+   if(density[i]!<=critical*1.15)continue;
+   const next=reactionAt[i];
    if(!next)continue;
-   const distance=(next.face-i-.5)*previous.cellM;
-   const signal=previous.minute+sub*DT_MIN-reactionTravelMinutes(next.event.id,distance);
-   const reaction=Math.min(1,platoonServiceFactor(next.event.id,signal));
-   send[i]=Math.min(send[i]!,capacity[i]!*reaction*DT_MIN/60);
+   const signal=previous.minute+sub*dtMin-next.minutes;
+   const reaction=Math.min(1,platoonServiceFactor(next.release.event.id,signal));
+   send[i]=Math.min(send[i]!,capacity[i]!*reaction*dtMin/60);
   }
-  const receive=density.map((k,i)=>Math.min(WAVE_KMH*Math.max(0,jam-k),capacity[i]!)*DT_MIN/60);
-  const face=Array(n+1).fill(0) as number[];
-  const leaving=Array(n).fill(0) as number[],joining=Array(n).fill(0) as number[];
-  const currentCapacity=[...faceCapacity];
+  face.fill(0);leaving.fill(0);joining.fill(0);currentCapacity.set(faceCapacity);
   for(const release of releases){
    const densityBefore=density[release.face-1]??0;
-   if(densityBefore>jam*WAVE_KMH/(freeSpeedKmh(route.key)+WAVE_KMH)*1.15){
+   if(densityBefore>critical*1.15){
     currentCapacity[release.face]=Math.min(currentCapacity[release.face]!*platoonServiceFactor(
-     release.event.id,previous.minute+sub*DT_MIN),release.maximum);
+     release.event.id,previous.minute+sub*dtMin),release.maximum);
    }
   }
-  const arrived=demandVph/60*DT_MIN;
+  const arrived=demandVph/60*dtMin;
   offeredTotal+=arrived;
   const available=arrived+backlog;
-  face[0]=Math.min(available,receive[0]!,currentCapacity[0]!*DT_MIN/60);
+  face[0]=Math.min(available,receive[0]!,currentCapacity[0]!*dtMin/60);
   backlog=Math.max(0,available-face[0]!);
   for(const j of junctions){
-   const arrived=j.entryVph*DT_MIN/60;
+   const arrived=j.entryVph*dtMin/60;
    j.waiting+=arrived;j.offeredTotal+=arrived;offeredTotal+=arrived;
   }
   for(let i=1;i<n;i++){
-   const local=junctions.find(j=>j.face===i);
-   const departures=routed.filter(p=>p.from===i&&p.interestPercent>0);
+   const local=localAt.get(i),departures=departuresAt.get(i)??noPorts;
+   const returnPorts=returnsAt.get(i)??noPorts;
+   if(!local&&!departures.length&&!returnPorts.length){
+    face[i]=Math.min(send[i-1]!,receive[i]!,currentCapacity[i]!*dtMin/60);continue;
+   }
    const totalInterest=departures.reduce((s,p)=>s+p.interestPercent,0);
    const normalFraction=(local?.exitPercent??0)/100;
    const detourFraction=(1-normalFraction)*Math.min(1,totalInterest/100);
    const fraction=normalFraction+detourFraction;
-   const normalRequest=Math.min(send[i-1]!*normalFraction,(local?.exitCapacityVph??0)*DT_MIN/60);
+   const normalRequest=Math.min(send[i-1]!*normalFraction,(local?.exitCapacityVph??0)*dtMin/60);
    const requested=departures.map(p=>Math.min(send[i-1]!*detourFraction*p.interestPercent/totalInterest,
-    p.exitCapacityVph*DT_MIN/60,Math.max(0,p.exitCapacityVph/60-p.left)));
+    p.exitCapacityVph*dtMin/60,Math.max(0,p.exitCapacityVph/60-p.left)));
    const requestedTotal=normalRequest+requested.reduce((s,x)=>s+x,0);
    // Local destination traffic and diversion traffic share the SAME exit.
-   const scale=requestedTotal>0?Math.min(1,(local?.exitCapacityVph??1200)*DT_MIN/60/requestedTotal):0;
+   const scale=requestedTotal>0?Math.min(1,(local?.exitCapacityVph??1200)*dtMin/60/requestedTotal):0;
    departures.forEach((p,k)=>{const accepted=requested[k]!*scale;p.left+=accepted;leaving[i-1]+=accepted;});
    if(local){
     const accepted=normalRequest*scale;local.lastExited+=accepted;local.exitedTotal+=accepted;
     exitedTotal+=accepted;leaving[i-1]+=accepted;
    }
    const mainSend=send[i-1]!*(1-fraction);
-   const returns=routed.filter(p=>p.to===i&&p.returnVehicles-p.joined>1e-9&&p.toM!==null&&
-    !closedEntries.some(c=>p.toM!>=c.fromM&&p.toM!<c.toM));
-   const localEntry=local&&!local.entryBlocked?Math.min(local.waiting,local.entryCapacityVph*DT_MIN/60):0;
-   const mergeDemand=localEntry+returns.reduce((s,p)=>s+Math.min(p.returnVehicles-p.joined,1200*DT_MIN/60),0);
-   const mergeLimit=Math.min(mergeDemand,(local?.entryCapacityVph??1200)*DT_MIN/60);
-   const room=Math.min(receive[i]!,currentCapacity[i]!*DT_MIN/60);
+   const returns=returnPorts.length?returnPorts.filter(p=>p.returnVehicles-p.joined>1e-9):noPorts;
+   const localEntry=local&&!local.entryBlocked?Math.min(local.waiting,local.entryCapacityVph*dtMin/60):0;
+   const mergeDemand=localEntry+returns.reduce((s,p)=>s+Math.min(p.returnVehicles-p.joined,1200*dtMin/60),0);
+   const mergeLimit=Math.min(mergeDemand,(local?.entryCapacityVph??1200)*dtMin/60);
+   const room=Math.min(receive[i]!,currentCapacity[i]!*dtMin/60);
    let main=Math.min(mainSend,room),merge=0;
    if(mergeDemand>0){
     merge=Math.min(mergeLimit,room*.22);main=Math.min(mainSend,room-merge);
     merge=Math.min(mergeLimit,room-main);
    }
    for(const p of returns){
-    const accepted=merge*Math.min(p.returnVehicles-p.joined,1200*DT_MIN/60)/mergeDemand;
+    const accepted=merge*Math.min(p.returnVehicles-p.joined,1200*dtMin/60)/mergeDemand;
     p.joined+=accepted;joining[i]+=accepted;
    }
    if(local&&localEntry>0){
@@ -297,7 +340,7 @@ export function advanceCells(previous:CellRouteState,route:Corridor,events:reado
    }
    face[i]=main;
   }
-  face[n]=Math.min(send[n-1]!,currentCapacity[n]!*DT_MIN/60);
+  face[n]=Math.min(send[n-1]!,currentCapacity[n]!*dtMin/60);
   exitedTotal+=face[n]!;
   for(let i=0;i<n;i++){
    occupancy[i]=Math.max(0,occupancy[i]!+face[i]!+joining[i]!-face[i+1]!-leaving[i]!);
@@ -329,7 +372,7 @@ export function advanceCells(previous:CellRouteState,route:Corridor,events:reado
   }
   // A journey lasting many minutes spans several braking/platoon phases.
   // Estimate its service from a representative period, instead of making
-  // every car ahead inherit the latest ten-second braking phase. Warm up
+  // every car ahead inherit the latest short braking phase. Warm up
   // new/edited detectors quickly; reopened detectors must recover promptly.
   const window=active&&sameControl&&oldDetector.samples>=12?
    Math.max(6,queued/Math.max(1,oldDetector.meanFlowVph)*60):6;
@@ -343,7 +386,8 @@ export function advanceCells(previous:CellRouteState,route:Corridor,events:reado
   return {...c,vehicles:occupancy[i]!,flowVph:outflowVph,
    speedKmh:Math.max(0,speedKmh),densityVehKm,
    travelFlowVph,limitKmh:speeds[i],travelDetector,
-   blockedAtM:faceCapacity[i+1]===0?c.toM:undefined};
+   blockedAtM:faceCapacity[i+1]===0?c.toM:undefined,
+   reopeningForecast:controls.forecasts.get(i+1)};
  });
  const limiting=faceCapacity.reduce((best,c,i)=>c<faceCapacity[best]!?i:best,0);
  const next={...previous,cells,closures,minute:previous.minute+1,backlog,offeredTotal,exitedTotal,

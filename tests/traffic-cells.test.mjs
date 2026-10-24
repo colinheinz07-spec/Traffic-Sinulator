@@ -15,11 +15,11 @@ function incident(fraction,kind='closure',lanes=[0,1,2],speed=0){
  return eventFromHit(hit,kind,3,lanes,'accident','2026-10-21T12:00:00Z',
   {lengthM:500,speedKmh:speed,shoulder:kind==='closure'?'blocked':'normal'});
 }
-test('cell coordinates correspond only to the real OSM motorway, maximum 500m',()=>{
+test('cell coordinates correspond only to the real OSM motorway, maximum 100m',()=>{
  for(const path of ['A3-koeln','A3-frankfurt','A48-koblenz','A48-dernbach']){
   const state=initialiseCells(routes[path],2800);
   assert.ok(state.cells.length>35);
-  assert.ok(state.cellM<=500&&state.cellM>250);
+  assert.ok(state.cellM<=100&&state.cellM>90);
   assert.equal(state.cells[0].fromM,0);
   assert.ok(Math.abs(state.cells.at(-1).toM-routes[path].lengthM)<.001);
   assert.ok(state.cells.every((c,i)=>i===0||Math.abs(c.fromM-state.cells[i-1].toM)<.001));

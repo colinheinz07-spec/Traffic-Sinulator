@@ -71,7 +71,7 @@ test('work zone speed limit adds only the actual traversal time even without a q
  assert.equal(result.ownVehicles,0);
  assert.equal(result.speedKmh,40);
  assert.equal(result.color,'slow');
- assert.ok(Math.abs(result.delayMin-0.5)<.0001,'500m at 40 instead of 120 is 0.5min, no extra surcharge');
+ assert.ok(Math.abs(result.delayMin-60*.5*(1/40-1/freeSpeedKmh(key)))<.0001,'only the traversal time against the free-speed reference is added');
  const none=routeReport(key,[],[],[]);
  assert.equal(none.delayMin,0);assert.equal(none.color,'free');
 });

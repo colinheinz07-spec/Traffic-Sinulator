@@ -16,23 +16,23 @@ function incident(closedLanes,id='limburg-regression'){
   settings:{lengthM:100,speedKmh:closedLanes.length===3?0:40,shoulder:'normal'}};
 }
 
-test('a blocked accident never converts tiny residual CTM flow into millions of minutes',()=>{
- const event=incident([0,1,2]);let state=initialiseCells(route,3400),tiny=false;
+test('a blocked accident forecasts declared reopening without dividing by tiny CTM flow',()=>{
+ const event=incident([0,1,2]);let state=initialiseCells(route,3400);
  for(let minute=0;minute<120;minute++){
   state=advanceCells(state,route,[event],3400);assertCellConservation(state);
-  tiny ||= state.cells.some(c=>c.speedKmh>1e-6&&c.speedKmh<.001&&c.vehicles>10);
   const delay=speedDelayInCells(state);
-  assert.equal(delay.blocked,true);
-  assert.equal(delay.delayMin,0,'no finite prediction for an impassable trip');
-  assert.doesNotMatch(speedDelayLabel(delay),/\+\d/);
+  assert.equal(state.dischargeVph,0,'the physical accident remains fully blocked');
+  assert.equal(delay.blocked,false);assert.equal(delay.forecastWaitMin,30);
+  assert.ok(delay.delayMin>=30&&delay.delayMin<1000,'bounded by queue inventory and reopening service, not epsilon flow');
+  assert.match(speedDelayLabel(delay),/^~\+.*geschätzt/);
   const shown=trafficView([], {[path]:state},routes,[event],[],state.minute);
-  assert.equal(shown.reports[path].delayMin,null,'unknown cannot be displayed as zero delay');
+  assert.equal(shown.reports[path].delayMin,delay.delayMin);
   for(const jam of shown.jams){
-   assert.equal(jam.delay.blocked,true);
-   assert.doesNotMatch(speedDelayLabel(jam.delay,1,true),/\+\d/);
+   assert.equal(jam.delay.blocked,false);
+   assert.match(speedDelayLabel(jam.delay,1,true),/^~\+/);
   }
  }
- assert.ok(tiny,'the regression must exercise the almost-zero numerical speeds');
+ assert.deepEqual(speedDelayInCells({...state,minute:100000}),speedDelayInCells(state),'forecast is independent of event age');
 });
 
 for(const [lanes,demand] of [[[0,1],3400],[[0],3900]]){
@@ -63,7 +63,7 @@ for(const [lanes,demand] of [[[0,1],3400],[[0],3900]]){
 test('lifting a long block estimates the released queue and then returns to free flow',()=>{
  const event=incident([0,1,2]);let state=initialiseCells(route,3400);
  for(let minute=0;minute<30;minute++)state=advanceCells(state,route,[event],3400,networkData.exits);
- assert.equal(speedDelayInCells(state).blocked,true);
+ assert.equal(speedDelayInCells(state).forecastWaitMin,30);
  const losses=[];
  for(let minute=0;minute<80;minute++){
   state=advanceCells(state,route,[],700,networkData.exits);assertCellConservation(state);
@@ -76,15 +76,16 @@ test('lifting a long block estimates the released queue and then returns to free
  assert.equal(cellSpeedBands(state).length,0);
 });
 
-test('a closed through edge remains blocked while exit-bound vehicles leave its cell',()=>{
+test('exit-bound movement does not open the accident through edge or replace its reopening forecast',()=>{
  const event=incident([0,1,2]);let state=initialiseCells(route,3400);
  const face=Math.max(1,Math.round((at+100)/state.cellM));
  const demand=[{id:'at-block',metre:face*state.cellM,entryVph:0,exitPercent:15,entryCapacityVph:900,exitCapacityVph:1200}];
  state=advanceCells(state,route,[event],3400,[],[],demand);
  assert.ok(state.cells[face-1].flowVph>0);
  const loss=speedDelayInCells(state);
- assert.equal(loss.blocked,true);
- assert.equal(loss.delayMin,0);
- assert.doesNotMatch(speedDelayLabel(loss),/\+\d/);
+ assert.equal(state.dischargeVph,0);
+ assert.ok(state.cells[face-1].blockedAtM!==undefined);
+ assert.equal(loss.blocked,false);assert.equal(loss.forecastWaitMin,30);
+ assert.match(speedDelayLabel(loss),/^~\+/);
  assert.equal(speedDelayInCells(state,state.cells[face].fromM).blocked,false,'downstream remains traversable');
 });
