@@ -6,11 +6,11 @@ import {initialiseCells,type CellRouteState} from './traffic-cells.js';
 import {speedDelayLabel} from './speed-delay.js';
 import {trafficView} from './traffic-view.js';
 import {advanceRoutedNetwork,type RoutedDetour} from './routed-traffic.js';
-import {routedDiversionChoice} from './diversion-policy.js';
+import {routedDiversionChoice,requiredDiversionGate} from './diversion-policy.js';
 import {automaticDiversions,type AutomaticDiversion} from './auto-diversions.js';
 import {buildRampConnections,rampSpillbacks} from './interchange.js';
 import {diversionJunctions,planDiversion,type DiversionLink} from './diversions.js';
-import {junctionMovements,type RealDetourFlow,type JunctionMovement} from './junction-movements.js';
+import {junctionMovements,junctionMovementHint,type RealDetourFlow,type JunctionMovement} from './junction-movements.js';
 import {bundledDetourGeometry,bundledExitRoutes,bundledTargets,isNetworkDestination} from './bundled-detours.js';
 import {emptyDetour,detourVehicles,type DetourConfig} from './detour-flow.js';
 import {decodeEvents,eventFromHit,updatedEvent,eventNames,eventSymbols,eventSummary,flowPolicy,defaultLengthM,defaultSettings,maxLengthM,suggestedSpeed,STORAGE_KEY,isEventKind,validEvent,effectiveEventsAt,eventScheduleStatus,type EventKind,type ShoulderMode,type SimEvent} from './events.js';
@@ -317,7 +317,14 @@ function prepareAutomaticDetour(option:AutomaticDiversion,enable=true){
   exitsNetwork:isNetworkDestination(option.to)};
  mappedDetours.set(k,config);
  const running=activeDetours.get(k);
- if(enable&&!suppressedDetours.has(k)&&(!running||running.config.eventId!==config.eventId))activateDetour(config);
+ const required=requiredDiversionGate(config,spatialCorridors[option.path],activeEvents(),exits)!==null;
+ const changed=!running||running.config.eventId!==config.eventId||running.config.fromM!==config.fromM||
+  running.config.toM!==config.toM||running.config.targetPath!==config.targetPath||
+  running.config.exitsNetwork!==config.exitsNetwork;
+ if(enable&&required){
+  suppressedDetours.delete(k);
+  if(changed||running?.enabled===false)activateDetour(config);
+ }else if(enable&&!suppressedDetours.has(k)&&changed)activateDetour(config);
  return config;
 }
 function prepareAutomaticDetours(){
@@ -373,6 +380,7 @@ function renderJunctionMovements(path:PathKey){
     ' Fzg/h · Stauumfahrung ↓ '+trafficNumber(row.diversionOutVph)+
     ' · Rückkehr ↑ '+trafficNumber(row.returningInVph)+' Fzg/h';
    if(row.waitingToEnter>.1)split.textContent+=' · '+trafficNumber(row.waitingToEnter)+' Fzg warten auf der Auffahrt';
+   if(row.entryClosed)split.textContent+=' · ⛔ Auffahrt geschlossen';
    card.append(split);
    const note=document.createElement('span');note.className='junction-note';
    note.textContent=row.mandatory?
@@ -389,27 +397,33 @@ function drawJunctionMovementHints(width:number,height:number){
  if(zoom<12.2)return;
  const key=$<HTMLSelectElement>('traffic-route').value;
  if(key.startsWith('ramp-')||!DIRECTIONS.includes(key as typeof DIRECTIONS[number]))return;
- const rows=junctionRows(key as typeof DIRECTIONS[number]);
- const used:LabelRect[]=[];
+ // Closed entries remain visible even when the panel shows the opposite
+ // direction. Give the mandatory movement priority over ordinary traffic.
+ const rows=DIRECTIONS.flatMap(path=>junctionRows(path)
+  .filter(row=>path===key||row.entryClosed))
+  .sort((a,b)=>Number(b.mandatory)-Number(a.mandatory)||Number(b.entryClosed)-Number(a.entryClosed));
+ const used:LabelRect[]=[
+  ...junctionLabels.flatMap(label=>label.box?[{x:label.box.x,y:label.box.y,width:label.box.w,height:label.box.h}]:[]),
+  ...activeEvents().map(event=>{const [x,y]=toScreen(event.point);return {x:x-25,y:y-25,width:50,height:50};})
+ ];
  for(const row of rows){
-  if(row.exit.isInterchange||row.desiredPercent<=0&&row.outVph<=0&&row.inVph<=0)continue;
+  if(row.exit.isInterchange||!row.entryClosed&&row.desiredPercent<=0&&row.outVph<=0&&row.inVph<=0)continue;
   const [x,y]=toScreen(row.exit.position);
   if(x<24||x>width-24||y<78||y>height-90)continue;
-  const label=row.mandatory?
-   'AS '+row.exit.ref+' · ↘100% Soll'+(row.outVph>0?' · ↓'+trafficNumber(row.outVph)+'/h':''):
-   row.inVph>0?'AS '+row.exit.ref+' · ↑'+trafficNumber(row.inVph)+'/h':
-   row.outVph>0?'AS '+row.exit.ref+' · ↓'+trafficNumber(row.outVph)+'/h':
-   'AS '+row.exit.ref+' · ↘'+trafficNumber(row.desiredPercent)+'%';
+  const label=junctionMovementHint(row);
   context!.font='bold 11px system-ui';
-  const w=Math.min(216,Math.max(98,context!.measureText(label).width+12));
-  const candidate=placeJamCallout({x,y},w,25,{width,height},used);
+  const w=Math.min(width-36,280,Math.max(160,
+   context!.measureText(label.title).width+12,context!.measureText(label.flow).width+12));
+  const candidate=placeJamCallout({x,y},w,42,{width,height},used);
   if(!candidate)continue;
   context!.save();
   context!.fillStyle='#091e2ce9';context!.fillRect(candidate.x,candidate.y,candidate.width,candidate.height);
-  context!.strokeStyle=row.mandatory?'#ffcd76':'#52bfe6';context!.lineWidth=1.3;
+  context!.strokeStyle=row.entryClosed?'#ffcd76':'#52bfe6';context!.lineWidth=1.3;
   context!.strokeRect(candidate.x,candidate.y,candidate.width,candidate.height);
-  context!.fillStyle=row.mandatory?'#ffdd9c':'#d1f1ff';
-  context!.fillText(label,candidate.x+6,candidate.y+16);
+  context!.fillStyle=row.entryClosed?'#ffdd9c':'#d1f1ff';
+  context!.fillText(label.title,candidate.x+6,candidate.y+15,w-12);
+  context!.font='10px system-ui';
+  context!.fillText(label.flow,candidate.x+6,candidate.y+31,w-12);
   context!.restore();
   used.push(candidate);
  }
@@ -466,8 +480,11 @@ function renderDiversionPlanner(key:PathKey,jams:ReturnType<typeof jamsAt>,spill
      details.textContent=`${loaded.geometry.lengthKm.toFixed(1).replace('.',',')} km · geschätzt ${loaded.geometry.freeMinutes.toFixed(0)} min · ${loaded.geometry.label}`;
      line.append(details);
      const button=document.createElement('button');button.type='button';button.className='diversion-route-button';
-     button.textContent=running?.enabled!==false&&running?'Umleitung pausieren':'Umleitung aktivieren';
+     const required=requiredDiversionGate(loaded,corridor,activeEvents(),exits)!==null;
+     button.textContent=required?'Pflichtausleitung aktiv':running?.enabled!==false&&running?'Umleitung pausieren':'Umleitung aktivieren';
+     button.disabled=required;
      button.onclick=()=>{
+      if(required)return;
       if(running&&running.enabled!==false){
        suppressedDetours.add(k);activeDetours.set(k,{...running,enabled:false});
       }else{suppressedDetours.delete(k);activateDetour(loaded);}

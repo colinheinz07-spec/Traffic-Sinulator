@@ -4,7 +4,7 @@
  * Every normal AS is covered; AK/AD are separate motorway nodes and cannot
  * be misrepresented as exits onto local roads.
  */
-import type {RoadId} from './core.js';
+import {names,type RoadId} from './core.js';
 import type {Corridor} from './spatial.js';
 import type {SimEvent} from './events.js';
 import type {Exit} from './core.js';
@@ -14,7 +14,7 @@ import type {JunctionTrafficState} from './junction-traffic.js';
 
 export interface JunctionMovement {
  path:RoadId;exit:JunctionAnchor;
- desiredPercent:number;mandatory:boolean;eventId:string|null;
+ desiredPercent:number;mandatory:boolean;entryClosed:boolean;eventId:string|null;
  distanceBeforeClosureKm:number|null;
  outVph:number;inVph:number;vehiclesOnDetour:number;
  waitingAtReentry:number;validatedRouteActive:boolean;
@@ -37,7 +37,7 @@ export function junctionMovements(path:RoadId,route:Corridor,exits:readonly Exit
  local:readonly JunctionTrafficState[]=[]):JunctionMovement[]{
  const junctions=diversionJunctions(path,exits,route);
  const rows=junctions.map((exit):JunctionMovement=>({
-  path,exit,desiredPercent:0,mandatory:false,eventId:null,distanceBeforeClosureKm:null,
+  path,exit,desiredPercent:0,mandatory:false,entryClosed:false,eventId:null,distanceBeforeClosureKm:null,
   outVph:0,inVph:0,vehiclesOnDetour:0,waitingAtReentry:0,validatedRouteActive:false,
   normalOutVph:0,normalInVph:0,diversionOutVph:0,returningInVph:0,waitingToEnter:0
  }));
@@ -46,6 +46,8 @@ export function junctionMovements(path:RoadId,route:Corridor,exits:readonly Exit
   if(at===null)continue;
   if(event.kind==='closure'){
    const gate=closureGate(route,event,exits);
+   if(gate)for(const row of rows)if(!row.exit.isInterchange&&
+    row.exit.metre>=gate.metre-25&&row.exit.metre<gate.endM-25)row.entryClosed=true;
    const nearest=rows.find(r=>r.exit.ref===gate?.exit?.ref);
    if(!nearest)continue;
    nearest.desiredPercent=100;nearest.mandatory=true;nearest.eventId=event.id;
@@ -83,4 +85,11 @@ export function junctionMovements(path:RoadId,route:Corridor,exits:readonly Exit
   }
  }
  return rows;
+}
+/** Always name the driving direction: the opposite carriageway may still
+ * have ordinary entries while this direction has a formal closure. */
+export function junctionMovementHint(row:JunctionMovement):{title:string;flow:string}{
+ const count=(value:number)=>value.toLocaleString('de-DE',{maximumFractionDigits:0});
+ return {title:'AS '+row.exit.ref+' · '+names[row.path].replace(' Richtung ',' → '),
+  flow:'Abfahrt '+count(row.outVph)+'/h · Auffahrt '+count(row.inVph)+'/h'+(row.entryClosed?' ⛔':'')};
 }

@@ -8,12 +8,14 @@ import {diversionJunctions} from '../dist/diversions.js';
 import {automaticDiversions} from '../dist/auto-diversions.js';
 import {bundledDetourGeometry,isNetworkDestination} from '../dist/bundled-detours.js';
 import {emptyDetour} from '../dist/detour-flow.js';
-import {advanceRoutedPath} from '../dist/routed-traffic.js';
+import {advanceRoutedPath,advanceRoutedNetwork} from '../dist/routed-traffic.js';
 import {initialiseCells,advanceCells,assertCellConservation} from '../dist/traffic-cells.js';
 import {speedDelayInCells,speedDelayLabel} from '../dist/speed-delay.js';
 import {junctionMovements} from '../dist/junction-movements.js';
 import {trafficView} from '../dist/traffic-view.js';
 import {maxLengthM,validEvent} from '../dist/events.js';
+import {defaultDemands,demandAtClock} from '../dist/traffic.js';
+import {junctionMovementHint} from '../dist/junction-movements.js';
 
 const routes=makeCorridors(networkData.roads,networkData.ramps),exits=networkData.exits;
 const junction=(path,ref)=>diversionJunctions(path,exits,routes[path]).find(j=>j.ref===ref);
@@ -140,4 +142,60 @@ test('a closure before the first AS rejects new entry at the actual network boun
  state=advanceCells(state,route,[event],600,exits);
  assert.equal(state.closures[0].face,0);assert.ok(Math.abs(state.backlog-10)<1e-6);
  assert.equal(speedDelayInCells(state).blocked,true);assertCellConservation(state);
+});
+
+for(const [path,from,to] of [['A3-frankfurt','42','43'],['A3-koeln','43','42'],
+ ['A48-dernbach','11','12'],['A48-koblenz','12','11']]){
+ test(`${path}: paused routes cannot disable mandatory exit, including Saturday's displayed entry counts`,()=>{
+  const event=closure(path,from,to),base=defaultDemands();
+  let entries=prepare(event).map(e=>({...e,enabled:false}));
+  const initial=demandAtClock(base,new Date(2026,9,24,15,46));
+  let cells=Object.fromEntries(Object.keys(routes).filter(p=>!p.startsWith('ramp-'))
+   .map(p=>[p,initialiseCells(routes[p],initial[p])]));
+  for(let minute=0;minute<36;minute++){
+   const demands=demandAtClock(base,new Date(2026,9,24,15,46+minute));
+   const next=advanceRoutedNetwork(cells,routes,[event],demands,exits,entries);
+   cells=next.cells;entries=next.detours;
+   assert.equal(cells[path].junctions.find(j=>j.ref===from).lastEntered,0);
+   assertCellConservation(cells[path]);
+   if(minute===27||minute===35){
+    const view=trafficView([],{[path]:cells[path]},routes,[event],[],minute+1);
+    assert.equal(view.delays[path].blocked,false,'28/36 minute approach must be traversable to the exit');
+    assert.ok(view.jams.filter(j=>j.pathKey===path).every(j=>!j.delay.blocked));
+   }
+  }
+  const main=entries.find(e=>e.config.geometry.sourceExitRef===from);
+  assert.equal(main.desiredPercent,100);assert.ok(main.state.admittedTotal>100);
+  assert.ok(main.state.lastDeparture>0&&main.state.returnedTotal>0);
+  const row=junctionMovements(path,routes[path],exits,[event],null,[],cells[path].junctions)
+   .find(r=>r.exit.ref===from);
+  assert.equal(row.normalInVph,0);assert.equal(row.entryClosed,true);
+  assert.match(junctionMovementHint(row).flow,/Auffahrt 0\/h ⛔/);
+  if(path==='A3-frankfurt'){
+   const opposite=junctionMovements('A3-koeln',routes['A3-koeln'],exits,[event],null,[],cells['A3-koeln'].junctions)
+    .find(r=>r.exit.ref==='42');
+   assert.equal(Math.round(opposite.inVph),199,'the screenshot count belongs to the open Cologne direction');
+   assert.equal(opposite.entryClosed,false);assert.match(junctionMovementHint(opposite).title,/Köln/);
+  }
+  const admitted=main.state.admittedTotal;
+  const next=advanceRoutedNetwork(cells,routes,[],initial,exits,entries);
+  assert.equal(next.detours.find(e=>e.config.id===main.config.id).state.admittedTotal,admitted,
+   'lifting the closure restores the prior pause while in-transit cars finish');
+ });
+}
+
+test('an old paused route returning inside a longer closure cannot take its mandatory traffic',()=>{
+ const path='A3-frankfurt',route=routes[path],short=closure(path,'40','41'),long=closure(path,'40','42');
+ short.id='old-short';
+ const old=prepare(short).find(e=>e.config.geometry.sourceExitRef==='40');
+ let entries=[{...old,enabled:false},...prepare(long).map(e=>({...e,enabled:false}))];
+ let state=initialiseCells(route,2000);
+ for(let minute=0;minute<36;minute++){
+  const next=advanceRoutedPath(state,route,[long],2000,exits,entries);state=next.cells;entries=next.detours;
+ }
+ assert.equal(entries[0].state.admittedTotal,0);
+ const main=entries.find(e=>e.config.geometry.sourceExitRef==='40'&&e.config.geometry.targetExitRef==='42');
+ assert.equal(main.desiredPercent,100);assert.ok(main.state.admittedTotal>100);
+ assert.equal(speedDelayInCells(state).blocked,false);
+ for(const ref of ['40','41'])assert.equal(state.junctions.find(j=>j.ref===ref).lastEntered,0);
 });

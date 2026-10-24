@@ -2,9 +2,9 @@
  * Side-road admission is limited by cars reaching the real exit cell; cars
  * return only after their local journey and when the merge accepts them.
  */
-import { advanceCells, cellInventory } from './traffic-cells.js';
-import { advanceDetour, detourVehicles } from './detour-flow.js';
-import { routedDiversionChoice } from './diversion-policy.js';
+import { advanceCells, cellInventory } from './traffic-cells.js?build=b0a387e5cb5e18cc';
+import { advanceDetour, detourVehicles } from './detour-flow.js?build=b0a387e5cb5e18cc';
+import { routedDiversionChoice } from './diversion-policy.js?build=b0a387e5cb5e18cc';
 export function detourReadyToReturn(state, minute) {
     return state.waitingMerge + state.transit.filter(x => x.minute <= minute).reduce((n, x) => n + x.vehicles, 0);
 }

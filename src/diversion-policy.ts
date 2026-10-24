@@ -15,6 +15,19 @@ import {freeSpeedKmh} from './traffic-physics.js';
 
 interface ChoiceRoute {config:DetourConfig;state:DetourState;enabled?:boolean}
 export interface DiversionChoice {percent:number;mandatory:boolean;delayMin:number;upstreamRank:number}
+/** A formal closure requires a working route at its exit even when that
+ * route was paused for an earlier incident. A return inside the closed
+ * section cannot serve as the mandatory route. */
+export function requiredDiversionGate(config:DetourConfig,route:Corridor,
+ events:readonly SimEvent[],exits:readonly Exit[]){
+ if((config.targetPath??config.path)!==config.path)return null;
+ for(const event of events){
+  const gate=closureGate(route,event,exits);
+  if(gate?.exit&&Math.abs(config.fromM-gate.metre)<=25&&
+   (config.exitsNetwork||config.toM>=gate.endM-1))return gate;
+ }
+ return null;
+}
 /** Small uptake at 45 minutes, rising with delay. A costly/full bypass
  * reduces willingness. Neither incident age nor a blocked-speed flag is
  * interpreted as infinite delay or as a mandatory off-ramp movement.
@@ -73,9 +86,17 @@ export function routedDiversionChoice(entry:ChoiceRoute,entries:readonly ChoiceR
  if(!source||!destination||!route)throw Error('Umleitungsentscheidung ohne verbundenen Fahrbahnzustand');
  const event=events.find(e=>e.id===config.eventId),cross=target!==path;
  const gate=event?.kind==='closure'&&!cross?closureGate(route,event,exits):null;
- const mandatory=!!gate?.exit&&Math.abs(config.fromM-gate.metre)<=25;
- if(entry.enabled===false)return {percent:0,mandatory,delayMin:0,upstreamRank:0};
- if(mandatory)return {percent:100,mandatory:true,delayMin:0,upstreamRank:0};
+ const mandatory=requiredDiversionGate(config,route,events,exits)!==null;
+ if(mandatory){
+  // Retain old route inventories, but admit new traffic to exactly one
+  // usable route. If all were paused, the formal closure still exits cars.
+  const preferred=entries.filter(e=>e.config.path===path&&
+   Math.abs(e.config.fromM-config.fromM)<=25&&requiredDiversionGate(e.config,route,events,exits))
+   .sort((a,b)=>Number(a.enabled===false)-Number(b.enabled===false)||
+    b.config.toM-a.config.toM||a.config.id.localeCompare(b.config.id))[0];
+  return {percent:preferred?.config.id===config.id?100:0,mandatory:true,delayMin:0,upstreamRank:0};
+ }
+ if(entry.enabled===false)return {percent:0,mandatory:false,delayMin:0,upstreamRank:0};
  const eventM=event&&event.pathKey===path?positionM(route,event.point):null;
  const approachEnd=gate?.metre??(cross?config.sourceEndM??route.lengthM:eventM??config.toM);
  const backedUpConnection=cross&&cellSpeedBands(destination).some(b=>

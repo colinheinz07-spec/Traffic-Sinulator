@@ -8,8 +8,8 @@
  * actual discharge yields the time loss to that exit, labelled explicitly.
  * This calculation depends on NO clock, event age or queue-created timestamp.
  */
-import { cellCriticalDensity } from './traffic-cells.js';
-import { freeSpeedKmh } from './traffic-physics.js';
+import { cellCriticalDensity } from './traffic-cells.js?build=b0a387e5cb5e18cc';
+import { freeSpeedKmh } from './traffic-physics.js?build=b0a387e5cb5e18cc';
 export function speedDelayInCells(state, fromM = 0, toM = Infinity) {
     const free = freeSpeedKmh(state.pathKey);
     if (!Number.isFinite(fromM) || Number.isNaN(toM) || fromM < 0 || toM <= fromM)

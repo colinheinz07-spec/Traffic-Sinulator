@@ -1,24 +1,24 @@
-import { PATHS, pathBottleneck, defaultDemands, demandAtMinute, demandAtClock } from './traffic.js';
-import { networkData } from './geodata.js';
-import { makeCorridors, routeSlice, positionM, closureGate, advanceSpatial, emptySpatial, jamsAt } from './spatial.js';
-import { initialiseCells } from './traffic-cells.js';
-import { speedDelayLabel } from './speed-delay.js';
-import { trafficView } from './traffic-view.js';
-import { advanceRoutedNetwork } from './routed-traffic.js';
-import { routedDiversionChoice } from './diversion-policy.js';
-import { automaticDiversions } from './auto-diversions.js';
-import { buildRampConnections, rampSpillbacks } from './interchange.js';
-import { planDiversion } from './diversions.js';
-import { junctionMovements } from './junction-movements.js';
-import { bundledDetourGeometry, bundledExitRoutes, bundledTargets, isNetworkDestination } from './bundled-detours.js';
-import { emptyDetour, detourVehicles } from './detour-flow.js';
-import { decodeEvents, eventFromHit, updatedEvent, eventNames, eventSymbols, eventSummary, defaultLengthM, maxLengthM, suggestedSpeed, STORAGE_KEY, isEventKind, validEvent, effectiveEventsAt, eventScheduleStatus } from './events.js';
-import { roadLaneInfo, rampLaneInfo } from './lane-info.js';
-import { mapCandidates, chooseMapHits, closestJunction, lanePositions, hitLabel } from './selection.js';
-import { buildContinuousRoads, lineWidths, rampBadges, layoutJunctionLabels } from './cartography.js';
-import { placeJamCallout } from './map-callouts.js';
-import { installScheduleForm } from './schedule-form.js';
-import { DIRECTIONS, validateMap, names, mercator, inverse, exitPosition } from './core.js';
+import { PATHS, pathBottleneck, defaultDemands, demandAtMinute, demandAtClock } from './traffic.js?build=b0a387e5cb5e18cc';
+import { networkData } from './geodata.js?build=b0a387e5cb5e18cc';
+import { makeCorridors, routeSlice, positionM, closureGate, advanceSpatial, emptySpatial, jamsAt } from './spatial.js?build=b0a387e5cb5e18cc';
+import { initialiseCells } from './traffic-cells.js?build=b0a387e5cb5e18cc';
+import { speedDelayLabel } from './speed-delay.js?build=b0a387e5cb5e18cc';
+import { trafficView } from './traffic-view.js?build=b0a387e5cb5e18cc';
+import { advanceRoutedNetwork } from './routed-traffic.js?build=b0a387e5cb5e18cc';
+import { routedDiversionChoice, requiredDiversionGate } from './diversion-policy.js?build=b0a387e5cb5e18cc';
+import { automaticDiversions } from './auto-diversions.js?build=b0a387e5cb5e18cc';
+import { buildRampConnections, rampSpillbacks } from './interchange.js?build=b0a387e5cb5e18cc';
+import { planDiversion } from './diversions.js?build=b0a387e5cb5e18cc';
+import { junctionMovements, junctionMovementHint } from './junction-movements.js?build=b0a387e5cb5e18cc';
+import { bundledDetourGeometry, bundledExitRoutes, bundledTargets, isNetworkDestination } from './bundled-detours.js?build=b0a387e5cb5e18cc';
+import { emptyDetour, detourVehicles } from './detour-flow.js?build=b0a387e5cb5e18cc';
+import { decodeEvents, eventFromHit, updatedEvent, eventNames, eventSymbols, eventSummary, defaultLengthM, maxLengthM, suggestedSpeed, STORAGE_KEY, isEventKind, validEvent, effectiveEventsAt, eventScheduleStatus } from './events.js?build=b0a387e5cb5e18cc';
+import { roadLaneInfo, rampLaneInfo } from './lane-info.js?build=b0a387e5cb5e18cc';
+import { mapCandidates, chooseMapHits, closestJunction, lanePositions, hitLabel } from './selection.js?build=b0a387e5cb5e18cc';
+import { buildContinuousRoads, lineWidths, rampBadges, layoutJunctionLabels } from './cartography.js?build=b0a387e5cb5e18cc';
+import { placeJamCallout } from './map-callouts.js?build=b0a387e5cb5e18cc';
+import { installScheduleForm } from './schedule-form.js?build=b0a387e5cb5e18cc';
+import { DIRECTIONS, validateMap, names, mercator, inverse, exitPosition } from './core.js?build=b0a387e5cb5e18cc';
 const $ = (id) => { const element = document.getElementById(id); if (!element)
     throw Error(`Element fehlt: ${id}`); return element; };
 const canvas = $('map'), wrapper = canvas.parentElement;
@@ -433,7 +433,16 @@ function prepareAutomaticDetour(option, enable = true) {
         exitsNetwork: isNetworkDestination(option.to) };
     mappedDetours.set(k, config);
     const running = activeDetours.get(k);
-    if (enable && !suppressedDetours.has(k) && (!running || running.config.eventId !== config.eventId))
+    const required = requiredDiversionGate(config, spatialCorridors[option.path], activeEvents(), exits) !== null;
+    const changed = !running || running.config.eventId !== config.eventId || running.config.fromM !== config.fromM ||
+        running.config.toM !== config.toM || running.config.targetPath !== config.targetPath ||
+        running.config.exitsNetwork !== config.exitsNetwork;
+    if (enable && required) {
+        suppressedDetours.delete(k);
+        if (changed || running?.enabled === false)
+            activateDetour(config);
+    }
+    else if (enable && !suppressedDetours.has(k) && changed)
         activateDetour(config);
     return config;
 }
@@ -504,6 +513,8 @@ function renderJunctionMovements(path) {
                 ' · Rückkehr ↑ ' + trafficNumber(row.returningInVph) + ' Fzg/h';
             if (row.waitingToEnter > .1)
                 split.textContent += ' · ' + trafficNumber(row.waitingToEnter) + ' Fzg warten auf der Auffahrt';
+            if (row.entryClosed)
+                split.textContent += ' · ⛔ Auffahrt geschlossen';
             card.append(split);
             const note = document.createElement('span');
             note.className = 'junction-note';
@@ -523,32 +534,37 @@ function drawJunctionMovementHints(width, height) {
     const key = $('traffic-route').value;
     if (key.startsWith('ramp-') || !DIRECTIONS.includes(key))
         return;
-    const rows = junctionRows(key);
-    const used = [];
+    // Closed entries remain visible even when the panel shows the opposite
+    // direction. Give the mandatory movement priority over ordinary traffic.
+    const rows = DIRECTIONS.flatMap(path => junctionRows(path)
+        .filter(row => path === key || row.entryClosed))
+        .sort((a, b) => Number(b.mandatory) - Number(a.mandatory) || Number(b.entryClosed) - Number(a.entryClosed));
+    const used = [
+        ...junctionLabels.flatMap(label => label.box ? [{ x: label.box.x, y: label.box.y, width: label.box.w, height: label.box.h }] : []),
+        ...activeEvents().map(event => { const [x, y] = toScreen(event.point); return { x: x - 25, y: y - 25, width: 50, height: 50 }; })
+    ];
     for (const row of rows) {
-        if (row.exit.isInterchange || row.desiredPercent <= 0 && row.outVph <= 0 && row.inVph <= 0)
+        if (row.exit.isInterchange || !row.entryClosed && row.desiredPercent <= 0 && row.outVph <= 0 && row.inVph <= 0)
             continue;
         const [x, y] = toScreen(row.exit.position);
         if (x < 24 || x > width - 24 || y < 78 || y > height - 90)
             continue;
-        const label = row.mandatory ?
-            'AS ' + row.exit.ref + ' · ↘100% Soll' + (row.outVph > 0 ? ' · ↓' + trafficNumber(row.outVph) + '/h' : '') :
-            row.inVph > 0 ? 'AS ' + row.exit.ref + ' · ↑' + trafficNumber(row.inVph) + '/h' :
-                row.outVph > 0 ? 'AS ' + row.exit.ref + ' · ↓' + trafficNumber(row.outVph) + '/h' :
-                    'AS ' + row.exit.ref + ' · ↘' + trafficNumber(row.desiredPercent) + '%';
+        const label = junctionMovementHint(row);
         context.font = 'bold 11px system-ui';
-        const w = Math.min(216, Math.max(98, context.measureText(label).width + 12));
-        const candidate = placeJamCallout({ x, y }, w, 25, { width, height }, used);
+        const w = Math.min(width - 36, 280, Math.max(160, context.measureText(label.title).width + 12, context.measureText(label.flow).width + 12));
+        const candidate = placeJamCallout({ x, y }, w, 42, { width, height }, used);
         if (!candidate)
             continue;
         context.save();
         context.fillStyle = '#091e2ce9';
         context.fillRect(candidate.x, candidate.y, candidate.width, candidate.height);
-        context.strokeStyle = row.mandatory ? '#ffcd76' : '#52bfe6';
+        context.strokeStyle = row.entryClosed ? '#ffcd76' : '#52bfe6';
         context.lineWidth = 1.3;
         context.strokeRect(candidate.x, candidate.y, candidate.width, candidate.height);
-        context.fillStyle = row.mandatory ? '#ffdd9c' : '#d1f1ff';
-        context.fillText(label, candidate.x + 6, candidate.y + 16);
+        context.fillStyle = row.entryClosed ? '#ffdd9c' : '#d1f1ff';
+        context.fillText(label.title, candidate.x + 6, candidate.y + 15, w - 12);
+        context.font = '10px system-ui';
+        context.fillText(label.flow, candidate.x + 6, candidate.y + 31, w - 12);
         context.restore();
         used.push(candidate);
     }
@@ -620,8 +636,12 @@ function renderDiversionPlanner(key, jams, spillbacks) {
                     const button = document.createElement('button');
                     button.type = 'button';
                     button.className = 'diversion-route-button';
-                    button.textContent = running?.enabled !== false && running ? 'Umleitung pausieren' : 'Umleitung aktivieren';
+                    const required = requiredDiversionGate(loaded, corridor, activeEvents(), exits) !== null;
+                    button.textContent = required ? 'Pflichtausleitung aktiv' : running?.enabled !== false && running ? 'Umleitung pausieren' : 'Umleitung aktivieren';
+                    button.disabled = required;
                     button.onclick = () => {
+                        if (required)
+                            return;
                         if (running && running.enabled !== false) {
                             suppressedDetours.add(k);
                             activeDetours.set(k, { ...running, enabled: false });

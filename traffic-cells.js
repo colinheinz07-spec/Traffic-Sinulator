@@ -1,8 +1,8 @@
-import { positionM, closureGate } from './spatial.js';
-import { baselineCapacity, eventCapacity } from './traffic.js';
-import { flowPolicy } from './events.js';
-import { colorAtSpeed, freeSpeedKmh } from './traffic-physics.js';
-import { normalJunctionTraffic } from './junction-traffic.js';
+import { positionM, closureGate } from './spatial.js?build=b0a387e5cb5e18cc';
+import { baselineCapacity, eventCapacity } from './traffic.js?build=b0a387e5cb5e18cc';
+import { flowPolicy } from './events.js?build=b0a387e5cb5e18cc';
+import { colorAtSpeed, freeSpeedKmh } from './traffic-physics.js?build=b0a387e5cb5e18cc';
+import { normalJunctionTraffic } from './junction-traffic.js?build=b0a387e5cb5e18cc';
 const SUBSTEPS = 6, DT_MIN = 1 / SUBSTEPS, WAVE_KMH = 22, JAM_PER_LANE = 95;
 // One observation per MODEL minute; repainting/pause never advances this.
 const TRAVEL_ALPHA = 1 - Math.exp(-1 / 6);

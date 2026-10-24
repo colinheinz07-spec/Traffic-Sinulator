@@ -1,5 +1,12 @@
-import { positionM, closureGate } from './spatial.js';
-import { diversionJunctions } from './diversions.js';
+/** Direction-specific entrance/exit situation for the A3/A48 simulator.
+ * Targets are PLANNED route-choice percentages, not counted departures.
+ * Counted values come from ordinary junction cells and detour ledgers.
+ * Every normal AS is covered; AK/AD are separate motorway nodes and cannot
+ * be misrepresented as exits onto local roads.
+ */
+import { names } from './core.js?build=b0a387e5cb5e18cc';
+import { positionM, closureGate } from './spatial.js?build=b0a387e5cb5e18cc';
+import { diversionJunctions } from './diversions.js?build=b0a387e5cb5e18cc';
 /** 100% is reserved for the LAST normal exit that can be reached before
  * a formal complete road closure. Earlier exits are voluntary alternatives
  * recruited in stages as actual queue/side-road waiting grows.
@@ -9,7 +16,7 @@ import { diversionJunctions } from './diversions.js';
 export function junctionMovements(path, route, exits, events, _delayMin, real = [], local = []) {
     const junctions = diversionJunctions(path, exits, route);
     const rows = junctions.map((exit) => ({
-        path, exit, desiredPercent: 0, mandatory: false, eventId: null, distanceBeforeClosureKm: null,
+        path, exit, desiredPercent: 0, mandatory: false, entryClosed: false, eventId: null, distanceBeforeClosureKm: null,
         outVph: 0, inVph: 0, vehiclesOnDetour: 0, waitingAtReentry: 0, validatedRouteActive: false,
         normalOutVph: 0, normalInVph: 0, diversionOutVph: 0, returningInVph: 0, waitingToEnter: 0
     }));
@@ -19,6 +26,11 @@ export function junctionMovements(path, route, exits, events, _delayMin, real = 
             continue;
         if (event.kind === 'closure') {
             const gate = closureGate(route, event, exits);
+            if (gate)
+                for (const row of rows)
+                    if (!row.exit.isInterchange &&
+                        row.exit.metre >= gate.metre - 25 && row.exit.metre < gate.endM - 25)
+                        row.entryClosed = true;
             const nearest = rows.find(r => r.exit.ref === gate?.exit?.ref);
             if (!nearest)
                 continue;
@@ -65,4 +77,11 @@ export function junctionMovements(path, route, exits, events, _delayMin, real = 
         }
     }
     return rows;
+}
+/** Always name the driving direction: the opposite carriageway may still
+ * have ordinary entries while this direction has a formal closure. */
+export function junctionMovementHint(row) {
+    const count = (value) => value.toLocaleString('de-DE', { maximumFractionDigits: 0 });
+    return { title: 'AS ' + row.exit.ref + ' · ' + names[row.path].replace(' Richtung ', ' → '),
+        flow: 'Abfahrt ' + count(row.outVph) + '/h · Auffahrt ' + count(row.inVph) + '/h' + (row.entryClosed ? ' ⛔' : '') };
 }

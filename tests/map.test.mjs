@@ -6,7 +6,7 @@ test('all 15 named junctions and their numbers are included',()=>{assert.equal(n
 test('four AD Dernbach ramps use traced OSM ways',()=>{assert.equal(networkData.ramps.length,4);assert.equal(new Set(networkData.ramps.map(r=>r.id)).size,4);for(const r of networkData.ramps){assert.ok(r.wayIds.length>=2);assert.ok(r.points.length>=15);}});
 test('OSM ways have motorway references, not local roads',()=>{for(const road of networkData.roads){assert.ok(road.wayId>0);assert.equal(road.points.length>=2,true);assert.match(road.tags.ref.replaceAll(' ',''),road.road.startsWith('A3')?/A3/:/A48/);}});
 test('map projection supports exact position of selected point',()=>{const p=[50.460264,7.767549];const xy=mercator(p,14);const q=inverse(xy,14);assert.ok(Math.abs(p[0]-q[0])<1e-9);assert.ok(Math.abs(p[1]-q[1])<1e-9);const h=nearestPolyline([[50.46,7.76],[50.461,7.77]],[5,0],(p)=>[(p[1]-7.76)*500,0]);assert.ok(h.distance<1e-8);});
-test('SPCK opens a single index.html using compiled TypeScript',()=>{const html=readFileSync('index.html','utf8');assert.match(html,/src="\.\/app\.js"/);assert.match(html,/id="map"/);assert.ok(!html.includes('map-v2/'));});
+test('SPCK opens a single index.html using compiled TypeScript',()=>{const html=readFileSync('index.html','utf8');assert.match(html,/src="\.\/app\.js\?build=[a-f0-9]{16}"/);assert.match(html,/id="map"/);assert.ok(!html.includes('map-v2/'));});
 test('self-contained street geometry requires no online request',()=>{const source=readFileSync('src/app.ts','utf8');assert.ok(source.includes("from './geodata.js'"));assert.ok(!source.includes('overpass-api'));assert.ok(!source.includes('router.project-osrm'));});
 
 test('A3 extends beyond Diez to Limburg-Nord 42 and Limburg-Sued 43 in both directions',()=>{

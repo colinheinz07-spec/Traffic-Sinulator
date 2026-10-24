@@ -1,8 +1,8 @@
-import { positionM, closureGate } from './spatial.js';
-import { DIVERSION_LINKS, diversionJunctions } from './diversions.js';
-import { speedDelayInCells } from './speed-delay.js';
-import { cellSpeedBands } from './traffic-cells.js';
-import { bundledTargets, isNetworkDestination } from './bundled-detours.js';
+import { positionM, closureGate } from './spatial.js?build=b0a387e5cb5e18cc';
+import { DIVERSION_LINKS, diversionJunctions } from './diversions.js?build=b0a387e5cb5e18cc';
+import { speedDelayInCells } from './speed-delay.js?build=b0a387e5cb5e18cc';
+import { cellSpeedBands } from './traffic-cells.js?build=b0a387e5cb5e18cc';
+import { bundledTargets, isNetworkDestination } from './bundled-detours.js?build=b0a387e5cb5e18cc';
 export function automaticDiversions(events, corridors, exits, cells, connections = []) {
     const plans = new Map();
     for (const event of events) {
