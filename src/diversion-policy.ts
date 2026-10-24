@@ -1,7 +1,7 @@
-/** Route availability does not recruit drivers. Voluntary diversion needs
- * 45 minutes of queue disadvantage AND an exit at the physical queue tail.
- * When the queue passes an AS, the previous AS joins in. Downstream exits
- * remain available to cars still reaching them.
+/** Time loss triggers voluntary diversion from 45 minutes. The nearest
+ * usable AS before that queue is eligible even with kilometres of free
+ * road between the AS and the tail. As the tail passes an AS, the previous
+ * AS becomes the next available choice; downstream exits remain usable.
  */
 import type {Exit,RoadId} from './core.js';
 import type {SimEvent} from './events.js';

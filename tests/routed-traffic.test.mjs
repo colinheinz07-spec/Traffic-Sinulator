@@ -96,7 +96,8 @@ test('a disabled diversion retains its cars and lets all of them finish their jo
  assert.ok(Math.abs(entries[0].state.returnedTotal-admitted)<1e-6);
 });
 test('extreme delay reaches 100 percent willingness and all feasible upstream exits are offered',()=>{
- assert.equal(potentialDiversionPercent(120,false),100);
+ assert.equal(potentialDiversionPercent(120,false),60);
+ assert.equal(potentialDiversionPercent(180,false),100);
  assert.equal(potentialDiversionPercent(500,false),100);
  const a=junction(path,'41'),b=junction(path,'42'),e=event((a.metre+b.metre)/2,'closure',[0,1,2],0);
  const choices=automaticDiversions([e],routes,exits,{});

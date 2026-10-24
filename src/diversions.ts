@@ -91,7 +91,7 @@ export function potentialDiversionPercent(delayMin:number|null,required:boolean)
  if(delayMin===null||!Number.isFinite(delayMin)||delayMin<45-1e-9)return 0;
  delayMin=Math.max(45,delayMin);
  const anchors:readonly (readonly [number,number])[]=[
-  [0,0],[45,2],[50,8],[60,25],[75,50],[90,75],[105,90],[120,100]
+  [0,0],[45,2],[60,10],[90,30],[120,60],[150,85],[180,100]
  ];
  for(let i=1;i<anchors.length;i++){
   const [end,to]=anchors[i]!, [begin,from]=anchors[i-1]!;
