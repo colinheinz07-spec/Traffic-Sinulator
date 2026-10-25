@@ -1,8 +1,8 @@
-import { positionM, closureGate } from './spatial.js?build=e5dc2a5d589428ef';
-import { baselineCapacity, eventCapacity } from './traffic.js?build=e5dc2a5d589428ef';
-import { flowPolicy, DEFAULT_CLEARANCE_MIN } from './events.js?build=e5dc2a5d589428ef';
-import { colorAtSpeed, freeSpeedKmh, QUEUE_JAM_DENSITY_PER_LANE, CONGESTION_WAVE_KMH } from './traffic-physics.js?build=e5dc2a5d589428ef';
-import { normalJunctionTraffic } from './junction-traffic.js?build=e5dc2a5d589428ef';
+import { positionM, closureGate } from './spatial.js?build=8b296e46c96ba8b2';
+import { baselineCapacity, eventCapacity } from './traffic.js?build=8b296e46c96ba8b2';
+import { flowPolicy, DEFAULT_CLEARANCE_MIN } from './events.js?build=8b296e46c96ba8b2';
+import { colorAtSpeed, freeSpeedKmh, QUEUE_JAM_DENSITY_PER_LANE, CONGESTION_WAVE_KMH } from './traffic-physics.js?build=8b296e46c96ba8b2';
+import { normalJunctionTraffic } from './junction-traffic.js?build=8b296e46c96ba8b2';
 const TARGET_CELL_M = 100, WAVE_KMH = CONGESTION_WAVE_KMH, JAM_PER_LANE = QUEUE_JAM_DENSITY_PER_LANE;
 // One observation per MODEL minute; repainting/pause never advances this.
 const TRAVEL_ALPHA = 1 - Math.exp(-1 / 6);
@@ -43,6 +43,11 @@ export function assertCellConservation(state) {
         if (!Number.isFinite(j.waiting) || j.waiting < 0 ||
             Math.abs(j.offeredTotal - j.enteredTotal - j.waiting) > 1e-5 * Math.max(1, j.offeredTotal))
             throw Error('Anschlussstellenzufluss hat Fahrzeuge verloren oder dupliziert');
+    }
+    for (const c of state.cells) {
+        const tagged = Object.values(c.routedVehicles ?? {});
+        if (tagged.some(v => !Number.isFinite(v) || v < 0) || tagged.reduce((n, v) => n + v, 0) > c.vehicles + 1e-5)
+            throw Error('Zielgebundene Fahrzeuge widersprechen dem Zellbestand');
     }
 }
 function localControls(route, events, demandVph, count, cellM, exits = []) {
@@ -169,6 +174,20 @@ export function advanceCells(previous, route, events, demandVph, exits = [], por
     const substeps = Math.max(30, Math.ceil(freeSpeedKmh(route.key) * 1000 / (60 * previous.cellM))), dtMin = 1 / substeps;
     const controls = localControls(route, events, demandVph, n, previous.cellM, exits);
     const { speeds, capacity, faceCapacity, faceControls, jam, releases, closedEntries } = controls;
+    const passages = new Map();
+    for (const gate of controls.closureGates) {
+        const candidate = ports.find(p => p.closurePassage && p.fromM !== null && p.fromM > gate.fromM &&
+            controls.closureGates.filter(g => g.face === gate.face).every(g => {
+                const event = events.find(e => e.id === g.eventId), at = event ? positionM(route, event.point) : null;
+                return at !== null && at > p.fromM;
+            }));
+        const passage = candidate?.closurePassage;
+        if (passage && passage.sharePercent >= 0 && passage.sharePercent <= 100) {
+            passages.set(gate.face, passage);
+            faceCapacity[gate.face] = baselineCapacity(route.key);
+            faceControls[gate.face] += '|open-turn:' + passage.vehicleClass + ':' + passage.sharePercent;
+        }
+    }
     const routed = ports.map(port => {
         if (!((port.fromM === null || port.fromM >= 0 && port.fromM < route.lengthM) &&
             (port.toM === null || port.toM >= 0 && port.toM <= route.lengthM) &&
@@ -207,8 +226,10 @@ export function advanceCells(previous, route, events, demandVph, exits = [], por
                 entryBlocked: closedEntries.some(c => old.metre >= c.fromM && old.metre < c.toM)
             });
     const occupancy = previous.cells.map(c => c.vehicles);
-    const closures = controls.closureGates.map(g => ({ ...g, diverting: g.exitRef !== null &&
-            routed.filter(p => p.from === g.face).reduce((n, p) => n + p.interestPercent, 0) >= 100 - .001 }));
+    const closures = controls.closureGates.map(g => {
+        const interest = routed.filter(p => p.from === g.face).reduce((n, p) => n + p.interestPercent, 0);
+        return { ...g, diverting: g.exitRef !== null && interest > .001 && interest + (passages.get(g.face)?.sharePercent ?? 0) >= 100 - .001 };
+    });
     let backlog = previous.backlog, offeredTotal = previous.offeredTotal, exitedTotal = previous.exitedTotal;
     const cumulativeOut = Array(n).fill(0);
     const through = Array(n + 1).fill(0);
@@ -228,6 +249,25 @@ export function advanceCells(previous, route, events, demandVph, exits = [], por
     const currentCapacity = new Float64Array(n + 1);
     const approachLimit = new Float64Array(n);
     const critical = cellCriticalDensity(route.key);
+    const classIds = [...new Set([...previous.cells.flatMap(c => Object.keys(c.routedVehicles ?? {})),
+            ...ports.flatMap(p => [p.vehicleClass, p.returnClass, p.closurePassage?.vehicleClass, p.classifyAt?.vehicleClass].filter((x) => !!x))])];
+    const classStock = new Map(classIds.map(id => [id, Float64Array.from(previous.cells.map(c => c.routedVehicles?.[id] ?? 0))]));
+    const classFace = new Map(classIds.map(id => [id, new Float64Array(n + 1)]));
+    const classLeave = new Map(classIds.map(id => [id, new Float64Array(n)]));
+    const classJoin = new Map(classIds.map(id => [id, new Float64Array(n)]));
+    const classifiedJourneys = new Set(previous.classifiedJourneys ?? []);
+    const classifications = ports.flatMap(p => p.classifyAt ? [p.classifyAt] : []);
+    // Assign an intent to the already-present vehicles when a new journey
+    // becomes available. Later arrivals are classified at its decision face.
+    for (const rule of classifications)
+        if (rule.sharePercent > 0 && !classifiedJourneys.has(rule.vehicleClass)) {
+            for (let i = 0; i < n; i++)
+                if (previous.cells[i].fromM >= rule.metre && previous.cells[i].fromM < rule.untilM) {
+                    const tagged = classIds.reduce((s, id) => s + classStock.get(id)[i], 0);
+                    classStock.get(rule.vehicleClass)[i] += Math.max(0, occupancy[i] - tagged) * rule.sharePercent / 100;
+                }
+            classifiedJourneys.add(rule.vehicleClass);
+        }
     for (let sub = 0; sub < substeps; sub++) {
         for (let i = 0; i < n; i++) {
             const k = occupancy[i] / dx;
@@ -271,6 +311,11 @@ export function advanceCells(previous, route, events, demandVph, exits = [], por
         leaving.fill(0);
         joining.fill(0);
         currentCapacity.set(faceCapacity);
+        for (const id of classIds) {
+            classFace.get(id).fill(0);
+            classLeave.get(id).fill(0);
+            classJoin.get(id).fill(0);
+        }
         for (const release of releases) {
             const densityBefore = density[release.face - 1] ?? 0;
             if (densityBefore > critical * 1.15) {
@@ -302,18 +347,35 @@ export function advanceCells(previous, route, events, demandVph, exits = [], por
             const returnPorts = returnsAt.get(i) ?? noPorts;
             if (!local && !departures.length && !returnPorts.length) {
                 face[i] = Math.min(send[i - 1], receive[i], currentCapacity[i] * dtMin / 60);
+                for (const id of classIds)
+                    classFace.get(id)[i] = occupancy[i - 1] > 0 ?
+                        face[i] * classStock.get(id)[i - 1] / occupancy[i - 1] : 0;
                 continue;
             }
-            const totalInterest = departures.reduce((s, p) => s + p.interestPercent, 0);
+            const sent = new Map(classIds.map(id => [id, occupancy[i - 1] > 0 ?
+                    send[i - 1] * classStock.get(id)[i - 1] / occupancy[i - 1] : 0]));
+            const ordinarySend = Math.max(0, send[i - 1] - [...sent.values()].reduce((s, v) => s + v, 0));
+            const totalInterest = departures.filter(p => !p.vehicleClass).reduce((s, p) => s + p.interestPercent, 0);
             const normalFraction = (local?.exitPercent ?? 0) / 100;
-            const detourFraction = (1 - normalFraction) * Math.min(1, totalInterest / 100);
-            const fraction = normalFraction + detourFraction;
-            const normalRequest = Math.min(send[i - 1] * normalFraction, (local?.exitCapacityVph ?? 0) * dtMin / 60);
-            const requested = departures.map(p => Math.min(send[i - 1] * detourFraction * p.interestPercent / totalInterest, p.exitCapacityVph * dtMin / 60, Math.max(0, p.exitCapacityVph / 60 - p.left)));
+            const detourFraction = Math.min(1, totalInterest / 100);
+            const normalWanted = Math.min(ordinarySend, send[i - 1] * normalFraction);
+            const normalRequest = Math.min(normalWanted, (local?.exitCapacityVph ?? 0) * dtMin / 60);
+            const wanted = departures.map(p => p.vehicleClass ? (sent.get(p.vehicleClass) ?? 0) *
+                Math.min(1, departures.filter(q => q.vehicleClass === p.vehicleClass).reduce((s, q) => s + q.interestPercent, 0) / 100) *
+                p.interestPercent / Math.max(1e-9, departures.filter(q => q.vehicleClass === p.vehicleClass).reduce((s, q) => s + q.interestPercent, 0)) :
+                totalInterest > 0 ? Math.max(0, ordinarySend - normalWanted) * detourFraction * p.interestPercent / totalInterest : 0);
+            const requested = departures.map((p, k) => Math.min(wanted[k], p.exitCapacityVph * dtMin / 60, Math.max(0, p.exitCapacityVph / 60 - p.left)));
             const requestedTotal = normalRequest + requested.reduce((s, x) => s + x, 0);
             // Local destination traffic and diversion traffic share the SAME exit.
-            const scale = requestedTotal > 0 ? Math.min(1, (local?.exitCapacityVph ?? 1200) * dtMin / 60 / requestedTotal) : 0;
-            departures.forEach((p, k) => { const accepted = requested[k] * scale; p.left += accepted; leaving[i - 1] += accepted; });
+            const exitLimit = local?.exitCapacityVph ?? (departures.some(p => p.motorway) ? 1500 : 1200);
+            const scale = requestedTotal > 0 ? Math.min(1, exitLimit * dtMin / 60 / requestedTotal) : 0;
+            departures.forEach((p, k) => {
+                const accepted = requested[k] * scale;
+                p.left += accepted;
+                leaving[i - 1] += accepted;
+                if (p.vehicleClass)
+                    classLeave.get(p.vehicleClass)[i - 1] += accepted;
+            });
             if (local) {
                 const accepted = normalRequest * scale;
                 local.lastExited += accepted;
@@ -321,7 +383,10 @@ export function advanceCells(previous, route, events, demandVph, exits = [], por
                 exitedTotal += accepted;
                 leaving[i - 1] += accepted;
             }
-            const mainSend = send[i - 1] * (1 - fraction);
+            const passage = passages.get(i);
+            const mainSend = passage ? Math.max(0, (sent.get(passage.vehicleClass) ?? 0) -
+                departures.reduce((s, p, k) => s + (p.vehicleClass === passage.vehicleClass ? wanted[k] : 0), 0)) :
+                Math.max(0, send[i - 1] - normalWanted - wanted.reduce((s, v) => s + v, 0));
             const returns = returnPorts.length ? returnPorts.filter(p => p.returnVehicles - p.joined > 1e-9) : noPorts;
             const localEntry = local && !local.entryBlocked ? Math.min(local.waiting, local.entryCapacityVph * dtMin / 60) : 0;
             const mergeDemand = localEntry + returns.reduce((s, p) => s + Math.min(p.returnVehicles - p.joined, 1200 * dtMin / 60), 0);
@@ -337,6 +402,8 @@ export function advanceCells(previous, route, events, demandVph, exits = [], por
                 const accepted = merge * Math.min(p.returnVehicles - p.joined, 1200 * dtMin / 60) / mergeDemand;
                 p.joined += accepted;
                 joining[i] += accepted;
+                if (p.returnClass)
+                    classJoin.get(p.returnClass)[i] += accepted;
             }
             if (local && localEntry > 0) {
                 const accepted = merge * localEntry / mergeDemand;
@@ -344,16 +411,46 @@ export function advanceCells(previous, route, events, demandVph, exits = [], por
                 local.enteredTotal += accepted;
                 local.lastEntered += accepted;
                 joining[i] += accepted;
+                for (const rule of classifications)
+                    if (rule.metre <= 0 && i * previous.cellM < rule.untilM ||
+                        rule.metre > 0 && Math.round(rule.metre / previous.cellM) === i)
+                        classJoin.get(rule.vehicleClass)[i] += accepted * rule.sharePercent / 100;
             }
             face[i] = main;
+            for (const id of classIds) {
+                const retained = passage && id !== passage.vehicleClass ? 0 :
+                    (sent.get(id) ?? 0) - departures.reduce((s, p, k) => s + (p.vehicleClass === id ? wanted[k] : 0), 0);
+                classFace.get(id)[i] = mainSend > 0 ? main * Math.max(0, retained) / mainSend : 0;
+            }
         }
         face[n] = Math.min(send[n - 1], currentCapacity[n] * dtMin / 60);
+        for (const id of classIds)
+            classFace.get(id)[n] = occupancy[n - 1] > 0 ?
+                face[n] * classStock.get(id)[n - 1] / occupancy[n - 1] : 0;
+        for (const rule of classifications) {
+            if (rule.metre <= 0) {
+                classJoin.get(rule.vehicleClass)[0] += face[0] * rule.sharePercent / 100;
+                continue;
+            }
+            const at = Math.max(1, Math.min(n - 1, Math.round(rule.metre / previous.cellM)));
+            const otherInterest = (departuresAt.get(at) ?? []).filter(p => !p.vehicleClass).reduce((s, p) => s + p.interestPercent, 0);
+            const ratio = Math.min(1, rule.sharePercent / Math.max(1e-9, 100 - Math.min(100, otherInterest)));
+            const already = classIds.reduce((s, id) => s + classFace.get(id)[at], 0);
+            classJoin.get(rule.vehicleClass)[at] += Math.max(0, face[at] - already) * ratio;
+        }
         exitedTotal += face[n];
         for (let i = 0; i < n; i++) {
             occupancy[i] = Math.max(0, occupancy[i] + face[i] + joining[i] - face[i + 1] - leaving[i]);
             cumulativeOut[i] += face[i + 1] + leaving[i];
             if (occupancy[i] > jam * dx + 1e-5)
                 throw Error('Zellmodell: Speicherdichte überschritten');
+            for (const id of classIds) {
+                const stock = classStock.get(id);
+                const value = stock[i] + classFace.get(id)[i] + classJoin.get(id)[i] - classFace.get(id)[i + 1] - classLeave.get(id)[i];
+                if (value < -1e-6)
+                    throw Error('Zielgebundener Fahrzeugbestand wurde negativ');
+                stock[i] = Math.max(0, value);
+            }
         }
         for (let i = 0; i <= n; i++)
             through[i] += face[i];
@@ -401,11 +498,13 @@ export function advanceCells(previous, route, events, demandVph, exits = [], por
             queueMemoryMin: densityVehKm >= critical * 1.10 ? 3 : Math.max(0, (c.queueMemoryMin ?? 0) - 1),
             travelFlowVph, limitKmh: speeds[i], travelDetector,
             approachLimitKmh: Number.isFinite(approachLimit[i]) ? approachLimit[i] : undefined,
+            routedVehicles: classIds.length ? Object.fromEntries(classIds.map(id => [id, classStock.get(id)[i]]).filter(([, v]) => Number(v) > 1e-9)) : undefined,
             blockedAtM: faceCapacity[i + 1] === 0 ? c.toM : undefined,
             reopeningForecast: controls.forecasts.get(i + 1) };
     });
     const limiting = faceCapacity.reduce((best, c, i) => c < faceCapacity[best] ? i : best, 0);
     const next = { ...previous, cells, closures, minute: previous.minute + 1, backlog, offeredTotal, exitedTotal,
+        classifiedJourneys: [...classifiedJourneys],
         junctions: junctions.map(({ face: _, entryBlocked: __, ...j }) => j),
         divertedTotal: (previous.divertedTotal ?? 0) + routed.reduce((s, p) => s + p.left, 0),
         rejoinedTotal: (previous.rejoinedTotal ?? 0) + routed.reduce((s, p) => s + p.joined, 0),

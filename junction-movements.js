@@ -4,9 +4,9 @@
  * Every normal AS is covered; AK/AD are separate motorway nodes and cannot
  * be misrepresented as exits onto local roads.
  */
-import { names } from './core.js?build=e5dc2a5d589428ef';
-import { positionM, closureGate } from './spatial.js?build=e5dc2a5d589428ef';
-import { diversionJunctions } from './diversions.js?build=e5dc2a5d589428ef';
+import { names } from './core.js?build=8b296e46c96ba8b2';
+import { positionM, closureGate } from './spatial.js?build=8b296e46c96ba8b2';
+import { diversionJunctions } from './diversions.js?build=8b296e46c96ba8b2';
 /** A formal closure forces departure only at the LAST usable normal exit.
  * Earlier exits are voluntary alternatives chosen by remaining time loss,
  * independently of the tail's distance from any junction.
@@ -34,7 +34,9 @@ export function junctionMovements(path, route, exits, events, _delayMin, real = 
             const nearest = rows.find(r => r.exit.ref === gate?.exit?.ref);
             if (!nearest)
                 continue;
-            nearest.desiredPercent = 100;
+            const open = real.filter(f => f.path === path && f.openTurn && Math.abs(f.openTurn.gateM - gate.metre) < 25)
+                .reduce((n, f) => n + f.openTurn.percent, 0);
+            nearest.desiredPercent = Math.max(0, 100 - Math.min(100, open));
             nearest.mandatory = true;
             nearest.eventId = event.id;
             nearest.distanceBeforeClosureKm = (at - nearest.exit.metre) / 1000;
@@ -52,16 +54,16 @@ export function junctionMovements(path, route, exits, events, _delayMin, real = 
         row.outVph += row.normalOutVph;
         row.inVph += row.normalInVph;
     }
-    const measured = new Set();
+    const measured = new Map();
     for (const flow of real) {
         const from = flow.path === path ? rows.find(r => !r.exit.isInterchange && Math.abs(r.exit.metre - flow.fromM) <= 25) : undefined;
         const to = (flow.targetPath ?? flow.path) === path ? rows.find(r => !r.exit.isInterchange && Math.abs(r.exit.metre - flow.toM) <= 25) : undefined;
         if (from) {
             if (!from.mandatory && flow.desiredPercent !== undefined) {
-                if (!measured.has(from))
-                    from.desiredPercent = 0;
-                from.desiredPercent = Math.max(from.desiredPercent, flow.desiredPercent);
-                measured.add(from);
+                const groups = measured.get(from) ?? new Map(), group = flow.movementId ?? 'mainline';
+                groups.set(group, Math.max(groups.get(group) ?? 0, flow.desiredPercent));
+                measured.set(from, groups);
+                from.desiredPercent = Math.min(100, [...groups.values()].reduce((s, v) => s + v, 0));
             }
             from.outVph += flow.outVph;
             from.diversionOutVph += flow.outVph;

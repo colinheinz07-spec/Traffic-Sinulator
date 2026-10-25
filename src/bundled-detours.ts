@@ -38,7 +38,7 @@ export function bundledTargets(path:RoadId,exits:readonly Exit[],route:Corridor)
   name:'Weiterfahrt außerhalb des Netzes · '+names[path],position:ends[path].point,
   source:'simulation-boundary',metre:route.lengthM,isInterchange:false}];
 }
-interface Edge {to:string;points:Point[];lengthM:number;capacity:number}
+interface Edge {to:string;points:Point[];lengthM:number;capacity:number;sectionId:string}
 /** Pure synchronous lookup/composition: deliberately has no fetch argument. */
 export function bundledDetourGeometry(id:string,path:RoadId,from:Exit,to:Exit,
  exits:readonly Exit[]):DetourGeometry{
@@ -49,8 +49,8 @@ export function bundledDetourGeometry(id:string,path:RoadId,from:Exit,to:Exit,
   const start=coordinates.get(a),end=coordinates.get(b);
   if(!start||!end)throw Error('Enthaltenes Umleitungsnetz ist unvollständig: '+a+' → '+b);
   const points=[start,...via,end],lengthM=points.slice(1).reduce((n,p,i)=>n+metres(points[i]!,p),0);
-  graph.set(a,[...(graph.get(a)??[]),{to:b,points,lengthM,capacity}]);
-  graph.set(b,[...(graph.get(b)??[]),{to:a,points:[...points].reverse(),lengthM,capacity}]);
+  graph.set(a,[...(graph.get(a)??[]),{to:b,points,lengthM,capacity,sectionId:a+'>'+b}]);
+  graph.set(b,[...(graph.get(b)??[]),{to:a,points:[...points].reverse(),lengthM,capacity,sectionId:b+'>'+a}]);
  };
  for(const p of DIRECTIONS)coordinates.set('end-'+p,ends[p].point);
  for(const s of BUNDLED_SECTIONS)add(s.from,s.to,s.via,s.capacity);
@@ -78,7 +78,8 @@ export function bundledDetourGeometry(id:string,path:RoadId,from:Exit,to:Exit,
  return {id,path,sourceExitRef:from.ref,targetExitRef:to.ref,points,
   lengthKm,freeMinutes:Math.max(2,lengthKm/46*60+junctionCount*.4),
   roadCapacityVph:Math.min(...sections.map(s=>s.capacity)),junctionCount,trafficLightCount:0,
-  source:'simulated-bundled',relationId:null,label:'Simulierte Umleitung · angenäherter Verlauf'};
+  source:'simulated-bundled',relationId:null,label:'Simulierte Umleitung · angenäherter Verlauf',
+  sections:sections.map(s=>({id:s.sectionId,capacityVph:s.capacity}))};
 }
 /** One ready default per directional AS; incident bypasses can span more AS. */
 export function bundledExitRoutes(path:RoadId,exits:readonly Exit[],route:Corridor){

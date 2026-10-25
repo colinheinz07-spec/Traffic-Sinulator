@@ -141,6 +141,12 @@ export function advanceSpatial(prev:SpatialState,events:readonly SimEvent[],dema
   // If a downstream jam reaches a REAL motorway merge, incoming ramp traffic
   // becomes a queue at that ramp. It is no longer an uncounted red overlay.
   for(const link of links)if(link.rampId===key){
+   const closedMerge=events.some(event=>{const gate=closureGate(corridors[link.to],event,exits);
+    return gate&&link.downstreamMergeM>=gate.metre-1&&link.downstreamMergeM<gate.endM-1;});
+   if(closedMerge){
+    nodes.push({id:'closed-merge:'+key,event:null,place:Math.max(0,route.lengthM-.5),
+     point:route.points.at(-1)!,limitVph:0});
+   }
    const blocked=existing.filter(j=>j.pathKey===link.to&&j.anchorM>link.downstreamMergeM+.1
     &&j.anchorM-j.queueM<link.downstreamMergeM-.1);
    if(blocked.length){
@@ -155,7 +161,10 @@ export function advanceSpatial(prev:SpatialState,events:readonly SimEvent[],dema
   // positions. Leaving vehicles are removed ONCE, rejoined vehicles added
   // ONCE downstream of the event; no shared motorway inflow subtraction.
   for(const transfer of transfers)if(transfer.path===key){
-   if(!(transfer.fromM>=0&&transfer.toM<=route.lengthM&&transfer.toM>transfer.fromM
+   // A different motorway may join this route exactly at metre zero
+   // (the A48 Koblenz merge). That is a pure entry, not a reversed detour.
+   const boundaryEntry=transfer.fromM===0&&transfer.toM===0&&transfer.leaveVpm===0;
+   if(!(transfer.fromM>=0&&transfer.toM<=route.lengthM&&(transfer.toM>transfer.fromM||boundaryEntry)
     &&transfer.leaveVpm>=0&&transfer.joinVpm>=0))
     throw Error('Umleitungs-Anschlussposition oder Fahrzeugstrom ungültig');
    const from=routeSlice(route,Math.max(0,transfer.fromM-2),transfer.fromM)[0]??route.points[0]!;

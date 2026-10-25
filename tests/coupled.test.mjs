@@ -16,7 +16,7 @@ function blockedTarget(link,distance=2400){
  const hit={kind:'road',road:networkData.roads.find(r=>r.road===link.to),key:link.to,point,distance:0,fraction:.5};
  return eventFromHit(hit,'closure',3,[],'closed:'+link.rampId,'2026-10-19T12:00:00Z',{lengthM:100,speedKmh:0,shoulder:'blocked'});
 }
-test('A3 Frankfurt closure builds REAL queues on A48 ramp and A48 feeder, opposite A48 remains free',()=>{
+test('unrerouted demand at a formally closed A3 merge queues on its ramp only; opposite A48 remains free',()=>{
  const link=links.find(x=>x.rampId==='ramp-a48-to-frankfurt');
  assert.ok(link);
  const event=blockedTarget(link);
@@ -34,13 +34,13 @@ test('A3 Frankfurt closure builds REAL queues on A48 ramp and A48 feeder, opposi
  assert.ok(['slow','jam','standstill'].includes(feeder.exitColor),'exit lane congestion remains visible');
  assert.ok(!Object.keys(after.queues).some(id=>id.startsWith('spill:')),'no fake through-lane queue');
  assert.equal(opposite.queueVehicles,0,'opposite A48 direction unaffected');
- assert.ok(Object.keys(after.queues).some(id=>id==='merge:'+link.rampId));
+ assert.ok(Object.keys(after.queues).some(id=>id==='closed-merge:'+link.rampId));
  const ownerIds=new Set(jams.map(j=>j.id));assert.equal(ownerIds.size,jams.length);
  assert.ok(feeder.sharedRampVehicles>0,'physically relocated ramp queues are reported but owned only once');
 });
 test('coupling only blocks ramps if a downstream queue has actually reached their merge',()=>{
  const link=links.find(x=>x.rampId==='ramp-a48-to-frankfurt');
- const e=blockedTarget(link,4000),d=defaultDemands();
+ const e={...blockedTarget(link,4000),kind:'accident'},d=defaultDemands();
  const first=advanceSpatial(emptySpatial(),[e],d,1,routes,links);
  assert.ok(!first.queues['merge:'+link.rampId],'queue has not reached merge after one minute');
 });

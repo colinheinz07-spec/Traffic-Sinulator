@@ -1,4 +1,4 @@
-# A3/A48 Stausimulator – TRAFFIC 1.12.0
+# A3/A48 Stausimulator – TRAFFIC 1.12.1
 
 **Ein Repository, eine Startdatei:** `index.html` im Hauptverzeichnis direkt in SPCK öffnen. Keine Cloudflare-Konfiguration und keine externe Kartenbibliothek.
 
@@ -6,7 +6,27 @@
 
 **Der jeweilige Stau bestimmt den Ort, sein Zeitverlust den Anteil.** Freiwillige Umfahrer nutzen die nächste reguläre, nutzbare Anschlussstelle vor dem Stauende. Ab 45 Minuten Zeitverlust dieses Staus beginnen erste Abfahrten; mit wachsender Verzögerung steigt der Anteil. Zwischen Ausfahrt und Stau dürfen mehrere Kilometer frei sein. Derselbe Stau aktiviert keine zusätzlichen, weiter entfernten Ausfahrten davor. Anschlussstellennamen in Beispielen sind keine Sonderregeln. Das gilt in allen Fahrtrichtungen sowie bei Unfall, Baustelle, Panne und Rückstau ohne gesetztes Ereignis.
 
-Erreicht der Rückstau die bisherige Ausfahrt, übernimmt die nächste davor allmählich. Bereits im Stau befindliche Fahrer können weiterhin erreichbare Ausfahrten nutzen. Neue normale Auffahrten an einer genutzten Umfahrungs-AS sinken entsprechend. Wunschquoten vergrößern keine Kapazitäten: Überlastete Ausfahrten und Nebenstraßen verursachen echte Warteschlangen. Die formale Vollsperrung behält ihre eigenständige Pflichtausleitung an der letzten offenen AS und gesperrte Auffahrten im gesperrten Abschnitt. Diese Regel ersetzt die zu weit gefasste Freigabe sämtlicher früherer Ausfahrten in 1.11.2.
+Erreicht der Rückstau die bisherige Ausfahrt, übernimmt die nächste davor allmählich. Bereits im Stau befindliche Fahrer können weiterhin erreichbare Ausfahrten nutzen. Neue normale Auffahrten an einer genutzten Umfahrungs-AS sinken entsprechend. Wunschquoten vergrößern keine Kapazitäten: Überlastete Ausfahrten und Nebenstraßen verursachen echte Warteschlangen. Die formale Vollsperrung behält ihre eigenständige Pflichtausleitung an der letzten offenen AS und gesperrte Auffahrten im gesperrten Abschnitt. Ein noch vor der physischen Sperre offener Autobahnabzweig bleibt für Fahrzeuge mit diesem Fahrtziel erreichbar. Diese Regel ersetzt die zu weit gefasste Freigabe sämtlicher früherer Ausfahrten in 1.11.2.
+
+## Zielabhängige Umleitungen am AD Dernbach (1.12.1)
+
+Freiwillige Umfahrungen zwischen A48 und A3 beginnen ab **85 Minuten** Verzögerung der betroffenen weiteren Fahrt; die normalen Umfahrungen auf derselben Autobahn bleiben bei 45 Minuten. Der Anteil steigt allmählich und bezieht sich ausschließlich auf Fahrzeuge mit dem betroffenen Fahrtziel. Eine formale Vollsperrung erzwingt die passende Alternative sofort.
+
+| Betroffene Fahrt | Alternative |
+| --- | --- |
+| A48 Richtung Köln, hohe Verzögerung vor/am AD oder auf dem ersten A3-Zweig | Höhr-Grenzhausen → Ransbach-Baumbach → A3 Köln |
+| A48 Richtung Frankfurt, hohe Verzögerung bereits auf der gemeinsamen A48-Zufahrt | Höhr-Grenzhausen → Montabaur → A3 Frankfurt |
+| A48 Richtung Frankfurt, Frankfurt-Zweig oder Frankfurt-Rampe gesperrt, Köln-Zweig erreichbar | Offene Köln-Rampe → A3 Köln → Abfahrt Ransbach-Baumbach → Montabaur → A3 Frankfurt |
+| A3 aus beiden Richtungen nach Koblenz, hohe Verzögerung AD → Höhr | Ransbach-Baumbach → Höhr-Grenzhausen → A48 Koblenz; aus Frankfurt wird dafür am normalen AD-Abzweig vorbeigefahren |
+| A3 Köln zwischen AD und Ransbach gesperrt | Durchgangsverkehr verlässt die A3 bei Montabaur und kehrt bei Ransbach zurück; Koblenz-Verkehr nutzt den noch offenen AD-Abzweig. A48-Köln-Verkehr fährt über Höhr → Ransbach. |
+
+Auch eine gesperrte einzelne Überleitung wird berücksichtigt. Die Entscheidung verwendet nur die passende Zufahrt, Rampe und den ersten betroffenen Zielzweig; ein entfernter Stau hinter einer noch nutzbaren Anschlussstelle aktiviert keine vorzeitige Umfahrung am AD.
+
+Für die Fahrt über die Köln-Rampe werden tatsächliche Fahrzeuganteile über die A48, die reale OSM-Rampe, die A3 bis Ransbach und die anschließende Umleitung weitergegeben. Dasselbe gilt für den geschützten offenen A48-Abzweig bei einer gesperrten A3-Hauptfahrbahn. Diese Bestände werden bei Abfahrt und Wiedereinfahrt in der gemeinsamen Fahrzeugbilanz geführt. Gemeinsame Nebenstraßen teilen ihre begrenzte Kapazität; zwei Fahrtziele verdoppeln sie nicht. Die übrigen normalen AD-Verkehrsströme sind weiterhin vereinfacht gekoppelt. Fahrtzielanteile stammen aus den eingestellten Szenariozuflüssen, nicht aus gemessenen Fahrbeziehungen. Lokale Umleitungsgeometrien bleiben ausdrücklich Näherungen; die AD-Rampen stammen aus OSM.
+
+Geprüft: Typprüfung, **449 JavaScript-Tests**, sechs Python-Geometrieprüfungen und fünf Fahrstreifenprüfungen. Neue Regressionen prüfen die 85-Minuten-Grenze, Fahrtzielanteile, beide A3-Zweige, einzelne Rampensperren, den offenen Koblenz-Abzweig, geteilte Nebenstraßenkapazität, die Rückkehr am Streckenanfang und die globale Fahrzeugbilanz. Umgeleitete Fahrten werden nicht zusätzlich als neuer Zufluss auf ihrer ursprünglichen gesperrten Rampe gezählt; bereits vorhandene Rampenbestände bleiben erhalten.
+
+Mobile Chromium-Prüfung bei 390 × 844 CSS-Pixeln: sieben AD-Konstellationen (A48-Zufahrt, A48 Koblenz, Frankfurt-Hauptfahrbahn, Frankfurt-Rampe, Köln-Hauptfahrbahn, beide A3-Zweige und vollständige Unfallblockade mit Prognose) sowie ein Rampensperrungsfall mit hohem Zufluss. Die tatsächlichen Abfahrten, Fahrten über den offenen AD-Zweig und Wiedereinfahrten wurden über die native App geprüft; größte beobachtete Abweichung der gemeinsamen Fahrzeugbilanz unter 0,000001 Fahrzeugen. Zusätzlich bestehen die zwei 120-Minuten-A3-Läufe mit zwei freien Spuren und vier 345-Minuten-Läufe zum Stauabbau in allen Fahrtrichtungen. Die Staus bauen sich bei niedrigerem Zufluss vollständig ab; die dynamischen Farben bleiben erhalten. Prüfung im mobilen Browserformat, nicht auf einem physischen iPhone.
 
 ## Verbindliche Abbauregel
 

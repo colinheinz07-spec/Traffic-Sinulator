@@ -127,6 +127,15 @@ test('SPCK uses bundled routes automatically and keeps manual controls',()=>{
  assert.ok(page.includes('TRAFFIC '+JSON.parse(readFileSync('package.json','utf8')).version));
  assert.match(page,/ohne Online-Routenabruf/);
  assert.match(app,/bundledDetourGeometry\(k,option.path,option.from,option.to,exits\)/);
- assert.match(app,/advanceSpatial\(spatialState,timeline,active,1,spatialCorridors,rampConnections,transfers,exits(?:,physicalMainline)?\)/);
+ assert.match(app,/advanceSpatial\(spatialState,timeline,(?:active|legacyActive),1,spatialCorridors,rampConnections,transfers,exits(?:,physicalMainline)?\)/);
  assert.match(app,/Umleitung aktivieren/);
+});
+
+// Cross-motorway protected journeys enter A48 Koblenz at its actual origin.
+test('a pure cross-motorway return may join at metre zero without permitting reversed detours',()=>{
+ const roads=makeCorridors(networkData.roads,networkData.ramps);
+ const demands=defaultDemands(),returning={id:'open-ad-turn',path:'A48-koblenz',fromM:0,toM:0,leaveVpm:0,joinVpm:4};
+ assert.doesNotThrow(()=>advanceSpatial(emptySpatial(),[],demands,1,roads,[],[returning]));
+ assert.throws(()=>advanceSpatial(emptySpatial(),[],demands,1,roads,[],[{...returning,leaveVpm:1}]));
+ assert.throws(()=>advanceSpatial(emptySpatial(),[],demands,1,roads,[],[{...returning,fromM:100}]));
 });

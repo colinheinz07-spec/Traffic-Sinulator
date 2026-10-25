@@ -11,6 +11,7 @@ import type {Exit} from './core.js';
 import {positionM,closureGate} from './spatial.js';
 import {diversionJunctions,type JunctionAnchor} from './diversions.js';
 import type {JunctionTrafficState} from './junction-traffic.js';
+import type {PathKey} from './traffic.js';
 
 export interface JunctionMovement {
  path:RoadId;exit:JunctionAnchor;
@@ -23,6 +24,8 @@ export interface JunctionMovement {
 export interface RealDetourFlow {
  path:RoadId;fromM:number;toM:number;eventId:string;
  targetPath?:RoadId;
+ movementId?:PathKey;
+ openTurn?:{gateM:number;percent:number};
  desiredPercent?:number;
  outVph:number;inVph:number;vehiclesOnDetour:number;waitingAtReentry:number;
 }
@@ -50,7 +53,9 @@ export function junctionMovements(path:RoadId,route:Corridor,exits:readonly Exit
     row.exit.metre>=gate.metre-25&&row.exit.metre<gate.endM-25)row.entryClosed=true;
    const nearest=rows.find(r=>r.exit.ref===gate?.exit?.ref);
    if(!nearest)continue;
-   nearest.desiredPercent=100;nearest.mandatory=true;nearest.eventId=event.id;
+   const open=real.filter(f=>f.path===path&&f.openTurn&&Math.abs(f.openTurn.gateM-gate!.metre)<25)
+    .reduce((n,f)=>n+f.openTurn!.percent,0);
+   nearest.desiredPercent=Math.max(0,100-Math.min(100,open));nearest.mandatory=true;nearest.eventId=event.id;
    nearest.distanceBeforeClosureKm=(at-nearest.exit.metre)/1000;
   }
  }
@@ -62,14 +67,15 @@ export function junctionMovements(path:RoadId,route:Corridor,exits:readonly Exit
   row.normalOutVph=movement.lastExited*60;row.normalInVph=movement.lastEntered*60;
   row.waitingToEnter=movement.waiting;row.outVph+=row.normalOutVph;row.inVph+=row.normalInVph;
  }
- const measured=new Set<JunctionMovement>();
+ const measured=new Map<JunctionMovement,Map<string,number>>();
  for(const flow of real){
   const from=flow.path===path?rows.find(r=>!r.exit.isInterchange&&Math.abs(r.exit.metre-flow.fromM)<=25):undefined;
   const to=(flow.targetPath??flow.path)===path?rows.find(r=>!r.exit.isInterchange&&Math.abs(r.exit.metre-flow.toM)<=25):undefined;
   if(from){
    if(!from.mandatory&&flow.desiredPercent!==undefined){
-    if(!measured.has(from))from.desiredPercent=0;
-    from.desiredPercent=Math.max(from.desiredPercent,flow.desiredPercent);measured.add(from);
+    const groups=measured.get(from)??new Map<string,number>(),group=flow.movementId??'mainline';
+    groups.set(group,Math.max(groups.get(group)??0,flow.desiredPercent));measured.set(from,groups);
+    from.desiredPercent=Math.min(100,[...groups.values()].reduce((s,v)=>s+v,0));
    }
    from.outVph+=flow.outVph;
    from.diversionOutVph+=flow.outVph;

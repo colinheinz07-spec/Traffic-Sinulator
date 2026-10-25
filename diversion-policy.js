@@ -1,18 +1,22 @@
-import { cellQueueSpans } from './traffic-cells.js?build=e5dc2a5d589428ef';
-import { closureGate } from './spatial.js?build=e5dc2a5d589428ef';
-import { diversionJunctions, nearestExitBeforeQueue, potentialDiversionPercent } from './diversions.js?build=e5dc2a5d589428ef';
-import { speedDelayInCells } from './speed-delay.js?build=e5dc2a5d589428ef';
-import { freeSpeedKmh } from './traffic-physics.js?build=e5dc2a5d589428ef';
+import { cellQueueSpans } from './traffic-cells.js?build=8b296e46c96ba8b2';
+import { closureGate } from './spatial.js?build=8b296e46c96ba8b2';
+import { diversionJunctions, nearestExitBeforeQueue, potentialDiversionPercent } from './diversions.js?build=8b296e46c96ba8b2';
+import { speedDelayInCells } from './speed-delay.js?build=8b296e46c96ba8b2';
+import { freeSpeedKmh } from './traffic-physics.js?build=8b296e46c96ba8b2';
+import { INTERCHANGE_DIVERSION_START_MIN, interchangeTrafficShare } from './interchange.js?build=8b296e46c96ba8b2';
+import { closedMovementEvent, viaJourneyUsable, journeyRampCapacity } from './interchange-journeys.js?build=8b296e46c96ba8b2';
 /** A formal closure requires a working route at its exit even when that
  * route was paused for an earlier incident. A return inside the closed
  * section cannot serve as the mandatory route. */
 export function requiredDiversionGate(config, route, events, exits) {
-    if ((config.targetPath ?? config.path) !== config.path)
+    const cross = (config.targetPath ?? config.path) !== config.path;
+    if (cross && config.journey?.kind !== 'closure-bypass' && (!config.movementId || config.path !== 'A48-dernbach'))
         return null;
     for (const event of events) {
         const gate = closureGate(route, event, exits);
         if (gate?.exit && Math.abs(config.fromM - gate.metre) <= 25 &&
-            (config.exitsNetwork || config.toM >= gate.endM - 1))
+            (config.journey?.kind === 'closure-bypass' ? config.journey.forcedByEventId === event.id :
+                cross ? (config.sourceEndM ?? 0) >= gate.endM - 1 : config.exitsNetwork || config.toM >= gate.endM - 1))
             return gate;
     }
     return null;
@@ -21,12 +25,15 @@ export function requiredDiversionGate(config, route, events, exits) {
  * reduces willingness. Neither incident age nor a blocked-speed flag is
  * interpreted as infinite delay or as a mandatory off-ramp movement.
  */
-export function voluntaryDiversionPercent(delayMin, extraMinutes = 0) {
-    if (delayMin < 45 - 1e-9 || !Number.isFinite(delayMin))
+export function voluntaryDiversionPercent(delayMin, extraMinutes = 0, startsAtMin = 45) {
+    if (delayMin < startsAtMin - 1e-9 || !Number.isFinite(delayMin))
         return 0;
-    delayMin = Math.max(45, delayMin);
+    delayMin = Math.max(startsAtMin, delayMin);
     const saving = Math.max(0, delayMin - Math.max(0, extraMinutes)) / delayMin;
-    return Math.round((potentialDiversionPercent(delayMin, false) ?? 0) * saving * 10) / 10;
+    // Keep the small initial uptake and the three-hour upper anchor when a
+    // particular movement has a later threshold than ordinary queue bypasses.
+    const curveMinute = startsAtMin === 45 ? delayMin : 45 + Math.max(0, delayMin - startsAtMin) * 135 / (180 - startsAtMin);
+    return Math.round((potentialDiversionPercent(curveMinute, false) ?? 0) * saving * 10) / 10;
 }
 function excessQueue(state, fromM, toM, demandVph) {
     const freeDensity = demandVph / freeSpeedKmh(state.pathKey);
@@ -39,25 +46,151 @@ function excessQueue(state, fromM, toM, demandVph) {
     }
     return vehicles;
 }
-export function routedDiversionChoice(entry, entries, cells, routes, events, exits, demands) {
+function interchangeChoice(entry, cells, routes, events, exits, demands, turnDelays) {
+    const { config, state } = entry, path = config.path, target = config.targetPath, source = cells[path], destination = cells[target];
+    const route = routes[path], targetRoute = routes[target], turn = config.sourceEndM, merge = config.targetEntryM;
+    const share = interchangeTrafficShare(config.movementId, path, target, demands);
+    const empty = { percent: 0, mandatory: false, delayMin: 0, upstreamRank: 0 };
+    if (share <= 0 || !Number.isFinite(turn) || !Number.isFinite(merge))
+        return empty;
+    const sourceExits = diversionJunctions(path, exits, route).filter(j => !j.isInterchange);
+    const targetExits = diversionJunctions(target, exits, targetRoute).filter(j => !j.isInterchange);
+    const firstTarget = targetExits.find(j => j.metre > merge + 1);
+    const lastSource = sourceExits.filter(j => j.metre < turn - 1).at(-1);
+    const pastTurn = path === 'A3-koeln' && target === 'A48-koblenz';
+    const postExit = pastTurn ? sourceExits.find(j => j.metre > turn) : undefined;
+    if (pastTurn && (!postExit || Math.abs(postExit.metre - config.fromM) > 25))
+        return empty;
+    for (const event of events) {
+        const gate = closureGate(targetRoute, event, exits);
+        if (gate && config.toM >= gate.metre - 25 && config.toM < gate.endM - 25)
+            return empty;
+    }
+    const service = Math.max(1, Math.min(1200, config.geometry.roadCapacityVph));
+    const loss = (grid, from, to) => {
+        const read = speedDelayInCells(grid, from, to, to + grid.cellM);
+        return read.blocked ? Math.max(read.delayMin, excessQueue(grid, from, to, demands[grid.pathKey] ?? 0) / service * 60) : read.delayMin;
+    };
+    const extension = Math.max(0, config.fromM - turn);
+    const normalFree = (Math.max(0, turn - config.fromM) + Math.max(0, config.toM - merge)) / 1000 / freeSpeedKmh(path) * 60;
+    const extra = Math.max(0, config.geometry.freeMinutes + extension / 1000 / freeSpeedKmh(path) * 60 - normalFree) +
+        (extension > 0 ? loss(source, turn, config.fromM) : 0) + (state.waitingRoad + state.waitingMerge) / service * 60;
+    const spans = cellQueueSpans(source);
+    const approach = spans.find(s => s.fromM < turn && s.toM >= turn - source.cellM);
+    const sourceAnchor = pastTurn ? postExit : nearestExitBeforeQueue(path, route, exits, approach?.fromM ?? turn, turn);
+    const atAnchor = sourceAnchor && (Math.abs(sourceAnchor.metre - config.fromM) <= 25 || !pastTurn && approach &&
+        config.fromM >= sourceAnchor.metre - 25 && config.fromM >= approach.fromM && config.fromM <= turn);
+    let delayMin = 0, desired = 0;
+    const consider = (value) => {
+        const percentage = voluntaryDiversionPercent(value, extra, INTERCHANGE_DIVERSION_START_MIN) * share;
+        if (percentage > desired || percentage === desired && value > delayMin) {
+            desired = percentage;
+            delayMin = value;
+        }
+    };
+    // A source-side queue is relevant only on the final approach to the AD.
+    // Its own delay cannot borrow a distant target forecast through free road.
+    if (!pastTurn && config.journey?.kind !== 'via')
+        for (const span of spans) {
+            if (span.toM < (lastSource?.metre ?? turn) - 1)
+                continue;
+            const nearest = nearestExitBeforeQueue(path, route, exits, span.fromM, turn);
+            const start = Math.max(span.fromM, config.fromM), end = Math.min(span.toM, turn);
+            if (start < end && config.fromM >= (nearest?.metre ?? span.fromM) - 25 && config.fromM <= end + 25)
+                consider(loss(source, start, end));
+        }
+    if (atAnchor) {
+        if (config.journey?.kind !== 'via' && closedMovementEvent(config.movementId, target, merge, firstTarget?.metre ?? targetRoute.lengthM, events, routes))
+            return { percent: 100 * share, mandatory: true, delayMin: 0, upstreamRank: 0 };
+        consider(turnDelays[config.movementId] ?? 0);
+        for (const span of cellQueueSpans(destination)) {
+            // A free AS on the target arm is closer to a remote queue. Reach that
+            // AS normally instead of diverting many kilometres early on A48/A3.
+            if (span.fromM > (firstTarget?.metre ?? targetRoute.lengthM) + 1 || config.toM < span.toM - 1)
+                continue;
+            const start = Math.max(span.fromM, merge), end = Math.min(span.toM, config.toM);
+            if (start < end)
+                consider(loss(destination, start, end) + (approach && !pastTurn && config.journey?.kind !== 'via' ?
+                    loss(source, Math.max(config.fromM, approach.fromM), turn) : 0));
+        }
+    }
+    return { percent: Math.min(desired, (state.choicePercent ?? 0) + 5), mandatory: false, delayMin, upstreamRank: 0 };
+}
+export function routedDiversionChoice(entry, entries, cells, routes, events, exits, demands, turnDelays = {}) {
     const { config, state } = entry, path = config.path, target = config.targetPath ?? path;
     const source = cells[path], destination = cells[target], route = routes[path];
     if (!source || !destination || !route)
         throw Error('Umleitungsentscheidung ohne verbundenen Fahrbahnzustand');
+    const journey = config.journey;
+    if (journey?.kind === 'protected' || journey?.kind === 'continuation') {
+        const at = Math.max(1, Math.min(source.cells.length - 1, Math.round(config.fromM / source.cellM))) - 1;
+        const cell = source.cells[at], tagged = cell.routedVehicles?.[journey.token] ?? 0;
+        return { percent: cell.vehicles > 0 ? Math.min(100, tagged / cell.vehicles * 100) : 0, mandatory: true, delayMin: 0, upstreamRank: 0 };
+    }
+    if (journey?.kind === 'via') {
+        if (entry.enabled === false || !viaJourneyUsable(config, cells, routes, events, exits, demands))
+            return { percent: 0, mandatory: false, delayMin: 0, upstreamRank: 0 };
+        const share = interchangeTrafficShare(config.movementId, path, journey.targetPath, demands);
+        if (journey.forcedByEventId && events.some(e => e.id === journey.forcedByEventId && e.kind === 'closure'))
+            return { percent: 100 * share, mandatory: true, delayMin: 0, upstreamRank: 0 };
+        const virtual = { ...config, fromM: journey.decisionM, targetPath: journey.targetPath, toM: journey.toM,
+            targetEntryM: journey.targetEntryM, geometry: { ...config.geometry, freeMinutes: journey.choiceMinutes +
+                    Math.max(0, config.sourceEndM - journey.decisionM) / 1000 / freeSpeedKmh(path) * 60,
+                roadCapacityVph: Math.max(1, journeyRampCapacity(config, events, demands)) } };
+        return interchangeChoice({ ...entry, config: virtual }, cells, routes, events, exits, demands, turnDelays);
+    }
     const event = events.find(e => e.id === config.eventId), cross = target !== path;
     const gate = event?.kind === 'closure' && !cross ? closureGate(route, event, exits) : null;
     const mandatory = requiredDiversionGate(config, route, events, exits) !== null;
     if (mandatory) {
         // Retain old route inventories, but admit new traffic to exactly one
         // usable route. If all were paused, the formal closure still exits cars.
-        const preferred = entries.filter(e => e.config.path === path &&
-            Math.abs(e.config.fromM - config.fromM) <= 25 && requiredDiversionGate(e.config, route, events, exits))
+        const family = entries.filter(e => e.config.path === path && Math.abs(e.config.fromM - config.fromM) <= 25 &&
+            requiredDiversionGate(e.config, route, events, exits));
+        const movements = new Set(family.map(e => e.config.movementId).filter(Boolean));
+        const split = path === 'A48-dernbach' && movements.has('ramp-a48-to-koeln') && movements.has('ramp-a48-to-frankfurt');
+        const preferred = family.filter(e => split ? e.config.movementId === config.movementId : !e.config.movementId)
             .sort((a, b) => Number(a.enabled === false) - Number(b.enabled === false) ||
             b.config.toM - a.config.toM || a.config.id.localeCompare(b.config.id))[0];
-        return { percent: preferred?.config.id === config.id ? 100 : 0, mandatory: true, delayMin: 0, upstreamRank: 0 };
+        const fallback = family.filter(e => e.config.journey?.kind === 'closure-bypass');
+        let share = split ? (config.movementId ? interchangeTrafficShare(config.movementId, path, target, demands) : 0) : 1;
+        if (config.journey?.kind === 'closure-bypass')
+            share = interchangeTrafficShare(config.movementId, path, target, demands);
+        else if (!config.movementId) {
+            const gate = requiredDiversionGate(config, route, events, exits);
+            const open = entries.filter(e => e.config.path === path && e.config.journey?.kind === 'protected' &&
+                e.enabled !== false && events.some(event => event.id === e.config.journey.forcedByEventId) &&
+                Math.abs(e.config.journey.gateM - gate.metre) < 25 && journeyRampCapacity(e.config, events, demands) > 0)
+                .reduce((s, e) => s + interchangeTrafficShare(e.config.movementId, path, e.config.targetPath, demands), 0);
+            const local = fallback.reduce((s, e) => s + interchangeTrafficShare(e.config.movementId, path, e.config.targetPath, demands), 0);
+            share *= Math.max(0, 1 - open - local);
+        }
+        const ownFallback = config.journey?.kind === 'closure-bypass' && family.filter(e => e.config.journey?.kind === 'closure-bypass' &&
+            e.config.movementId === config.movementId).sort((a, b) => a.config.id.localeCompare(b.config.id))[0]?.config.id === config.id;
+        return { percent: preferred?.config.id === config.id || ownFallback ? 100 * share : 0, mandatory: true, delayMin: 0, upstreamRank: 0 };
     }
     if (entry.enabled === false)
         return { percent: 0, mandatory: false, delayMin: 0, upstreamRank: 0 };
+    if (config.movementId && cross) {
+        if (config.path === 'A48-dernbach' && config.targetPath === 'A3-frankfurt') {
+            const alternate = entries.find(e => e.enabled !== false && e.config.journey?.kind === 'via' && e.config.movementId === config.movementId);
+            if (alternate && routedDiversionChoice(alternate, entries, cells, routes, events, exits, demands, turnDelays).percent > 0)
+                return { percent: 0, mandatory: false, delayMin: 0, upstreamRank: 0 };
+        }
+        if (entries.some(e => !e.config.movementId && e.config.path === path && Math.abs(e.config.fromM - config.fromM) <= 25 &&
+            requiredDiversionGate(e.config, route, events, exits)))
+            return { percent: 0, mandatory: false, delayMin: 0, upstreamRank: 0 };
+        return interchangeChoice(entry, cells, routes, events, exits, demands, turnDelays);
+    }
+    // The A48 ends at the two A3 branches. When both destination routes are
+    // available, an additional unspecific "leave the network" route must not
+    // absorb those same travellers first at the ordinary 45-minute threshold.
+    if (path === 'A48-dernbach' && config.exitsNetwork && !cross) {
+        const siblings = entries.filter(e => e.enabled !== false && e.config.path === path && Math.abs(e.config.fromM - config.fromM) <= 25);
+        if (siblings.some(e => e.config.movementId === 'ramp-a48-to-koeln') &&
+            siblings.some(e => e.config.movementId === 'ramp-a48-to-frankfurt'))
+            return { percent: 0, mandatory: false, delayMin: 0, upstreamRank: 0 };
+    }
     const sourceEnd = cross ? config.sourceEndM ?? route.lengthM : config.toM;
     const approachEnd = gate?.metre ?? sourceEnd;
     const upstreamRank = route.key.startsWith('ramp-') ? 0 : diversionJunctions(path, exits, route)

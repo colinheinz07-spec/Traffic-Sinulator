@@ -84,5 +84,5 @@ test('cell network couples verified detours and retains the separate ramp projec
  const view=readFileSync('src/traffic-view.ts','utf8');
  assert.match(view,/state\?cellSpeedBands\(state\):own\.flatMap/);
  assert.ok(src.includes('view.bands'));
- assert.match(src,/advanceSpatial\(spatialState,timeline,active,1,spatialCorridors,rampConnections,transfers,exits(?:,physicalMainline)?\)/);
+ assert.match(src,/advanceSpatial\(spatialState,timeline,(?:active|legacyActive),1,spatialCorridors,rampConnections,transfers,exits(?:,physicalMainline)?\)/);
 });

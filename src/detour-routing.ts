@@ -15,8 +15,12 @@ export interface RoadGraph {adjacency:Map<number,Segment[]>;coordinates:Map<numb
  neighbours:Map<number,Set<number>>;trafficSignals:Set<number>}
 export interface DetourGeometry {
  id:string;path:RoadId;sourceExitRef:string;targetExitRef:string;points:Point[];
- lengthKm:number;freeMinutes:number;roadCapacityVph:number;junctionCount:number;trafficLightCount:number;source:'osm-official-relation'|'osm-routed-infill'|'simulated-bundled';
+ lengthKm:number;freeMinutes:number;roadCapacityVph:number;junctionCount:number;trafficLightCount:number;source:'osm-official-relation'|'osm-routed-infill'|'simulated-bundled'|'osm-motorway-ramp';
  relationId:number|null;label:string;
+ /** Directional simulator road sections. Routes using the same section
+  * share its service capacity; this is not an official U-route claim. */
+ sections?:{id:string;capacityVph:number}[];
+ storageVehicles?:number;
 }
 export const OFFICIAL_OSM_RELATION_IDS:Readonly<Record<string,number>>={
  'A3-koeln-U72':186925,'A3-koeln-U74':186902,

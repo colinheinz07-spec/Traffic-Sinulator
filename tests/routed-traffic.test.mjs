@@ -111,7 +111,7 @@ test('an A3 queue reaching AD Dernbach offers A48 exits including Höhr to rejoi
  const at=connection.downstreamMergeM+1000,e=event(at);
  const cells=initialiseCells(route,3000);
  for(const c of cells.cells)if(c.fromM<=at&&c.toM>=connection.downstreamMergeM-1000){c.speedKmh=5;c.densityVehKm=160;c.vehicles=160*(c.toM-c.fromM)/1000;}
- const choices=automaticDiversions([e],routes,exits,{[path]:cells},links).filter(c=>c.path==='A48-dernbach');
+ const choices=automaticDiversions([e],routes,exits,{[path]:cells},links).filter(c=>c.path==='A48-dernbach'&&!c.from.isInterchange);
  assert.deepEqual(choices.map(c=>c.from.ref).sort(),['10','11','12']);
  assert.ok(choices.every(c=>c.targetPath===path&&c.to.metre>at));
 });

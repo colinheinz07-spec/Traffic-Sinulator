@@ -7,7 +7,48 @@
  */
 import type {Ramp,Point,RoadId} from './core.js';
 import {positionM,metres,type Corridor,type Jam} from './spatial.js';
-import type {PathKey} from './traffic.js';
+import {defaultDemand,eventCapacity,type PathKey} from './traffic.js';
+import {DEFAULT_CLEARANCE_MIN,type SimEvent} from './events.js';
+
+export const INTERCHANGE_DIVERSION_START_MIN=85;
+const movements:Partial<Record<PathKey,{from:RoadId;to:RoadId}>>={
+ 'ramp-a48-to-koeln':{from:'A48-dernbach',to:'A3-koeln'},
+ 'ramp-a48-to-frankfurt':{from:'A48-dernbach',to:'A3-frankfurt'},
+ 'ramp-a3-to-a48-from-koeln':{from:'A3-frankfurt',to:'A48-koblenz'},
+ 'ramp-a3-to-a48-from-frankfurt':{from:'A3-koeln',to:'A48-koblenz'}
+};
+/** Explicit destination-mix assumption, not individually observed trips.
+ * A48 ends at the two A3 branches. A3 includes straight-ahead traffic, so
+ * only its configured A48 turn share is eligible for the Koblenz bypass. */
+export function interchangeTrafficShare(id:PathKey,from:RoadId,to:RoadId,
+ demands:Readonly<Partial<Record<PathKey,number>>>):number{
+ const movement=movements[id];
+ if(!movement||movement.from!==from||movement.to!==to)return 0;
+ const rate=(key:PathKey)=>Math.max(0,demands[key]??defaultDemand(key));
+ const total=from==='A48-dernbach'?rate('ramp-a48-to-koeln')+rate('ramp-a48-to-frankfurt'):rate(from);
+ return total>0?Math.min(1,rate(id)/total):0;
+}
+/** Only the matching turn's observations count. A blocked accident uses
+ * the same declared one-lane reopening scenario as a blocked mainline;
+ * its age is never substituted for travel-time loss. */
+export function interchangeDelays(jams:readonly Jam[],events:readonly SimEvent[]):Partial<Record<PathKey,number>>{
+ const result:Partial<Record<PathKey,number>>={};
+ for(const jam of jams){
+  if(!movements[jam.pathKey])continue;
+  let loss=jam.delayMin;
+  if(loss===null){
+   const event=events.find(e=>e.id===jam.id&&e.kind!=='closure');
+   if(!event)continue;
+   const release={...event,closedLanes:Array.from({length:Math.max(0,event.laneCount-1)},(_,i)=>i),
+    settings:{...event.settings,speedKmh:40,shoulder:'normal' as const}};
+   const service=eventCapacity(release);
+   if(service<=0)continue;
+   loss=(event.settings.clearanceMin??DEFAULT_CLEARANCE_MIN)+jam.queueVehicles/service*60;
+  }
+  result[jam.pathKey]=Math.max(result[jam.pathKey]??0,loss);
+ }
+ return result;
+}
 
 export interface RampConnection {
  rampId:PathKey;

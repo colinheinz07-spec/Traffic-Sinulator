@@ -1,9 +1,10 @@
-import { positionM, closureGate } from './spatial.js?build=e5dc2a5d589428ef';
-import { DIVERSION_LINKS, diversionJunctions, nearestExitBeforeQueue } from './diversions.js?build=e5dc2a5d589428ef';
-import { speedDelayInCells } from './speed-delay.js?build=e5dc2a5d589428ef';
-import { cellQueueSpans } from './traffic-cells.js?build=e5dc2a5d589428ef';
-import { bundledTargets, isNetworkDestination } from './bundled-detours.js?build=e5dc2a5d589428ef';
-export function automaticDiversions(events, corridors, exits, cells, connections = []) {
+import { positionM, closureGate } from './spatial.js?build=8b296e46c96ba8b2';
+import { DIVERSION_LINKS, diversionJunctions, nearestExitBeforeQueue } from './diversions.js?build=8b296e46c96ba8b2';
+import { speedDelayInCells } from './speed-delay.js?build=8b296e46c96ba8b2';
+import { cellQueueSpans } from './traffic-cells.js?build=8b296e46c96ba8b2';
+import { bundledTargets, isNetworkDestination } from './bundled-detours.js?build=8b296e46c96ba8b2';
+import { interchangeJourneys } from './interchange-journeys.js?build=8b296e46c96ba8b2';
+export function automaticDiversions(events, corridors, exits, cells, connections = [], turnDelays = {}) {
     const plans = new Map();
     for (const event of events) {
         if (event.pathKey.startsWith('ramp-'))
@@ -19,14 +20,17 @@ export function automaticDiversions(events, corridors, exits, cells, connections
             // Prepare cross-motorway alternatives before the target queue reaches
             // the AD. The remaining journey's delay controls whether anyone uses it.
             const source = connection.from, to = after[0];
-            const sources = diversionJunctions(source, exits, corridors[source]).filter(x => !x.isInterchange && x.metre < connection.rampEntryM - 50);
+            const junctions = diversionJunctions(source, exits, corridors[source]).filter(x => !x.isInterchange);
+            const sources = source === 'A3-koeln' && path === 'A48-koblenz'
+                ? junctions.filter(x => x.metre > connection.rampEntryM).slice(0, 1)
+                : junctions.filter(x => x.metre < connection.rampEntryM - 50);
             for (const from of sources) {
                 const link = { id: source + '-BUNDLED-' + from.ref + '-to-' + path, code: 'SIM', path: source,
                     fromRoad: from.road, fromRef: from.ref, toRoad: to.road, toRef: to.ref, evidence: 'partial',
                     description: 'Enthaltene simulierte Umfahrung des blockierten Autobahnknotens' };
                 const key = link.id + ':' + to.ref;
-                plans.set(source + ':' + from.ref, { key, event, path: source, from, to, link, targetPath: path,
-                    sourceEndM: connection.rampEntryM, targetEntryM: connection.downstreamMergeM, delayMin: null });
+                plans.set(source + ':' + from.ref + ':' + path, { key, event, path: source, from, to, link, targetPath: path,
+                    movementId: connection.rampId, sourceEndM: connection.rampEntryM, targetEntryM: connection.downstreamMergeM, delayMin: null });
             }
         }
         for (const from of all.filter(x => section ? x.metre <= section.metre + 1 : x.metre < at - 50)) {
@@ -75,18 +79,95 @@ export function automaticDiversions(events, corridors, exits, cells, connections
                 const source = connection.from, sourceRoute = corridors[source], sourceGrid = cells[source];
                 const approach = sourceGrid && cellQueueSpans(sourceGrid).find(s => s.fromM < connection.rampEntryM &&
                     s.toM >= connection.rampEntryM - sourceGrid.cellM);
-                const from = nearestExitBeforeQueue(source, sourceRoute, exits, approach?.fromM ?? connection.rampEntryM, connection.rampEntryM);
-                if (!from || !to || plans.has(source + ':' + from.ref))
+                const from = source === 'A3-koeln' && path === 'A48-koblenz'
+                    ? diversionJunctions(source, exits, sourceRoute).find(j => !j.isInterchange && j.metre > connection.rampEntryM)
+                    : nearestExitBeforeQueue(source, sourceRoute, exits, approach?.fromM ?? connection.rampEntryM, connection.rampEntryM);
+                if (!from || !to || plans.has(source + ':' + from.ref + ':' + path))
                     continue;
                 const link = { id: source + '-BUNDLED-' + from.ref + '-to-' + path, code: 'SIM', path: source,
                     fromRoad: from.road, fromRef: from.ref, toRoad: to.road, toRef: to.ref, evidence: 'partial',
                     description: 'Enthaltene simulierte Umfahrung des Autobahnknotens' };
                 const key = link.id + ':' + to.ref;
-                plans.set(source + ':' + from.ref, { key, event: null, causeId: 'queue:' + key, path: source, from, to, link,
-                    targetPath: path, sourceEndM: connection.rampEntryM, targetEntryM: connection.downstreamMergeM, delayMin: time.delayMin });
+                plans.set(source + ':' + from.ref + ':' + path, { key, event: null, causeId: 'queue:' + key, path: source, from, to, link,
+                    targetPath: path, movementId: connection.rampId, sourceEndM: connection.rampEntryM, targetEntryM: connection.downstreamMergeM, delayMin: time.delayMin });
             }
         }
     }
+    // All four AD movements need a route even when the queue is on their
+    // source approach or on the turn itself. Preparing the two A48 targets
+    // under distinct keys must not replace one destination with the other.
+    for (const connection of connections) {
+        const source = connection.from, target = connection.to, sourceRoute = corridors[source], targetRoute = corridors[target];
+        const targetExits = bundledTargets(target, exits, targetRoute);
+        const first = targetExits.find(j => j.metre > connection.downstreamMergeM + 1);
+        let end = connection.downstreamMergeM;
+        const relevant = cells[target] ? cellQueueSpans(cells[target]).filter(s => s.fromM <= first.metre + 1 &&
+            s.toM > connection.downstreamMergeM) : [];
+        const sourceExits = diversionJunctions(source, exits, sourceRoute).filter(j => !j.isInterchange);
+        const lastSource = sourceExits.filter(j => j.metre < connection.rampEntryM - 1).at(-1);
+        const sourceQueue = cells[source] && cellQueueSpans(cells[source]).some(s => s.toM >= (lastSource?.metre ?? connection.rampEntryM) - 1 && s.fromM < connection.rampEntryM);
+        const sourceEvent = events.some(e => e.pathKey === source && (() => {
+            const at = positionM(sourceRoute, e.point);
+            return at !== null && at >= (lastSource?.metre ?? connection.rampEntryM) - 1 && at < connection.rampEntryM;
+        })());
+        const targetEvent = events.some(e => e.pathKey === target && (() => {
+            const at = positionM(targetRoute, e.point);
+            return at !== null && at + e.settings.lengthM > connection.downstreamMergeM && at <= first.metre;
+        })());
+        if (!sourceQueue && !sourceEvent && !targetEvent && !relevant.length && !events.some(e => e.pathKey === connection.rampId) &&
+            (turnDelays[connection.rampId] ?? 0) < 85)
+            continue;
+        for (const span of relevant)
+            end = Math.max(end, span.toM);
+        for (const event of events.filter(e => e.pathKey === target)) {
+            const at = positionM(targetRoute, event.point);
+            if (at === null || at + event.settings.lengthM <= connection.downstreamMergeM || at > Math.max(first.metre, end) + 150)
+                continue;
+            const closure = closureGate(targetRoute, event, exits);
+            end = Math.max(end, closure?.endM ?? at + event.settings.lengthM + 50);
+        }
+        const to = targetExits.find(j => isNetworkDestination(j) || j.metre >= end - 1 && j.metre > connection.downstreamMergeM + 1);
+        const all = sourceExits;
+        // For Koblenz-bound traffic from Frankfurt the useful Cologne-side AS
+        // is AFTER the normal AD turn: continue on A3 to Ransbach, then Höhr.
+        let sources = source === 'A3-koeln' && target === 'A48-koblenz'
+            ? all.filter(j => j.metre > connection.rampEntryM).slice(0, 1)
+            : all.filter(j => j.metre < connection.rampEntryM - 1);
+        if (!sourceEvent && !targetEvent && !events.some(e => e.pathKey === connection.rampId) && source !== 'A3-koeln') {
+            const allowed = new Set();
+            if (cells[source])
+                for (const span of cellQueueSpans(cells[source])) {
+                    if (span.toM < (lastSource?.metre ?? connection.rampEntryM) - 1)
+                        continue;
+                    const near = nearestExitBeforeQueue(source, sourceRoute, exits, span.fromM, connection.rampEntryM);
+                    for (const j of sources)
+                        if (j.metre >= (near?.metre ?? span.fromM) - 25 && j.metre <= Math.min(span.toM, connection.rampEntryM) + 25)
+                            allowed.add(j.ref);
+                }
+            if (relevant.length || (turnDelays[connection.rampId] ?? 0) > 0) {
+                const approach = cells[source] && cellQueueSpans(cells[source]).find(s => s.fromM < connection.rampEntryM && s.toM >= connection.rampEntryM - cells[source].cellM);
+                const near = nearestExitBeforeQueue(source, sourceRoute, exits, approach?.fromM ?? connection.rampEntryM, connection.rampEntryM);
+                for (const j of sources)
+                    if (near && (j.ref === near.ref || approach && j.metre >= approach.fromM && j.metre <= connection.rampEntryM))
+                        allowed.add(j.ref);
+            }
+            sources = sources.filter(j => allowed.has(j.ref));
+        }
+        for (const from of sources) {
+            const mapKey = source + ':' + from.ref + ':' + target;
+            const old = plans.get(mapKey);
+            if (old && old.to.metre >= to.metre)
+                continue;
+            const link = { id: source + '-BUNDLED-' + from.ref + '-to-' + target, code: 'SIM', path: source,
+                fromRoad: from.road, fromRef: from.ref, toRoad: to.road, toRef: to.ref, evidence: 'partial',
+                description: 'Zielgerichtete simulierte Umfahrung des AD Dernbach' };
+            const key = link.id + ':' + to.ref;
+            plans.set(mapKey, { key, event: null, causeId: 'turn:' + connection.rampId, path: source, from, to, link,
+                targetPath: target, movementId: connection.rampId, sourceEndM: connection.rampEntryM,
+                targetEntryM: connection.downstreamMergeM, delayMin: null });
+        }
+    }
     // Preparing alternatives is not permission for remote exits to divert.
-    return [...plans.values()].sort((a, b) => a.path.localeCompare(b.path) || b.from.metre - a.from.metre);
+    return [...plans.values(), ...interchangeJourneys(events, corridors, exits, cells, connections, turnDelays)]
+        .sort((a, b) => a.path.localeCompare(b.path) || b.from.metre - a.from.metre);
 }

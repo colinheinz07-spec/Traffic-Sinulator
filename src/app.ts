@@ -5,10 +5,11 @@ import {makeCorridors,routeSlice,positionM,closureGate,advanceSpatial,emptySpati
 import {initialiseCells,type CellRouteState} from './traffic-cells.js';
 import {speedDelayLabel} from './speed-delay.js';
 import {trafficView} from './traffic-view.js';
-import {advanceRoutedNetwork,type RoutedDetour} from './routed-traffic.js';
+import {advanceRoutedNetwork,remainingInterchangeDemands,type RoutedDetour} from './routed-traffic.js';
 import {routedDiversionChoice,requiredDiversionGate} from './diversion-policy.js';
 import {automaticDiversions,type AutomaticDiversion} from './auto-diversions.js';
-import {buildRampConnections,rampSpillbacks} from './interchange.js';
+import {buildRampConnections,rampSpillbacks,interchangeDelays,interchangeTrafficShare} from './interchange.js';
+import {journeyRampCapacity,journeyRampJams,rampCapacity} from './interchange-journeys.js';
 import {diversionJunctions,planDiversion,type DiversionLink} from './diversions.js';
 import {junctionMovements,junctionMovementHint,type RealDetourFlow,type JunctionMovement} from './junction-movements.js';
 import {bundledDetourGeometry,bundledExitRoutes,bundledTargets,isNetworkDestination} from './bundled-detours.js';
@@ -162,7 +163,7 @@ function updateEventConfigPreview(resetSpeed=false){
  const open=Math.max(0,count-closed.length)+(mode==='open'?1:0);
  $('event-forecast-row').hidden=kind==='closure'||open>0||isRamp;
  $('event-rule-hint').textContent=kind==='closure'
-  ?'Vollsperrung: Ausleitung an der letzten regulären AS davor. Auffahrten bleiben bis zur Wiedereinfahrts-AS geschlossen. Fahrzeuge im Abschnitt fahren weiter heraus.'
+  ?'Vollsperrung: Betroffene Fahrten verlassen die Autobahn an der letzten regulären AS davor. Ein noch vor der Sperre offener Autobahnabzweig bleibt für dessen Fahrtziel erreichbar. Auffahrten in den gesperrten Abschnitt bleiben geschlossen; vorhandene Fahrzeuge fahren heraus.'
   :open===0?'Kein freier Fahrstreifen: derzeit kein Durchfluss. Ein Unfall ist trotzdem KEIN formales Vollsperrungs-Ereignis.'
   :`${open} nutzbare Fahrstreifen (davon ${mode==='open'?'1 Standstreifen':'0 Standstreifen'}). Geschwindigkeitsvorschlag ${suggested} km/h – frei anpassbar. Nur Simulationsannahme, keine StVO-Vorgabe.`;
 }
@@ -253,9 +254,12 @@ function readCachedDetours():DetourConfig[]{
     typeof c.eventId==='string'&&Number.isFinite(c.fromM)&&Number.isFinite(c.toM)&&
     c.fromM>=0&&c.fromM<spatialCorridors[c.path].lengthM&&c.toM>=0&&c.toM<=spatialCorridors[target].lengthM&&
     (target!==c.path||c.toM>c.fromM)&&g?.id===c.id&&g.path===c.path&&
-    ['osm-official-relation','osm-routed-infill','simulated-bundled'].includes(g.source)&&
+    ['osm-official-relation','osm-routed-infill','simulated-bundled','osm-motorway-ramp'].includes(g.source)&&
     Number.isFinite(g.freeMinutes)&&g.freeMinutes>0&&Number.isFinite(g.lengthKm)&&g.lengthKm>0&&
     Number.isFinite(g.roadCapacityVph)&&g.roadCapacityVph>0&&g.roadCapacityVph<=3000&&
+    (c.movementId===undefined||PATHS.includes(c.movementId)&&c.movementId.startsWith('ramp-'))&&
+    (g.sections===undefined||Array.isArray(g.sections)&&g.sections.length<=100&&g.sections.every(s=>
+     typeof s.id==='string'&&Number.isFinite(s.capacityVph)&&s.capacityVph>0&&s.capacityVph<=3000))&&
     Array.isArray(g.points)&&g.points.length>=2&&g.points.length<=30000&&
     g.points.every(p=>Array.isArray(p)&&p.length===2&&p.every(Number.isFinite));
   });
@@ -277,6 +281,10 @@ function dateTimeInputValue(d:Date):string{
  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 function simulatedClock():Date{return new Date(simulationStartMs+spatialState.minute*60000);}
+function trafficJams(timeline:readonly SimEvent[]=activeEvents()){
+ return [...jamsAt(spatialState,timeline,spatialCorridors),
+  ...journeyRampJams([...activeDetours.values()],spatialCorridors,timeline,currentDemands())];
+}
 function currentDemands():Record<PathKey,number>{
  return demandMode==='clock'
   ?demandAtClock(trafficDemands,simulatedClock())
@@ -305,7 +313,8 @@ function findDetourTarget(path:typeof DIRECTIONS[number],event:SimEvent,
 }
 function activateDetour(config:DetourConfig){
  for(const [id,other] of activeDetours){
-  if(id!==config.id&&other.config.path===config.path&&Math.abs(other.config.fromM-config.fromM)<25)
+  if(id!==config.id&&other.config.path===config.path&&Math.abs(other.config.fromM-config.fromM)<25&&
+   other.config.movementId===config.movementId)
    activeDetours.set(id,{...other,enabled:false});
  }
  const old=activeDetours.get(config.id);
@@ -315,16 +324,27 @@ function activateDetour(config:DetourConfig){
  * A failed or missing online service cannot block an off-ramp. */
 function prepareAutomaticDetour(option:AutomaticDiversion,enable=true){
  const k=option.key,cached=mappedDetours.get(k);
- const geometry=cached?.geometry??bundledDetourGeometry(k,option.path,option.from,option.to,exits);
+ const geometry=option.geometry??(cached&&cached.geometry.source!=='simulated-bundled'?cached.geometry:
+  bundledDetourGeometry(k,option.path,option.from,option.to,exits));
  const config:DetourConfig={id:k,path:option.path,fromM:option.from.metre,
   toM:option.to.metre,eventId:option.event?.id??option.causeId??k,geometry,
   targetPath:option.targetPath,sourceEndM:option.sourceEndM,targetEntryM:option.targetEntryM,
+  movementId:option.movementId,
+  journey:option.journey,
   exitsNetwork:isNetworkDestination(option.to)};
  mappedDetours.set(k,config);
  const running=activeDetours.get(k);
- const required=requiredDiversionGate(config,spatialCorridors[option.path],activeEvents(),exits)!==null;
+ const timeline=activeEvents(),target=config.targetPath??config.path;
+ const candidate={config,state:running?.state??emptyDetour(config),enabled:true};
+ const required=requiredDiversionGate(config,spatialCorridors[option.path],timeline,exits)!==null||
+  !!config.journey?.forcedByEventId&&timeline.some(e=>e.id===config.journey!.forcedByEventId&&e.kind==='closure')||
+  !!cellNetwork[config.path]&&!!cellNetwork[target]&&routedDiversionChoice(candidate,
+   [...activeDetours.values()].filter(e=>e.config.id!==config.id).concat(candidate),cellNetwork,
+   spatialCorridors,timeline,exits,currentDemands()).mandatory;
  const changed=!running||running.config.eventId!==config.eventId||running.config.fromM!==config.fromM||
   running.config.toM!==config.toM||running.config.targetPath!==config.targetPath||
+  running.config.movementId!==config.movementId||
+  JSON.stringify(running.config.journey)!==JSON.stringify(config.journey)||
   running.config.exitsNetwork!==config.exitsNetwork;
  if(enable&&required){
   suppressedDetours.delete(k);
@@ -333,7 +353,8 @@ function prepareAutomaticDetour(option:AutomaticDiversion,enable=true){
  return config;
 }
 function prepareAutomaticDetours(){
- for(const option of automaticDiversions(activeEvents(),spatialCorridors,exits,cellNetwork,rampConnections)){
+ const timeline=activeEvents(),turnDelays=interchangeDelays(trafficJams(timeline),timeline);
+ for(const option of automaticDiversions(timeline,spatialCorridors,exits,cellNetwork,rampConnections,turnDelays)){
   if(!suppressedDetours.has(option.key))prepareAutomaticDetour(option);
  }
 }
@@ -341,9 +362,14 @@ function prepareAutomaticDetours(){
  * Both counts come from accepted cell transfers, not requested percentages.
  */
 function realJunctionFlows():RealDetourFlow[]{
+ const demands=currentDemands(),timeline=activeEvents();
  return [...activeDetours.values()].map(entry=>({
   path:entry.config.path,fromM:entry.config.fromM,toM:entry.config.toM,
   eventId:entry.config.eventId,targetPath:entry.config.targetPath,desiredPercent:entry.desiredPercent,
+  movementId:entry.config.movementId,
+  openTurn:entry.enabled!==false&&entry.config.journey?.kind==='protected'&&journeyRampCapacity(entry.config,timeline,demands)>0?
+   {gateM:entry.config.journey.gateM,percent:interchangeTrafficShare(entry.config.movementId!,entry.config.path,
+    entry.config.targetPath!,demands)*100}:undefined,
   outVph:entry.state.lastDeparture*60,inVph:entry.state.lastRejoined*60,
   vehiclesOnDetour:detourVehicles(entry.state),waitingAtReentry:entry.state.waitingMerge
  }));
@@ -389,6 +415,7 @@ function renderJunctionMovements(path:PathKey){
    card.append(split);
    const note=document.createElement('span');note.className='junction-note';
    note.textContent=row.mandatory?
+    row.desiredPercent<99.99?'⛔ Verkehr auf dem gesperrten A3-Zweig muss hier abfahren. Verkehr zum noch offenen A48-Abzweig darf bis zum AD Dernbach weiterfahren.':
     '⛔ Letzte reguläre Ausfahrt vor der Vollsperrung: 100 % sollen abfahren. Die tatsächliche Abfahrt wird durch die Kapazität von Ausfahrt und Nebenstraßen begrenzt.':
     row.vehiclesOnDetour>0||row.waitingAtReentry>0||row.desiredPercent>0?
      'Stauumfahrung · '+trafficNumber(row.vehiclesOnDetour)+' Fzg unterwegs/wartend · '+trafficNumber(row.waitingAtReentry)+' vor Wiedereinfädelung':
@@ -442,14 +469,20 @@ function renderDiversionPlanner(key:PathKey,jams:ReturnType<typeof jamsAt>,spill
   parent.append(p);return;
  }
  const direction=key as typeof DIRECTIONS[number],corridor=spatialCorridors[direction];
- const cross=automaticDiversions(activeEvents(),spatialCorridors,exits,cellNetwork,rampConnections)
-  .filter(c=>c.path===direction&&c.targetPath&&c.targetPath!==direction);
+ const timeline=activeEvents(),turnDelays=interchangeDelays(trafficJams(timeline),timeline);
+ const cross=automaticDiversions(timeline,spatialCorridors,exits,cellNetwork,rampConnections,turnDelays)
+  .filter(c=>c.path===direction&&c.targetPath&&c.targetPath!==direction&&(()=>{
+   const entry=activeDetours.get(c.key);return entry&&(entry.desiredPercent??0)>0||entry&&detourVehicles(entry.state)>0;})());
  for(const option of cross){
   const row=document.createElement('div');row.className='diversion-option';
-  const title=document.createElement('strong');title.textContent=`AS ${option.from.ref} ${option.from.name} → ${isNetworkDestination(option.to)?option.to.name:trafficRouteLabel(option.targetPath!)+' · AS '+option.to.ref+' '+option.to.name}`;
+  const title=document.createElement('strong');title.textContent=option.journey?.kind==='via'?
+   'A48 → Köln-Rampe am AD → AS Ransbach-Baumbach → A3 Frankfurt':
+   option.journey?.kind==='protected'?'Offener A48-Abzweig am AD Dernbach':
+   `${option.from.isInterchange?'AD':'AS'} ${option.from.ref} ${option.from.name} → ${isNetworkDestination(option.to)?option.to.name:trafficRouteLabel(option.targetPath!)+' · '+(option.to.isInterchange?'AD ':'AS ')+option.to.ref+' '+option.to.name}`;
   const note=document.createElement('span'),entry=activeDetours.get(option.key);
   note.textContent=entry?`Automatisch · ${entry.config.geometry.label} · ${trafficNumber(entry.state.lastDeparture*60)} Fzg/h abgezweigt · ${entry.config.exitsNetwork?trafficNumber((entry.state.lastExitedNetwork??0)*60)+' Fzg/h verlassen das Netz':trafficNumber(entry.state.lastRejoined*60)+' Fzg/h zurück'}`:
    'Enthaltene simulierte Umfahrung des Autobahnknotens';
+  if(entry?.config.movementId)note.textContent+=' · freiwillig ab 85 min · nur Verkehr mit diesem Fahrtziel';
   row.append(title,note);parent.append(row);
  }
  const active=activeEvents().filter(e=>e.pathKey===direction);
@@ -465,7 +498,7 @@ function renderDiversionPlanner(key:PathKey,jams:ReturnType<typeof jamsAt>,spill
    const block=document.createElement('div');block.className='diversion-preview';
    const title=document.createElement('strong');title.textContent=`${eventSymbols[event.kind]} ${eventNames[event.kind]} · ${trafficRouteLabel(direction)}`;
    const demand=document.createElement('p');
-   demand.textContent=plan.requiredDiversion?'⛔ 100 % Pflichtabfahrt nur an der letzten AS vor der Sperre; frühere Ausfahrten abhängig von Rückstau und Wartezeit.'
+   demand.textContent=plan.requiredDiversion?'⛔ 100 % der Fahrzeuge zum gesperrten Zweig müssen an der letzten AS davor abfahren. Ein vor der Sperre offener Autobahnabzweig bleibt für dessen Fahrtziel nutzbar.'
     :'Ab 45 Minuten Zeitverlust dieses Staus weichen erste Fahrzeuge an der nächsten nutzbaren AS vor dem Stauende aus. Der Anteil steigt mit dem Zeitverlust; weiter entfernte Ausfahrten davor bleiben beim normalen Verkehr.';
    block.append(title,demand);
    if(!plan.candidateExits.length){
@@ -544,29 +577,47 @@ function renderTraffic(){
  prepareAutomaticDetours();
  const timeline=activeEvents();
  const choices=[...activeDetours.values()],demands=currentDemands();
+ const turnDelays=interchangeDelays(trafficJams(timeline),timeline);
  for(const entry of choices){
   const target=entry.config.targetPath??entry.config.path;
   const percent=cellNetwork[entry.config.path]&&cellNetwork[target]?
-   routedDiversionChoice(entry,choices,cellNetwork,spatialCorridors,timeline,exits,demands).percent:0;
+   routedDiversionChoice(entry,choices,cellNetwork,spatialCorridors,timeline,exits,demands,turnDelays).percent:0;
   activeDetours.set(entry.config.id,{...entry,desiredPercent:percent});
  }
  const selector=$<HTMLSelectElement>('traffic-route');const key=selector.value as PathKey;
  if(!PATHS.includes(key))return;
- const jams=jamsAt(spatialState,timeline,spatialCorridors);
+ const jams=trafficJams(timeline);
  const spillbacks=rampSpillbacks(jams,rampConnections,spatialCorridors);
  const view=trafficView(jams,cellNetwork,spatialCorridors,timeline,spillbacks,spatialState.minute);
  const result=view.reports[key];
  const bn=pathBottleneck(key,timeline);
  $('traffic-minute').textContent=`Minute ${spatialState.minute}`;
  updateMapClock();
- const activeDemands=currentDemands();
+ const activeDemands=remainingInterchangeDemands(currentDemands(),[...activeDetours.values()],timeline);
+ const extraRampFlow=new Map<PathKey,{enter:number;leave:number}>();
+ for(const entry of activeDetours.values()){
+  const j=entry.config.journey;if(j?.kind!=='via'&&j?.kind!=='protected')continue;
+  const flow=extraRampFlow.get(j.rampId)??{enter:0,leave:0};
+  flow.enter+=entry.state.lastDeparture*60;flow.leave+=entry.state.lastRejoined*60;extraRampFlow.set(j.rampId,flow);
+ }
+ if(key.startsWith('ramp-'))activeDemands[key]+=extraRampFlow.get(key)?.enter??0;
  $('traffic-demand').textContent=trafficNumber(activeDemands[key]);
  $('traffic-demand-hint').textContent=demandMode==='clock'
   ?'Automatisches Tagesprofil: Nacht, Morgen- und Abendspitze sowie Werktag/Samstag/Sonntag. Der eingegebene Zufluss ist ein Spitzenstunden-Referenzwert, kein Messwert. Feiertage und Ferien sind noch nicht berücksichtigt.'
   :demandMode==='wave'?'Testmodus: Abklingende Stoßzeit ab Simulationsstart; der Zufluss sinkt über ca. 100 Minuten.'
   :'Testmodus: Konstanter Zufluss unabhängig von Datum und Uhrzeit.';
- $('traffic-capacity').textContent=trafficNumber(result.capacityVph);
- $('traffic-outflow').textContent=trafficNumber(result.dischargeVph??Math.min(result.capacityVph,activeDemands[key]+result.ownVehicles*60));
+ let shownCapacity=result.capacityVph;
+ let normalOut=result.dischargeVph??Math.min(result.capacityVph,activeDemands[key]+result.ownVehicles*60);
+ if(key.startsWith('ramp-')){
+  const legacy=routeReport(key,jams.filter(j=>!j.id.startsWith('journey-ramp:')),spillbacks,timeline);
+  const link=rampConnections.find(c=>c.rampId===key);
+  const closed=link&&timeline.some(e=>{const gate=closureGate(spatialCorridors[link.to],e,exits);
+   return gate&&link.downstreamMergeM>=gate.metre-1&&link.downstreamMergeM<gate.endM-1;});
+  shownCapacity=closed?0:Math.min(rampCapacity(key,timeline,currentDemands()),legacy.capacityVph);
+  normalOut=Math.min(shownCapacity,activeDemands[key]-(extraRampFlow.get(key)?.enter??0)+legacy.ownVehicles*60);
+ }
+ $('traffic-capacity').textContent=trafficNumber(shownCapacity);
+ $('traffic-outflow').textContent=trafficNumber(normalOut+(extraRampFlow.get(key)?.leave??0));
  $('traffic-queue').textContent=trafficNumber(result.queueVehicles);
  $('traffic-shared').textContent=result.sharedRampVehicles>0?`Abfahrtsstreifen betroffen (${trafficColorName[result.exitColor]}): ${trafficNumber(result.sharedRampVehicles)} Fahrzeuge der Rampenwarteschlange auf dieser Autobahn. Abbieger-Wartezeit: ${result.exitDelayMin===null?'nicht berechenbar':trafficNumber(result.exitDelayMin,1)+' min'}. Kein zusätzlich erzeugter Stau im Durchgangsverkehr.`:'Keine Rampenfahrzeuge auf diesem Abschnitt';
  $('traffic-queue-km').textContent=`${trafficNumber(result.queueKm,1)} km${result.sharedRampVehicles>0&&result.ownVehicles===0?' · Abfahrt':''}`;
@@ -575,7 +626,7 @@ function renderTraffic(){
  $('traffic-events').textContent=bn.count===0?'Kein eigenes Ereignis auf dieser Richtung – mögliche Rückstauübertragung am AD wird berücksichtigt':
   `${bn.count} eigene(s) Ereignis(se) auf dieser Richtung`;
  const stateLabel=$('traffic-state');stateLabel.textContent=result.sharedRampVehicles>0?trafficColorName[result.exitColor].split(' / ')[0]+' (Abfahrt) · Durchgang '+trafficColorName[result.throughColor??result.color].toLowerCase():trafficColorName[result.color];stateLabel.className=`traffic-state ${result.color}`;
- $('traffic-closure-note').textContent=bn.event?.kind==='closure'?'Vollsperrung: Fahrzeuge fahren an der letzten regulären Ausfahrt ab. Der Zeitverlust gilt für den Rückstau bis zu dieser Ausleitung. Auffahrten im gesperrten Abschnitt bleiben geschlossen; vorhandene Fahrzeuge fahren heraus. Für die gesperrte Geradeausfahrt gibt es keine Durchfahrtsprognose.':
+ $('traffic-closure-note').textContent=bn.event?.kind==='closure'?'Vollsperrung: Betroffene Fahrzeuge fahren an der letzten regulären Ausfahrt ab. Ein vor der Sperre offener Autobahnabzweig bleibt für dessen Fahrtziel nutzbar. Der Zeitverlust gilt für den Rückstau bis zur Ausleitung. Auffahrten im gesperrten Abschnitt bleiben geschlossen; vorhandene Fahrzeuge fahren heraus. Für die gesperrte Geradeausfahrt gibt es keine Durchfahrtsprognose.':
   view.delays[key].forecastWaitMin!==undefined?'Geschätzter Zeitverlust: angenommene Restdauer bis zur Freigabe '+trafficNumber(view.delays[key].forecastWaitMin!)+' min, anschließend zunächst ein freier Fahrstreifen mit 40 km/h. Die Restdauer lässt sich im Ereignis ändern; Fahrstreifen werden dadurch nicht automatisch geöffnet.':'';
  const mergeQueues=jams.filter(j=>j.id.startsWith('merge:')&&!j.released);
  const overflowText=spillbacks.map(s=>`${trafficRouteLabel(s.rampId)}: ${trafficNumber(s.lengthM/1000,2)} km Rückstau auf ${trafficRouteLabel(s.source)}`).join(' · ');
@@ -648,17 +699,19 @@ function stepTraffic(minutes:number){
    const active=currentDemands();
    const timeline=activeEvents();
    const transfers:import('./spatial.js').SpatialTransfer[]=[];
-   const jams=jamsAt(spatialState,timeline,spatialCorridors);
+   const jams=trafficJams(timeline);
    const spillbacks=rampSpillbacks(jams,rampConnections,spatialCorridors);
    // Actual departures and returns share the A3/A48 cell inventory.
    for(const key of CELL_PATHS)cellNetwork[key]??=initialiseCells(spatialCorridors[key],active[key]);
-   const next=advanceRoutedNetwork(cellNetwork,spatialCorridors,timeline,active,exits,[...activeDetours.values()]);
+   const next=advanceRoutedNetwork(cellNetwork,spatialCorridors,timeline,active,exits,[...activeDetours.values()],
+    interchangeDelays(jams,timeline));
    cellNetwork=next.cells;
    for(const entry of next.detours)activeDetours.set(entry.config.id,entry);
    transfers.push(...next.transfers);
    const physicalMainline=trafficView(jams,cellNetwork,spatialCorridors,timeline,spillbacks,spatialState.minute+1)
     .physicalJams.filter(j=>!j.pathKey.startsWith('ramp-'));
-   spatialState=advanceSpatial(spatialState,timeline,active,1,spatialCorridors,rampConnections,transfers,exits,physicalMainline);
+   const legacyActive=remainingInterchangeDemands(active,[...activeDetours.values()],timeline);
+   spatialState=advanceSpatial(spatialState,timeline,legacyActive,1,spatialCorridors,rampConnections,transfers,exits,physicalMainline);
   }
   renderTraffic();
  }
@@ -781,7 +834,7 @@ const jamColors={slow:'#f59e0b',jam:'#dc2626',standstill:'#7f1d1d'} as const;
 function drawSpatialJams(){
  trafficLabelRects=[];
  const timeline=activeEvents();
- const list=jamsAt(spatialState,timeline,spatialCorridors);
+ const list=trafficJams(timeline);
  const spillbacks=rampSpillbacks(list,rampConnections,spatialCorridors);
  const view=trafficView(list,cellNetwork,spatialCorridors,timeline,spillbacks,spatialState.minute);
  const widths=lineWidths(zoom);
@@ -873,7 +926,7 @@ function showSelected(hit:MapHit){
   : `Fahrtrichtung eindeutig zugeordnet · OSM-Way ${hit.road.wayId}`;
  $('selected-direction').textContent=hitLabel(hit);
  $('selected-coords').textContent=`${hit.point[0].toFixed(6)}° N · ${hit.point[1].toFixed(6)}° E`;
- const timeline=activeEvents(),jams=jamsAt(spatialState,timeline,spatialCorridors);
+ const timeline=activeEvents(),jams=trafficJams(timeline);
  const view=trafficView(jams,cellNetwork,spatialCorridors,timeline,rampSpillbacks(jams,rampConnections,spatialCorridors),spatialState.minute);
  const details=view.reports[hit.key as PathKey];
  $('selected-traffic').textContent=`${trafficNumber(details.queueVehicles)} Fahrzeuge auf diesem Fahrweg · ${trafficNumber(details.queueKm,2)} km Rückstau · ${speedDelayLabel(view.delays[hit.key as PathKey])}${details.sharedRampVehicles>0?' Durchgang · Abfahrt '+(details.exitDelayMin===null?'blockiert':'+'+trafficNumber(details.exitDelayMin,1)+' min'):''}`;
