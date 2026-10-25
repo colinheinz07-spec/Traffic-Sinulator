@@ -76,7 +76,7 @@ test('an actual downstream A3 closure can reach A48 through ramp; releasing it d
  const road=networkData.roads.find(x=>x.road===link.to);
  const hit={kind:'road',road,point,key:link.to,distance:0,fraction:0};
  const event=eventFromHit(hit,'closure',3,[],'x','2026-10-19T00:00:00Z',{lengthM:200,speedKmh:0,shoulder:'blocked'});
- let state=advanceSpatial(emptySpatial(),[event],d,45,corridors);
+ let state=advanceSpatial(emptySpatial(),[event],d,60,corridors);
  let projected=mergeBackflows(jamsAt(state,[event],corridors),links,corridors,d);
  assert.ok(projected.some(x=>x.rampId===link.rampId&&x.sourceLengthM>0));
  const initial=projected.find(x=>x.rampId===link.rampId).sourceLengthM;

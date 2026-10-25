@@ -1,5 +1,5 @@
-import { nearestPolyline } from './core.js?build=d9daa17f83de1115';
-import { rampLaneWays, unverifiedRoadWays } from './lane-profiles.js?build=d9daa17f83de1115';
+import { nearestPolyline } from './core.js?build=e5dc2a5d589428ef';
+import { rampLaneWays, unverifiedRoadWays } from './lane-profiles.js?build=e5dc2a5d589428ef';
 export function roadLaneInfo(road) {
     if (unverifiedRoadWays.includes(road.wayId))
         return { count: road.lanes, label: `${road.lanes} (gespeicherte Altangabe – aktueller OSM-Weg nicht bestätigt)`, source: 'stale', wayId: road.wayId };

@@ -1,16 +1,16 @@
-import { positionM, closureGate } from './spatial.js?build=d9daa17f83de1115';
-import { baselineCapacity, eventCapacity } from './traffic.js?build=d9daa17f83de1115';
-import { flowPolicy, DEFAULT_CLEARANCE_MIN } from './events.js?build=d9daa17f83de1115';
-import { colorAtSpeed, freeSpeedKmh } from './traffic-physics.js?build=d9daa17f83de1115';
-import { normalJunctionTraffic } from './junction-traffic.js?build=d9daa17f83de1115';
-const TARGET_CELL_M = 100, WAVE_KMH = 22, JAM_PER_LANE = 95;
+import { positionM, closureGate } from './spatial.js?build=e5dc2a5d589428ef';
+import { baselineCapacity, eventCapacity } from './traffic.js?build=e5dc2a5d589428ef';
+import { flowPolicy, DEFAULT_CLEARANCE_MIN } from './events.js?build=e5dc2a5d589428ef';
+import { colorAtSpeed, freeSpeedKmh, QUEUE_JAM_DENSITY_PER_LANE, CONGESTION_WAVE_KMH } from './traffic-physics.js?build=e5dc2a5d589428ef';
+import { normalJunctionTraffic } from './junction-traffic.js?build=e5dc2a5d589428ef';
+const TARGET_CELL_M = 100, WAVE_KMH = CONGESTION_WAVE_KMH, JAM_PER_LANE = QUEUE_JAM_DENSITY_PER_LANE;
 // One observation per MODEL minute; repainting/pause never advances this.
 const TRAVEL_ALPHA = 1 - Math.exp(-1 / 6);
 export function cellLanes(path) {
     return path.startsWith('ramp-') ? 1 : path.startsWith('A48') ? 2 : 3;
 }
 export function cellCriticalDensity(path) {
-    return JAM_PER_LANE * cellLanes(path) * WAVE_KMH / (freeSpeedKmh(path) + WAVE_KMH);
+    return Math.min(baselineCapacity(path) / freeSpeedKmh(path), JAM_PER_LANE * cellLanes(path) * WAVE_KMH / (freeSpeedKmh(path) + WAVE_KMH));
 }
 export function initialiseCells(route, initialDemandVph) {
     if (!Number.isFinite(initialDemandVph) || initialDemandVph < 0 || initialDemandVph > 8000)
@@ -226,13 +226,42 @@ export function advanceCells(previous, route, events, demandVph, exits = [], por
     const density = new Float64Array(n), send = new Float64Array(n), receive = new Float64Array(n);
     const face = new Float64Array(n + 1), leaving = new Float64Array(n), joining = new Float64Array(n);
     const currentCapacity = new Float64Array(n + 1);
-    const critical = jam * WAVE_KMH / (freeSpeedKmh(route.key) + WAVE_KMH);
+    const approachLimit = new Float64Array(n);
+    const critical = cellCriticalDensity(route.key);
     for (let sub = 0; sub < substeps; sub++) {
         for (let i = 0; i < n; i++) {
             const k = occupancy[i] / dx;
             density[i] = k;
             send[i] = Math.min(speeds[i] * k, capacity[i]) * dtMin / 60;
             receive[i] = Math.min(WAVE_KMH * Math.max(0, jam - k), capacity[i]) * dtMin / 60;
+        }
+        // Drivers approach a locally visible slow tail instead of retaining
+        // free speed until they hit its last 100m cell. Comfortable braking
+        // (1.4m/s²) reaches at most ~470m ahead at 130 km/h. It applies only
+        // to looser approaching traffic, never as a new cap on every dense
+        // cell of the queue. Once the dense traffic clears, this constraint
+        // disappears through the same local density/receiving observations.
+        approachLimit.fill(Infinity);
+        let slowAt = -1, slowSpeed = 0;
+        for (let i = n - 1; i >= 0; i--) {
+            const k = density[i];
+            if (slowAt > i && k < jam * .55) {
+                const distance = (slowAt - i) * previous.cellM;
+                if (distance <= 500) {
+                    const limit = Math.sqrt((slowSpeed / 3.6) ** 2 + 2 * 1.4 * distance) * 3.6;
+                    if (limit < speeds[i]) {
+                        approachLimit[i] = limit;
+                        send[i] = Math.min(send[i], k * limit * dtMin / 60);
+                    }
+                }
+            }
+            if (k >= jam * .55) {
+                const velocity = Math.min(speeds[i], receive[i] * 60 / dtMin / k);
+                if (velocity <= 65) {
+                    slowAt = i;
+                    slowSpeed = velocity;
+                }
+            }
         }
         // Queue disturbances propagate ONLY through the accepted adjacent-cell
         // fluxes below. Do not replay a remote bottleneck's braking signal in
@@ -245,11 +274,15 @@ export function advanceCells(previous, route, events, demandVph, exits = [], por
         for (const release of releases) {
             const densityBefore = density[release.face - 1] ?? 0;
             if (densityBefore > critical * 1.15) {
-                // Several open lanes absorb individual departure pauses better than
-                // one. This explicit model assumption reduces the fluctuation at the
-                // real bottleneck; it never imposes another bottleneck upstream.
-                const open = flowPolicy(release.event).openMainLanes + (release.event.settings.shoulder === 'open' ? .65 : 0);
-                const factor = 1 + (platoonServiceFactor(release.event.id, previous.minute + sub * dtMin) - 1) / (open * open);
+                // Independent lane departures create actual local flow changes. A
+                // pause on one of two open lanes does not stop both lanes together.
+                // Disturbances then travel solely through adjacent conserved fluxes.
+                const open = flowPolicy(release.event).openMainLanes;
+                let service = 0;
+                for (let lane = 0; lane < open; lane++)
+                    service += platoonServiceFactor(release.event.id + ':lane:' + lane, previous.minute + sub * dtMin);
+                const shoulder = release.event.settings.shoulder === 'open' ? .65 : 0;
+                const factor = (service + shoulder) / (open + shoulder);
                 currentCapacity[release.face] = Math.min(currentCapacity[release.face] * factor, release.maximum);
             }
         }
@@ -343,7 +376,7 @@ export function advanceCells(previous, route, events, demandVph, exits = [], por
         let queued = 0, found = false;
         if (active && detectorCapacity > 0)
             for (let k = i; k >= 0; k--) {
-                if (occupancy[k] / dx >= jam * WAVE_KMH / (freeSpeedKmh(route.key) + WAVE_KMH) * 1.10) {
+                if (occupancy[k] / dx >= critical * 1.10) {
                     queued += occupancy[k];
                     found = true;
                 }
@@ -367,6 +400,7 @@ export function advanceCells(previous, route, events, demandVph, exits = [], por
             speedKmh: Math.max(0, speedKmh), densityVehKm,
             queueMemoryMin: densityVehKm >= critical * 1.10 ? 3 : Math.max(0, (c.queueMemoryMin ?? 0) - 1),
             travelFlowVph, limitKmh: speeds[i], travelDetector,
+            approachLimitKmh: Number.isFinite(approachLimit[i]) ? approachLimit[i] : undefined,
             blockedAtM: faceCapacity[i + 1] === 0 ? c.toM : undefined,
             reopeningForecast: controls.forecasts.get(i + 1) };
     });
@@ -388,7 +422,7 @@ export function cellSpeedBands(state) {
     const critical = cellCriticalDensity(state.pathKey);
     const bands = [];
     for (const c of state.cells) {
-        if (c.densityVehKm < critical * 1.10 || c.speedKmh > 65)
+        if ((c.densityVehKm < critical * 1.10 && c.approachLimitKmh === undefined) || c.speedKmh > 65)
             continue;
         const color = colorAtSpeed(c.speedKmh);
         if (color === 'free')
@@ -410,7 +444,8 @@ export function cellSpeedBands(state) {
 export function cellQueueSpans(state) {
     const threshold = cellCriticalDensity(state.pathKey) * 1.10, spans = [];
     for (const c of state.cells) {
-        if (c.densityVehKm < threshold && (c.queueMemoryMin ?? 0) <= 0)
+        if (c.densityVehKm < threshold && (c.queueMemoryMin ?? 0) <= 0 &&
+            !(c.approachLimitKmh !== undefined && c.speedKmh <= 65))
             continue;
         const last = spans.at(-1);
         if (last && Math.abs(last.toM - c.fromM) < .1)

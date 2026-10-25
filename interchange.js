@@ -1,4 +1,4 @@
-import { positionM, metres } from './spatial.js?build=d9daa17f83de1115';
+import { positionM, metres } from './spatial.js?build=e5dc2a5d589428ef';
 /** Source/destination must agree with actual motorway_link geometry.
  * All four ramps must connect to independently verified directional routes.
  * Distance threshold does not invent a linking polyline; it is a validation gate.

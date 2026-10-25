@@ -3,10 +3,10 @@
   "source": "OSM tags through Overpass; lane counts do not verify current physical markings",
   "roadSummary": {
     "A3-frankfurt": {
-      "matches": 188
+      "matches": 222
     },
     "A3-koeln": {
-      "matches": 191
+      "matches": 239
     },
     "A48-dernbach": {
       "matches": 72,
@@ -8716,6 +8716,1318 @@
         "maxspeed": "130"
       },
       "nearDernbach": true
+    },
+    {
+      "wayId": 88046243,
+      "road": "A3-koeln",
+      "km": 0.0305,
+      "modelLanes": 3,
+      "osmLanes": 3,
+      "status": "matches",
+      "tags": {
+        "highway": "motorway",
+        "lanes": "3",
+        "maxspeed": "120",
+        "oneway": "yes",
+        "ref": "A 3"
+      },
+      "nearDernbach": false
+    },
+    {
+      "wayId": 141225140,
+      "road": "A3-koeln",
+      "km": 1.0893,
+      "modelLanes": 3,
+      "osmLanes": 3,
+      "status": "matches",
+      "tags": {
+        "highway": "motorway",
+        "lanes": "3",
+        "maxspeed": "120",
+        "oneway": "yes",
+        "ref": "A 3"
+      },
+      "nearDernbach": false
+    },
+    {
+      "wayId": 141225141,
+      "road": "A3-koeln",
+      "km": 0.5435,
+      "modelLanes": 3,
+      "osmLanes": 3,
+      "status": "matches",
+      "tags": {
+        "highway": "motorway",
+        "lanes": "3",
+        "maxspeed": "none",
+        "oneway": "yes",
+        "ref": "A 3"
+      },
+      "nearDernbach": false
+    },
+    {
+      "wayId": 546686989,
+      "road": "A3-koeln",
+      "km": 0.3259,
+      "modelLanes": 4,
+      "osmLanes": 4,
+      "status": "matches",
+      "tags": {
+        "highway": "motorway",
+        "lanes": "4",
+        "maxspeed": "none",
+        "oneway": "yes",
+        "ref": "A 3"
+      },
+      "nearDernbach": false
+    },
+    {
+      "wayId": 546686990,
+      "road": "A3-koeln",
+      "km": 0.3617,
+      "modelLanes": 3,
+      "osmLanes": 3,
+      "status": "matches",
+      "tags": {
+        "highway": "motorway",
+        "lanes": "3",
+        "maxspeed": "none",
+        "oneway": "yes",
+        "ref": "A 3"
+      },
+      "nearDernbach": false
+    },
+    {
+      "wayId": 546686994,
+      "road": "A3-koeln",
+      "km": 0.0981,
+      "modelLanes": 4,
+      "osmLanes": 4,
+      "status": "matches",
+      "tags": {
+        "highway": "motorway",
+        "lanes": "4",
+        "maxspeed": "none",
+        "oneway": "yes",
+        "ref": "A 3"
+      },
+      "nearDernbach": false
+    },
+    {
+      "wayId": 28702852,
+      "road": "A3-koeln",
+      "km": 0.1836,
+      "modelLanes": 4,
+      "osmLanes": 4,
+      "status": "matches",
+      "tags": {
+        "highway": "motorway",
+        "lanes": "4",
+        "maxspeed": "none",
+        "oneway": "yes",
+        "ref": "A 3"
+      },
+      "nearDernbach": false
+    },
+    {
+      "wayId": 1490610436,
+      "road": "A3-koeln",
+      "km": 0.4028,
+      "modelLanes": 3,
+      "osmLanes": 3,
+      "status": "matches",
+      "tags": {
+        "highway": "motorway",
+        "lanes": "3",
+        "maxspeed": "120",
+        "oneway": "yes",
+        "ref": "A 3"
+      },
+      "nearDernbach": false
+    },
+    {
+      "wayId": 28702851,
+      "road": "A3-koeln",
+      "km": 0.7616,
+      "modelLanes": 3,
+      "osmLanes": 3,
+      "status": "matches",
+      "tags": {
+        "highway": "motorway",
+        "lanes": "3",
+        "maxspeed": "100",
+        "oneway": "yes",
+        "ref": "A 3"
+      },
+      "nearDernbach": false
+    },
+    {
+      "wayId": 1490610437,
+      "road": "A3-koeln",
+      "km": 0.1857,
+      "modelLanes": 3,
+      "osmLanes": 3,
+      "status": "matches",
+      "tags": {
+        "highway": "motorway",
+        "lanes": "3",
+        "maxspeed": "none",
+        "oneway": "yes",
+        "ref": "A 3"
+      },
+      "nearDernbach": false
+    },
+    {
+      "wayId": 992482371,
+      "road": "A3-koeln",
+      "km": 0.0594,
+      "modelLanes": 3,
+      "osmLanes": 3,
+      "status": "matches",
+      "tags": {
+        "highway": "motorway",
+        "lanes": "3",
+        "maxspeed": "none",
+        "oneway": "yes",
+        "ref": "A 3"
+      },
+      "nearDernbach": false
+    },
+    {
+      "wayId": 992482372,
+      "road": "A3-koeln",
+      "km": 0.2117,
+      "modelLanes": 3,
+      "osmLanes": 3,
+      "status": "matches",
+      "tags": {
+        "highway": "motorway",
+        "lanes": "3",
+        "maxspeed": "none",
+        "oneway": "yes",
+        "ref": "A 3"
+      },
+      "nearDernbach": false
+    },
+    {
+      "wayId": 304267505,
+      "road": "A3-koeln",
+      "km": 0.2473,
+      "modelLanes": 4,
+      "osmLanes": 4,
+      "status": "matches",
+      "tags": {
+        "highway": "motorway",
+        "lanes": "4",
+        "maxspeed": "none",
+        "oneway": "yes",
+        "ref": "A 3"
+      },
+      "nearDernbach": false
+    },
+    {
+      "wayId": 304267506,
+      "road": "A3-koeln",
+      "km": 0.1732,
+      "modelLanes": 3,
+      "osmLanes": 3,
+      "status": "matches",
+      "tags": {
+        "highway": "motorway",
+        "lanes": "3",
+        "maxspeed": "none",
+        "oneway": "yes",
+        "ref": "A 3"
+      },
+      "nearDernbach": false
+    },
+    {
+      "wayId": 304267508,
+      "road": "A3-koeln",
+      "km": 0.2602,
+      "modelLanes": 4,
+      "osmLanes": 4,
+      "status": "matches",
+      "tags": {
+        "highway": "motorway",
+        "lanes": "4",
+        "maxspeed": "none",
+        "oneway": "yes",
+        "ref": "A 3"
+      },
+      "nearDernbach": false
+    },
+    {
+      "wayId": 35484213,
+      "road": "A3-koeln",
+      "km": 1.0076,
+      "modelLanes": 3,
+      "osmLanes": 3,
+      "status": "matches",
+      "tags": {
+        "highway": "motorway",
+        "lanes": "3",
+        "maxspeed": "none",
+        "oneway": "yes",
+        "ref": "A 3"
+      },
+      "nearDernbach": false
+    },
+    {
+      "wayId": 88006334,
+      "road": "A3-koeln",
+      "km": 0.0376,
+      "modelLanes": 3,
+      "osmLanes": 3,
+      "status": "matches",
+      "tags": {
+        "highway": "motorway",
+        "lanes": "3",
+        "maxspeed": "none",
+        "oneway": "yes",
+        "ref": "A 3"
+      },
+      "nearDernbach": false
+    },
+    {
+      "wayId": 88006343,
+      "road": "A3-koeln",
+      "km": 0.4824,
+      "modelLanes": 3,
+      "osmLanes": 3,
+      "status": "matches",
+      "tags": {
+        "highway": "motorway",
+        "lanes": "3",
+        "maxspeed": "none",
+        "oneway": "yes",
+        "ref": "A 3"
+      },
+      "nearDernbach": false
+    },
+    {
+      "wayId": 88004925,
+      "road": "A3-koeln",
+      "km": 0.0274,
+      "modelLanes": 2,
+      "osmLanes": 2,
+      "status": "matches",
+      "tags": {
+        "highway": "motorway",
+        "lanes": "2",
+        "maxspeed": "80",
+        "oneway": "yes",
+        "ref": "A 3"
+      },
+      "nearDernbach": false
+    },
+    {
+      "wayId": 37264385,
+      "road": "A3-koeln",
+      "km": 1.3487,
+      "modelLanes": 2,
+      "osmLanes": 2,
+      "status": "matches",
+      "tags": {
+        "highway": "motorway",
+        "lanes": "2",
+        "maxspeed": "80",
+        "oneway": "yes",
+        "ref": "A 3"
+      },
+      "nearDernbach": false
+    },
+    {
+      "wayId": 992482669,
+      "road": "A3-koeln",
+      "km": 0.0687,
+      "modelLanes": 2,
+      "osmLanes": 2,
+      "status": "matches",
+      "tags": {
+        "highway": "motorway",
+        "lanes": "2",
+        "maxspeed": "80",
+        "oneway": "yes",
+        "ref": "A 3"
+      },
+      "nearDernbach": false
+    },
+    {
+      "wayId": 992482670,
+      "road": "A3-koeln",
+      "km": 0.711,
+      "modelLanes": 2,
+      "osmLanes": 2,
+      "status": "matches",
+      "tags": {
+        "highway": "motorway",
+        "lanes": "2",
+        "maxspeed": "80",
+        "oneway": "yes",
+        "ref": "A 3"
+      },
+      "nearDernbach": false
+    },
+    {
+      "wayId": 25404897,
+      "road": "A3-koeln",
+      "km": 0.0251,
+      "modelLanes": 2,
+      "osmLanes": 2,
+      "status": "matches",
+      "tags": {
+        "highway": "motorway",
+        "lanes": "2",
+        "maxspeed": "80",
+        "oneway": "yes",
+        "ref": "A 3"
+      },
+      "nearDernbach": false
+    },
+    {
+      "wayId": 620672136,
+      "road": "A3-koeln",
+      "km": 0.9317,
+      "modelLanes": 2,
+      "osmLanes": 2,
+      "status": "matches",
+      "tags": {
+        "highway": "motorway",
+        "lanes": "2",
+        "maxspeed": "80",
+        "oneway": "yes",
+        "ref": "A 3"
+      },
+      "nearDernbach": false
+    },
+    {
+      "wayId": 840177199,
+      "road": "A3-koeln",
+      "km": 0.0269,
+      "modelLanes": 2,
+      "osmLanes": 2,
+      "status": "matches",
+      "tags": {
+        "highway": "motorway",
+        "lanes": "2",
+        "maxspeed": "80",
+        "oneway": "yes",
+        "ref": "A 3"
+      },
+      "nearDernbach": false
+    },
+    {
+      "wayId": 840177198,
+      "road": "A3-koeln",
+      "km": 0.8212,
+      "modelLanes": 2,
+      "osmLanes": 2,
+      "status": "matches",
+      "tags": {
+        "highway": "motorway",
+        "lanes": "2",
+        "maxspeed": "80",
+        "oneway": "yes",
+        "ref": "A 3"
+      },
+      "nearDernbach": false
+    },
+    {
+      "wayId": 992482934,
+      "road": "A3-koeln",
+      "km": 0.6112,
+      "modelLanes": 2,
+      "osmLanes": 2,
+      "status": "matches",
+      "tags": {
+        "highway": "motorway",
+        "lanes": "2",
+        "maxspeed": "80",
+        "oneway": "yes",
+        "ref": "A 3"
+      },
+      "nearDernbach": false
+    },
+    {
+      "wayId": 992482935,
+      "road": "A3-koeln",
+      "km": 0.0881,
+      "modelLanes": 2,
+      "osmLanes": 2,
+      "status": "matches",
+      "tags": {
+        "highway": "motorway",
+        "lanes": "2",
+        "maxspeed": "80",
+        "oneway": "yes",
+        "ref": "A 3"
+      },
+      "nearDernbach": false
+    },
+    {
+      "wayId": 140575546,
+      "road": "A3-koeln",
+      "km": 0.6971,
+      "modelLanes": 2,
+      "osmLanes": 2,
+      "status": "matches",
+      "tags": {
+        "highway": "motorway",
+        "lanes": "2",
+        "maxspeed": "80",
+        "oneway": "yes",
+        "ref": "A 3"
+      },
+      "nearDernbach": false
+    },
+    {
+      "wayId": 840177202,
+      "road": "A3-koeln",
+      "km": 0.052,
+      "modelLanes": 2,
+      "osmLanes": 2,
+      "status": "matches",
+      "tags": {
+        "highway": "motorway",
+        "lanes": "2",
+        "maxspeed": "80",
+        "oneway": "yes",
+        "ref": "A 3"
+      },
+      "nearDernbach": false
+    },
+    {
+      "wayId": 840177203,
+      "road": "A3-koeln",
+      "km": 0.9142,
+      "modelLanes": 2,
+      "osmLanes": 2,
+      "status": "matches",
+      "tags": {
+        "highway": "motorway",
+        "lanes": "2",
+        "maxspeed": "80",
+        "oneway": "yes",
+        "ref": "A 3"
+      },
+      "nearDernbach": false
+    },
+    {
+      "wayId": 423654340,
+      "road": "A3-koeln",
+      "km": 1.2244,
+      "modelLanes": 2,
+      "osmLanes": 2,
+      "status": "matches",
+      "tags": {
+        "highway": "motorway",
+        "lanes": "2",
+        "maxspeed": "80",
+        "oneway": "yes",
+        "ref": "A 3"
+      },
+      "nearDernbach": false
+    },
+    {
+      "wayId": 992483386,
+      "road": "A3-koeln",
+      "km": 0.0908,
+      "modelLanes": 2,
+      "osmLanes": 2,
+      "status": "matches",
+      "tags": {
+        "highway": "motorway",
+        "lanes": "2",
+        "maxspeed": "80",
+        "oneway": "yes",
+        "ref": "A 3"
+      },
+      "nearDernbach": false
+    },
+    {
+      "wayId": 223297045,
+      "road": "A3-koeln",
+      "km": 0.1348,
+      "modelLanes": 2,
+      "osmLanes": 2,
+      "status": "matches",
+      "tags": {
+        "highway": "motorway",
+        "lanes": "2",
+        "maxspeed": "80",
+        "oneway": "yes",
+        "ref": "A 3"
+      },
+      "nearDernbach": false
+    },
+    {
+      "wayId": 1033213902,
+      "road": "A3-koeln",
+      "km": 0.5411,
+      "modelLanes": 3,
+      "osmLanes": 3,
+      "status": "matches",
+      "tags": {
+        "highway": "motorway",
+        "lanes": "3",
+        "maxspeed": "80",
+        "oneway": "yes",
+        "ref": "A 3"
+      },
+      "nearDernbach": false
+    },
+    {
+      "wayId": 266009531,
+      "road": "A3-koeln",
+      "km": 0.141,
+      "modelLanes": 4,
+      "osmLanes": 4,
+      "status": "matches",
+      "tags": {
+        "highway": "motorway",
+        "lanes": "4",
+        "maxspeed": "80",
+        "oneway": "yes",
+        "ref": "A 3"
+      },
+      "nearDernbach": false
+    },
+    {
+      "wayId": 266009535,
+      "road": "A3-koeln",
+      "km": 0.3084,
+      "modelLanes": 3,
+      "osmLanes": 3,
+      "status": "matches",
+      "tags": {
+        "highway": "motorway",
+        "lanes": "3",
+        "maxspeed": "80",
+        "oneway": "yes",
+        "ref": "A 3"
+      },
+      "nearDernbach": false
+    },
+    {
+      "wayId": 29230709,
+      "road": "A3-koeln",
+      "km": 0.104,
+      "modelLanes": 4,
+      "osmLanes": 4,
+      "status": "matches",
+      "tags": {
+        "highway": "motorway",
+        "lanes": "4",
+        "maxspeed": "100",
+        "oneway": "yes",
+        "ref": "A 3"
+      },
+      "nearDernbach": false
+    },
+    {
+      "wayId": 26330220,
+      "road": "A3-koeln",
+      "km": 0.0739,
+      "modelLanes": 4,
+      "osmLanes": 4,
+      "status": "matches",
+      "tags": {
+        "highway": "motorway",
+        "lanes": "4",
+        "maxspeed": "80",
+        "oneway": "yes",
+        "ref": "A 3"
+      },
+      "nearDernbach": false
+    },
+    {
+      "wayId": 266009532,
+      "road": "A3-koeln",
+      "km": 0.1151,
+      "modelLanes": 3,
+      "osmLanes": 3,
+      "status": "matches",
+      "tags": {
+        "highway": "motorway",
+        "lanes": "3",
+        "maxspeed": "80",
+        "oneway": "yes",
+        "ref": "A 3"
+      },
+      "nearDernbach": false
+    },
+    {
+      "wayId": 207624657,
+      "road": "A3-koeln",
+      "km": 0.0198,
+      "modelLanes": 4,
+      "osmLanes": 4,
+      "status": "matches",
+      "tags": {
+        "highway": "motorway",
+        "lanes": "4",
+        "maxspeed": "60",
+        "oneway": "yes",
+        "ref": "A 3"
+      },
+      "nearDernbach": false
+    },
+    {
+      "wayId": 207624660,
+      "road": "A3-koeln",
+      "km": 0.1707,
+      "modelLanes": 4,
+      "osmLanes": 4,
+      "status": "matches",
+      "tags": {
+        "highway": "motorway",
+        "lanes": "4",
+        "maxspeed": "80",
+        "oneway": "yes",
+        "ref": "A 3"
+      },
+      "nearDernbach": false
+    },
+    {
+      "wayId": 114714618,
+      "road": "A3-koeln",
+      "km": 0.0139,
+      "modelLanes": 4,
+      "osmLanes": 4,
+      "status": "matches",
+      "tags": {
+        "highway": "motorway",
+        "lanes": "4",
+        "maxspeed": "80",
+        "oneway": "yes",
+        "ref": "A 3"
+      },
+      "nearDernbach": false
+    },
+    {
+      "wayId": 114714624,
+      "road": "A3-koeln",
+      "km": 0.0455,
+      "modelLanes": 4,
+      "osmLanes": 4,
+      "status": "matches",
+      "tags": {
+        "highway": "motorway",
+        "lanes": "4",
+        "maxspeed": "80",
+        "oneway": "yes",
+        "ref": "A 3"
+      },
+      "nearDernbach": false
+    },
+    {
+      "wayId": 266009538,
+      "road": "A3-koeln",
+      "km": 0.3268,
+      "modelLanes": 3,
+      "osmLanes": 3,
+      "status": "matches",
+      "tags": {
+        "highway": "motorway",
+        "lanes": "3",
+        "maxspeed": "80",
+        "oneway": "yes",
+        "ref": "A 3"
+      },
+      "nearDernbach": false
+    },
+    {
+      "wayId": 24491953,
+      "road": "A3-koeln",
+      "km": 0.0251,
+      "modelLanes": 3,
+      "osmLanes": 3,
+      "status": "matches",
+      "tags": {
+        "highway": "motorway",
+        "lanes": "3",
+        "maxspeed": "80",
+        "oneway": "yes",
+        "ref": "A 3"
+      },
+      "nearDernbach": false
+    },
+    {
+      "wayId": 477567189,
+      "road": "A3-koeln",
+      "km": 0.1613,
+      "modelLanes": 3,
+      "osmLanes": 3,
+      "status": "matches",
+      "tags": {
+        "highway": "motorway",
+        "lanes": "3",
+        "maxspeed": "80",
+        "oneway": "yes",
+        "ref": "A 3"
+      },
+      "nearDernbach": false
+    },
+    {
+      "wayId": 24491952,
+      "road": "A3-koeln",
+      "km": 0.1599,
+      "modelLanes": 3,
+      "osmLanes": 3,
+      "status": "matches",
+      "tags": {
+        "highway": "motorway",
+        "lanes": "3",
+        "maxspeed": "80",
+        "oneway": "yes",
+        "ref": "A 3"
+      },
+      "nearDernbach": false
+    },
+    {
+      "wayId": 88046206,
+      "road": "A3-frankfurt",
+      "km": 0.0297,
+      "modelLanes": 3,
+      "osmLanes": 3,
+      "status": "matches",
+      "tags": {
+        "highway": "motorway",
+        "lanes": "3",
+        "maxspeed": "none",
+        "oneway": "yes",
+        "ref": "A 3"
+      },
+      "nearDernbach": false
+    },
+    {
+      "wayId": 141225142,
+      "road": "A3-frankfurt",
+      "km": 1.143,
+      "modelLanes": 3,
+      "osmLanes": 3,
+      "status": "matches",
+      "tags": {
+        "highway": "motorway",
+        "lanes": "3",
+        "maxspeed": "none",
+        "oneway": "yes",
+        "ref": "A 3"
+      },
+      "nearDernbach": false
+    },
+    {
+      "wayId": 540263291,
+      "road": "A3-frankfurt",
+      "km": 0.3098,
+      "modelLanes": 3,
+      "osmLanes": 3,
+      "status": "matches",
+      "tags": {
+        "highway": "motorway",
+        "lanes": "3",
+        "maxspeed": "none",
+        "oneway": "yes",
+        "ref": "A 3"
+      },
+      "nearDernbach": false
+    },
+    {
+      "wayId": 546686991,
+      "road": "A3-frankfurt",
+      "km": 0.0288,
+      "modelLanes": 3,
+      "osmLanes": 3,
+      "status": "matches",
+      "tags": {
+        "highway": "motorway",
+        "lanes": "3",
+        "maxspeed": "none",
+        "oneway": "yes",
+        "ref": "A 3"
+      },
+      "nearDernbach": false
+    },
+    {
+      "wayId": 546686992,
+      "road": "A3-frankfurt",
+      "km": 0.4419,
+      "modelLanes": 4,
+      "osmLanes": 4,
+      "status": "matches",
+      "tags": {
+        "highway": "motorway",
+        "lanes": "4",
+        "maxspeed": "none",
+        "oneway": "yes",
+        "ref": "A 3"
+      },
+      "nearDernbach": false
+    },
+    {
+      "wayId": 141225143,
+      "road": "A3-frankfurt",
+      "km": 0.4788,
+      "modelLanes": 3,
+      "osmLanes": 3,
+      "status": "matches",
+      "tags": {
+        "highway": "motorway",
+        "lanes": "3",
+        "maxspeed": "none",
+        "oneway": "yes",
+        "ref": "A 3"
+      },
+      "nearDernbach": false
+    },
+    {
+      "wayId": 28702771,
+      "road": "A3-frankfurt",
+      "km": 0.1836,
+      "modelLanes": 4,
+      "osmLanes": 4,
+      "status": "matches",
+      "tags": {
+        "highway": "motorway",
+        "lanes": "4",
+        "maxspeed": "none",
+        "oneway": "yes",
+        "ref": "A 3"
+      },
+      "nearDernbach": false
+    },
+    {
+      "wayId": 304267502,
+      "road": "A3-frankfurt",
+      "km": 1.6322,
+      "modelLanes": 3,
+      "osmLanes": 3,
+      "status": "matches",
+      "tags": {
+        "highway": "motorway",
+        "lanes": "3",
+        "maxspeed": "none",
+        "oneway": "yes",
+        "ref": "A 3"
+      },
+      "nearDernbach": false
+    },
+    {
+      "wayId": 37668160,
+      "road": "A3-frankfurt",
+      "km": 0.2569,
+      "modelLanes": 4,
+      "osmLanes": 4,
+      "status": "matches",
+      "tags": {
+        "highway": "motorway",
+        "lanes": "4",
+        "maxspeed": "none",
+        "oneway": "yes",
+        "ref": "A 3"
+      },
+      "nearDernbach": false
+    },
+    {
+      "wayId": 304267507,
+      "road": "A3-frankfurt",
+      "km": 0.2041,
+      "modelLanes": 3,
+      "osmLanes": 3,
+      "status": "matches",
+      "tags": {
+        "highway": "motorway",
+        "lanes": "3",
+        "maxspeed": "none",
+        "oneway": "yes",
+        "ref": "A 3"
+      },
+      "nearDernbach": false
+    },
+    {
+      "wayId": 304267504,
+      "road": "A3-frankfurt",
+      "km": 0.1834,
+      "modelLanes": 4,
+      "osmLanes": 4,
+      "status": "matches",
+      "tags": {
+        "highway": "motorway",
+        "lanes": "4",
+        "maxspeed": "none",
+        "oneway": "yes",
+        "ref": "A 3"
+      },
+      "nearDernbach": false
+    },
+    {
+      "wayId": 88006339,
+      "road": "A3-frankfurt",
+      "km": 1.0415,
+      "modelLanes": 3,
+      "osmLanes": 3,
+      "status": "matches",
+      "tags": {
+        "highway": "motorway",
+        "lanes": "3",
+        "maxspeed": "none",
+        "oneway": "yes",
+        "ref": "A 3"
+      },
+      "nearDernbach": false
+    },
+    {
+      "wayId": 88006345,
+      "road": "A3-frankfurt",
+      "km": 0.0353,
+      "modelLanes": 3,
+      "osmLanes": 3,
+      "status": "matches",
+      "tags": {
+        "highway": "motorway",
+        "lanes": "3",
+        "maxspeed": "none",
+        "oneway": "yes",
+        "ref": "A 3"
+      },
+      "nearDernbach": false
+    },
+    {
+      "wayId": 88004931,
+      "road": "A3-frankfurt",
+      "km": 0.4796,
+      "modelLanes": 3,
+      "osmLanes": 3,
+      "status": "matches",
+      "tags": {
+        "highway": "motorway",
+        "lanes": "3",
+        "maxspeed": "none",
+        "oneway": "yes",
+        "ref": "A 3"
+      },
+      "nearDernbach": false
+    },
+    {
+      "wayId": 88004930,
+      "road": "A3-frankfurt",
+      "km": 0.03,
+      "modelLanes": 3,
+      "osmLanes": 3,
+      "status": "matches",
+      "tags": {
+        "highway": "motorway",
+        "lanes": "3",
+        "maxspeed": "none",
+        "oneway": "yes",
+        "ref": "A 3"
+      },
+      "nearDernbach": false
+    },
+    {
+      "wayId": 25404883,
+      "road": "A3-frankfurt",
+      "km": 2.1398,
+      "modelLanes": 3,
+      "osmLanes": 3,
+      "status": "matches",
+      "tags": {
+        "highway": "motorway",
+        "lanes": "3",
+        "maxspeed": "none",
+        "oneway": "yes",
+        "ref": "A 3"
+      },
+      "nearDernbach": false
+    },
+    {
+      "wayId": 25404878,
+      "road": "A3-frankfurt",
+      "km": 0.024,
+      "modelLanes": 3,
+      "osmLanes": 3,
+      "status": "matches",
+      "tags": {
+        "highway": "motorway",
+        "lanes": "3",
+        "maxspeed": "none",
+        "oneway": "yes",
+        "ref": "A 3"
+      },
+      "nearDernbach": false
+    },
+    {
+      "wayId": 840177200,
+      "road": "A3-frankfurt",
+      "km": 0.9326,
+      "modelLanes": 3,
+      "osmLanes": 3,
+      "status": "matches",
+      "tags": {
+        "highway": "motorway",
+        "lanes": "3",
+        "maxspeed": "none",
+        "oneway": "yes",
+        "ref": "A 3"
+      },
+      "nearDernbach": false
+    },
+    {
+      "wayId": 840177197,
+      "road": "A3-frankfurt",
+      "km": 0.0274,
+      "modelLanes": 3,
+      "osmLanes": 3,
+      "status": "matches",
+      "tags": {
+        "highway": "motorway",
+        "lanes": "3",
+        "maxspeed": "none",
+        "oneway": "yes",
+        "ref": "A 3"
+      },
+      "nearDernbach": false
+    },
+    {
+      "wayId": 840177209,
+      "road": "A3-frankfurt",
+      "km": 2.2299,
+      "modelLanes": 3,
+      "osmLanes": 3,
+      "status": "matches",
+      "tags": {
+        "highway": "motorway",
+        "lanes": "3",
+        "maxspeed": "none",
+        "oneway": "yes",
+        "ref": "A 3"
+      },
+      "nearDernbach": false
+    },
+    {
+      "wayId": 840177208,
+      "road": "A3-frankfurt",
+      "km": 0.0513,
+      "modelLanes": 3,
+      "osmLanes": 3,
+      "status": "matches",
+      "tags": {
+        "highway": "motorway",
+        "lanes": "3",
+        "maxspeed": "none",
+        "oneway": "yes",
+        "ref": "A 3"
+      },
+      "nearDernbach": false
+    },
+    {
+      "wayId": 266009537,
+      "road": "A3-frankfurt",
+      "km": 2.8757,
+      "modelLanes": 3,
+      "osmLanes": 3,
+      "status": "matches",
+      "tags": {
+        "highway": "motorway",
+        "lanes": "3",
+        "maxspeed": "none",
+        "oneway": "yes",
+        "ref": "A 3"
+      },
+      "nearDernbach": false
+    },
+    {
+      "wayId": 266009534,
+      "road": "A3-frankfurt",
+      "km": 0.1714,
+      "modelLanes": 4,
+      "osmLanes": 4,
+      "status": "matches",
+      "tags": {
+        "highway": "motorway",
+        "lanes": "4",
+        "maxspeed": "none",
+        "oneway": "yes",
+        "ref": "A 3"
+      },
+      "nearDernbach": false
+    },
+    {
+      "wayId": 266009529,
+      "road": "A3-frankfurt",
+      "km": 0.1978,
+      "modelLanes": 3,
+      "osmLanes": 3,
+      "status": "matches",
+      "tags": {
+        "highway": "motorway",
+        "lanes": "3",
+        "maxspeed": "none",
+        "oneway": "yes",
+        "ref": "A 3"
+      },
+      "nearDernbach": false
+    },
+    {
+      "wayId": 140575547,
+      "road": "A3-frankfurt",
+      "km": 0.0963,
+      "modelLanes": 4,
+      "osmLanes": 4,
+      "status": "matches",
+      "tags": {
+        "highway": "motorway",
+        "lanes": "4",
+        "maxspeed": "none",
+        "oneway": "yes",
+        "ref": "A 3"
+      },
+      "nearDernbach": false
+    },
+    {
+      "wayId": 266009533,
+      "road": "A3-frankfurt",
+      "km": 0.1056,
+      "modelLanes": 4,
+      "osmLanes": 4,
+      "status": "matches",
+      "tags": {
+        "highway": "motorway",
+        "lanes": "4",
+        "maxspeed": "none",
+        "oneway": "yes",
+        "ref": "A 3"
+      },
+      "nearDernbach": false
+    },
+    {
+      "wayId": 207624659,
+      "road": "A3-frankfurt",
+      "km": 0.1955,
+      "modelLanes": 3,
+      "osmLanes": 3,
+      "status": "matches",
+      "tags": {
+        "highway": "motorway",
+        "lanes": "3",
+        "maxspeed": "none",
+        "oneway": "yes",
+        "ref": "A 3"
+      },
+      "nearDernbach": false
+    },
+    {
+      "wayId": 207624658,
+      "road": "A3-frankfurt",
+      "km": 0.0198,
+      "modelLanes": 3,
+      "osmLanes": 3,
+      "status": "matches",
+      "tags": {
+        "highway": "motorway",
+        "lanes": "3",
+        "maxspeed": "100",
+        "oneway": "yes",
+        "ref": "A 3"
+      },
+      "nearDernbach": false
+    },
+    {
+      "wayId": 266009528,
+      "road": "A3-frankfurt",
+      "km": 0.0574,
+      "modelLanes": 3,
+      "osmLanes": 3,
+      "status": "matches",
+      "tags": {
+        "highway": "motorway",
+        "lanes": "3",
+        "maxspeed": "100",
+        "oneway": "yes",
+        "ref": "A 3"
+      },
+      "nearDernbach": false
+    },
+    {
+      "wayId": 114714623,
+      "road": "A3-frankfurt",
+      "km": 0.1111,
+      "modelLanes": 4,
+      "osmLanes": 4,
+      "status": "matches",
+      "tags": {
+        "highway": "motorway",
+        "lanes": "4",
+        "maxspeed": "80",
+        "oneway": "yes",
+        "ref": "A 3"
+      },
+      "nearDernbach": false
+    },
+    {
+      "wayId": 114714626,
+      "road": "A3-frankfurt",
+      "km": 0.0139,
+      "modelLanes": 4,
+      "osmLanes": 4,
+      "status": "matches",
+      "tags": {
+        "highway": "motorway",
+        "lanes": "4",
+        "maxspeed": "80",
+        "oneway": "yes",
+        "ref": "A 3"
+      },
+      "nearDernbach": false
+    },
+    {
+      "wayId": 24491956,
+      "road": "A3-frankfurt",
+      "km": 0.3717,
+      "modelLanes": 3,
+      "osmLanes": 3,
+      "status": "matches",
+      "tags": {
+        "highway": "motorway",
+        "lanes": "3",
+        "maxspeed": "80",
+        "oneway": "yes",
+        "ref": "A 3"
+      },
+      "nearDernbach": false
+    },
+    {
+      "wayId": 24491955,
+      "road": "A3-frankfurt",
+      "km": 0.0243,
+      "modelLanes": 3,
+      "osmLanes": 3,
+      "status": "matches",
+      "tags": {
+        "highway": "motorway",
+        "lanes": "3",
+        "maxspeed": "80",
+        "oneway": "yes",
+        "ref": "A 3"
+      },
+      "nearDernbach": false
+    },
+    {
+      "wayId": 10643597,
+      "road": "A3-frankfurt",
+      "km": 0.3037,
+      "modelLanes": 3,
+      "osmLanes": 3,
+      "status": "matches",
+      "tags": {
+        "highway": "motorway",
+        "lanes": "3",
+        "maxspeed": "80",
+        "oneway": "yes",
+        "ref": "A 3"
+      },
+      "nearDernbach": false
     }
   ],
   "ramps": [
@@ -9025,7 +10337,111 @@
       "untaggedSections": 0
     }
   ],
-  "queriedIds": 550,
-  "receivedIds": 545,
-  "lastImportDate": "2026-10-18T21:35:30.917818+00:00"
+  "queriedIds": 632,
+  "receivedIds": 627,
+  "lastImportDate": "2026-10-18T21:35:30.917818+00:00",
+  "northernExtension": {
+    "imported": "2026-10-25",
+    "sourceTimestamp": "2026-07-15T15:22:01Z",
+    "ways": 82,
+    "lengthsKm": {
+      "A3-koeln": 16.442,
+      "A3-frankfurt": 16.4278
+    },
+    "endpoints": {
+      "A3-koeln": [
+        50.7856487,
+        7.2401905
+      ],
+      "A3-frankfurt": [
+        50.7855006,
+        7.2399507
+      ]
+    },
+    "method": "exact directed OSM node edges; clipped only at original OSM vertices",
+    "wayIds": [
+      88046243,
+      141225140,
+      141225141,
+      546686989,
+      546686990,
+      546686994,
+      28702852,
+      1490610436,
+      28702851,
+      1490610437,
+      992482371,
+      992482372,
+      304267505,
+      304267506,
+      304267508,
+      35484213,
+      88006334,
+      88006343,
+      88004925,
+      37264385,
+      992482669,
+      992482670,
+      25404897,
+      620672136,
+      840177199,
+      840177198,
+      992482934,
+      992482935,
+      140575546,
+      840177202,
+      840177203,
+      423654340,
+      992483386,
+      223297045,
+      1033213902,
+      266009531,
+      266009535,
+      29230709,
+      26330220,
+      266009532,
+      207624657,
+      207624660,
+      114714618,
+      114714624,
+      266009538,
+      24491953,
+      477567189,
+      24491952,
+      88046206,
+      141225142,
+      540263291,
+      546686991,
+      546686992,
+      141225143,
+      28702771,
+      304267502,
+      37668160,
+      304267507,
+      304267504,
+      88006339,
+      88006345,
+      88004931,
+      88004930,
+      25404883,
+      25404878,
+      840177200,
+      840177197,
+      840177209,
+      840177208,
+      266009537,
+      266009534,
+      266009529,
+      140575547,
+      266009533,
+      207624659,
+      207624658,
+      266009528,
+      114714623,
+      114714626,
+      24491956,
+      24491955,
+      10643597
+    ]
+  }
 }

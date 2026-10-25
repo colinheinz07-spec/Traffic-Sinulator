@@ -1,24 +1,24 @@
-import { PATHS, pathBottleneck, defaultDemands, demandAtMinute, demandAtClock } from './traffic.js?build=d9daa17f83de1115';
-import { networkData } from './geodata.js?build=d9daa17f83de1115';
-import { makeCorridors, routeSlice, positionM, closureGate, advanceSpatial, emptySpatial, jamsAt } from './spatial.js?build=d9daa17f83de1115';
-import { initialiseCells } from './traffic-cells.js?build=d9daa17f83de1115';
-import { speedDelayLabel } from './speed-delay.js?build=d9daa17f83de1115';
-import { trafficView } from './traffic-view.js?build=d9daa17f83de1115';
-import { advanceRoutedNetwork } from './routed-traffic.js?build=d9daa17f83de1115';
-import { routedDiversionChoice, requiredDiversionGate } from './diversion-policy.js?build=d9daa17f83de1115';
-import { automaticDiversions } from './auto-diversions.js?build=d9daa17f83de1115';
-import { buildRampConnections, rampSpillbacks } from './interchange.js?build=d9daa17f83de1115';
-import { planDiversion } from './diversions.js?build=d9daa17f83de1115';
-import { junctionMovements, junctionMovementHint } from './junction-movements.js?build=d9daa17f83de1115';
-import { bundledDetourGeometry, bundledExitRoutes, bundledTargets, isNetworkDestination } from './bundled-detours.js?build=d9daa17f83de1115';
-import { emptyDetour, detourVehicles } from './detour-flow.js?build=d9daa17f83de1115';
-import { decodeEvents, eventFromHit, updatedEvent, eventNames, eventSymbols, eventSummary, defaultLengthM, maxLengthM, suggestedSpeed, DEFAULT_CLEARANCE_MIN, STORAGE_KEY, isEventKind, validEvent, effectiveEventsAt, eventScheduleStatus } from './events.js?build=d9daa17f83de1115';
-import { roadLaneInfo, rampLaneInfo } from './lane-info.js?build=d9daa17f83de1115';
-import { mapCandidates, chooseMapHits, closestJunction, lanePositions, hitLabel } from './selection.js?build=d9daa17f83de1115';
-import { buildContinuousRoads, lineWidths, rampBadges, layoutJunctionLabels } from './cartography.js?build=d9daa17f83de1115';
-import { placeJamCallout } from './map-callouts.js?build=d9daa17f83de1115';
-import { installScheduleForm } from './schedule-form.js?build=d9daa17f83de1115';
-import { DIRECTIONS, validateMap, names, mercator, inverse, exitPosition } from './core.js?build=d9daa17f83de1115';
+import { PATHS, pathBottleneck, defaultDemands, demandAtMinute, demandAtClock } from './traffic.js?build=e5dc2a5d589428ef';
+import { networkData } from './geodata.js?build=e5dc2a5d589428ef';
+import { makeCorridors, routeSlice, positionM, closureGate, advanceSpatial, emptySpatial, jamsAt } from './spatial.js?build=e5dc2a5d589428ef';
+import { initialiseCells } from './traffic-cells.js?build=e5dc2a5d589428ef';
+import { speedDelayLabel } from './speed-delay.js?build=e5dc2a5d589428ef';
+import { trafficView } from './traffic-view.js?build=e5dc2a5d589428ef';
+import { advanceRoutedNetwork } from './routed-traffic.js?build=e5dc2a5d589428ef';
+import { routedDiversionChoice, requiredDiversionGate } from './diversion-policy.js?build=e5dc2a5d589428ef';
+import { automaticDiversions } from './auto-diversions.js?build=e5dc2a5d589428ef';
+import { buildRampConnections, rampSpillbacks } from './interchange.js?build=e5dc2a5d589428ef';
+import { planDiversion } from './diversions.js?build=e5dc2a5d589428ef';
+import { junctionMovements, junctionMovementHint } from './junction-movements.js?build=e5dc2a5d589428ef';
+import { bundledDetourGeometry, bundledExitRoutes, bundledTargets, isNetworkDestination } from './bundled-detours.js?build=e5dc2a5d589428ef';
+import { emptyDetour, detourVehicles } from './detour-flow.js?build=e5dc2a5d589428ef';
+import { decodeEvents, eventFromHit, updatedEvent, eventNames, eventSymbols, eventSummary, defaultLengthM, maxLengthM, suggestedSpeed, DEFAULT_CLEARANCE_MIN, STORAGE_KEY, isEventKind, validEvent, effectiveEventsAt, eventScheduleStatus } from './events.js?build=e5dc2a5d589428ef';
+import { roadLaneInfo, rampLaneInfo } from './lane-info.js?build=e5dc2a5d589428ef';
+import { mapCandidates, chooseMapHits, closestJunction, lanePositions, hitLabel } from './selection.js?build=e5dc2a5d589428ef';
+import { buildContinuousRoads, lineWidths, rampBadges, layoutJunctionLabels } from './cartography.js?build=e5dc2a5d589428ef';
+import { placeJamCallout } from './map-callouts.js?build=e5dc2a5d589428ef';
+import { installScheduleForm } from './schedule-form.js?build=e5dc2a5d589428ef';
+import { DIRECTIONS, validateMap, names, mercator, inverse, exitPosition } from './core.js?build=e5dc2a5d589428ef';
 const $ = (id) => { const element = document.getElementById(id); if (!element)
     throw Error(`Element fehlt: ${id}`); return element; };
 const canvas = $('map'), wrapper = canvas.parentElement;
@@ -1289,7 +1289,7 @@ function makeExitButtons() {
     const sorted = [...exits].sort((a, b) => a.road === b.road ? (a.road === 'A3' ? Number(b.ref) - Number(a.ref) : Number(a.ref) - Number(b.ref)) : a.road === 'A3' ? -1 : 1);
     const toolbar = document.querySelector('.toolbar');
     const oldButtons = new Map([['A3:39', $('dernbach')], ['A48:9', $('koblenz')], ['A3:41', $('diez')],
-        ['A3:42', $('limburg-nord')], ['A3:43', $('limburg-sued')], ['A3:34', $('honnef')]]);
+        ['A3:42', $('limburg-nord')], ['A3:43', $('limburg-sued')], ['A3:34', $('honnef')], ['A3:33', $('siebengebirge')], ['A3:32', $('bonn-siegburg')]]);
     toolbar.replaceChildren($('fit'));
     $('junction-count').textContent = String(sorted.length);
     for (const exit of sorted) {
@@ -1322,7 +1322,7 @@ function fillMetrics() {
 function bind() {
     $('fit').onclick = () => fit();
     $('dernbach').onclick = () => focusOn([50.460264, 7.767549], 14.2);
-    for (const [id, road, ref] of [['koblenz', 'A48', '9'], ['diez', 'A3', '41'], ['limburg-nord', 'A3', '42'], ['limburg-sued', 'A3', '43'], ['honnef', 'A3', '34']]) {
+    for (const [id, road, ref] of [['koblenz', 'A48', '9'], ['diez', 'A3', '41'], ['limburg-nord', 'A3', '42'], ['limburg-sued', 'A3', '43'], ['honnef', 'A3', '34'], ['siebengebirge', 'A3', '33'], ['bonn-siegburg', 'A3', '32']]) {
         $(id).onclick = () => {
             const exit = exits.find(e => e.road === road && e.ref === ref), key = $('traffic-route').value;
             if (exit)

@@ -1,8 +1,8 @@
-import { cellQueueSpans } from './traffic-cells.js?build=d9daa17f83de1115';
-import { closureGate } from './spatial.js?build=d9daa17f83de1115';
-import { diversionJunctions, nearestExitBeforeQueue, potentialDiversionPercent } from './diversions.js?build=d9daa17f83de1115';
-import { speedDelayInCells } from './speed-delay.js?build=d9daa17f83de1115';
-import { freeSpeedKmh } from './traffic-physics.js?build=d9daa17f83de1115';
+import { cellQueueSpans } from './traffic-cells.js?build=e5dc2a5d589428ef';
+import { closureGate } from './spatial.js?build=e5dc2a5d589428ef';
+import { diversionJunctions, nearestExitBeforeQueue, potentialDiversionPercent } from './diversions.js?build=e5dc2a5d589428ef';
+import { speedDelayInCells } from './speed-delay.js?build=e5dc2a5d589428ef';
+import { freeSpeedKmh } from './traffic-physics.js?build=e5dc2a5d589428ef';
 /** A formal closure requires a working route at its exit even when that
  * route was paused for an earlier incident. A return inside the closed
  * section cannot serve as the mandatory route. */

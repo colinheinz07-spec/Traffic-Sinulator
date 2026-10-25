@@ -3,7 +3,8 @@
  * NOT measured flows, road regulations, official diversion routes, or observed jams.
  * One controlling bottleneck per directional path; no A3/A48 ramp transfer yet.
  */
-import { flowPolicy } from './events.js?build=d9daa17f83de1115';
+import { flowPolicy } from './events.js?build=e5dc2a5d589428ef';
+import { QUEUE_JAM_DENSITY_PER_LANE } from './traffic-physics.js?build=e5dc2a5d589428ef';
 export const PATHS = [
     'A3-koeln', 'A3-frankfurt', 'A48-dernbach', 'A48-koblenz',
     'ramp-a3-to-a48-from-frankfurt', 'ramp-a48-to-koeln',
@@ -74,7 +75,8 @@ export function eventCapacity(e, volumeVph = defaultDemand(e.pathKey), heavyFrac
     const speedFactor = policy.speedKmh < 40
         ? speedAt40 * (.45 + .55 * policy.speedKmh / 40)
         : .86 + .14 * speedRatio;
-    const baseMerge = e.closedLanes.length === 0 ? 1 : e.kind === 'roadworks' ? .92 : .87;
+    const parallel = policy.openMainLanes >= 2;
+    const baseMerge = e.closedLanes.length === 0 ? 1 : parallel ? (e.kind === 'roadworks' ? .97 : .95) : e.kind === 'roadworks' ? .92 : .87;
     const shares = laneDemandShares(e.laneCount, heavyFraction);
     const hgvDistribution = laneDemandShares(e.laneCount, 1);
     const affectedShare = e.closedLanes.reduce((sum, i) => sum + shares[i], 0);
@@ -85,7 +87,7 @@ export function eventCapacity(e, volumeVph = defaultDemand(e.pathKey), heavyFrac
     const constrained = remaining <= 1 ? .45 : 1;
     const loading = Math.min(1, volumeVph / Math.max(1, laneCapacity));
     const extraMergeLoss = e.closedLanes.length === 0 ? 0 :
-        constrained * loading * (.10 * affectedShare + .14 * divertedHeavyShare);
+        constrained * loading * (parallel ? (.04 * affectedShare + .05 * divertedHeavyShare) : (.10 * affectedShare + .14 * divertedHeavyShare));
     const mergeFactor = baseMerge * Math.max(.72, 1 - extraMergeLoss);
     return Math.max(0, Math.round(laneCapacity * speedFactor * mergeFactor));
 }
@@ -108,7 +110,7 @@ export function trafficEstimate(state, key, events, inputVph) {
     const capacity = bn.capacityVph;
     // Long queues spread across available approach lanes, using a declared illustrative density.
     const approachLanes = key.startsWith('ramp-') ? 1 : motorwayBaseLanes[key];
-    const queueKm = queue / (95 * approachLanes);
+    const queueKm = queue / (QUEUE_JAM_DENSITY_PER_LANE * approachLanes);
     // Queue delay is unknowable when a closure has zero discharge; never display a finite prediction.
     const physicalWait = capacity === 0 ? null : queue / capacity * 60;
     const eventDelay = bn.event && capacity > 0 ?

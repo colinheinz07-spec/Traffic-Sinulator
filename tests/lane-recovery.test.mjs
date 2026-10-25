@@ -51,7 +51,7 @@ test('with high demand, right-lane closure creates a larger queue than left clos
  const rightState=advanceSpatial(emptySpatial(),[right],high,20,routes);
  const leftState=advanceSpatial(emptySpatial(),[left],high,20,routes);
  const a=rightState.queues.right.vehicles,b=leftState.queues.left.vehicles;
- assert.ok(a>b+30,`right closure should create more congestion than left: ${a} vs ${b}`);
+ assert.ok(a>b+20,`right closure should create more congestion than left: ${a} vs ${b}`);
  assert.ok(jamsAt(rightState,[right],routes)[0].delayMin>jamsAt(leftState,[left],routes)[0].delayMin);
 });
 

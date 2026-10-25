@@ -34,11 +34,11 @@ function checkLocal(state){
  assertCellConservation(state);
 }
 
-test('all 24 directional ordinary AS have demand and actual local entry/exit; AK and AD have no fictitious local ramps',()=>{
+test('all 26 directional ordinary AS have demand and actual local entry/exit; AK and AD have no fictitious local ramps',()=>{
  let count=0;
  for(const path of paths){
   const demand=path.startsWith('A48')?1800:2600,configs=normalJunctionTraffic(routes[path],exits,demand);
-  count+=configs.length;assert.equal(configs.length,path.startsWith('A48')?3:9);
+  count+=configs.length;assert.equal(configs.length,path.startsWith('A48')?3:10);
   let state=initialiseCells(routes[path],demand);
   for(let t=0;t<60;t++){state=advanceCells(state,routes[path],[],demand,exits);checkLocal(state);}
   assert.equal(state.junctions.length,configs.length);
@@ -52,7 +52,7 @@ test('all 24 directional ordinary AS have demand and actual local entry/exit; AK
   assert.ok(rows.filter(r=>!r.exit.isInterchange).every(r=>r.outVph>0&&r.inVph>0&&r.diversionOutVph===0&&r.returningInVph===0));
   assert.ok(rows.filter(r=>r.exit.isInterchange).every(r=>r.outVph===0&&r.inVph===0));
  }
- assert.equal(count,24);
+ assert.equal(count,26);
  for(const key of Object.keys(routes).filter(k=>k.startsWith('ramp-')))assert.deepEqual(normalJunctionTraffic(routes[key],exits,1500),[]);
 });
 test('changing the demand profile changes local arrivals too, and zero demand creates no vehicles',()=>{

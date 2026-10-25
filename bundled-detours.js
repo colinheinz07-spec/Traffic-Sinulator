@@ -3,10 +3,11 @@
  * Every normal AS has a route in both directions, including network exits.
  * Longer bypasses concatenate the same sections; no routing server is used.
  */
-import { DIRECTIONS, names, exitPosition } from './core.js?build=d9daa17f83de1115';
-import { diversionJunctions } from './diversions.js?build=d9daa17f83de1115';
-import { metres } from './spatial.js?build=d9daa17f83de1115';
+import { DIRECTIONS, names, exitPosition } from './core.js?build=e5dc2a5d589428ef';
+import { diversionJunctions } from './diversions.js?build=e5dc2a5d589428ef';
+import { metres } from './spatial.js?build=e5dc2a5d589428ef';
 export const BUNDLED_SECTIONS = [
+    { from: 'A3:33', to: 'A3:34', capacity: 820, via: [[50.6840, 7.2697], [50.6760, 7.2745], [50.6679, 7.2812], [50.6597, 7.2930], [50.6550, 7.3070], [50.6509, 7.3215]] },
     { from: 'A3:34', to: 'A3:35', capacity: 820, via: [[50.6450, 7.3414], [50.6379, 7.3547], [50.6268, 7.3675], [50.6212, 7.3900], [50.6087, 7.4115], [50.5986, 7.4184]] },
     { from: 'A3:35', to: 'A3:36', capacity: 760, via: [[50.5986, 7.4184], [50.5881, 7.4330], [50.5796, 7.4574], [50.5755, 7.4818], [50.5660, 7.4994], [50.5564, 7.5185]] },
     { from: 'A3:36', to: 'A3:37', capacity: 900, via: [[50.5564, 7.5185], [50.5496, 7.5352], [50.5420, 7.5550], [50.5353, 7.5689], [50.5264, 7.5810], [50.5282, 7.5961]] },
@@ -22,7 +23,7 @@ export const BUNDLED_SECTIONS = [
     { from: 'A48:12', to: 'A3:38', capacity: 780, via: [[50.4420, 7.6770], [50.4483, 7.6845], [50.4572, 7.6896], [50.4613, 7.7045], [50.4625, 7.7200], [50.4663, 7.7300], [50.4762, 7.7410]] }
 ];
 const ends = {
-    'A3-koeln': { from: 'A3:34', point: [50.6695, 7.3040], via: [[50.6508, 7.3201], [50.6577, 7.3082], [50.6640, 7.3100]] },
+    'A3-koeln': { from: 'A3:33', point: [50.7856487, 7.2401905], via: [[50.6961, 7.2718], [50.7040, 7.2780], [50.7140, 7.2702], [50.7210, 7.2530], [50.7287, 7.2330], [50.7400, 7.2293], [50.7519, 7.2310], [50.7641, 7.2290], [50.7740, 7.2294], [50.7810, 7.2350]] },
     'A3-frankfurt': { from: 'A3:43', point: [50.3630, 8.1130], via: [[50.3800, 8.0875], [50.3740, 8.0938], [50.3690, 8.1021]] },
     'A48-koblenz': { from: 'A48:10', point: [50.3500, 7.4630], via: [[50.3855, 7.5255], [50.3800, 7.5124], [50.3672, 7.5054], [50.3580, 7.4854]] },
     'A48-dernbach': { from: 'A48:12', point: [50.4610, 7.7780], via: [[50.4420, 7.6770], [50.4483, 7.6845], [50.4572, 7.6896], [50.4613, 7.7045], [50.4625, 7.7200], [50.4592, 7.7470], [50.4600, 7.7640]] }

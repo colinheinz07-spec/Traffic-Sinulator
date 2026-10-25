@@ -7,6 +7,9 @@ export interface SpeedBand {
  fromM:number;toM:number;color:TrafficColor;speedKmh:number;
  source:'queue'|'approach'|'restriction'|'cell';
 }
+/** Standstill storage and backward relaxation are simulator assumptions.
+ * 130 vehicles/km/lane corresponds to about 7.7 m per stored vehicle. */
+export const QUEUE_JAM_DENSITY_PER_LANE=130,CONGESTION_WAVE_KMH=22;
 const RANK:Record<TrafficColor,number>={free:0,slow:1,jam:2,standstill:3};
 export function freeSpeedKmh(path:PathKey):number{
  return path.startsWith('ramp-')?80:130;
@@ -21,7 +24,7 @@ export function colorAtSpeed(speedKmh:number):TrafficColor{
 }
 /** Congested branch of a triangular fundamental diagram:
  * Q = w(k_jam - k). On recovery, clip k to critical density.
- * w=22 km/h, jam storage 95 veh/km/lane; scenario assumptions.
+ * w=22 km/h, jam storage 130 veh/km/lane; scenario assumptions.
  * This ties the queued travel speed, queue length and discharge to ONE density.
  */
 export function queueFundamentalDiagram(capacityVph:number,lanes:number,path:PathKey):{
@@ -29,7 +32,9 @@ export function queueFundamentalDiagram(capacityVph:number,lanes:number,path:Pat
 }{
  if(!Number.isFinite(capacityVph)||capacityVph<0||!Number.isFinite(lanes)||lanes<=0)
   throw Error('Ungültige Kapazität oder Fahrstreifenanzahl');
- const free=freeSpeedKmh(path),jamDensity=95*lanes,w=22;
+ const free=freeSpeedKmh(path),jamDensity=QUEUE_JAM_DENSITY_PER_LANE*lanes,w=CONGESTION_WAVE_KMH;
+ const unimpededCapacity=(path.startsWith('ramp-')?1500:1800)*lanes;
+ if(capacityVph>=unimpededCapacity)return {densityVehPerKm:unimpededCapacity/free,speedKmh:free};
  const criticalDensity=jamDensity*w/(free+w);
  const density=Math.max(criticalDensity,jamDensity-capacityVph/w);
  const speedKmh=capacityVph===0?0:Math.min(free,capacityVph/density);

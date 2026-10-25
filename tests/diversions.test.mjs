@@ -21,10 +21,10 @@ const eventBetween=(path,startRef,endRef,kind='closure')=>{
   createdAt:'2026-10-21T12:00:00Z',
   settings:{lengthM:200,speedKmh:0,shoulder:'blocked'}};
 };
-test('all 15 existing A3/A48 junction references remain available in both directions',()=>{
+test('all 17 existing A3/A48 junction references remain available in both directions',()=>{
  for(const key of ['A3-koeln','A3-frankfurt']){
   const js=diversionJunctions(key,exits,roads[key]);
-  assert.equal(js.length,10,key+' must include Limburg-Süd through Bad Honnef/Linz');
+  assert.equal(js.length,12,key+' must include Limburg-Süd through Bonn/Siegburg');
   for(const ref of ['43','42','41','40','39','38','37','36','35','34'])
    assert.ok(js.some(x=>x.ref===ref),key+' / '+ref);
  }

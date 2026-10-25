@@ -49,7 +49,7 @@ test('two reopened lanes discharge more and clear a long queue faster than keepi
  assert.ok(two.cells.some(c=>c.speedKmh>30&&c.fromM<route.lengthM*.6),'release fronts must move back into the old jam');
 });
 test('multiple simultaneous exits remove only cars reaching those cells, then return them after travel',()=>{
- const at=route.lengthM*.6,closure=event(at,'closure',[0,1,2],0);
+ const at=junction(path,'38').metre+350,closure=event(at,'closure',[0,1,2],0);
  // The earlier exit needs 45 minutes of remaining delay; preparing its
  // geometry alone must never force drivers to use it.
  const last=closureGate(route,closure,exits).metre,previous=junction(path,'37').metre;

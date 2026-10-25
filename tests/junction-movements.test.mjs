@@ -16,10 +16,10 @@ const closureBetween=(path,startRef,endRef)=>{
   closedLanes:Array.from({length:lanes},(_,i)=>i),createdAt:'2026-10-21T21:00:00Z',
   settings:{lengthM:350,speedKmh:0,shoulder:'blocked'}};
 };
-test('all 15 nodes shown in BOTH A3/A48 driving directions, AK/AD not local exits',()=>{
+test('all 17 nodes shown in BOTH A3/A48 driving directions, AK/AD not local exits',()=>{
  for(const path of ['A3-koeln','A3-frankfurt','A48-dernbach','A48-koblenz']){
   const rows=junctionMovements(path,routes[path],exits,[],null);
-  assert.equal(rows.length,path.startsWith('A3')?10:5);
+  assert.equal(rows.length,path.startsWith('A3')?12:5);
   assert.ok(rows.every((r,i)=>i===0||r.exit.metre>rows[i-1].exit.metre));
   assert.ok(rows.every(r=>r.desiredPercent===0&&r.outVph===0&&r.inVph===0));
   assert.ok(rows.some(r=>r.exit.isInterchange),'must retain junctions, marked as AK/AD');

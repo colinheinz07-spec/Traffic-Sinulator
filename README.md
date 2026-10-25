@@ -1,4 +1,4 @@
-# A3/A48 Stausimulator – TRAFFIC 1.11.4
+# A3/A48 Stausimulator – TRAFFIC 1.12.0
 
 **Ein Repository, eine Startdatei:** `index.html` im Hauptverzeichnis direkt in SPCK öffnen. Keine Cloudflare-Konfiguration und keine externe Kartenbibliothek.
 
@@ -14,13 +14,13 @@ Nach einer Spurfreigabe werden vorhandene Fahrzeuge durch den wieder möglichen 
 
 ## Prüfbare Streckenabdeckung
 
-- A3 **AS Limburg-Süd (43) ↔ AS Limburg-Nord (42) ↔ AS Diez (41) ↔ AS Bad Honnef/Linz (34)** – beide Richtungsfahrbahnen
+- A3 **AS Limburg-Süd (43) ↔ AS Limburg-Nord (42) ↔ AS Diez (41) ↔ AS Bad Honnef/Linz (34) ↔ AS Siebengebirge (33) ↔ AK Bonn/Siegburg (32, A560)** – beide Richtungsfahrbahnen
 - A48 **AK Koblenz / A61 (9) ↔ AD Dernbach (13)** – beide Richtungsfahrbahnen
-- Sämtliche **15 nummerierten Anschlussstellen/Knotenpunkte** in diesem Netz
+- Sämtliche **17 nummerierten Anschlussstellen/Knotenpunkte** in diesem Netz
 - **Vier eigenständig auswählbare Verbindungsrampen** am AD Dernbach
-- Über 324 als A3/A48 gekennzeichnete OSM-Straßenstücke, mit geografischen Originalkurven. Datenstand: 18.10.2026.
+- **610** als A3/A48 gekennzeichnete OSM-Fahrbahnstücke. Originalimport 18.10.2026; nördliche Erweiterung importiert am 25.10.2026 aus dem aufbewahrten OSM-Snapshot vom 15.07.2026.
 
-Die ursprünglich berechneten Abdeckungswerte gelten nur für den alten Korridor bis Diez. Die Erweiterung über Limburg-Nord bis Limburg-Süd wird separat anhand realer OSM-Ways und Junction-Nodes geprüft. Die neue Kartenübersicht zeigt stattdessen Fahrbahnkilometer pro Richtung. Keine Live-Verkehrsdaten.
+Die A3 reicht jetzt je Richtung über rund 88,7 km von Limburg-Süd bis nördlich des Kreuzes Bonn/Siegburg. Die A560 selbst ist kein zusätzlicher simulierter Fahrweg. Die ursprünglich berechneten Abdeckungswerte gelten nur für den alten Korridor bis Diez. Die Erweiterung über Limburg-Nord bis Limburg-Süd wird separat anhand realer OSM-Ways und Junction-Nodes geprüft. Die neue Kartenübersicht zeigt stattdessen Fahrbahnkilometer pro Richtung. Keine Live-Verkehrsdaten.
 
 ## Technische Priorität
 
@@ -462,3 +462,26 @@ Mobile Chromium-Prüfung (390 × 844): Bei rund drei Kilometern freier Strecke z
 Geprüft: Typprüfung, 411 JavaScript-Tests und zwei Python-Geometrieprüfungen. Die neuen 13 Regressionen umfassen alle vier Richtungen, identische physische Felder mit und ohne weit entfernten Engpass, Freigabe von null auf zwei Spuren bei 40 und 80 km/h, A48-Freigaben, weitere echte Überlastung, Simulationszeiten über Minute 1.300 und geringere Abflussschwankungen mit zwei freien Spuren. Elf der neuen Prüfungen wurden zusätzlich gegen den vorherigen Solver ausgeführt und schlugen dort sämtlich fehl. Die bestehende Anforderung an durchgehend sehr starke Schwankungen auch bei zwei offenen Spuren wurde durch eine Prüfung moderater tatsächlicher Variation ergänzt; die zusätzlichen vergleichenden Regressionen verlangen eine deutlich stärkere Dämpfung mit zwei Spuren. Die bisherigen Erhaltungs-, Verzögerungs-, Karten-, Umfahrungs- und Vollsperrungsprüfungen bestehen weiterhin.
 
 Mobile Chromium-Prüfung (390 × 844): Ein A3-Lauf wird über die tatsächlichen Spur-Checkboxen und Speichern im Ereignisformular freigegeben. Die gesamte Serie lässt 45 Minuten vollständig blockieren, gibt anschließend zwei A3-Spuren beziehungsweise eine A48-Spur frei und berechnet jeweils 300 weitere Modellminuten. Die A3/A48-Läufe in beiden Richtungen bleiben bei einem zusammenhängenden Rückstau und enden ohne Stauabschnitte oder Restkarten. Eine Wiederholung ab Simulationsminute 1.300 zeigt denselben begrenzten Verlauf. Beim vollständigen Entfernen des Ereignisses sind kurzzeitig zwei reale Übergangsabschnitte möglich, danach ist die Straße ebenfalls frei. Alle sechs Läufe erhalten den gemeinsamen Bestand einschließlich normaler Anschlussstellenfahrten und Umleitungen; größte beobachtete Bilanzabweichung unter 0,000001 Fahrzeugen. Keine Laufzeitfehler oder externen Routingabrufe. Keine Prüfung auf einem physischen iPhone.
+
+
+## TRAFFIC 1.12.0 – kompaktere, bewegliche Rückstaus und A3 bis Bonn/Siegburg
+
+- **Zwei offene Spuren:** Der bisher mehrfach angesetzte Einfädelverlust war für zwei parallele Restspuren zu groß. Die Kapazitätsannahme unterscheidet jetzt zwischen einer und mehreren offenen Spuren. Bei zwei offenen A3-Spuren und 80 km/h ergeben sich im Referenzfall rund 3.140 Fzg/h nachhaltige Zielkapazität statt rund 2.730. Rechte Sperrung, Schwerlastanteil, Tempo und Auslastung bleiben wirksam; die physische Obergrenze bleibt 1.800 Fzg/h je offener Spur.
+- **Kompakte Speicherung:** Theoretische Stillstandsdichte nun 130 statt 95 Fzg/km/Spur (rund 7,7 m je gespeichertem Fahrzeug). Diese und die Einfädelparameter sind ausdrücklich unkalibrierte Szenarioannahmen, keine gemessenen A3/A48-Werte. Die Fahrzeugbilanz wird vollständig erhalten; Kilometer werden weder gedeckelt noch durch bloßes Umfärben gekürzt. Der kritische Dichtewert berücksichtigt auch die niedrigere gewählte Basiskapazität.
+- **Bewegung bleibt physisch:** Offene Spuren erhalten voneinander unabhängige unregelmäßige Anfahrphasen am tatsächlichen Ereignisquerschnitt. Die starke pauschale Dämpfung aus 1.11.4 entfällt. Das verändert reale Zelltransfers und erzeugt unterschiedliche lokale Farbabschnitte. Es gibt weiterhin keine wiederholten Fern-Bremskopien in jeder Zelle der Schlange.
+- **Anfahrt ans Stauende:** Lockerer ankommender Verkehr berücksichtigt tatsächlich dichte, langsamere Fahrzeuge bis maximal 500 m voraus. Der Bremsweg verwendet 1,4 m/s² und begrenzt den realen sendenden Fahrzeugfluss. Eine örtlich schon dünne Bremszone wird auch bei geringem Zufluss sichtbar; leere Straßen bekommen keine Farbpulse. Dichte Zellen in der bestehenden Schlange werden nicht erneut mit einem entfernten Engpass begrenzt. Nach dem Abbau verschwindet auch diese lokale Beschränkung.
+- **Erweiterung:** 82 zusätzliche reale OSM-Ways, rund 16,44/16,43 km für Köln/Frankfurt, bis zu Originalknoten knapp nördlich des AK Bonn/Siegburg. Neue AS Siebengebirge (33) und AK Bonn/Siegburg (32, A560) mit getrennten OSM-Ausfahrtspunkten je Richtung. Importquelle in `data/a3-north-osm.json`, reproduzierbarer Offline-Import `scripts/extend_a3_north.py`, Erweiterung der Junction- und Fahrstreifen-Audits. Es werden keine Verbindungslinien oder fehlenden Spurwerte erfunden.
+- **Umleitungen:** Jetzt 13 reguläre AS / 26 gerichtete Abfahrtsmöglichkeiten. Siebengebirge ist in beiden Richtungen Teil des vorhandenen kapazitätsbegrenzten Nebenstraßennetzes; längere Umfahrungen setzen sich aus denselben Abschnitten zusammen. Die Nebenstraßen bleiben ausdrücklich angenäherte Simulationskorridore, keine nachgewiesenen amtlichen U-Routen. Am nördlichen Kartenrand endet die Fahrt außerhalb des Netzes. Das AK erhält keine erfundenen lokalen AS-Zuflüsse; eine eigenständige A560-Simulation ist nicht enthalten.
+- **Bestehende Ausweichregel:** unverändert. Die nächstgelegene nutzbare AS vor dem jeweiligen Stau ist zuständig; dessen eigener Zeitverlust steuert ab 45 Minuten die allmähliche freiwillige Quote und die reduzierte neue lokale Auffahrtsnachfrage. Formale Vollsperrungen leiten an der letzten regulären AS vollständig aus.
+
+Vergleich mit 1.11.4 (gleiches Ereignis, konstanter A3-Zufluss 4.200/h, eine von drei Spuren gesperrt, 80 km/h, ohne freiwillige Umleitungen): Nach zwei Stunden entstanden zuvor etwa 22,3 km; mit den neuen Parametern etwa 10,1 km. Das ist ein definierter Modellvergleich und keine Aussage, dass ein bestimmter Realstau immer diese Länge hätte. Dauerhafter Zufluss über der Kapazität kann weiterhin lange Rückstaus erzeugen. Nach einer Freigabe kann der geografische Umfang bei anfänglicher Auflockerung kurz wachsen, obwohl schon weniger Fahrzeuge warten.
+
+Geografische Einordnung des neuen Abschnitts: [Autobahn GmbH, Bauabschnitt IV Bonn/Siegburg–Siebengebirge](https://www.autobahn.de/planen-bauen/projekt/bauabschnitt-iv-grundhafte-erneuerung-zwischen-koeln-heumar-und-bad-honnef). Der Simulator übernimmt daraus keine laufenden Baustellen oder realen Verkehrsmeldungen.
+
+
+Prüfung 1.12.0:
+- `npm run check`: 429 JavaScript-Tests und TypeScript-Typprüfung erfolgreich. Die fünf neuen Kompakt-/Anfahrtests wurden zusätzlich gegen die unveränderte 1.11.4 ausgeführt: alle fünf reproduzieren dort den Fehler, alle fünf bestehen mit 1.12.0.
+- `python -m unittest discover -s scripts/tests -v`: sechs Geometrie-/Importtests erfolgreich; zusätzlich fünf Tests des Fahrstreifen-Auditors.
+- Mobiler Chromium-Browser (390 × 844, Touch-Emulation), veröffentlichte Root-Module: acht gekoppelte Szenarien. Zwei Zweistundentests zwischen Bad Honnef und Siebengebirge liefern rund 10,0/10,1 km zusammenhängenden Rückstau, rund 3.091/3.071 Fzg/h mittleren Durchfluss und 30/29 Minuten mit gleichzeitig Orange/Rot/Dunkelrot. Alle Minuten mit gemeinsamer Fahrzeugbilanz über die vier Hauptfahrbahnen, lokale AS-Verkehre und aktive Umleitungen geprüft; absoluter Bilanzfehler unter 10⁻⁴ Fahrzeugen.
+- Sechs Auflösungsszenarien: A3 beide Richtungen 0→2 offene Spuren, A48 beide Richtungen 0→1, A3 mit Modellstart Minute 1300 und vollständiges Entfernen eines A3-Ereignisses. Nach 300 weiteren Minuten überall vollständig frei; höchstens zwei kurzzeitig getrennte Übergangsbereiche. Die erste A3-Spurfreigabe wurde über die tatsächlichen Checkboxen und „Speichern“ bedient.
+- Neue Navigationsziele AS Siebengebirge / AK Bonn-Siegburg im Browser bedient, 17 Einträge im Verzeichnis. Keine JavaScript-Seitenfehler und keine Online-Routenabrufe. Hintergrundkacheln waren für den Offline-Test gesperrt. Kein Test auf einem physischen iPhone.

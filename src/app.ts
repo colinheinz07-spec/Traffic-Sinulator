@@ -925,7 +925,7 @@ function makeExitButtons(){const parent=$('junctions');parent.replaceChildren();
  const sorted=[...exits].sort((a,b)=>a.road===b.road?(a.road==='A3'?Number(b.ref)-Number(a.ref):Number(a.ref)-Number(b.ref)):a.road==='A3'?-1:1);
  const toolbar=document.querySelector<HTMLElement>('.toolbar')!;
  const oldButtons=new Map<string,HTMLElement>([['A3:39',$('dernbach')],['A48:9',$('koblenz')],['A3:41',$('diez')],
-  ['A3:42',$('limburg-nord')],['A3:43',$('limburg-sued')],['A3:34',$('honnef')]]);
+  ['A3:42',$('limburg-nord')],['A3:43',$('limburg-sued')],['A3:34',$('honnef')],['A3:33',$('siebengebirge')],['A3:32',$('bonn-siegburg')]]);
  toolbar.replaceChildren($('fit'));
  $('junction-count').textContent=String(sorted.length);
  for(const exit of sorted){const button=document.createElement('button');const heading=document.createElement('span');heading.textContent=`${exit.road} · ${exit.ref}`;
@@ -943,7 +943,7 @@ function fillMetrics(){const parent=$('metrics');parent.replaceChildren();
 }
 function bind(){
  $('fit').onclick=()=>fit();$('dernbach').onclick=()=>focusOn([50.460264,7.767549],14.2);
- for(const [id,road,ref] of [['koblenz','A48','9'],['diez','A3','41'],['limburg-nord','A3','42'],['limburg-sued','A3','43'],['honnef','A3','34']]){
+ for(const [id,road,ref] of [['koblenz','A48','9'],['diez','A3','41'],['limburg-nord','A3','42'],['limburg-sued','A3','43'],['honnef','A3','34'],['siebengebirge','A3','33'],['bonn-siegburg','A3','32']]){
   $(id!).onclick=()=>{const exit=exits.find(e=>e.road===road&&e.ref===ref),key=$<HTMLSelectElement>('traffic-route').value as RoadId;
    if(exit)focusOn(DIRECTIONS.includes(key)?exitPosition(exit,key):exit.position,13.8)};
  }

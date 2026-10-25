@@ -42,7 +42,7 @@ test('all four motorway directions form one continuous real-OSM chain',()=>{
  }
 });
 
-test('whole-network mobile map retains all 15 junction markers and readable numbers below zoom 11',()=>{
+test('whole-network mobile map retains all 17 junction markers and readable numbers below zoom 11',()=>{
  const points=networkData.roads.flatMap(r=>r.points),lat=points.map(p=>p[0]),lon=points.map(p=>p[1]);
  const low=[Math.min(...lat),Math.min(...lon)],high=[Math.max(...lat),Math.max(...lon)];
  const center=[(low[0]+high[0])/2,(low[1]+high[1])/2];
@@ -53,7 +53,7 @@ test('whole-network mobile map retains all 15 junction markers and readable numb
   const middle=mercator(center,zoom),project=p=>{const q=mercator(p,zoom);return [width/2+q[0]-middle[0],height/2+q[1]-middle[1]]};
   const obstacles=[{x:10,y:10,w:width-90,h:33},{x:width-55,y:10,w:45,h:95},{x:0,y:height-100,w:width,h:100}];
   const labels=layoutJunctionLabels(networkData.exits,project,{width,height},zoom,t=>t.length*6,obstacles);
-  assert.equal(labels.length,15,`missing marker at width ${width}`);
+  assert.equal(labels.length,17,`missing marker at width ${width}`);
   assert.ok(labels.every(l=>l.box),`missing junction number at width ${width}: ${labels.filter(l=>!l.box).map(l=>l.exit.name)}`);
   for(const label of labels){
    assert.deepEqual(label.point,project(label.exit.position),'the anchor must stay at its real location');
