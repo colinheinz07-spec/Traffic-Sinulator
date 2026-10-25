@@ -1,8 +1,7 @@
-import { cellSpeedBands, cellCriticalDensity } from './traffic-cells.js?build=5b113574c0934a2f';
-import { closureGate, positionM } from './spatial.js?build=5b113574c0934a2f';
-import { diversionJunctions, potentialDiversionPercent } from './diversions.js?build=5b113574c0934a2f';
-import { speedDelayInCells } from './speed-delay.js?build=5b113574c0934a2f';
-import { freeSpeedKmh } from './traffic-physics.js?build=5b113574c0934a2f';
+import { closureGate, positionM } from './spatial.js?build=0e7a141e43a790ca';
+import { diversionJunctions, potentialDiversionPercent } from './diversions.js?build=0e7a141e43a790ca';
+import { speedDelayInCells } from './speed-delay.js?build=0e7a141e43a790ca';
+import { freeSpeedKmh } from './traffic-physics.js?build=0e7a141e43a790ca';
 /** A formal closure requires a working route at its exit even when that
  * route was paused for an earlier incident. A return inside the closed
  * section cannot serve as the mandatory route. */
@@ -39,54 +38,6 @@ function excessQueue(state, fromM, toM, demandVph) {
     }
     return vehicles;
 }
-/** First AS before the actual queue; all downstream AS remain usable too,
- * including those now inside it. A backed-up target motorway recruits only
- * the last source AS before its AD until the source queue spreads further.
- */
-export function firstDiversionExit(state, route, exits, approachEndM, backedUpConnection = false) {
-    if (route.key.startsWith('ramp-'))
-        return null;
-    const junctions = diversionJunctions(route.key, exits, route)
-        .filter(j => !j.isInterchange && j.metre <= approachEndM + 25);
-    if (!junctions.length)
-        return null;
-    const tail = connectedQueueTail(state, approachEndM);
-    if (tail === null)
-        return backedUpConnection ? junctions.at(-1).metre : null;
-    // At approximately 100 m resolution, the previous AS joins only when
-    // the visible congested cells actually cover the current AS.
-    return (junctions.filter(j => j.metre < tail - .1).at(-1) ?? junctions[0]).metre;
-}
-/** Follow only the queue connected to this bottleneck, including dense
- * moving packets. A genuinely free gap ends its physical footprint. */
-export function connectedQueueTail(state, approachEndM) {
-    const bands = cellSpeedBands(state).filter(b => b.fromM < approachEndM + state.cellM);
-    // Only follow the queue connected to this bottleneck. Taking the minimum
-    // over ALL upstream bands also picks isolated off-ramp queues: their
-    // diverted cars would then recruit the next remote AS recursively.
-    // Moving packets may bridge color gaps only while their density still
-    // belongs to the queue. Even one genuinely free cell separates queues.
-    let root = -1;
-    for (let i = bands.length - 1; i >= 0; i--)
-        if (bands[i].toM >= approachEndM - state.cellM &&
-            bands[i].fromM <= approachEndM + state.cellM) {
-            root = i;
-            break;
-        }
-    if (root < 0)
-        return null;
-    let tail = bands[root].fromM;
-    for (let i = root - 1; i >= 0; i--) {
-        const band = bands[i];
-        if (tail - band.toM > state.cellM + 1)
-            break;
-        if (tail - band.toM > .1 && state.cells.some(c => c.toM > band.toM + .1 && c.fromM < tail - .1 &&
-            c.densityVehKm < cellCriticalDensity(state.pathKey) * 1.10))
-            break;
-        tail = band.fromM;
-    }
-    return tail;
-}
 export function routedDiversionChoice(entry, entries, cells, routes, events, exits, demands) {
     const { config, state } = entry, path = config.path, target = config.targetPath ?? path;
     const source = cells[path], destination = cells[target], route = routes[path];
@@ -108,15 +59,13 @@ export function routedDiversionChoice(entry, entries, cells, routes, events, exi
         return { percent: 0, mandatory: false, delayMin: 0, upstreamRank: 0 };
     const eventM = event && event.pathKey === path ? positionM(route, event.point) : null;
     const approachEnd = gate?.metre ?? (cross ? config.sourceEndM ?? route.lengthM : eventM ?? config.toM);
-    const backedUpConnection = cross && cellSpeedBands(destination).some(b => b.fromM <= (config.targetEntryM ?? 0) && b.toM >= (config.targetEntryM ?? 0));
-    const firstExit = firstDiversionExit(source, route, exits, approachEnd, backedUpConnection);
     const upstreamRank = route.key.startsWith('ramp-') ? 0 : diversionJunctions(path, exits, route)
         .filter(j => !j.isInterchange && j.metre > config.fromM + 25 && j.metre <= approachEnd + 25).length + 1;
-    const eligible = firstExit !== null && config.fromM >= firstExit - 25 && config.fromM <= approachEnd + 25;
-    // Cars still reaching an AS inside the queue have already suffered part
-    // of its delay. Use the same full queue disadvantage for all recruited
-    // exits, so extending the tail does not turn the previously used AS off.
-    const decisionFrom = Math.min(config.fromM, firstExit ?? config.fromM, connectedQueueTail(source, approachEnd) ?? config.fromM);
+    const eligible = config.fromM <= approachEnd + 25;
+    // Only time still ahead can be avoided by leaving or by declining to
+    // enter here. Moving the tail across any AS must not change eligibility
+    // or add delay already spent behind the driver's current position.
+    const decisionFrom = config.fromM;
     if (gate && config.fromM < gate.metre) {
         const normal = entries.find(e => e.enabled !== false && e.config.path === path && e.config.eventId === config.eventId &&
             (e.config.targetPath ?? path) === path && Math.abs(e.config.fromM - gate.metre) <= 25);

@@ -14,6 +14,9 @@ export interface JunctionTrafficDemand {
 export interface JunctionTrafficState extends JunctionTrafficDemand {
  waiting:number;offeredTotal:number;enteredTotal:number;exitedTotal:number;
  lastEntered:number;lastExited:number;
+ /** New local trips choosing another road before entering the ramp.
+  * Existing ramp inventory and returning detour vehicles stay conserved. */
+ entryAvoidancePercent?:number;
 }
 export function normalJunctionTraffic(route:Corridor,exits:readonly Exit[],demandVph:number):JunctionTrafficDemand[]{
  if(route.key.startsWith('ramp-'))return [];

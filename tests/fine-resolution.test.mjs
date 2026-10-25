@@ -78,26 +78,28 @@ for(const [path,from,to] of pairs){
  });
 
  for(const kind of ['accident','roadworks','breakdown']){
-  test(`${path} ${kind}: visible 45-minute forecast recruits only the first exit before the queue`,()=>{
+  test(`${path} ${kind}: visible 45-minute forecast starts voluntary diversion without forced departures`,()=>{
    const route=routes[path],event=incident(path,from,to,kind,40),entries=prepare(event);
    const grid=advanceCells(initialiseCells(route,0),route,[event],0,exits);
    const head=grid.cells.find(c=>c.reopeningForecast),service=head.reopeningForecast.serviceVph;
    const queued=grid.cells.filter(c=>c.toM<=head.toM+.1&&c.toM>head.toM-10*grid.cellM+.1);
-   const km=queued.length*grid.cellM/1000;
+   const fromM=diversionJunctions(path,exits,route).find(j=>j.ref===from).metre;
+   const km=queued.reduce((n,c)=>n+Math.max(0,c.toM-Math.max(c.fromM,fromM))/1000,0);
    assert.equal(queued.length,10);
    for(const target of [44.9,45,46]){
     const k=((target-40)+60*km/freeSpeedKmh(path))*service/(60*km);
     assert.ok(k<95*event.laneCount,'the threshold fixture must fit the physical road storage');
     for(const c of queued){c.densityVehKm=k;c.vehicles=k*grid.cellM/1000;c.speedKmh=0;c.flowVph=0;}
-    const visible=speedDelayInCells(grid);assert.ok(Math.abs(visible.delayMin-target)<1e-6);
+    const visible=speedDelayInCells(grid,fromM);assert.ok(Math.abs(visible.delayMin-target)<1e-6);
     const choices=entries.map(e=>({ref:e.config.geometry.sourceExitRef,...routedDiversionChoice(e,entries,{[path]:grid},routes,[event],exits,defaultDemands())}));
     assert.ok(choices.every(c=>!c.mandatory));
-    if(target<45)assert.ok(choices.every(c=>c.percent===0));
+    const nearest=choices.find(c=>c.ref===from);
+    if(target<45)assert.equal(nearest.percent,0);
     else{
-     const used=choices.filter(c=>c.percent>0);assert.deepEqual(used.map(c=>c.ref),[from]);
-     assert.ok(used[0].percent>0&&used[0].percent<100);
-     assert.ok(Math.abs(used[0].delayMin-visible.delayMin)<1e-6);
+     assert.ok(nearest&&nearest.percent>0&&nearest.percent<=3);
+     assert.ok(Math.abs(nearest.delayMin-visible.delayMin)<1e-6);
     }
+    for(const choice of choices)if(choice.delayMin<45-1e-9)assert.equal(choice.percent,0);
    }
   });
  }

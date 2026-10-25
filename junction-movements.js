@@ -4,13 +4,13 @@
  * Every normal AS is covered; AK/AD are separate motorway nodes and cannot
  * be misrepresented as exits onto local roads.
  */
-import { names } from './core.js?build=5b113574c0934a2f';
-import { positionM, closureGate } from './spatial.js?build=5b113574c0934a2f';
-import { diversionJunctions } from './diversions.js?build=5b113574c0934a2f';
-/** 100% is reserved for the LAST normal exit that can be reached before
- * a formal complete road closure. Earlier exits are voluntary alternatives
- * recruited in stages as actual queue/side-road waiting grows.
- * The 100% value is the requested exit intention, never a claim that a
+import { names } from './core.js?build=0e7a141e43a790ca';
+import { positionM, closureGate } from './spatial.js?build=0e7a141e43a790ca';
+import { diversionJunctions } from './diversions.js?build=0e7a141e43a790ca';
+/** A formal closure forces departure only at the LAST usable normal exit.
+ * Earlier exits are voluntary alternatives chosen by remaining time loss,
+ * independently of the tail's distance from any junction.
+ * The requested exit intention is never a claim that a
  * ramp can absorb an unlimited traffic stream.
  */
 export function junctionMovements(path, route, exits, events, _delayMin, real = [], local = []) {
@@ -40,8 +40,7 @@ export function junctionMovements(path, route, exits, events, _delayMin, real = 
             nearest.distanceBeforeClosureKm = (at - nearest.exit.metre) / 1000;
         }
     }
-    // A direction-wide delay does not say which AS the tail has reached.
-    // Voluntary percentages come exclusively from the same spatial policy
+    // Voluntary percentages come exclusively from the same delay policy
     // that supplies the actual cell transfers, never a second UI estimate.
     for (const movement of local) {
         const row = rows.find(r => !r.exit.isInterchange && r.exit.ref === movement.ref);

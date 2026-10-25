@@ -1,8 +1,8 @@
-import { positionM, closureGate } from './spatial.js?build=5b113574c0934a2f';
-import { baselineCapacity, eventCapacity } from './traffic.js?build=5b113574c0934a2f';
-import { flowPolicy, DEFAULT_CLEARANCE_MIN } from './events.js?build=5b113574c0934a2f';
-import { colorAtSpeed, freeSpeedKmh } from './traffic-physics.js?build=5b113574c0934a2f';
-import { normalJunctionTraffic } from './junction-traffic.js?build=5b113574c0934a2f';
+import { positionM, closureGate } from './spatial.js?build=0e7a141e43a790ca';
+import { baselineCapacity, eventCapacity } from './traffic.js?build=0e7a141e43a790ca';
+import { flowPolicy, DEFAULT_CLEARANCE_MIN } from './events.js?build=0e7a141e43a790ca';
+import { colorAtSpeed, freeSpeedKmh } from './traffic-physics.js?build=0e7a141e43a790ca';
+import { normalJunctionTraffic } from './junction-traffic.js?build=0e7a141e43a790ca';
 const TARGET_CELL_M = 100, WAVE_KMH = 22, JAM_PER_LANE = 95;
 // One observation per MODEL minute; repainting/pause never advances this.
 const TRAVEL_ALPHA = 1 - Math.exp(-1 / 6);
@@ -180,25 +180,6 @@ export function advanceCells(previous, route, events, demandVph, exits = [], por
     const substeps = Math.max(30, Math.ceil(freeSpeedKmh(route.key) * 1000 / (60 * previous.cellM))), dtMin = 1 / substeps;
     const controls = localControls(route, events, demandVph, n, previous.cellM, exits);
     const { speeds, capacity, faceCapacity, faceControls, jam, releases, closedEntries } = controls;
-    const junctions = junctionDemand.map(d => {
-        if (!Number.isFinite(d.entryVph) || d.entryVph < 0 || !Number.isFinite(d.exitPercent) || d.exitPercent < 0 || d.exitPercent > 100 ||
-            !Number.isFinite(d.metre) || d.metre < 0 || d.metre >= route.lengthM ||
-            !Number.isFinite(d.entryCapacityVph) || !Number.isFinite(d.exitCapacityVph) || d.entryCapacityVph <= 0 || d.exitCapacityVph <= 0)
-            throw Error('Ungültiger Anschlussstellenzufluss');
-        const old = previous.junctions?.find(j => j.id === d.id);
-        return { ...d, waiting: old?.waiting ?? 0, offeredTotal: old?.offeredTotal ?? 0,
-            enteredTotal: old?.enteredTotal ?? 0, exitedTotal: old?.exitedTotal ?? 0, lastEntered: 0, lastExited: 0,
-            face: Math.max(1, Math.min(n - 1, Math.round(d.metre / previous.cellM))),
-            entryBlocked: closedEntries.some(c => d.metre >= c.fromM && d.metre < c.toM) };
-    });
-    // An existing ramp queue is a vehicle inventory, even if a caller stops
-    // offering new local demand. It may still merge and must never be dropped.
-    for (const old of previous.junctions ?? [])
-        if (!junctions.some(j => j.id === old.id))
-            junctions.push({
-                ...old, entryVph: 0, lastEntered: 0, lastExited: 0, face: Math.max(1, Math.min(n - 1, Math.round(old.metre / previous.cellM))),
-                entryBlocked: closedEntries.some(c => old.metre >= c.fromM && old.metre < c.toM)
-            });
     const routed = ports.map(port => {
         if (!((port.fromM === null || port.fromM >= 0 && port.fromM < route.lengthM) &&
             (port.toM === null || port.toM >= 0 && port.toM <= route.lengthM) &&
@@ -210,6 +191,32 @@ export function advanceCells(previous, route, events, demandVph, exits = [], por
         return { ...port, from: port.fromM === null ? -1 : Math.max(1, Math.min(n - 1, Math.round(port.fromM / previous.cellM))),
             to: port.toM === null ? -1 : Math.max(1, Math.min(n - 1, Math.round(port.toM / previous.cellM))), left: 0, joined: 0 };
     });
+    const junctions = junctionDemand.map(d => {
+        if (!Number.isFinite(d.entryVph) || d.entryVph < 0 || !Number.isFinite(d.exitPercent) || d.exitPercent < 0 || d.exitPercent > 100 ||
+            !Number.isFinite(d.metre) || d.metre < 0 || d.metre >= route.lengthM ||
+            !Number.isFinite(d.entryCapacityVph) || !Number.isFinite(d.exitCapacityVph) || d.entryCapacityVph <= 0 || d.exitCapacityVph <= 0)
+            throw Error('Ungültiger Anschlussstellenzufluss');
+        const old = previous.junctions?.find(j => j.id === d.id);
+        const face = Math.max(1, Math.min(n - 1, Math.round(d.metre / previous.cellM)));
+        const entryBlocked = closedEntries.some(c => d.metre >= c.fromM && d.metre < c.toM);
+        // Apply the SAME delay-based route choice to new local trips. This is
+        // demand avoided before entering our network, not cars deleted from an
+        // existing ramp queue. Actual ramp/side-road capacities do not set it.
+        const entryAvoidancePercent = entryBlocked ? 0 : Math.min(100, routed.filter(p => p.from === face)
+            .reduce((sum, p) => sum + p.interestPercent, 0));
+        return { ...d, entryVph: d.entryVph * (1 - entryAvoidancePercent / 100), entryAvoidancePercent,
+            waiting: old?.waiting ?? 0, offeredTotal: old?.offeredTotal ?? 0,
+            enteredTotal: old?.enteredTotal ?? 0, exitedTotal: old?.exitedTotal ?? 0, lastEntered: 0, lastExited: 0,
+            face, entryBlocked };
+    });
+    // An existing ramp queue is a vehicle inventory, even if a caller stops
+    // offering new local demand. It may still merge and must never be dropped.
+    for (const old of previous.junctions ?? [])
+        if (!junctions.some(j => j.id === old.id))
+            junctions.push({
+                ...old, entryVph: 0, entryAvoidancePercent: 0, lastEntered: 0, lastExited: 0, face: Math.max(1, Math.min(n - 1, Math.round(old.metre / previous.cellM))),
+                entryBlocked: closedEntries.some(c => old.metre >= c.fromM && old.metre < c.toM)
+            });
     const occupancy = previous.cells.map(c => c.vehicles);
     const closures = controls.closureGates.map(g => ({ ...g, diverting: g.exitRef !== null &&
             routed.filter(p => p.from === g.face).reduce((n, p) => n + p.interestPercent, 0) >= 100 - .001 }));

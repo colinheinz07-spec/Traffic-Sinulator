@@ -1,8 +1,7 @@
-import { positionM, closureGate } from './spatial.js?build=5b113574c0934a2f';
-import { DIVERSION_LINKS, diversionJunctions } from './diversions.js?build=5b113574c0934a2f';
-import { speedDelayInCells } from './speed-delay.js?build=5b113574c0934a2f';
-import { cellSpeedBands } from './traffic-cells.js?build=5b113574c0934a2f';
-import { bundledTargets, isNetworkDestination } from './bundled-detours.js?build=5b113574c0934a2f';
+import { positionM, closureGate } from './spatial.js?build=0e7a141e43a790ca';
+import { DIVERSION_LINKS, diversionJunctions } from './diversions.js?build=0e7a141e43a790ca';
+import { speedDelayInCells } from './speed-delay.js?build=0e7a141e43a790ca';
+import { bundledTargets, isNetworkDestination } from './bundled-detours.js?build=0e7a141e43a790ca';
 export function automaticDiversions(events, corridors, exits, cells, connections = []) {
     const plans = new Map();
     for (const event of events) {
@@ -15,10 +14,9 @@ export function automaticDiversions(events, corridors, exits, cells, connections
         const section = closureGate(route, event, exits);
         const end = Math.min(route.lengthM, at + event.settings.lengthM + 50);
         const after = targets.filter(x => isNetworkDestination(x) || (section ? x.metre >= section.endM - 1 : x.metre > end));
-        const targetGrid = cells[path];
         for (const connection of connections.filter(c => c.to === path && at > c.downstreamMergeM)) {
-            if (!targetGrid || !cellSpeedBands(targetGrid).some(b => b.fromM <= connection.downstreamMergeM && b.toM >= connection.downstreamMergeM))
-                continue;
+            // Prepare cross-motorway alternatives before the target queue reaches
+            // the AD. The remaining journey's delay controls whether anyone uses it.
             const source = connection.from, to = after[0];
             const sources = diversionJunctions(source, exits, corridors[source]).filter(x => !x.isInterchange && x.metre < connection.rampEntryM - 50);
             for (const from of sources) {

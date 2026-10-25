@@ -50,8 +50,8 @@ test('two reopened lanes discharge more and clear a long queue faster than keepi
 });
 test('multiple simultaneous exits remove only cars reaching those cells, then return them after travel',()=>{
  const at=route.lengthM*.6,closure=event(at,'closure',[0,1,2],0);
- // Both exits must actually have been reached by the queue. Merely having
- // two geometries upstream of a closure no longer recruits both AS.
+ // The earlier exit needs 45 minutes of remaining delay; preparing its
+ // geometry alone must never force drivers to use it.
  const last=closureGate(route,closure,exits).metre,previous=junction(path,'37').metre;
  let cells=initialiseCells(route,2400),detours=[detour('first',previous,route.lengthM*.8),detour('second',last,route.lengthM*.85)];
  for(const c of cells.cells)if(c.toM>previous-500&&c.fromM<last){

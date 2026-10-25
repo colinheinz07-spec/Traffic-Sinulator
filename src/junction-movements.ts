@@ -26,10 +26,10 @@ export interface RealDetourFlow {
  desiredPercent?:number;
  outVph:number;inVph:number;vehiclesOnDetour:number;waitingAtReentry:number;
 }
-/** 100% is reserved for the LAST normal exit that can be reached before
- * a formal complete road closure. Earlier exits are voluntary alternatives
- * recruited in stages as actual queue/side-road waiting grows.
- * The 100% value is the requested exit intention, never a claim that a
+/** A formal closure forces departure only at the LAST usable normal exit.
+ * Earlier exits are voluntary alternatives chosen by remaining time loss,
+ * independently of the tail's distance from any junction.
+ * The requested exit intention is never a claim that a
  * ramp can absorb an unlimited traffic stream.
  */
 export function junctionMovements(path:RoadId,route:Corridor,exits:readonly Exit[],
@@ -54,8 +54,7 @@ export function junctionMovements(path:RoadId,route:Corridor,exits:readonly Exit
    nearest.distanceBeforeClosureKm=(at-nearest.exit.metre)/1000;
   }
  }
- // A direction-wide delay does not say which AS the tail has reached.
- // Voluntary percentages come exclusively from the same spatial policy
+ // Voluntary percentages come exclusively from the same delay policy
  // that supplies the actual cell transfers, never a second UI estimate.
  for(const movement of local){
   const row=rows.find(r=>!r.exit.isInterchange&&r.exit.ref===movement.ref);

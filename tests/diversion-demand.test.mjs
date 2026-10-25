@@ -60,9 +60,10 @@ for(const [path,ref,nextRef] of [['A3-frankfurt','40','41'],['A3-koeln','40','38
     const used=choices.filter(c=>c.percent>0);
     if(delay<45)assert.equal(used.length,0);
     else{
-     assert.deepEqual(used.map(c=>c.entry.config.geometry.sourceExitRef),[ref]);
-     assert.ok(used[0].percent>0&&!used[0].mandatory);
-     if(delay<=90)assert.ok(used[0].percent<50);
+     const selected=used.find(c=>c.entry.config.geometry.sourceExitRef===ref);
+     assert.ok(selected&&selected.percent>0&&!selected.mandatory);
+     assert.ok(used.every(c=>!c.mandatory));
+     if(delay<=90)assert.ok(used.every(c=>c.percent<50));
      if(delay===45){
       const actual=advanceRoutedPath(grid,route,[event],2000,exits,entries);
       const source=actual.detours.find(e=>e.config.geometry.sourceExitRef===ref);

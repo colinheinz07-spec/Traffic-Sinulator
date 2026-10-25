@@ -10,7 +10,6 @@ import {speedDelayInCells} from './speed-delay.js';
 import type {CellRouteState} from './traffic-cells.js';
 import type {PathKey} from './traffic.js';
 import type {RampConnection} from './interchange.js';
-import {cellSpeedBands} from './traffic-cells.js';
 import {bundledTargets,isNetworkDestination} from './bundled-detours.js';
 export interface AutomaticDiversion {
  key:string;event:SimEvent;path:RoadId;from:JunctionAnchor;to:JunctionAnchor;link:DiversionLink;
@@ -28,9 +27,9 @@ export function automaticDiversions(events:readonly SimEvent[],corridors:Readonl
   const section=closureGate(route,event,exits);
   const end=Math.min(route.lengthM,at+event.settings.lengthM+50);
   const after=targets.filter(x=>isNetworkDestination(x)||(section?x.metre>=section.endM-1:x.metre>end));
-  const targetGrid=cells[path];
   for(const connection of connections.filter(c=>c.to===path&&at>c.downstreamMergeM)){
-   if(!targetGrid||!cellSpeedBands(targetGrid).some(b=>b.fromM<=connection.downstreamMergeM&&b.toM>=connection.downstreamMergeM))continue;
+   // Prepare cross-motorway alternatives before the target queue reaches
+   // the AD. The remaining journey's delay controls whether anyone uses it.
    const source=connection.from,to=after[0]!;
    const sources=diversionJunctions(source,exits,corridors[source]).filter(x=>!x.isInterchange&&x.metre<connection.rampEntryM-50);
    for(const from of sources){
