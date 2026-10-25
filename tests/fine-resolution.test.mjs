@@ -110,7 +110,7 @@ test('reopening wait is counted once when one accident queue has separate moving
  const state=advanceCells(initialiseCells(route,0),route,[event],0,exits);
  const at=state.cells.findIndex(c=>c.reopeningForecast);
  for(let i=at-22;i<=at;i++){
-  const c=state.cells[i];if(i===at-11)continue;
+  const c=state.cells[i];if(i===at-11){c.queueMemoryMin=3;continue;}
   c.densityVehKm=180;c.vehicles=180*state.cellM/1000;c.speedKmh=0;c.flowVph=0;
  }
  const shown=trafficView([],{[path]:state},routes,[event],[],0);

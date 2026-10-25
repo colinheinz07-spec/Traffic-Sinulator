@@ -1,4 +1,4 @@
-import { diversionJunctions } from './diversions.js?build=0e7a141e43a790ca';
+import { diversionJunctions } from './diversions.js?build=9b83d91f0feef117';
 export function normalJunctionTraffic(route, exits, demandVph) {
     if (route.key.startsWith('ramp-'))
         return [];

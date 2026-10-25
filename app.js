@@ -1,24 +1,24 @@
-import { PATHS, pathBottleneck, defaultDemands, demandAtMinute, demandAtClock } from './traffic.js?build=0e7a141e43a790ca';
-import { networkData } from './geodata.js?build=0e7a141e43a790ca';
-import { makeCorridors, routeSlice, positionM, closureGate, advanceSpatial, emptySpatial, jamsAt } from './spatial.js?build=0e7a141e43a790ca';
-import { initialiseCells } from './traffic-cells.js?build=0e7a141e43a790ca';
-import { speedDelayLabel } from './speed-delay.js?build=0e7a141e43a790ca';
-import { trafficView } from './traffic-view.js?build=0e7a141e43a790ca';
-import { advanceRoutedNetwork } from './routed-traffic.js?build=0e7a141e43a790ca';
-import { routedDiversionChoice, requiredDiversionGate } from './diversion-policy.js?build=0e7a141e43a790ca';
-import { automaticDiversions } from './auto-diversions.js?build=0e7a141e43a790ca';
-import { buildRampConnections, rampSpillbacks } from './interchange.js?build=0e7a141e43a790ca';
-import { planDiversion } from './diversions.js?build=0e7a141e43a790ca';
-import { junctionMovements, junctionMovementHint } from './junction-movements.js?build=0e7a141e43a790ca';
-import { bundledDetourGeometry, bundledExitRoutes, bundledTargets, isNetworkDestination } from './bundled-detours.js?build=0e7a141e43a790ca';
-import { emptyDetour, detourVehicles } from './detour-flow.js?build=0e7a141e43a790ca';
-import { decodeEvents, eventFromHit, updatedEvent, eventNames, eventSymbols, eventSummary, defaultLengthM, maxLengthM, suggestedSpeed, DEFAULT_CLEARANCE_MIN, STORAGE_KEY, isEventKind, validEvent, effectiveEventsAt, eventScheduleStatus } from './events.js?build=0e7a141e43a790ca';
-import { roadLaneInfo, rampLaneInfo } from './lane-info.js?build=0e7a141e43a790ca';
-import { mapCandidates, chooseMapHits, closestJunction, lanePositions, hitLabel } from './selection.js?build=0e7a141e43a790ca';
-import { buildContinuousRoads, lineWidths, rampBadges, layoutJunctionLabels } from './cartography.js?build=0e7a141e43a790ca';
-import { placeJamCallout } from './map-callouts.js?build=0e7a141e43a790ca';
-import { installScheduleForm } from './schedule-form.js?build=0e7a141e43a790ca';
-import { DIRECTIONS, validateMap, names, mercator, inverse, exitPosition } from './core.js?build=0e7a141e43a790ca';
+import { PATHS, pathBottleneck, defaultDemands, demandAtMinute, demandAtClock } from './traffic.js?build=9b83d91f0feef117';
+import { networkData } from './geodata.js?build=9b83d91f0feef117';
+import { makeCorridors, routeSlice, positionM, closureGate, advanceSpatial, emptySpatial, jamsAt } from './spatial.js?build=9b83d91f0feef117';
+import { initialiseCells } from './traffic-cells.js?build=9b83d91f0feef117';
+import { speedDelayLabel } from './speed-delay.js?build=9b83d91f0feef117';
+import { trafficView } from './traffic-view.js?build=9b83d91f0feef117';
+import { advanceRoutedNetwork } from './routed-traffic.js?build=9b83d91f0feef117';
+import { routedDiversionChoice, requiredDiversionGate } from './diversion-policy.js?build=9b83d91f0feef117';
+import { automaticDiversions } from './auto-diversions.js?build=9b83d91f0feef117';
+import { buildRampConnections, rampSpillbacks } from './interchange.js?build=9b83d91f0feef117';
+import { planDiversion } from './diversions.js?build=9b83d91f0feef117';
+import { junctionMovements, junctionMovementHint } from './junction-movements.js?build=9b83d91f0feef117';
+import { bundledDetourGeometry, bundledExitRoutes, bundledTargets, isNetworkDestination } from './bundled-detours.js?build=9b83d91f0feef117';
+import { emptyDetour, detourVehicles } from './detour-flow.js?build=9b83d91f0feef117';
+import { decodeEvents, eventFromHit, updatedEvent, eventNames, eventSymbols, eventSummary, defaultLengthM, maxLengthM, suggestedSpeed, DEFAULT_CLEARANCE_MIN, STORAGE_KEY, isEventKind, validEvent, effectiveEventsAt, eventScheduleStatus } from './events.js?build=9b83d91f0feef117';
+import { roadLaneInfo, rampLaneInfo } from './lane-info.js?build=9b83d91f0feef117';
+import { mapCandidates, chooseMapHits, closestJunction, lanePositions, hitLabel } from './selection.js?build=9b83d91f0feef117';
+import { buildContinuousRoads, lineWidths, rampBadges, layoutJunctionLabels } from './cartography.js?build=9b83d91f0feef117';
+import { placeJamCallout } from './map-callouts.js?build=9b83d91f0feef117';
+import { installScheduleForm } from './schedule-form.js?build=9b83d91f0feef117';
+import { DIRECTIONS, validateMap, names, mercator, inverse, exitPosition } from './core.js?build=9b83d91f0feef117';
 const $ = (id) => { const element = document.getElementById(id); if (!element)
     throw Error(`Element fehlt: ${id}`); return element; };
 const canvas = $('map'), wrapper = canvas.parentElement;
@@ -433,7 +433,7 @@ function prepareAutomaticDetour(option, enable = true) {
     const k = option.key, cached = mappedDetours.get(k);
     const geometry = cached?.geometry ?? bundledDetourGeometry(k, option.path, option.from, option.to, exits);
     const config = { id: k, path: option.path, fromM: option.from.metre,
-        toM: option.to.metre, eventId: option.event.id, geometry,
+        toM: option.to.metre, eventId: option.event?.id ?? option.causeId ?? k, geometry,
         targetPath: option.targetPath, sourceEndM: option.sourceEndM, targetEntryM: option.targetEntryM,
         exitsNetwork: isNetworkDestination(option.to) };
     mappedDetours.set(k, config);
@@ -601,8 +601,9 @@ function renderDiversionPlanner(key, jams, spillbacks) {
     }
     const active = activeEvents().filter(e => e.pathKey === direction);
     if (!active.length) {
+        const queued = cellNetwork[direction]?.cells.some(c => c.speedKmh <= 65 && c.densityVehKm > 0);
         const p = document.createElement('p');
-        p.textContent = cross.length ? 'Umfahrung wegen Rückstau auf der Zielautobahn. Alle enthaltenen Routen stehen unten.' : 'Noch kein Ereignis in dieser Fahrtrichtung. Für jede reguläre Ausfahrt ist unten eine Simulationsroute enthalten.';
+        p.textContent = cross.length ? 'Umfahrung wegen Rückstau auf der Zielautobahn. Alle enthaltenen Routen stehen unten.' : queued ? 'Stauumfahrung an der nächsten nutzbaren AS vor dem berechneten Stauende; der Zeitverlust bestimmt den Ausweichanteil.' : 'Noch kein Rückstau in dieser Fahrtrichtung. Für jede reguläre Ausfahrt ist unten eine Simulationsroute enthalten.';
         parent.append(p);
     }
     else {
@@ -617,7 +618,7 @@ function renderDiversionPlanner(key, jams, spillbacks) {
             title.textContent = `${eventSymbols[event.kind]} ${eventNames[event.kind]} · ${trafficRouteLabel(direction)}`;
             const demand = document.createElement('p');
             demand.textContent = plan.requiredDiversion ? '⛔ 100 % Pflichtabfahrt nur an der letzten AS vor der Sperre; frühere Ausfahrten abhängig von Rückstau und Wartezeit.'
-                : `Ausweichinteresse (Modellannahme): ${trafficNumber(plan.interestPercent ?? 0, 1)} % bei ${traffic.delayMin === null ? 'unbestimmter' : trafficNumber(traffic.delayMin, 1) + ' min'} Verzögerung`;
+                : 'Ab 45 Minuten Zeitverlust dieses Staus weichen erste Fahrzeuge an der nächsten nutzbaren AS vor dem Stauende aus. Der Anteil steigt mit dem Zeitverlust; weiter entfernte Ausfahrten davor bleiben beim normalen Verkehr.';
             block.append(title, demand);
             if (!plan.candidateExits.length) {
                 const note = document.createElement('p');

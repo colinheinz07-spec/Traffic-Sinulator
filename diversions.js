@@ -6,8 +6,8 @@
  * This module produces ROUTE PLANNING PREVIEWS only. It must never silently
  * subtract or teleport vehicles from the conserved A3/A48 motorway queues.
  */
-import { exitPosition } from './core.js?build=0e7a141e43a790ca';
-import { positionM, closureGate } from './spatial.js?build=0e7a141e43a790ca';
+import { exitPosition } from './core.js?build=9b83d91f0feef117';
+import { positionM, closureGate } from './spatial.js?build=9b83d91f0feef117';
 const r = (code, path, fromRef, toRef, evidence = 'named-endpoints') => ({
     id: path + '-' + code, code, path, fromRoad: path.startsWith('A3') ? 'A3' : 'A48', fromRef,
     toRoad: toRef ? (path.startsWith('A3') ? 'A3' : 'A48') : null, toRef, evidence,
@@ -80,6 +80,11 @@ export function potentialDiversionPercent(delayMin, required) {
             return Math.round((from + (to - from) * (delayMin - begin) / (end - begin)) * 10) / 10;
     }
     return 100;
+}
+/** Last ordinary exit before this queue, with no distance-to-tail limit.
+ * AD/AK nodes cannot serve as exits onto local roads. */
+export function nearestExitBeforeQueue(path, route, exits, tailM, endM = Infinity) {
+    return diversionJunctions(path, exits, route).filter(j => !j.isInterchange && j.metre <= tailM + .1 && j.metre <= endM + 25).at(-1) ?? null;
 }
 export function planDiversion(event, route, exits, delayMin, maxOptions = Infinity) {
     if (route.key !== event.pathKey || route.key.startsWith('ramp-'))

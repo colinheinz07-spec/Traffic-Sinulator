@@ -5,7 +5,7 @@
  */
 import {PATHS,type PathKey,type TrafficColor} from './traffic.js';
 import {routeSlice,type Corridor,type Jam} from './spatial.js';
-import {cellSpeedBands,type CellRouteState} from './traffic-cells.js';
+import {cellSpeedBands,cellQueueSpans,type CellRouteState} from './traffic-cells.js';
 import {physicalSpeedBands,stopAndGoBands,resolveSpeedBands,freeSpeedKmh,colorAtSpeed,type SpeedBand} from './traffic-physics.js';
 import {speedDelayInCells,speedDelayInBands,type SpeedDelay} from './speed-delay.js';
 import {routeReport,type RouteReport} from './network-report.js';
@@ -59,7 +59,8 @@ function joinWaveFragments(jams:readonly DisplayJam[],cellM:number):DisplayJam[]
   const next=joined.at(-1),gap=next?next.anchorM-next.visibleQueueM-jam.anchorM:Infinity;
   const differentOwners=jam.queueOwnerId&&next?.queueOwnerId&&jam.queueOwnerId!==next.queueOwnerId;
   const sameHead=jam.waveHeadM!==undefined&&jam.waveHeadM===next?.waveHeadM;
-  if(next&&next.pathKey===jam.pathKey&&!differentOwners&&gap>=0&&(sameHead||gap<=cellM+.1)){
+  const unassigned=jam.waveHeadM===undefined&&next?.waveHeadM===undefined;
+  if(next&&next.pathKey===jam.pathKey&&!differentOwners&&gap>=0&&(sameHead||unassigned&&gap<=cellM+.1)){
    const delay=addDelay(jam.delay,next.delay),speedKmh=Math.min(jam.speedKmh,next.speedKmh);
    joined[joined.length-1]={...next,eventId:next.eventId??jam.eventId,
     queueOwnerId:next.queueOwnerId??jam.queueOwnerId,eventKind:next.eventKind??jam.eventKind,
@@ -91,6 +92,7 @@ export function trafficView(
  for(const [key,value] of spillBands)spillBands.set(key,resolveSpeedBands(value));
  for(const path of PATHS){
   const state=cells[path],route=corridors[path],own=legacy.filter(j=>j.pathKey===path);
+  const queueSpans=state?cellQueueSpans(state):[];
   const queueBands=resolveSpeedBands(state?cellSpeedBands(state):own.flatMap(jam=>[
    ...physicalSpeedBands(jam).filter(b=>b.source==='approach'),
    ...stopAndGoBands(jam,minute)
@@ -120,7 +122,14 @@ export function trafficView(
     root.anchorM>=group.fromM-.1&&root.anchorM<=group.toM+.1);
    const feederBands=spill?(overflow.get(path+'|'+spill.id)??[]):[];
    const feederM=lengthM(feederBands);
-   const localDelay=state?speedDelayInCells(state,group.fromM,group.toM):speedDelayInBands(path,group.bands);
+   const approach=queueSpans.find(s=>s.fromM<=group.fromM+.1&&s.toM>=group.toM-.1);
+   const head=state?.cells.find(c=>c.toM>group.fromM+.1&&c.travelDetector?.active)??
+    state?.cells.find(c=>c.toM>group.fromM+.1&&c.travelDetector);
+   // Retain the observed service across released braking-wave gaps. A
+   // zero-flow reopening forecast, however, belongs only to its own queue.
+   const forecast=head?.reopeningForecast!==undefined;
+   const detectorEnd=forecast?(approach?.toM??group.toM)+(state?.cellM??0):Infinity;
+   const localDelay=state?speedDelayInCells(state,group.fromM,group.toM,detectorEnd):speedDelayInBands(path,group.bands);
    const delay=spill?addDelay(localDelay,speedDelayInBands(spill.source,feederBands)):localDelay;
    const speedKmh=Math.min(...group.bands.map(b=>b.speedKmh),...feederBands.map(b=>b.speedKmh));
    const vehicles=state?state.cells.reduce((n,c)=>{
@@ -129,9 +138,7 @@ export function trafficView(
    },0):roots.reduce((n,r)=>n+r.jam.queueVehicles*r.overlap/Math.max(.1,r.jam.visibleQueueM),0);
    ownVehicles+=vehicles;
    const point=routeSlice(route,Math.max(0,group.toM-1),group.toM)[0]??route.points.at(-1)!;
-   // The congestion front may extend one cell past its capacity face,
-   // e.g. where the speed-restricted accident straddles a cell boundary.
-   const waveHeadM=state?.cells.find(c=>c.toM>group.fromM+.1&&c.travelDetector)?.toM;
+   const waveHeadM=forecast?approach?.toM:head?.toM;
    jams.push({id:'display:'+path+':'+Math.round(group.toM),eventId:event?.id,queueOwnerId:root?.id,waveHeadM,
     pathKey:path,eventKind:event?.kind??null,point,anchorM:group.toM,
     queueVehicles:vehicles,queueM:group.toM-group.fromM+feederM,

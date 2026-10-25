@@ -1,8 +1,8 @@
-import { positionM, closureGate } from './spatial.js?build=0e7a141e43a790ca';
-import { baselineCapacity, eventCapacity } from './traffic.js?build=0e7a141e43a790ca';
-import { flowPolicy, DEFAULT_CLEARANCE_MIN } from './events.js?build=0e7a141e43a790ca';
-import { colorAtSpeed, freeSpeedKmh } from './traffic-physics.js?build=0e7a141e43a790ca';
-import { normalJunctionTraffic } from './junction-traffic.js?build=0e7a141e43a790ca';
+import { positionM, closureGate } from './spatial.js?build=9b83d91f0feef117';
+import { baselineCapacity, eventCapacity } from './traffic.js?build=9b83d91f0feef117';
+import { flowPolicy, DEFAULT_CLEARANCE_MIN } from './events.js?build=9b83d91f0feef117';
+import { colorAtSpeed, freeSpeedKmh } from './traffic-physics.js?build=9b83d91f0feef117';
+import { normalJunctionTraffic } from './junction-traffic.js?build=9b83d91f0feef117';
 const TARGET_CELL_M = 100, WAVE_KMH = 22, JAM_PER_LANE = 95;
 // One observation per MODEL minute; repainting/pause never advances this.
 const TRAVEL_ALPHA = 1 - Math.exp(-1 / 6);
@@ -389,6 +389,7 @@ export function advanceCells(previous, route, events, demandVph, exits = [], por
         } : undefined;
         return { ...c, vehicles: occupancy[i], flowVph: outflowVph,
             speedKmh: Math.max(0, speedKmh), densityVehKm,
+            queueMemoryMin: densityVehKm >= critical * 1.10 ? 3 : Math.max(0, (c.queueMemoryMin ?? 0) - 1),
             travelFlowVph, limitKmh: speeds[i], travelDetector,
             blockedAtM: faceCapacity[i + 1] === 0 ? c.toM : undefined,
             reopeningForecast: controls.forecasts.get(i + 1) };
@@ -425,4 +426,21 @@ export function cellSpeedBands(state) {
             bands.push({ fromM: c.fromM, toM: c.toM, speedKmh: c.speedKmh, color, source: 'cell' });
     }
     return bands;
+}
+/** Queue approaches for route choice, independent of event type or AS
+ * names. Dense moving packets and recently released cells belong to the
+ * same queue; persistent free gaps keep independent queues separate.
+ * This geographic span never adds free cells to the displayed jam length. */
+export function cellQueueSpans(state) {
+    const threshold = cellCriticalDensity(state.pathKey) * 1.10, spans = [];
+    for (const c of state.cells) {
+        if (c.densityVehKm < threshold && (c.queueMemoryMin ?? 0) <= 0)
+            continue;
+        const last = spans.at(-1);
+        if (last && Math.abs(last.toM - c.fromM) < .1)
+            last.toM = c.toM;
+        else
+            spans.push({ fromM: c.fromM, toM: c.toM });
+    }
+    return spans;
 }

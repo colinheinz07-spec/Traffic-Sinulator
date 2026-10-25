@@ -317,7 +317,7 @@ function prepareAutomaticDetour(option:AutomaticDiversion,enable=true){
  const k=option.key,cached=mappedDetours.get(k);
  const geometry=cached?.geometry??bundledDetourGeometry(k,option.path,option.from,option.to,exits);
  const config:DetourConfig={id:k,path:option.path,fromM:option.from.metre,
-  toM:option.to.metre,eventId:option.event.id,geometry,
+  toM:option.to.metre,eventId:option.event?.id??option.causeId??k,geometry,
   targetPath:option.targetPath,sourceEndM:option.sourceEndM,targetEntryM:option.targetEntryM,
   exitsNetwork:isNetworkDestination(option.to)};
  mappedDetours.set(k,config);
@@ -454,7 +454,8 @@ function renderDiversionPlanner(key:PathKey,jams:ReturnType<typeof jamsAt>,spill
  }
  const active=activeEvents().filter(e=>e.pathKey===direction);
  if(!active.length){
-  const p=document.createElement('p');p.textContent=cross.length?'Umfahrung wegen Rückstau auf der Zielautobahn. Alle enthaltenen Routen stehen unten.':'Noch kein Ereignis in dieser Fahrtrichtung. Für jede reguläre Ausfahrt ist unten eine Simulationsroute enthalten.';
+  const queued=cellNetwork[direction]?.cells.some(c=>c.speedKmh<=65&&c.densityVehKm>0);
+  const p=document.createElement('p');p.textContent=cross.length?'Umfahrung wegen Rückstau auf der Zielautobahn. Alle enthaltenen Routen stehen unten.':queued?'Stauumfahrung an der nächsten nutzbaren AS vor dem berechneten Stauende; der Zeitverlust bestimmt den Ausweichanteil.':'Noch kein Rückstau in dieser Fahrtrichtung. Für jede reguläre Ausfahrt ist unten eine Simulationsroute enthalten.';
   parent.append(p);
  }else{
   const traffic=trafficView(jams,cellNetwork,spatialCorridors,activeEvents(),spillbacks,spatialState.minute).reports[direction];
@@ -465,7 +466,7 @@ function renderDiversionPlanner(key:PathKey,jams:ReturnType<typeof jamsAt>,spill
    const title=document.createElement('strong');title.textContent=`${eventSymbols[event.kind]} ${eventNames[event.kind]} · ${trafficRouteLabel(direction)}`;
    const demand=document.createElement('p');
    demand.textContent=plan.requiredDiversion?'⛔ 100 % Pflichtabfahrt nur an der letzten AS vor der Sperre; frühere Ausfahrten abhängig von Rückstau und Wartezeit.'
-    :`Ausweichinteresse (Modellannahme): ${trafficNumber(plan.interestPercent??0,1)} % bei ${traffic.delayMin===null?'unbestimmter':trafficNumber(traffic.delayMin,1)+' min'} Verzögerung`;
+    :'Ab 45 Minuten Zeitverlust dieses Staus weichen erste Fahrzeuge an der nächsten nutzbaren AS vor dem Stauende aus. Der Anteil steigt mit dem Zeitverlust; weiter entfernte Ausfahrten davor bleiben beim normalen Verkehr.';
    block.append(title,demand);
    if(!plan.candidateExits.length){
     const note=document.createElement('p');note.textContent='Das Ereignis liegt vor der ersten regulären Ausfahrt des Netzes. Bereits vorbeigefahrene Fahrzeuge können nicht rückwärts zur Ausfahrt wechseln.';

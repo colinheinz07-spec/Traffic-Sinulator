@@ -99,6 +99,11 @@ export function potentialDiversionPercent(delayMin:number|null,required:boolean)
  }
  return 100;
 }
+/** Last ordinary exit before this queue, with no distance-to-tail limit.
+ * AD/AK nodes cannot serve as exits onto local roads. */
+export function nearestExitBeforeQueue(path:RoadId,route:Corridor,exits:readonly Exit[],tailM:number,endM=Infinity):JunctionAnchor|null{
+ return diversionJunctions(path,exits,route).filter(j=>!j.isInterchange&&j.metre<=tailM+.1&&j.metre<=endM+25).at(-1)??null;
+}
 export function planDiversion(event:SimEvent,route:Corridor,exits:readonly Exit[],
  delayMin:number|null,maxOptions=Infinity):DiversionPlan|null{
  if(route.key!==event.pathKey||route.key.startsWith('ramp-'))return null;

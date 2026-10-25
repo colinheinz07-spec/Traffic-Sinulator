@@ -29,43 +29,34 @@ function queue(route,tail,head,delay){
 for(const [path,earlierRef,nearRef] of [['A3-koeln','40','38'],['A3-frankfurt','41','42'],
  ['A48-dernbach','11','12'],['A48-koblenz','12','11']]){
  for(const kind of ['accident','roadworks','breakdown']){
-  test(`${path} ${kind}: delay triggers earlier exits and reduces entries before the queue reaches the next AS`,()=>{
+  test(`${path} ${kind}: delay controls uptake at the nearest exit, and crossing an AS changes it gradually`,()=>{
    const route=routes[path],earlier=junction(path,earlierRef),near=junction(path,nearRef),at=near.metre+1000;
    const laneCount=path.startsWith('A48')?2:3;
-   const event={id:'delay-only-'+path,kind,pathKey:path,point:routeSlice(route,at,at+1)[0],laneCount,
+   const event={id:'delay-nearest-'+path,kind,pathKey:path,point:routeSlice(route,at,at+1)[0],laneCount,
     closedLanes:Array.from({length:laneCount-1},(_,i)=>i),createdAt:'2026-10-25T09:00:00Z',
     settings:{lengthM:100,speedKmh:40,shoulder:'normal'}};
-   const entries=prepare(event),entry=entries.find(e=>e.config.geometry.sourceExitRef===earlierRef);
-   assert.ok(entry);
-   const baseline=normalJunctionTraffic(route,exits,2000).find(j=>j.ref===earlierRef);
-   const percentages=[];
-   for(const delay of [44.9,45,60,90]){
-    const pair=[];
-    // Cross the intervening AS by 200 m while holding time loss fixed.
-    // This must never switch the earlier AS from zero to a large share.
-    for(const offset of [200,-200]){
-     const grid=queue(route,near.metre+offset,at,delay);
-     assert.ok(near.metre-earlier.metre>2000,'the earlier AS is kilometres before the queue');
-     assert.ok(Math.abs(speedDelayInCells(grid).delayMin-delay)<1e-6);
-     const choice=routedDiversionChoice(entry,entries,{[path]:grid},routes,[event],exits,{[path]:2000});
-     pair.push(choice.percent);
-     if(delay<45)assert.equal(choice.percent,0);
-     else assert.ok(choice.percent>0&&choice.percent<50,'some drivers already divert; most stay');
-     assert.equal(choice.mandatory,false);
-     const next=advanceRoutedPath(grid,route,[event],2000,exits,entries);
-     const actual=next.detours.find(e=>e.config.id===entry.config.id);
-     const local=next.cells.junctions.find(j=>j.ref===earlierRef);
-     assert.equal(actual.desiredPercent,choice.percent);
-     if(delay>=45)assert.ok(actual.state.lastDeparture>0,'real vehicles leave without a tail-distance trigger');
-     assert.ok(Math.abs(local.entryVph-baseline.entryVph*(1-choice.percent/100))<1e-6,
-      'new local entry demand must follow the same avoidance decision');
-     assert.ok(Math.abs(local.lastEntered*60-local.entryVph)<1e-6,'the free approach really receives the reduced rate');
-     assertCellConservation(next.cells);
-    }
-    assert.equal(pair[0],pair[1],'moving the tail across the next AS must not change this exit decision');
-    percentages.push(pair[0]);
+   const entries=prepare(event);
+   for(const delay of [44.9,45,60,90,240])for(const offset of [200,-200]){
+    const selectedRef=offset>0?nearRef:earlierRef;
+    const selected=entries.find(e=>e.config.geometry.sourceExitRef===selectedRef);
+    const grid=queue(route,near.metre+offset,at,delay);
+    assert.ok(near.metre-earlier.metre>2000);
+    assert.ok(Math.abs(speedDelayInCells(grid).delayMin-delay)<1e-6);
+    const choice=routedDiversionChoice(selected,entries,{[path]:grid},routes,[event],exits,{[path]:2000});
+    if(delay<45)assert.equal(choice.percent,0);
+    else assert.ok(choice.percent>0&&choice.percent<=5,'even a new exit at extreme delay starts with a limited share');
+    assert.equal(choice.mandatory,false);
+    if(offset>0)assert.equal(routedDiversionChoice(entries.find(e=>e.config.geometry.sourceExitRef===earlierRef),
+     entries,{[path]:grid},routes,[event],exits,{[path]:2000}).percent,0,'the free earlier AS is not the nearest exit');
+    const next=advanceRoutedPath(grid,route,[event],2000,exits,entries);
+    const actual=next.detours.find(e=>e.config.id===selected.config.id);
+    const local=next.cells.junctions.find(j=>j.ref===selectedRef);
+    const baseline=normalJunctionTraffic(route,exits,2000).find(j=>j.ref===selectedRef);
+    assert.equal(actual.desiredPercent,choice.percent);
+    if(delay>=45)assert.ok(actual.state.lastDeparture>0);
+    assert.ok(Math.abs(local.entryVph-baseline.entryVph*(1-choice.percent/100))<1e-6);
+    assertCellConservation(next.cells);
    }
-   assert.ok(percentages[1]<percentages[2]&&percentages[2]<percentages[3]);
   });
  }
 }
@@ -102,30 +93,31 @@ test('avoiding new entry never deletes an existing on-ramp queue or inhibits ret
  assertCellConservation(state);
 });
 
-for(const [nearRef,earlierRef,interveningRef] of [['38','41','40'],['40','42','41']]){
- test(`A3 Köln: live roadworks after AS ${nearRef} trigger AS ${earlierRef} while AS ${interveningRef} is still free`,()=>{
+for(const nearRef of ['38','40']){
+ test(`A3 Köln: a live queue after AS ${nearRef} cannot activate a remote exit before another free eligible AS`,()=>{
   const path='A3-koeln',route=routes[path],at=junction(path,nearRef).metre+350,demand=3400;
-  const event={id:'live-screenshot-'+nearRef,kind:'roadworks',pathKey:path,point:routeSlice(route,at,at+1)[0],
+  const event={id:'live-nearest-'+nearRef,kind:'roadworks',pathKey:path,point:routeSlice(route,at,at+1)[0],
    laneCount:3,closedLanes:[0,1],createdAt:'2026-10-25T09:00:00Z',
    settings:{lengthM:100,speedKmh:40,shoulder:'normal'}};
-  let state=initialiseCells(route,demand),entries=prepare(event),first=null;
-  const baseline=normalJunctionTraffic(route,exits,demand).find(j=>j.ref===earlierRef);
+  let state=initialiseCells(route,demand),entries=prepare(event),departed=0;
   for(let minute=0;minute<180;minute++){
-   const previous=state,next=advanceRoutedPath(state,route,[event],demand,exits,entries);
+   const previous=state,old=entries,next=advanceRoutedPath(state,route,[event],demand,exits,entries);
    state=next.cells;entries=next.detours;
-   const entry=entries.find(e=>e.config.geometry.sourceExitRef===earlierRef);
-   const local=state.junctions.find(j=>j.ref===earlierRef);
-   assert.ok(Math.abs(local.entryVph-baseline.entryVph*(1-entry.desiredPercent/100))<1e-6);
-   if(first===null&&entry.state.lastDeparture>0){
-    first=state.minute;
-    const between=junction(path,interveningRef).metre;
-    const cell=previous.cells.find(c=>c.fromM<=between&&c.toM>between);
-    assert.ok(cell.speedKmh>65,'an intervening free AS must not veto this departure');
-    assert.ok(entry.desiredPercent>0&&entry.desiredPercent<5,'the first departures are gradual');
-    assert.ok(local.lastEntered*60<baseline.entryVph,'real new entries fall at the same time');
+   for(const entry of entries){
+    const before=old.find(e=>e.config.id===entry.config.id),local=state.junctions.find(j=>j.ref===entry.config.geometry.sourceExitRef);
+    const baseline=normalJunctionTraffic(route,exits,demand).find(j=>j.ref===local.ref);
+    assert.ok(entry.desiredPercent<=(before.state.choicePercent??0)+5+1e-6,'handoff cannot jump to a high share in one minute');
+    assert.ok(Math.abs(local.entryVph-baseline.entryVph*(1-entry.desiredPercent/100))<1e-6);
+    if(entry.state.lastDeparture>0){
+     departed++;
+     const choices=diversionJunctions(path,exits,route).filter(j=>!j.isInterchange&&j.metre>entry.config.fromM+25);
+     const nextAS=choices[0];
+     if(nextAS&&previous.cells.filter(c=>c.toM>nextAS.metre&&c.fromM<at).every(c=>c.speedKmh>65&&(c.queueMemoryMin??0)===0))
+      assert.equal(entry.desiredPercent,0,'a remote AS cannot inherit a jam beyond a free nearer AS');
+    }
    }
    assertCellConservation(state);
   }
-  assert.notEqual(first,null,'vehicles must actually use the earlier exit');
+  assert.ok(departed>0);
  });
 }

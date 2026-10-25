@@ -33,7 +33,8 @@ export function advanceRoutedPath(previous:CellRouteState,route:Corridor,
    actual.leaveVpm*60,100,actual.joinVpm*60);
   if(Math.abs(flow.entered-actual.leaveVpm)>1e-6||Math.abs(flow.rejoined-actual.joinVpm)>1e-6)
    throw Error('Hauptfahrbahn und Umleitung widersprechen sich beim Fahrzeugtransfer');
-  return {...entry,state:flow.state,desiredPercent:ports.find(p=>p.id===entry.config.id)!.interestPercent};
+  const desiredPercent=ports.find(p=>p.id===entry.config.id)!.interestPercent;
+  return {...entry,state:{...flow.state,choicePercent:desiredPercent},desiredPercent};
  });
  const before=cellInventory(previous)+detours.reduce((n,e)=>n+detourVehicles(e.state),0);
  const after=cellInventory(cells)+updated.reduce((n,e)=>n+detourVehicles(e.state),0);
@@ -78,7 +79,8 @@ export function advanceRoutedNetwork(previous:Partial<Record<PathKey,CellRouteSt
   transfers.push({id:config.id,path:config.path,fromM:config.fromM,
    toM:cross?routes[config.path].lengthM:config.toM,leaveVpm:left,joinVpm:cross?0:joined});
   if(cross&&!config.exitsNetwork)transfers.push({id:config.id+':return',path:target,fromM:0,toM:config.toM,leaveVpm:0,joinVpm:joined});
-  return {...entry,state:result.state,desiredPercent:ports.get(config.path)!.find(p=>p.id===config.id)!.interestPercent};
+  const desiredPercent=ports.get(config.path)!.find(p=>p.id===config.id)!.interestPercent;
+  return {...entry,state:{...result.state,choicePercent:desiredPercent},desiredPercent};
  });
  let before=detours.reduce((n,e)=>n+detourVehicles(e.state),0),after=updated.reduce((n,e)=>n+detourVehicles(e.state),0),arrived=0,left=0;
  for(const key of Object.keys(cells) as PathKey[]){

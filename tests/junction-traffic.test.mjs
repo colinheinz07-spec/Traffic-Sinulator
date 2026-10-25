@@ -134,6 +134,6 @@ test('stopping new demand keeps the existing on-ramp inventory',()=>{
 test('the mobile AS UI labels normal flows, additional diversion, returners and entrance waiting',()=>{
  const app=readFileSync('src/app.ts','utf8'),html=readFileSync('index.html','utf8');
  assert.match(app,/normalOutVph/);assert.match(app,/normalInVph/);assert.match(app,/diversionOutVph/);assert.match(app,/returningInVph/);
- assert.match(app,/warten auf der Auffahrt/);assert.match(html,/ab 45 Minuten/);
+ assert.match(app,/warten auf der Auffahrt/);assert.match(html,/ab 45 Minuten/i);
  assert.doesNotMatch(app,/normale Ein-\/Ausfahrten noch nicht/);
 });

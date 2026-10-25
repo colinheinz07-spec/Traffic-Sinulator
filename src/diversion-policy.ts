@@ -1,14 +1,15 @@
-/** Time loss ahead of an AS triggers voluntary diversion from 45 minutes.
- * Every prepared bypass compares that remaining motorway delay with its
- * own extra journey. Queue position never unlocks an earlier exit.
+/** The queue chooses WHERE to leave: the nearest normal exit before its
+ * tail, plus exits still reachable by drivers already inside that queue.
+ * Its own time loss chooses WHEN and HOW MANY: voluntary uptake from 45
+ * minutes. Remote exits do not inherit a direction-wide delay.
  */
 import type {Exit,RoadId} from './core.js';
 import type {SimEvent} from './events.js';
 import type {DetourConfig,DetourState} from './detour-flow.js';
-import type {CellRouteState} from './traffic-cells.js';
+import {cellQueueSpans,type CellRouteState} from './traffic-cells.js';
 import type {PathKey} from './traffic.js';
-import {closureGate,positionM,type Corridor} from './spatial.js';
-import {diversionJunctions,potentialDiversionPercent} from './diversions.js';
+import {closureGate,type Corridor} from './spatial.js';
+import {diversionJunctions,nearestExitBeforeQueue,potentialDiversionPercent} from './diversions.js';
 import {speedDelayInCells} from './speed-delay.js';
 import {freeSpeedKmh} from './traffic-physics.js';
 
@@ -65,45 +66,60 @@ export function routedDiversionChoice(entry:ChoiceRoute,entries:readonly ChoiceR
   return {percent:preferred?.config.id===config.id?100:0,mandatory:true,delayMin:0,upstreamRank:0};
  }
  if(entry.enabled===false)return {percent:0,mandatory:false,delayMin:0,upstreamRank:0};
- const eventM=event&&event.pathKey===path?positionM(route,event.point):null;
- const approachEnd=gate?.metre??(cross?config.sourceEndM??route.lengthM:eventM??config.toM);
+ const sourceEnd=cross?config.sourceEndM??route.lengthM:config.toM;
+ const approachEnd=gate?.metre??sourceEnd;
  const upstreamRank=route.key.startsWith('ramp-')?0:diversionJunctions(path as RoadId,exits,route)
   .filter(j=>!j.isInterchange&&j.metre>config.fromM+25&&j.metre<=approachEnd+25).length+1;
- const eligible=config.fromM<=approachEnd+25;
- // Only time still ahead can be avoided by leaving or by declining to
- // enter here. Moving the tail across any AS must not change eligibility
- // or add delay already spent behind the driver's current position.
- const decisionFrom=config.fromM;
- if(gate&&config.fromM<gate.metre){
-  const normal=entries.find(e=>e.enabled!==false&&e.config.path===path&&e.config.eventId===config.eventId&&
-   (e.config.targetPath??path)===path&&Math.abs(e.config.fromM-gate.metre)<=25);
-  const service=Math.max(1,Math.min(1200,normal?.config.geometry.roadCapacityVph??config.geometry.roadCapacityVph));
-  const measured=speedDelayInCells(source,decisionFrom,Math.min(route.lengthM,gate.metre+source.cellM));
-  const approachWait=measured.diversionExitRef&&!measured.blocked?measured.delayMin:
-   excessQueue(source,decisionFrom,gate.metre,demands[path]??0)/service*60;
-  const offRampWait=normal?(normal.state.waitingRoad+normal.state.waitingMerge)/service*60:0;
-  const normalFree=(gate.metre-config.fromM)/1000/freeSpeedKmh(path)*60+
-   (normal?.config.geometry.freeMinutes??0);
-  const ownWait=(state.waitingRoad+state.waitingMerge)/Math.max(1,config.geometry.roadCapacityVph)*60;
-  const extra=Math.max(0,config.geometry.freeMinutes-normalFree)+ownWait;
-  // The working mandatory exit is the reference, not the prohibited road.
-  const delayMin=approachWait+offRampWait;
-  return {percent:eligible?voluntaryDiversionPercent(delayMin,extra):0,mandatory:false,delayMin,upstreamRank};
- }
- const sourceEnd=cross?config.sourceEndM??route.lengthM:config.toM;
- const first=speedDelayInCells(source,decisionFrom,sourceEnd);
- const last=cross?speedDelayInCells(destination,config.targetEntryM??0,config.toM):null;
+ if(gate&&config.fromM>=gate.metre-25)
+  return {percent:0,mandatory:false,delayMin:0,upstreamRank};
  const service=Math.max(1,Math.min(1200,config.geometry.roadCapacityVph));
- const queueWait=(excessQueue(source,decisionFrom,sourceEnd,demands[path]??0)+
-  (cross?excessQueue(destination,config.targetEntryM??0,config.toM,demands[target]??0):0))/service*60;
- // The visible motorway estimate is the 45-minute decision input. A
- // side-road service rate must not inflate it and recruit cars earlier.
- const visibleDelay=first.delayMin+(last?.delayMin??0);
- const delayMin=first.blocked||last?.blocked?Math.max(visibleDelay,queueWait):visibleDelay;
- const motorwayFree=cross?(sourceEnd-config.fromM)/1000/freeSpeedKmh(path)*60+
+ const normal=gate?entries.find(e=>e.enabled!==false&&e.config.path===path&&Math.abs(e.config.fromM-gate.metre)<=25&&
+  requiredDiversionGate(e.config,route,events,exits)):undefined;
+ const gateService=Math.max(1,Math.min(1200,normal?.config.geometry.roadCapacityVph??service));
+ const motorwayFree=gate?(gate.metre-config.fromM)/1000/freeSpeedKmh(path)*60+
+  (normal?.config.geometry.freeMinutes??0):cross?(sourceEnd-config.fromM)/1000/freeSpeedKmh(path)*60+
   (config.toM-(config.targetEntryM??0))/1000/freeSpeedKmh(target)*60:
   (config.toM-config.fromM)/1000/freeSpeedKmh(path)*60;
  const extra=Math.max(0,config.geometry.freeMinutes-motorwayFree)+
   (state.waitingRoad+state.waitingMerge)/service*60;
- return {percent:eligible?voluntaryDiversionPercent(delayMin,extra):0,mandatory:false,delayMin,upstreamRank};
+ const spans=cellQueueSpans(source);
+ const eligible=(tail:number,end:number)=>{
+  const nearest=nearestExitBeforeQueue(path,route,exits,tail,approachEnd);
+  return config.fromM>=(nearest?.metre??tail)-25&&config.fromM<=end+25;
+ };
+ const measuredLoss=(grid:CellRouteState,start:number,end:number,rate=service)=>{
+  const loss=speedDelayInCells(grid,start,end,end+grid.cellM);
+  return loss.blocked?Math.max(loss.delayMin,excessQueue(grid,start,end,demands[grid.pathKey]??0)/rate*60):loss.delayMin;
+ };
+ let delayMin=0,desired=0;
+ const consider=(loss:number)=>{
+  const percent=voluntaryDiversionPercent(loss,extra);
+  if(percent>desired||percent===desired&&loss>delayMin){desired=percent;delayMin=loss;}
+ };
+ for(const span of spans){
+  const end=Math.min(span.toM,gate?gate.metre+source.cellM:sourceEnd);
+  const start=Math.max(span.fromM,config.fromM);
+  if(start>=end||!eligible(span.fromM,end)||!cross&&!gate&&config.toM<span.toM-1)continue;
+  let loss=measuredLoss(source,start,end,gate?gateService:service);
+  if(gate&&span.toM>=gate.metre-source.cellM){
+   loss+=(normal?normal.state.waitingRoad+normal.state.waitingMerge:0)/gateService*60;
+  }
+  consider(loss);
+ }
+ if(cross){
+  // Each approaching motorway has its own nearest exit. A queue on A3
+  // cannot activate every A48 exit simply because all would avoid it.
+  const approach=spans.find(s=>s.fromM<sourceEnd&&s.toM>=sourceEnd-source.cellM);
+  const tail=approach?.fromM??sourceEnd;
+  if(eligible(tail,sourceEnd))for(const span of cellQueueSpans(destination)){
+   const start=Math.max(span.fromM,config.targetEntryM??0),end=Math.min(span.toM,config.toM);
+   if(start>=end||config.toM<span.toM-1)continue;
+   const sourceLoss=approach?measuredLoss(source,Math.max(config.fromM,approach.fromM),sourceEnd):0;
+   consider(sourceLoss+measuredLoss(destination,start,end));
+  }
+ }
+ // A newly selected exit adopts a high target gradually. Remember this
+ // only when advancing a model minute; redraw/pause cannot raise it.
+ const percent=Math.min(desired,(state.choicePercent??0)+5);
+ return {percent,mandatory:false,delayMin,upstreamRank};
 }

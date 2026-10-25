@@ -8,9 +8,9 @@
  * actual discharge yields the time loss to that exit, labelled explicitly.
  * This calculation depends on NO clock, event age or queue-created timestamp.
  */
-import { cellCriticalDensity } from './traffic-cells.js?build=0e7a141e43a790ca';
-import { freeSpeedKmh } from './traffic-physics.js?build=0e7a141e43a790ca';
-export function speedDelayInCells(state, fromM = 0, toM = Infinity) {
+import { cellCriticalDensity } from './traffic-cells.js?build=9b83d91f0feef117';
+import { freeSpeedKmh } from './traffic-physics.js?build=9b83d91f0feef117';
+export function speedDelayInCells(state, fromM = 0, toM = Infinity, detectorEndM = Infinity) {
     const free = freeSpeedKmh(state.pathKey);
     if (!Number.isFinite(fromM) || Number.isNaN(toM) || fromM < 0 || toM <= fromM)
         throw Error('Ungültiger Streckenbereich zur Zeitverlustberechnung');
@@ -32,7 +32,10 @@ export function speedDelayInCells(state, fromM = 0, toM = Infinity) {
         return { delayMin: 0, blocked: true, assessedKm: 0, stoppedKm };
     }
     const critical = cellCriticalDensity(state.pathKey);
-    const detectors = state.cells.filter(d => d.travelDetector);
+    // A local queue must not borrow a distant incident's zero-flow forecast
+    // through kilometres of genuinely free road. Direction-wide callers may
+    // still assess the full journey; queue callers bound their own head.
+    const detectors = state.cells.filter(d => d.travelDetector && d.toM <= detectorEndM + .1);
     const activeDetectors = detectors.filter(d => d.travelDetector?.active);
     let delayMin = 0, assessedKm = 0, stoppedKm = 0;
     let forecastWaitMin;

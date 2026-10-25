@@ -18,7 +18,7 @@ function incident(path,at,kind='closure',closedLanes=[0,1,2],speedKmh=0){return 
  settings:{lengthM:100,speedKmh,shoulder:kind==='closure'?'blocked':'normal'}};}
 function config(option){return {id:option.key,path:option.path,fromM:option.from.metre,toM:option.to.metre,
  targetPath:option.targetPath,sourceEndM:option.sourceEndM,targetEntryM:option.targetEntryM,
- exitsNetwork:isNetworkDestination(option.to),eventId:option.event.id,
+ exitsNetwork:isNetworkDestination(option.to),eventId:option.event?.id??option.causeId,
  geometry:bundledDetourGeometry(option.key,option.path,option.from,option.to,exits)};}
 
 test('all 24 directional normal exits have an immediately usable bundled route',()=>{

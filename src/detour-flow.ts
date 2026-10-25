@@ -15,12 +15,14 @@ export interface DetourState {
  id:string;minute:number;waitingRoad:number;waitingMerge:number;transit:InTransit[];
  admittedTotal:number;returnedTotal:number;lastDeparture:number;lastRejoined:number;
  exitedNetworkTotal?:number;lastExitedNetwork?:number;
+ /** Voluntary intention actually used in the preceding model minute. */
+ choicePercent?:number;
 }
 export function emptyDetour(config:DetourConfig):DetourState{
  if(!(config.targetPath&&config.targetPath!==config.path?config.toM>=0:config.toM>config.fromM)||config.id!==config.geometry.id||config.path!==config.geometry.path)
   throw Error('Umleitungsanschlüsse ungültig oder falsche Richtung');
  return {id:config.id,minute:0,waitingRoad:0,waitingMerge:0,transit:[],admittedTotal:0,returnedTotal:0,
-  lastDeparture:0,lastRejoined:0};
+  lastDeparture:0,lastRejoined:0,choicePercent:0};
 }
 export function detourVehicles(state:DetourState):number{
  return state.waitingRoad+state.waitingMerge+state.transit.reduce((n,a)=>n+a.vehicles,0);
@@ -62,6 +64,7 @@ export function advanceDetour(state:DetourState,config:DetourConfig,minute:numbe
  const next:DetourState={id:state.id,minute:minute+1,waitingRoad:roadQueue,waitingMerge,transit:pending,
   admittedTotal:state.admittedTotal+admitted,returnedTotal:state.returnedTotal+mergeService,
   lastDeparture:admitted,lastRejoined:mergeService,
+  choicePercent:state.choicePercent??0,
   exitedNetworkTotal:(state.exitedNetworkTotal??0)+exitedNetwork,lastExitedNetwork:exitedNetwork};
  if(Math.abs(next.admittedTotal-next.returnedTotal-(next.exitedNetworkTotal??0)-detourVehicles(next))>1e-5)
   throw Error('Umleitungs-Fahrzeugbilanz verletzt');

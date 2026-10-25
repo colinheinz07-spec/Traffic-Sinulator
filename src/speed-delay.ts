@@ -18,7 +18,7 @@ export interface SpeedDelay {
   * wait. Do not add the same future wait for every fragment of one queue. */
  forecastWaitMin?:number;
 }
-export function speedDelayInCells(state:CellRouteState,fromM=0,toM=Infinity):SpeedDelay{
+export function speedDelayInCells(state:CellRouteState,fromM=0,toM=Infinity,detectorEndM=Infinity):SpeedDelay{
  const free=freeSpeedKmh(state.pathKey);
  if(!Number.isFinite(fromM)||Number.isNaN(toM)||fromM<0||toM<=fromM)
   throw Error('Ungültiger Streckenbereich zur Zeitverlustberechnung');
@@ -40,7 +40,10 @@ export function speedDelayInCells(state:CellRouteState,fromM=0,toM=Infinity):Spe
   return {delayMin:0,blocked:true,assessedKm:0,stoppedKm};
  }
  const critical=cellCriticalDensity(state.pathKey);
- const detectors=state.cells.filter(d=>d.travelDetector);
+ // A local queue must not borrow a distant incident's zero-flow forecast
+ // through kilometres of genuinely free road. Direction-wide callers may
+ // still assess the full journey; queue callers bound their own head.
+ const detectors=state.cells.filter(d=>d.travelDetector&&d.toM<=detectorEndM+.1);
  const activeDetectors=detectors.filter(d=>d.travelDetector?.active);
  let delayMin=0,assessedKm=0,stoppedKm=0;
  let forecastWaitMin:number|undefined;

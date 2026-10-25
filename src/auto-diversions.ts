@@ -5,14 +5,14 @@
 import type {Exit,RoadId} from './core.js';
 import type {SimEvent} from './events.js';
 import {positionM,closureGate,type Corridor} from './spatial.js';
-import {DIVERSION_LINKS,diversionJunctions,type DiversionLink,type JunctionAnchor} from './diversions.js';
+import {DIVERSION_LINKS,diversionJunctions,nearestExitBeforeQueue,type DiversionLink,type JunctionAnchor} from './diversions.js';
 import {speedDelayInCells} from './speed-delay.js';
-import type {CellRouteState} from './traffic-cells.js';
+import {cellQueueSpans,type CellRouteState} from './traffic-cells.js';
 import type {PathKey} from './traffic.js';
 import type {RampConnection} from './interchange.js';
 import {bundledTargets,isNetworkDestination} from './bundled-detours.js';
 export interface AutomaticDiversion {
- key:string;event:SimEvent;path:RoadId;from:JunctionAnchor;to:JunctionAnchor;link:DiversionLink;
+ key:string;event:SimEvent|null;causeId?:string;path:RoadId;from:JunctionAnchor;to:JunctionAnchor;link:DiversionLink;
  delayMin:number|null;
  targetPath?:RoadId;sourceEndM?:number;targetEntryM?:number;
 }
@@ -58,6 +58,42 @@ export function automaticDiversions(events:readonly SimEvent[],corridors:Readonl
    if(!old||to.metre>old.to.metre)plans.set(path+':'+from.ref,choice);
   }
  }
- // The closest usable exit is loaded first, then earlier alternatives.
+ // Congestion needs no named incident. Natural overload and queues still
+ // clearing after an event use the same nearest-exit rule. Queue IDs are
+ // internal route causes; no fictional event is added to the timeline.
+ for(const [key,grid] of Object.entries(cells)){
+  if(!grid||key.startsWith('ramp-'))continue;
+  const path=key as RoadId,route=corridors[path],targets=bundledTargets(path,exits,route);
+  for(const span of cellQueueSpans(grid)){
+   const time=speedDelayInCells(grid,span.fromM,span.toM,span.toM+grid.cellM);
+   if(time.blocked||time.delayMin<45-1e-9)continue;
+   const from=nearestExitBeforeQueue(path,route,exits,span.fromM);
+   const to=targets.find(t=>isNetworkDestination(t)||t.metre>span.toM+1);
+   if(from&&to){
+    const old=plans.get(path+':'+from.ref);
+    if(!old||old.to.metre<span.toM-1){
+     const link:DiversionLink={id:path+'-BUNDLED-'+from.ref,code:'SIM',path,
+      fromRoad:from.road,fromRef:from.ref,toRoad:to.road,toRef:to.ref,evidence:'partial',
+      description:'Enthaltene simulierte Stauumfahrung'};
+     const key=link.id+':'+to.ref;
+     plans.set(path+':'+from.ref,{key,event:null,causeId:'queue:'+key,path,from,to,link,delayMin:time.delayMin});
+    }
+   }
+   for(const connection of connections.filter(c=>c.to===path&&span.toM>c.downstreamMergeM)){
+    const source=connection.from,sourceRoute=corridors[source],sourceGrid=cells[source];
+    const approach=sourceGrid&&cellQueueSpans(sourceGrid).find(s=>s.fromM<connection.rampEntryM&&
+     s.toM>=connection.rampEntryM-sourceGrid.cellM);
+    const from=nearestExitBeforeQueue(source,sourceRoute,exits,approach?.fromM??connection.rampEntryM,connection.rampEntryM);
+    if(!from||!to||plans.has(source+':'+from.ref))continue;
+    const link:DiversionLink={id:source+'-BUNDLED-'+from.ref+'-to-'+path,code:'SIM',path:source,
+     fromRoad:from.road,fromRef:from.ref,toRoad:to.road,toRef:to.ref,evidence:'partial',
+     description:'Enthaltene simulierte Umfahrung des Autobahnknotens'};
+    const key=link.id+':'+to.ref;
+    plans.set(source+':'+from.ref,{key,event:null,causeId:'queue:'+key,path:source,from,to,link,
+     targetPath:path,sourceEndM:connection.rampEntryM,targetEntryM:connection.downstreamMergeM,delayMin:time.delayMin});
+   }
+  }
+ }
+ // Preparing alternatives is not permission for remote exits to divert.
  return [...plans.values()].sort((a,b)=>a.path.localeCompare(b.path)||b.from.metre-a.from.metre);
 }

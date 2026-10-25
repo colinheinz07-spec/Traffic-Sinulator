@@ -1,7 +1,8 @@
-import { positionM, closureGate } from './spatial.js?build=0e7a141e43a790ca';
-import { DIVERSION_LINKS, diversionJunctions } from './diversions.js?build=0e7a141e43a790ca';
-import { speedDelayInCells } from './speed-delay.js?build=0e7a141e43a790ca';
-import { bundledTargets, isNetworkDestination } from './bundled-detours.js?build=0e7a141e43a790ca';
+import { positionM, closureGate } from './spatial.js?build=9b83d91f0feef117';
+import { DIVERSION_LINKS, diversionJunctions, nearestExitBeforeQueue } from './diversions.js?build=9b83d91f0feef117';
+import { speedDelayInCells } from './speed-delay.js?build=9b83d91f0feef117';
+import { cellQueueSpans } from './traffic-cells.js?build=9b83d91f0feef117';
+import { bundledTargets, isNetworkDestination } from './bundled-detours.js?build=9b83d91f0feef117';
 export function automaticDiversions(events, corridors, exits, cells, connections = []) {
     const plans = new Map();
     for (const event of events) {
@@ -47,6 +48,45 @@ export function automaticDiversions(events, corridors, exits, cells, connections
                 plans.set(path + ':' + from.ref, choice);
         }
     }
-    // The closest usable exit is loaded first, then earlier alternatives.
+    // Congestion needs no named incident. Natural overload and queues still
+    // clearing after an event use the same nearest-exit rule. Queue IDs are
+    // internal route causes; no fictional event is added to the timeline.
+    for (const [key, grid] of Object.entries(cells)) {
+        if (!grid || key.startsWith('ramp-'))
+            continue;
+        const path = key, route = corridors[path], targets = bundledTargets(path, exits, route);
+        for (const span of cellQueueSpans(grid)) {
+            const time = speedDelayInCells(grid, span.fromM, span.toM, span.toM + grid.cellM);
+            if (time.blocked || time.delayMin < 45 - 1e-9)
+                continue;
+            const from = nearestExitBeforeQueue(path, route, exits, span.fromM);
+            const to = targets.find(t => isNetworkDestination(t) || t.metre > span.toM + 1);
+            if (from && to) {
+                const old = plans.get(path + ':' + from.ref);
+                if (!old || old.to.metre < span.toM - 1) {
+                    const link = { id: path + '-BUNDLED-' + from.ref, code: 'SIM', path,
+                        fromRoad: from.road, fromRef: from.ref, toRoad: to.road, toRef: to.ref, evidence: 'partial',
+                        description: 'Enthaltene simulierte Stauumfahrung' };
+                    const key = link.id + ':' + to.ref;
+                    plans.set(path + ':' + from.ref, { key, event: null, causeId: 'queue:' + key, path, from, to, link, delayMin: time.delayMin });
+                }
+            }
+            for (const connection of connections.filter(c => c.to === path && span.toM > c.downstreamMergeM)) {
+                const source = connection.from, sourceRoute = corridors[source], sourceGrid = cells[source];
+                const approach = sourceGrid && cellQueueSpans(sourceGrid).find(s => s.fromM < connection.rampEntryM &&
+                    s.toM >= connection.rampEntryM - sourceGrid.cellM);
+                const from = nearestExitBeforeQueue(source, sourceRoute, exits, approach?.fromM ?? connection.rampEntryM, connection.rampEntryM);
+                if (!from || !to || plans.has(source + ':' + from.ref))
+                    continue;
+                const link = { id: source + '-BUNDLED-' + from.ref + '-to-' + path, code: 'SIM', path: source,
+                    fromRoad: from.road, fromRef: from.ref, toRoad: to.road, toRef: to.ref, evidence: 'partial',
+                    description: 'Enthaltene simulierte Umfahrung des Autobahnknotens' };
+                const key = link.id + ':' + to.ref;
+                plans.set(source + ':' + from.ref, { key, event: null, causeId: 'queue:' + key, path: source, from, to, link,
+                    targetPath: path, sourceEndM: connection.rampEntryM, targetEntryM: connection.downstreamMergeM, delayMin: time.delayMin });
+            }
+        }
+    }
+    // Preparing alternatives is not permission for remote exits to divert.
     return [...plans.values()].sort((a, b) => a.path.localeCompare(b.path) || b.from.metre - a.from.metre);
 }

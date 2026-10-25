@@ -22,6 +22,9 @@ export interface TrafficCell {
  /** Time-averaged observations for travel-time estimation. Instantaneous
   * speed remains the source for map colors and the actual cell fluxes. */
  travelFlowVph?:number;limitKmh?:number;
+ /** Briefly retain a released packet's queue membership. This bridges
+  * stop-and-go gaps without treating permanently free road as a queue. */
+ queueMemoryMin?:number;
  /** Keep an observed bottleneck cross-section after reopening so that
   * its release flow can serve the queue still waiting upstream. */
  travelDetector?:{control:string;capacityVph:number;meanFlowVph:number;active:boolean;samples:number;diversionExitRef?:string};
@@ -392,6 +395,7 @@ export function advanceCells(previous:CellRouteState,route:Corridor,events:reado
   }:undefined;
   return {...c,vehicles:occupancy[i]!,flowVph:outflowVph,
    speedKmh:Math.max(0,speedKmh),densityVehKm,
+   queueMemoryMin:densityVehKm>=critical*1.10?3:Math.max(0,(c.queueMemoryMin??0)-1),
    travelFlowVph,limitKmh:speeds[i],travelDetector,
    blockedAtM:faceCapacity[i+1]===0?c.toM:undefined,
    reopeningForecast:controls.forecasts.get(i+1)};
@@ -422,4 +426,18 @@ export function cellSpeedBands(state:CellRouteState):CellSpeedBand[]{
   }else bands.push({fromM:c.fromM,toM:c.toM,speedKmh:c.speedKmh,color,source:'cell'});
  }
  return bands;
+}
+/** Queue approaches for route choice, independent of event type or AS
+ * names. Dense moving packets and recently released cells belong to the
+ * same queue; persistent free gaps keep independent queues separate.
+ * This geographic span never adds free cells to the displayed jam length. */
+export function cellQueueSpans(state:CellRouteState):{fromM:number;toM:number}[]{
+ const threshold=cellCriticalDensity(state.pathKey)*1.10,spans:{fromM:number;toM:number}[]=[];
+ for(const c of state.cells){
+  if(c.densityVehKm<threshold&&(c.queueMemoryMin??0)<=0)continue;
+  const last=spans.at(-1);
+  if(last&&Math.abs(last.toM-c.fromM)<.1)last.toM=c.toM;
+  else spans.push({fromM:c.fromM,toM:c.toM});
+ }
+ return spans;
 }
