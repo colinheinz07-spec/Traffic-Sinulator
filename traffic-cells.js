@@ -1,8 +1,8 @@
-import { positionM, closureGate } from './spatial.js?build=9b83d91f0feef117';
-import { baselineCapacity, eventCapacity } from './traffic.js?build=9b83d91f0feef117';
-import { flowPolicy, DEFAULT_CLEARANCE_MIN } from './events.js?build=9b83d91f0feef117';
-import { colorAtSpeed, freeSpeedKmh } from './traffic-physics.js?build=9b83d91f0feef117';
-import { normalJunctionTraffic } from './junction-traffic.js?build=9b83d91f0feef117';
+import { positionM, closureGate } from './spatial.js?build=d9daa17f83de1115';
+import { baselineCapacity, eventCapacity } from './traffic.js?build=d9daa17f83de1115';
+import { flowPolicy, DEFAULT_CLEARANCE_MIN } from './events.js?build=d9daa17f83de1115';
+import { colorAtSpeed, freeSpeedKmh } from './traffic-physics.js?build=d9daa17f83de1115';
+import { normalJunctionTraffic } from './junction-traffic.js?build=d9daa17f83de1115';
 const TARGET_CELL_M = 100, WAVE_KMH = 22, JAM_PER_LANE = 95;
 // One observation per MODEL minute; repainting/pause never advances this.
 const TRAVEL_ALPHA = 1 - Math.exp(-1 / 6);
@@ -158,17 +158,6 @@ export function platoonServiceFactor(id, minute) {
         return e.high;
     return e.high - (e.high - e.low) * (t - e.stop - e.rise - e.flow) / e.fall;
 }
-/** Correlated spatial differences in reaction time stretch/compress packets
- * along a queue. Adjacent cells do not get independent cosmetic noise. */
-function reactionTravelMinutes(id, distanceM) {
-    const seed = dischargeSeed(id), sectionM = 2700;
-    let time = 0;
-    for (let from = 0, index = 0; from < distanceM; from += sectionM, index++) {
-        const speed = 16 + 8 * dischargeRandom(seed, index, 9);
-        time += Math.min(sectionM, distanceM - from) / (speed * 1000 / 60);
-    }
-    return time;
-}
 /** Advance exactly one model minute, including stable updates of at most 2s.
  * Domain demand not admitted at the map entry is retained in backlog.
  * Outflow is discharged at the far end. No arbitrary time-loss surcharges.
@@ -234,14 +223,6 @@ export function advanceCells(previous, route, events, demandVph, exits = [], por
         if (port.to >= 1 && port.toM !== null && !closedEntries.some(c => port.toM >= c.fromM && port.toM < c.toM))
             returnsAt.set(port.to, [...(returnsAt.get(port.to) ?? []), port]);
     }
-    const sortedReleases = [...releases].sort((a, b) => a.face - b.face);
-    let releaseIndex = 0;
-    const reactionAt = Array.from({ length: n }, (_, i) => {
-        while (sortedReleases[releaseIndex] && sortedReleases[releaseIndex].face <= i)
-            releaseIndex++;
-        const release = sortedReleases[releaseIndex];
-        return release ? { release, minutes: reactionTravelMinutes(release.event.id, (release.face - i - .5) * previous.cellM) } : null;
-    });
     const density = new Float64Array(n), send = new Float64Array(n), receive = new Float64Array(n);
     const face = new Float64Array(n + 1), leaving = new Float64Array(n), joining = new Float64Array(n);
     const currentCapacity = new Float64Array(n + 1);
@@ -253,20 +234,10 @@ export function advanceCells(previous, route, events, demandVph, exits = [], por
             send[i] = Math.min(speeds[i] * k, capacity[i]) * dtMin / 60;
             receive[i] = Math.min(WAVE_KMH * Math.max(0, jam - k), capacity[i]) * dtMin / 60;
         }
-        // Slow-to-start/platoon reaction inside an ACTUAL dense queue. The
-        // bottleneck signal travels upstream at finite wave speed and limits
-        // actual sending flow. Released gaps and braking packets therefore
-        // change cell vehicle counts, local speeds and subsequent queue length.
-        for (let i = 0; i < n; i++) {
-            if (density[i] <= critical * 1.15)
-                continue;
-            const next = reactionAt[i];
-            if (!next)
-                continue;
-            const signal = previous.minute + sub * dtMin - next.minutes;
-            const reaction = Math.min(1, platoonServiceFactor(next.release.event.id, signal));
-            send[i] = Math.min(send[i], capacity[i] * reaction * dtMin / 60);
-        }
+        // Queue disturbances propagate ONLY through the accepted adjacent-cell
+        // fluxes below. Do not replay a remote bottleneck's braking signal in
+        // every dense cell: that creates new restrictions all along a clearing
+        // queue, even where downstream receiving space has already recovered.
         face.fill(0);
         leaving.fill(0);
         joining.fill(0);
@@ -274,7 +245,12 @@ export function advanceCells(previous, route, events, demandVph, exits = [], por
         for (const release of releases) {
             const densityBefore = density[release.face - 1] ?? 0;
             if (densityBefore > critical * 1.15) {
-                currentCapacity[release.face] = Math.min(currentCapacity[release.face] * platoonServiceFactor(release.event.id, previous.minute + sub * dtMin), release.maximum);
+                // Several open lanes absorb individual departure pauses better than
+                // one. This explicit model assumption reduces the fluctuation at the
+                // real bottleneck; it never imposes another bottleneck upstream.
+                const open = flowPolicy(release.event).openMainLanes + (release.event.settings.shoulder === 'open' ? .65 : 0);
+                const factor = 1 + (platoonServiceFactor(release.event.id, previous.minute + sub * dtMin) - 1) / (open * open);
+                currentCapacity[release.face] = Math.min(currentCapacity[release.face] * factor, release.maximum);
             }
         }
         const arrived = demandVph / 60 * dtMin;
