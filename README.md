@@ -1,6 +1,18 @@
-# A3/A48 Stausimulator – TRAFFIC 1.12.1
+# A3/A48 Stausimulator – TRAFFIC 1.12.2
 
 **Ein Repository, eine Startdatei:** `index.html` im Hauptverzeichnis direkt in SPCK öffnen. Keine Cloudflare-Konfiguration und keine externe Kartenbibliothek.
+
+## Zeitverlust nach Unfallfreigabe und neuer Baustelle (1.12.2)
+
+Eine neue Baustelle mit zunächst kaum ankommenden Fahrzeugen darf ihren niedrigen Zufluss nicht als Abflusskapazität auf einen räumlich getrennten Unfallreststau übertragen. Dieser Fehler ließ sich nach einer vollständigen Unfallblockade und einer anschließend acht Kilometer weiter eingerichteten Baustelle mit extremen Minutenwerten nachstellen.
+
+Aktive Messquerschnitte werden jetzt ihrem tatsächlichen Stau zugeordnet. Der freigegebene Unfallreststau verwendet weiterhin seinen eigenen beobachteten Abfluss, bis er sich physisch mit dem neuen Rückstau verbindet. Karte, Staukarten, Richtungsübersicht und Umfahrungsentscheidungen verwenden dieselbe Zuordnung. Kurze Anfahrwellen bleiben über die vorhandene Stauerinnerung verbunden; freie Strecken zwischen getrennten Staus verbinden ihre Messwerte nicht.
+
+Die Durchflussmessung bewertet die Zeit, in der tatsächlich eine Schlange am Messquerschnitt ansteht und die Weiterfahrt dort möglich ist. Wenige Ankünfte an einer leeren Baustelle sind keine winzige Streckenkapazität. Eine Blockade durch ein anderes Ereignis dahinter wird ebenfalls nicht als Verlust der eigenen Baustellenkapazität gespeichert. Bei einem verbundenen Stau bestimmt der begrenzende Engpass den Durchfluss; die Wiederfreigabeprognose einer vollständigen Unfallblockade gilt auch durch eine Baustelle davor. Die Mittelungsdauer folgt dem zusammenhängenden Fahrzeugbestand und der verfügbaren Kapazität; ein alter nahezu nuller Mittelwert kann seine Erholung nicht mehr selbst für Tage einfrieren. Die Änderung betrifft die Zeitbewertung, nicht die Übertragung der Fahrzeuge zwischen Zellen. Es gibt keine künstliche maximale Verzögerung und keine Ersatzgeschwindigkeit für stehenden Verkehr. Echte lange Wartezeiten bleiben sichtbar.
+
+Geprüft: Typprüfung, **460 JavaScript-Tests**, sechs Python-Geometrieprüfungen und fünf Fahrstreifenprüfungen. Die neuen Regressionen umfassen die Abfolge Unfall → Freigabe → räumlich getrennte Baustelle in allen vier Fahrtrichtungen, den direkten Wechsel am selben Ort mit neuer oder gleicher Ereignis-ID, die Erholung alter Durchflusswerte und eine Baustelle vor einer 1.500 Minuten bestehenden Unfallblockade. Ein separater Test erhält echte Zeitverluste über 1.000 Minuten ohne Anzeigedeckel.
+
+Mobile Chromium-Prüfung (390 × 844 CSS-Pixel): sieben native App-Abläufe mit der neuen Baustelle sofort oder nach fünf Minuten freier Fahrt, beiden A3- und beiden A48-Richtungen, einem Lauf über den Tageswechsel, der Bearbeitung des Unfalls zur Baustelle im tatsächlichen Formular sowie einer bereits vor der Unfallfreigabe bestehenden Baustelle. Keine Browser-Laufzeitfehler, keine externen Routingabrufe und Abweichungen der gemeinsamen Fahrzeugbilanz unter 0,000001 Fahrzeugen. Räumlich getrennte Staus behalten ihre eigenen Messwerte und Karten. Keine Prüfung auf einem physischen iPhone.
 
 ## Verbindliche Umfahrungsregel
 

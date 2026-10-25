@@ -100,7 +100,8 @@ test('a short detached exit queue cannot borrow a distant active 300-minute acci
  }
  const local=cellQueueSpans(grid).find(s=>s.toM<diez);
  assert.ok(local);
- assert.ok(speedDelayInCells(grid,local.fromM,local.toM).delayMin>=300,'regress the old unbounded detector lookup');
+ assert.ok(speedDelayInCells(grid,local.fromM,local.toM).delayMin<45,'unbounded callers also keep an independent local queue local');
+ assert.equal(speedDelayInCells(grid).forecastWaitMin,300,'the complete journey still includes the real downstream block');
  assert.ok(speedDelayInCells(grid,local.fromM,local.toM,local.toM+grid.cellM).delayMin<45);
  const entries=prepare([event]);
  const nord=entries.find(e=>e.config.geometry.sourceExitRef==='42');

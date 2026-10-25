@@ -7,7 +7,7 @@ import {PATHS,type PathKey,type TrafficColor} from './traffic.js';
 import {routeSlice,type Corridor,type Jam} from './spatial.js';
 import {cellSpeedBands,cellQueueSpans,type CellRouteState} from './traffic-cells.js';
 import {physicalSpeedBands,stopAndGoBands,resolveSpeedBands,freeSpeedKmh,colorAtSpeed,type SpeedBand} from './traffic-physics.js';
-import {speedDelayInCells,speedDelayInBands,type SpeedDelay} from './speed-delay.js';
+import {speedDelayInCells,speedDelayInBands,queueTravelHeads,type SpeedDelay} from './speed-delay.js';
 import {routeReport,type RouteReport} from './network-report.js';
 import {positionM} from './spatial.js';
 import type {SimEvent} from './events.js';
@@ -93,6 +93,7 @@ export function trafficView(
  for(const path of PATHS){
   const state=cells[path],route=corridors[path],own=legacy.filter(j=>j.pathKey===path);
   const queueSpans=state?cellQueueSpans(state):[];
+  const serviceHeads=state?queueTravelHeads(state):undefined;
   const queueBands=resolveSpeedBands(state?cellSpeedBands(state):own.flatMap(jam=>[
    ...physicalSpeedBands(jam).filter(b=>b.source==='approach'),
    ...stopAndGoBands(jam,minute)
@@ -123,8 +124,8 @@ export function trafficView(
    const feederBands=spill?(overflow.get(path+'|'+spill.id)??[]):[];
    const feederM=lengthM(feederBands);
    const approach=queueSpans.find(s=>s.fromM<=group.fromM+.1&&s.toM>=group.toM-.1);
-   const head=state?.cells.find(c=>c.toM>group.fromM+.1&&c.travelDetector?.active)??
-    state?.cells.find(c=>c.toM>group.fromM+.1&&c.travelDetector);
+   const firstCell=state?.cells.find(c=>c.toM>group.fromM+.1);
+   const head=firstCell?serviceHeads?.get(firstCell.toM):undefined;
    // Retain the observed service across released braking-wave gaps. A
    // zero-flow reopening forecast, however, belongs only to its own queue.
    const forecast=head?.reopeningForecast!==undefined;

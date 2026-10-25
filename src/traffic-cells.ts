@@ -293,6 +293,11 @@ export function advanceCells(previous:CellRouteState,route:Corridor,events:reado
  const classJoin=new Map(classIds.map(id=>[id,new Float64Array(n)]));
  const classifiedJourneys=new Set(previous.classifiedJourneys??[]);
  const classifications=ports.flatMap(p=>p.classifyAt?[p.classifyAt]:[]);
+ // Throughput describes queue service only while cars actually request it.
+ // An empty new bottleneck has a low arrival count, not a tiny capacity.
+ const observationFaces=previous.cells.flatMap((c,i)=>Number.isFinite(faceCapacity[i+1])||c.travelDetector?[i+1]:[]);
+ const observationHours=new Float64Array(n+1),observationVehicles=new Float64Array(n+1);
+ const exitObservations=new Set(closures.filter(c=>c.diverting).map(c=>c.face));
  // Assign an intent to the already-present vehicles when a new journey
  // becomes available. Later arrivals are classified at its decision face.
  for(const rule of classifications)if(rule.sharePercent>0&&!classifiedJourneys.has(rule.vehicleClass)){
@@ -442,6 +447,16 @@ export function advanceCells(previous:CellRouteState,route:Corridor,events:reado
    const already=classIds.reduce((s,id)=>s+classFace.get(id)![at]!,0);
    classJoin.get(rule.vehicleClass)![at]+=Math.max(0,face[at]!-already)*ratio;
   }
+  for(const at of observationFaces)if(density[at-1]!>=critical*1.10){
+   // A queue blocked by a different downstream event cannot measure this
+   // worksite's own service. Sample its braking phases only when the next
+   // cell could accept its nominal discharge; keep the prior otherwise.
+   const wanted=Math.min(send[at-1]!,faceCapacity[at]!*dtMin/60,capacity[at-1]!*dtMin/60,
+    at<n?capacity[at]!*dtMin/60:Infinity);
+   if(!exitObservations.has(at)&&at<n&&receive[at]!+1e-9<wanted)continue;
+   observationHours[at]+=dtMin/60;
+   observationVehicles[at]+=exitObservations.has(at)?leaving[at-1]!:face[at]!;
+  }
   exitedTotal+=face[n]!;
   for(let i=0;i<n;i++){
    occupancy[i]=Math.max(0,occupancy[i]!+face[i]!+joining[i]!-face[i+1]!-leaving[i]!);
@@ -466,28 +481,30 @@ export function advanceCells(previous:CellRouteState,route:Corridor,events:reado
   const active=Number.isFinite(faceCapacity[i+1]),oldDetector=c.travelDetector;
   const exit=closures.find(g=>g.face===i+1&&g.diverting);
   const detectorCapacity=exit?1200:active?faceCapacity[i+1]!:capacity[i]!;
-  const detectorFlow=(exit?cumulativeOut[i]!-through[i+1]!:through[i+1]!)*60;
+  const observed=observationHours[i+1]!>0;
+  const detectorFlow=observed?observationVehicles[i+1]!/observationHours[i+1]!:detectorCapacity;
   // Changing time-of-day demand may slightly change effective capacity.
   // Only an edited/opened physical control resets the observations.
   const control=faceControls[i+1]!+(exit?'|exit:'+exit.exitRef:''),sameControl=oldDetector?.control===control;
-  let queued=0,found=false;
+  let queued=0;
   if(active&&detectorCapacity>0)for(let k=i;k>=0;k--){
-   if(occupancy[k]!/dx>=critical*1.10){
-    queued+=occupancy[k]!;found=true;
-   }else if(found)break;
+   if(occupancy[k]!/dx>=critical*1.10||(previous.cells[k]!.queueMemoryMin??0)>0)queued+=occupancy[k]!;
+   else break;
   }
   // A journey lasting many minutes spans several braking/platoon phases.
   // Estimate its service from a representative period, instead of making
   // every car ahead inherit the latest short braking phase. Warm up
   // new/edited detectors quickly; reopened detectors must recover promptly.
-  const window=active&&sameControl&&oldDetector.samples>=12?
-   Math.max(6,queued/Math.max(1,oldDetector.meanFlowVph)*60):6;
+  // The observation horizon must not feed its own old near-zero mean back
+  // into itself: that would freeze a recovering detector for days.
+  const window=active&&sameControl&&oldDetector.samples>=12&&detectorCapacity>0?
+   Math.max(6,queued/detectorCapacity*60):6;
   const detectorAlpha=1-Math.exp(-1/window);
   const travelDetector=active||oldDetector?{
    control,capacityVph:detectorCapacity,active,diversionExitRef:exit?.exitRef??undefined,
-   samples:sameControl?oldDetector.samples+1:1,
+   samples:(sameControl?oldDetector.samples:0)+(observed?1:0),
    meanFlowVph:!sameControl?detectorFlow:
-    oldDetector.meanFlowVph*(1-detectorAlpha)+detectorFlow*detectorAlpha
+    observed?oldDetector.meanFlowVph*(1-detectorAlpha)+detectorFlow*detectorAlpha:oldDetector.meanFlowVph
   }:undefined;
   return {...c,vehicles:occupancy[i]!,flowVph:outflowVph,
    speedKmh:Math.max(0,speedKmh),densityVehKm,

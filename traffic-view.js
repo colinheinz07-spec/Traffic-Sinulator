@@ -3,13 +3,13 @@
  * Legacy queues remain the simulation input for the separate ramp ledger;
  * their synthetic lengths never truncate a mainline display queue.
  */
-import { PATHS } from './traffic.js?build=8b296e46c96ba8b2';
-import { routeSlice } from './spatial.js?build=8b296e46c96ba8b2';
-import { cellSpeedBands, cellQueueSpans } from './traffic-cells.js?build=8b296e46c96ba8b2';
-import { physicalSpeedBands, stopAndGoBands, resolveSpeedBands, freeSpeedKmh, colorAtSpeed } from './traffic-physics.js?build=8b296e46c96ba8b2';
-import { speedDelayInCells, speedDelayInBands } from './speed-delay.js?build=8b296e46c96ba8b2';
-import { routeReport } from './network-report.js?build=8b296e46c96ba8b2';
-import { positionM } from './spatial.js?build=8b296e46c96ba8b2';
+import { PATHS } from './traffic.js?build=ea0ccaec88a33b8e';
+import { routeSlice } from './spatial.js?build=ea0ccaec88a33b8e';
+import { cellSpeedBands, cellQueueSpans } from './traffic-cells.js?build=ea0ccaec88a33b8e';
+import { physicalSpeedBands, stopAndGoBands, resolveSpeedBands, freeSpeedKmh, colorAtSpeed } from './traffic-physics.js?build=ea0ccaec88a33b8e';
+import { speedDelayInCells, speedDelayInBands, queueTravelHeads } from './speed-delay.js?build=ea0ccaec88a33b8e';
+import { routeReport } from './network-report.js?build=ea0ccaec88a33b8e';
+import { positionM } from './spatial.js?build=ea0ccaec88a33b8e';
 function extents(bands) {
     const groups = [];
     for (const b of bands) {
@@ -79,6 +79,7 @@ export function trafficView(legacy, cells, corridors, events, spills, minute) {
     for (const path of PATHS) {
         const state = cells[path], route = corridors[path], own = legacy.filter(j => j.pathKey === path);
         const queueSpans = state ? cellQueueSpans(state) : [];
+        const serviceHeads = state ? queueTravelHeads(state) : undefined;
         const queueBands = resolveSpeedBands(state ? cellSpeedBands(state) : own.flatMap(jam => [
             ...physicalSpeedBands(jam).filter(b => b.source === 'approach'),
             ...stopAndGoBands(jam, minute)
@@ -111,8 +112,8 @@ export function trafficView(legacy, cells, corridors, events, spills, minute) {
             const feederBands = spill ? (overflow.get(path + '|' + spill.id) ?? []) : [];
             const feederM = lengthM(feederBands);
             const approach = queueSpans.find(s => s.fromM <= group.fromM + .1 && s.toM >= group.toM - .1);
-            const head = state?.cells.find(c => c.toM > group.fromM + .1 && c.travelDetector?.active) ??
-                state?.cells.find(c => c.toM > group.fromM + .1 && c.travelDetector);
+            const firstCell = state?.cells.find(c => c.toM > group.fromM + .1);
+            const head = firstCell ? serviceHeads?.get(firstCell.toM) : undefined;
             // Retain the observed service across released braking-wave gaps. A
             // zero-flow reopening forecast, however, belongs only to its own queue.
             const forecast = head?.reopeningForecast !== undefined;

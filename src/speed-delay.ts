@@ -8,7 +8,7 @@
  * actual discharge yields the time loss to that exit, labelled explicitly.
  * This calculation depends on NO clock, event age or queue-created timestamp.
  */
-import {cellCriticalDensity,type CellRouteState} from './traffic-cells.js';
+import {cellCriticalDensity,cellQueueSpans,type CellRouteState,type TrafficCell} from './traffic-cells.js';
 import {freeSpeedKmh,type SpeedBand} from './traffic-physics.js';
 import type {PathKey} from './traffic.js';
 export interface SpeedDelay {
@@ -17,6 +17,29 @@ export interface SpeedDelay {
  /** Present only for a declared reopening scenario, including a zero-minute
   * wait. Do not add the same future wait for every fragment of one queue. */
  forecastWaitMin?:number;
+}
+/** A new, empty worksite does not serve a released queue kilometres away.
+ * Use an active cross-section only once it belongs to that queue's physical
+ * approach. Until then, its former head can still measure the release flow.
+ * Queue memory bridges short moving gaps, never a separate free road. */
+export function queueTravelHeads(state:CellRouteState,detectorEndM=Infinity):Map<number,TrafficCell>{
+ const spans=cellQueueSpans(state),heads=new Map<number,TrafficCell>();
+ const detectors=state.cells.filter(c=>c.travelDetector&&c.toM<=detectorEndM+.1);
+ for(const cell of state.cells){
+  if(cell.speedKmh>65)continue;
+  const span=spans.find(s=>s.fromM<cell.toM-.1&&s.toM>cell.fromM+.1);
+  const end=(span?.toM??cell.toM)+state.cellM;
+  const ahead=detectors.filter(d=>d.toM>=cell.toM-.1);
+  const nextActive=ahead.find(d=>d.travelDetector!.active);
+  // Connected incidents share the governing service. In particular, a
+  // downstream complete block supplies its reopening forecast through an
+  // upstream worksite; its stopped arrivals are not that site's capacity.
+  const active=ahead.filter(d=>d.travelDetector!.active&&d.toM<=end+.1).reduce<TrafficCell|undefined>((best,d)=>
+   !best||d.travelDetector!.capacityVph<=best.travelDetector!.capacityVph?d:best,undefined);
+  const released=ahead.find(d=>!d.travelDetector!.active&&(!nextActive||d.toM<nextActive.toM));
+  const head=active??released;if(head)heads.set(cell.toM,head);
+ }
+ return heads;
 }
 export function speedDelayInCells(state:CellRouteState,fromM=0,toM=Infinity,detectorEndM=Infinity):SpeedDelay{
  const free=freeSpeedKmh(state.pathKey);
@@ -43,8 +66,7 @@ export function speedDelayInCells(state:CellRouteState,fromM=0,toM=Infinity,dete
  // A local queue must not borrow a distant incident's zero-flow forecast
  // through kilometres of genuinely free road. Direction-wide callers may
  // still assess the full journey; queue callers bound their own head.
- const detectors=state.cells.filter(d=>d.travelDetector&&d.toM<=detectorEndM+.1);
- const activeDetectors=detectors.filter(d=>d.travelDetector?.active);
+ const heads=queueTravelHeads(state,detectorEndM);
  let delayMin=0,assessedKm=0,stoppedKm=0;
  let forecastWaitMin:number|undefined;
  for(const b of barriers)if(b.toM<=endM+.1&&b.reopeningForecast)
@@ -61,8 +83,7 @@ export function speedDelayInCells(state:CellRouteState,fromM=0,toM=Infinity,dete
   // in a stationary queue, without assuming a temporary local stop lasts
   // throughout the journey. Detectors persist while a released queue drains.
   const congested=c.speedKmh<=65&&c.densityVehKm>=critical*1.10;
-  const head=c.speedKmh<=65?(activeDetectors.find(d=>d.toM>=c.toM-.1)??
-   detectors.find(d=>d.toM>=c.toM-.1)):undefined;
+  const head=heads.get(c.toM);
   const forecast=head?.reopeningForecast;
   const detector=congested||forecast?head?.travelDetector:undefined;
   diversionExitRef??=detector?.diversionExitRef;
