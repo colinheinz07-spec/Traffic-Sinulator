@@ -1,0 +1,39 @@
+name: OSM Bonn Siegburg source
+on:
+  push:
+    branches: [feature/osm-bonn-20261025]
+permissions:
+  contents: write
+jobs:
+  source:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download OSM mainline and junctions
+        run: |
+          python -u - <<'PY'
+          import urllib.request, urllib.parse, json, pathlib
+          query='[out:json][timeout:90];(way["highway"="motorway"]["ref"~"^A ?3$"](50.635,7.16,50.811,7.37);node["highway"="motorway_junction"](50.635,7.16,50.811,7.37););out body geom;'
+          errors=[]
+          for host in ['https://overpass-api.de/api/interpreter','https://overpass.private.coffee/api/interpreter','https://overpass.kumi.systems/api/interpreter']:
+            try:
+              req=urllib.request.Request(host,data=urllib.parse.urlencode({'data':query}).encode(),headers={'User-Agent':'Traffic-Sinulator OSM geometry import/1.12','Accept':'application/json'},method='POST')
+              with urllib.request.urlopen(req,timeout=105) as f: data=json.load(f)
+              if len(data.get('elements',[]))<50: raise ValueError('Incomplete source')
+              pathlib.Path('data/a3-north-osm.json').write_text(json.dumps(data,separators=(',',':')))
+              print('Verified download:',len(data['elements']),'OSM objects')
+              break
+            except Exception as e: errors.append(str(e));print(host,str(e))
+          else: raise RuntimeError(errors)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: osm-bonn-siegburg
+          path: data/a3-north-osm.json
+      - name: Save source on isolated import branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/a3-north-osm.json
+          git commit -m "data: capture OSM A3 Bonn Siegburg extension"
+          git push
