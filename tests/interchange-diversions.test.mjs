@@ -114,7 +114,12 @@ test('a source-side full closure splits mandatory A48 traffic into both destinat
  assert.equal(branches.length,2);assert.ok(branches.every(e=>e.desiredPercent===50&&e.state.returnedTotal>50));
  const unspecific=entries.find(e=>e.config.path===path&&e.config.geometry.sourceExitRef==='12'&&!e.config.movementId);
  assert.equal(unspecific.desiredPercent,0);assert.equal(unspecific.state.admittedTotal,0);
- for(const e of branches)assert.ok(Math.abs(state[e.config.targetPath].rejoinedTotal-e.state.returnedTotal)<1e-6);
+ for(const e of branches){
+  const returned=entries.filter(other=>(other.config.targetPath??other.config.path)===e.config.targetPath&&!other.config.exitsNetwork)
+   .reduce((n,other)=>n+other.state.returnedTotal,0);
+  assert.ok(Math.abs(state[e.config.targetPath].rejoinedTotal-returned)<1e-6,
+   'target receiving totals include every real route, including bypasses of the newly backed-up exit');
+ }
 });
 function assertBudget(cells,entries,initial){
  const inside=Object.values(cells).reduce((n,g)=>n+cellInventory(g),0)+entries.reduce((n,e)=>n+detourVehicles(e.state),0);
@@ -195,7 +200,8 @@ for(const rampOnly of [false,true])test(`${rampOnly?'Frankfurt ramp':'A3 Frankfu
   const step=advanceRoutedNetwork(cells,routes,[event],journeyDemands,exits,entries);cells=step.cells;entries=step.detours;
   assertBudget(cells,entries,initial);
   const first=entries.find(e=>e.config.id===via.config.id),last=entries.find(e=>e.config.id===next.config.id);
-  const onA3=cells['A3-koeln'].cells.reduce((n,c)=>n+(c.routedVehicles?.[token]??0),0);
+  const onA3=cells['A3-koeln'].cells.reduce((n,c)=>n+(c.routedVehicles?.[token]??0),0)+
+   cells['A3-koeln'].junctions.reduce((n,j)=>n+(j.exitQueue?.detours[next.config.id]??0),0);
   assert.ok(Math.abs(first.state.returnedTotal-last.state.admittedTotal-onA3)<1e-5,
    'Frankfurt cohorts travel along A3 Köln and leave only for their continuation');
   if(i>10){

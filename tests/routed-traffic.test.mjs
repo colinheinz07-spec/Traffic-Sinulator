@@ -88,10 +88,10 @@ test('a disabled diversion retains its cars and lets all of them finish their jo
  const closure=event(route.lengthM*.6,'closure',[0,1,2],0);
  let cells=initialiseCells(route,2300),entries=[detour('finish',closureGate(route,closure,exits).metre,route.lengthM*.8)];
  for(let t=0;t<15;t++){const next=advanceRoutedPath(cells,route,[closure],2300,exits,entries);cells=next.cells;entries=next.detours;}
- const admitted=entries[0].state.admittedTotal;assert.ok(admitted>20);
+ const admitted=entries[0].state.admittedTotal+cells.junctions.reduce((n,j)=>n+(j.exitQueue?.detours.finish??0),0);assert.ok(admitted>20);
  entries=entries.map(e=>({...e,enabled:false}));
  for(let t=0;t<100;t++){const next=advanceRoutedPath(cells,route,[],500,exits,entries);cells=next.cells;entries=next.detours;}
- assert.equal(entries[0].state.admittedTotal,admitted);
+ assert.ok(Math.abs(entries[0].state.admittedTotal-admitted)<1e-6,'cars already on the off-ramp finish after disabling');
  assert.ok(detourVehicles(entries[0].state)<1e-6);
  assert.ok(Math.abs(entries[0].state.returnedTotal-admitted)<1e-6);
 });

@@ -1,10 +1,15 @@
-import { cellQueueSpans } from './traffic-cells.js?build=8b08edf9bc043858';
-import { closureGate } from './spatial.js?build=8b08edf9bc043858';
-import { diversionJunctions, nearestExitBeforeQueue, potentialDiversionPercent } from './diversions.js?build=8b08edf9bc043858';
-import { speedDelayInCells } from './speed-delay.js?build=8b08edf9bc043858';
-import { freeSpeedKmh } from './traffic-physics.js?build=8b08edf9bc043858';
-import { INTERCHANGE_DIVERSION_START_MIN, interchangeTrafficShare } from './interchange.js?build=8b08edf9bc043858';
-import { closedMovementEvent, viaJourneyUsable, journeyRampCapacity } from './interchange-journeys.js?build=8b08edf9bc043858';
+import { cellQueueSpans } from './traffic-cells.js?build=d322a47ab35b6164';
+import { closureGate } from './spatial.js?build=d322a47ab35b6164';
+import { diversionJunctions, nearestExitBeforeQueue, potentialDiversionPercent } from './diversions.js?build=d322a47ab35b6164';
+import { speedDelayInCells } from './speed-delay.js?build=d322a47ab35b6164';
+import { freeSpeedKmh } from './traffic-physics.js?build=d322a47ab35b6164';
+import { INTERCHANGE_DIVERSION_START_MIN, interchangeTrafficShare } from './interchange.js?build=d322a47ab35b6164';
+import { closedMovementEvent, viaJourneyUsable, journeyRampCapacity } from './interchange-journeys.js?build=d322a47ab35b6164';
+import { exitRampVehicles, DEFAULT_EXIT_TERMINAL_VPH } from './junction-traffic.js?build=d322a47ab35b6164';
+function exitTerminalWait(source, metre) {
+    const ramp = source.junctions?.find(j => Math.abs(j.metre - metre) < 25);
+    return ramp ? exitRampVehicles(ramp) / Math.max(1, ramp.exitTerminalVph ?? DEFAULT_EXIT_TERMINAL_VPH) * 60 : 0;
+}
 /** A formal closure requires a working route at its exit even when that
  * route was paused for an earlier incident. A return inside the closed
  * section cannot serve as the mandatory route. */
@@ -79,7 +84,8 @@ function interchangeChoice(entry, cells, routes, events, exits, demands, turnDel
     const extension = Math.max(0, config.fromM - turn);
     const normalFree = (Math.max(0, turn - config.fromM) + Math.max(0, config.toM - merge)) / 1000 / freeSpeedKmh(path) * 60;
     const extra = Math.max(0, config.geometry.freeMinutes + extension / 1000 / freeSpeedKmh(path) * 60 - normalFree) +
-        (extension > 0 ? loss(source, turn, config.fromM) : 0) + (state.waitingRoad + state.waitingMerge) / service * 60;
+        (extension > 0 ? loss(source, turn, config.fromM) : 0) + (state.waitingRoad + state.waitingMerge) / service * 60 +
+        exitTerminalWait(source, config.fromM);
     const spans = cellQueueSpans(source);
     const approach = spans.find(s => s.fromM < turn && s.toM >= turn - source.cellM);
     const sourceAnchor = pastTurn ? postExit : nearestExitBeforeQueue(path, route, exits, approach?.fromM ?? turn, turn);
@@ -211,7 +217,7 @@ export function routedDiversionChoice(entry, entries, cells, routes, events, exi
         (config.toM - (config.targetEntryM ?? 0)) / 1000 / freeSpeedKmh(target) * 60 :
         (config.toM - config.fromM) / 1000 / freeSpeedKmh(path) * 60;
     const extra = Math.max(0, config.geometry.freeMinutes - motorwayFree) +
-        (state.waitingRoad + state.waitingMerge) / service * 60;
+        (state.waitingRoad + state.waitingMerge) / service * 60 + exitTerminalWait(source, config.fromM);
     const spans = cellQueueSpans(source);
     const eligible = (tail, end) => {
         const nearest = nearestExitBeforeQueue(path, route, exits, tail, approachEnd);

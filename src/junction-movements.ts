@@ -10,7 +10,7 @@ import type {SimEvent} from './events.js';
 import type {Exit} from './core.js';
 import {positionM,closureGate} from './spatial.js';
 import {diversionJunctions,type JunctionAnchor} from './diversions.js';
-import type {JunctionTrafficState} from './junction-traffic.js';
+import {exitRampVehicles,DEFAULT_EXIT_TERMINAL_VPH,DEFAULT_EXIT_STORAGE_VEHICLES,type JunctionTrafficState} from './junction-traffic.js';
 import type {PathKey} from './traffic.js';
 
 export interface JunctionMovement {
@@ -21,6 +21,7 @@ export interface JunctionMovement {
  waitingAtReentry:number;validatedRouteActive:boolean;
  normalOutVph:number;normalInVph:number;diversionOutVph:number;returningInVph:number;waitingToEnter:number;
  exitDemandVph:number;
+ exitRampVehicles:number;exitRampStorageVehicles:number;exitTerminalVph:number;exitAdmittedVph:number;
 }
 export interface RealDetourFlow {
  path:RoadId;fromM:number;toM:number;eventId:string;
@@ -43,7 +44,8 @@ export function junctionMovements(path:RoadId,route:Corridor,exits:readonly Exit
  const rows=junctions.map((exit):JunctionMovement=>({
   path,exit,desiredPercent:0,mandatory:false,entryClosed:false,eventId:null,distanceBeforeClosureKm:null,
   outVph:0,inVph:0,vehiclesOnDetour:0,waitingAtReentry:0,validatedRouteActive:false,
-  normalOutVph:0,normalInVph:0,diversionOutVph:0,returningInVph:0,waitingToEnter:0,exitDemandVph:0
+  normalOutVph:0,normalInVph:0,diversionOutVph:0,returningInVph:0,waitingToEnter:0,exitDemandVph:0,
+  exitRampVehicles:0,exitRampStorageVehicles:DEFAULT_EXIT_STORAGE_VEHICLES,exitTerminalVph:DEFAULT_EXIT_TERMINAL_VPH,exitAdmittedVph:0
  }));
  for(const event of events.filter(x=>x.pathKey===path)){
   const at=positionM(route,event.point);
@@ -67,6 +69,9 @@ export function junctionMovements(path:RoadId,route:Corridor,exits:readonly Exit
   if(!row)continue;
   row.normalOutVph=movement.lastExited*60;row.normalInVph=movement.lastEntered*60;
   row.exitDemandVph=(movement.lastExitDemand??movement.lastExited)*60;
+  row.exitRampVehicles=exitRampVehicles(movement);row.exitAdmittedVph=(movement.lastExitAdmitted??0)*60;
+  row.exitRampStorageVehicles=movement.exitStorageVehicles??DEFAULT_EXIT_STORAGE_VEHICLES;
+  row.exitTerminalVph=movement.exitTerminalVph??DEFAULT_EXIT_TERMINAL_VPH;
   row.waitingToEnter=movement.waiting;row.outVph+=row.normalOutVph;row.inVph+=row.normalInVph;
  }
  const measured=new Map<JunctionMovement,Map<string,number>>();

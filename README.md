@@ -1,6 +1,17 @@
-# A3/A48 Stausimulator – TRAFFIC 1.12.3
+# A3/A48 Stausimulator – TRAFFIC 1.12.4
 
 **Ein Repository, eine Startdatei:** `index.html` im Hauptverzeichnis direkt in SPCK öffnen. Keine Cloudflare-Konfiguration und keine externe Kartenbibliothek.
+
+## Kurze Abfahrtsrampe und gemeinsamer Kreuzungsabfluss (1.12.4)
+
+- Alle 26 gerichteten regulären A3-/A48-Ausfahrten besitzen jetzt einen **gemeinsamen endlichen Rampenspeicher vor dem ersten lokalen Knoten**. Reguläre Abfahrer und sämtliche Umleitungsziele teilen ihn. Eine lange Umleitung bietet keinen zusätzlichen Speicher vor dieser Kreuzung.
+- Mangels vermessener örtlicher Rampen und Ampelpläne gelten ausdrücklich **Szenarioannahmen**: eine Zufahrtsspur mit bis zu 1.800 Fzg/h, **40 Fahrzeuge Rampenspeicher** (etwa 300 m bei 7,5 m Platzbedarf) und **700 Fzg/h mittlerer Kreuzungsabfluss**. Letzteres entspricht ungefähr 39 % effektiver Freigabe bei 1.800 Fzg/h Sättigungsverkehrsstärke. Grundlage der Kapazitätsformel `c = s × g/C`: [FHWA Traffic Signal Timing Manual, Kapitel 3](https://ops.fhwa.dot.gov/publications/fhwahop08024/chapter3.htm). Es sind keine abgerufenen lokalen Messwerte; konkrete Signalphasen werden nicht erfunden. Die Parameter lassen sich im Modell getrennt ändern, auch auf über 1.000 Fzg/h.
+- Ist die Rampe voll, bleiben weitere Abfahrwillige in den **echten Autobahnzellen**. Die begrenzte Abfertigung betrifft auch gewöhnliche Ortsfahrten; sie werden nicht mehr zusätzlich am Engpass vorbeigelöscht. Ein zu voller nachgeordneter Straßenabschnitt kann den Rampenabfluss weiter reduzieren.
+- **Abfahrtswunsch** bleibt die verzögerungsabhängige Nachfrage bis 100 %. **Abfahrt** zählt die tatsächlich hinter dem gemeinsamen Rampenknoten abgefertigten Fahrzeuge; das zusätzliche Rampeninventar und seine Kapazität stehen im AS-Detail. Der kurzzeitige Zufluss von der Autobahn in noch freie Rampenplätze wird separat bilanziert und nicht als unbegrenzt möglicher Kreuzungsabfluss ausgegeben.
+- Autos auf der Rampe bleiben auch nach Pausieren oder Löschen der Ursache erhalten und fahren ihre gewählte Route zu Ende. Die globale Bilanz umfasst Autobahn, Auffahrtswartende, Abfahrtsrampe, Nebenstraße und Wiedereinfädelung. Die zusätzlichen Rampenwartezeiten fließen auch in die Wahl einer freiwilligen Umfahrung ein. Freie Überleitungsrampen am AD Dernbach erhalten **keinen fiktiven Ortskreuzungsengpass**.
+- Regressionen prüfen alle vier Autobahnrichtungen: 3.000 Fzg/h Abfahrtswunsch, volle 40-Pkw-Rampe und lokaler Autobahnrückstau innerhalb weniger Minuten trotz leerer langer Umleitung; außerdem gewöhnliche Abfahrer, getrennt konfigurierbare Terminalleistung, blockierte Nebenstraßen, spätere Freigabe, pausierte Reisen und die bestehende A48-/AD-Zielbindung.
+
+- Validierung: **480 JavaScript-Tests**, **6 Geometrieprüfungen**, **5 Fahrstreifenprüfungen** und **11 native mobile Chromium-Szenarien** sind grün (390 × 844 Pixel, Touch-Emulation). Unter 3.000 Fzg/h Zufluss wurde der gemeinsame Abfluss in allen vier Richtungen mit höchstens 700 Fzg/h gemessen, bei 100 % Soll und vollem 40-Fahrzeuge-Rampenspeicher. Vollständige Freigabe baut den Rückstau weiterhin ab; eine und zwei freie Spuren bleiben unterschiedlich leistungsfähig. Sämtliche Fahrzeugbilanzen bleiben geschlossen.
 
 ## Stauabbau nach Freigabe und Abfahrtsmengen (1.12.3)
 

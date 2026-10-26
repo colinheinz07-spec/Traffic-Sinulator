@@ -4,9 +4,10 @@
  * Every normal AS is covered; AK/AD are separate motorway nodes and cannot
  * be misrepresented as exits onto local roads.
  */
-import { names } from './core.js?build=8b08edf9bc043858';
-import { positionM, closureGate } from './spatial.js?build=8b08edf9bc043858';
-import { diversionJunctions } from './diversions.js?build=8b08edf9bc043858';
+import { names } from './core.js?build=d322a47ab35b6164';
+import { positionM, closureGate } from './spatial.js?build=d322a47ab35b6164';
+import { diversionJunctions } from './diversions.js?build=d322a47ab35b6164';
+import { exitRampVehicles, DEFAULT_EXIT_TERMINAL_VPH, DEFAULT_EXIT_STORAGE_VEHICLES } from './junction-traffic.js?build=d322a47ab35b6164';
 /** A formal closure forces departure only at the LAST usable normal exit.
  * Earlier exits are voluntary alternatives chosen by remaining time loss,
  * independently of the tail's distance from any junction.
@@ -18,7 +19,8 @@ export function junctionMovements(path, route, exits, events, _delayMin, real = 
     const rows = junctions.map((exit) => ({
         path, exit, desiredPercent: 0, mandatory: false, entryClosed: false, eventId: null, distanceBeforeClosureKm: null,
         outVph: 0, inVph: 0, vehiclesOnDetour: 0, waitingAtReentry: 0, validatedRouteActive: false,
-        normalOutVph: 0, normalInVph: 0, diversionOutVph: 0, returningInVph: 0, waitingToEnter: 0, exitDemandVph: 0
+        normalOutVph: 0, normalInVph: 0, diversionOutVph: 0, returningInVph: 0, waitingToEnter: 0, exitDemandVph: 0,
+        exitRampVehicles: 0, exitRampStorageVehicles: DEFAULT_EXIT_STORAGE_VEHICLES, exitTerminalVph: DEFAULT_EXIT_TERMINAL_VPH, exitAdmittedVph: 0
     }));
     for (const event of events.filter(x => x.pathKey === path)) {
         const at = positionM(route, event.point);
@@ -51,6 +53,10 @@ export function junctionMovements(path, route, exits, events, _delayMin, real = 
         row.normalOutVph = movement.lastExited * 60;
         row.normalInVph = movement.lastEntered * 60;
         row.exitDemandVph = (movement.lastExitDemand ?? movement.lastExited) * 60;
+        row.exitRampVehicles = exitRampVehicles(movement);
+        row.exitAdmittedVph = (movement.lastExitAdmitted ?? 0) * 60;
+        row.exitRampStorageVehicles = movement.exitStorageVehicles ?? DEFAULT_EXIT_STORAGE_VEHICLES;
+        row.exitTerminalVph = movement.exitTerminalVph ?? DEFAULT_EXIT_TERMINAL_VPH;
         row.waitingToEnter = movement.waiting;
         row.outVph += row.normalOutVph;
         row.inVph += row.normalInVph;

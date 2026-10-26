@@ -177,10 +177,11 @@ for(const [path,from,to] of [['A3-frankfurt','42','43'],['A3-koeln','43','42'],
    assert.equal(Math.round(opposite.inVph),199,'the screenshot count belongs to the open Cologne direction');
    assert.equal(opposite.entryClosed,false);assert.match(junctionMovementHint(opposite).title,/Köln/);
   }
-  const admitted=main.state.admittedTotal;
+  const committed=grid=>grid.junctions.reduce((n,j)=>n+(j.exitQueue?.detours[main.config.id]??0),0);
+  const admitted=main.state.admittedTotal+committed(cells[path]);
   const next=advanceRoutedNetwork(cells,routes,[],initial,exits,entries);
-  assert.equal(next.detours.find(e=>e.config.id===main.config.id).state.admittedTotal,admitted,
-   'lifting the closure restores the prior pause while in-transit cars finish');
+  assert.ok(Math.abs(next.detours.find(e=>e.config.id===main.config.id).state.admittedTotal+committed(next.cells[path])-admitted)<1e-6,
+   'lifting the closure restores the pause while already committed off-ramp cars finish');
  });
 }
 

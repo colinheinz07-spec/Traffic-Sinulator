@@ -413,6 +413,9 @@ function renderJunctionMovements(path:PathKey){
    if(row.desiredPercent>0||row.exitDemandVph>row.outVph+1)
     split.textContent+=' · Abfahrtswunsch ↓ '+trafficNumber(row.exitDemandVph)+' Fzg/h';
    if(row.waitingToEnter>.1)split.textContent+=' · '+trafficNumber(row.waitingToEnter)+' Fzg warten auf der Auffahrt';
+   if(row.exitRampVehicles>1||row.desiredPercent>0)
+    split.textContent+=' · Abfahrtsrampe '+trafficNumber(row.exitRampVehicles)+' / '+trafficNumber(row.exitRampStorageVehicles)+
+     ' Fzg · Kreuzungsabfluss bis '+trafficNumber(row.exitTerminalVph)+' Fzg/h (Modellannahme)';
    if(row.entryClosed)split.textContent+=' · ⛔ Auffahrt geschlossen';
    card.append(split);
    const note=document.createElement('span');note.className='junction-note';

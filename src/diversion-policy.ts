@@ -14,8 +14,13 @@ import {speedDelayInCells} from './speed-delay.js';
 import {freeSpeedKmh} from './traffic-physics.js';
 import {INTERCHANGE_DIVERSION_START_MIN,interchangeTrafficShare} from './interchange.js';
 import {closedMovementEvent,viaJourneyUsable,journeyRampCapacity} from './interchange-journeys.js';
+import {exitRampVehicles,DEFAULT_EXIT_TERMINAL_VPH} from './junction-traffic.js';
 
 interface ChoiceRoute {config:DetourConfig;state:DetourState;enabled?:boolean}
+function exitTerminalWait(source:CellRouteState,metre:number):number{
+ const ramp=source.junctions?.find(j=>Math.abs(j.metre-metre)<25);
+ return ramp?exitRampVehicles(ramp)/Math.max(1,ramp.exitTerminalVph??DEFAULT_EXIT_TERMINAL_VPH)*60:0;
+}
 export interface DiversionChoice {percent:number;mandatory:boolean;delayMin:number;upstreamRank:number}
 /** A formal closure requires a working route at its exit even when that
  * route was paused for an earlier incident. A return inside the closed
@@ -86,7 +91,8 @@ function interchangeChoice(entry:ChoiceRoute,cells:Readonly<Partial<Record<PathK
  const extension=Math.max(0,config.fromM-turn);
  const normalFree=(Math.max(0,turn-config.fromM)+Math.max(0,config.toM-merge))/1000/freeSpeedKmh(path)*60;
  const extra=Math.max(0,config.geometry.freeMinutes+extension/1000/freeSpeedKmh(path)*60-normalFree)+
-  (extension>0?loss(source,turn,config.fromM):0)+(state.waitingRoad+state.waitingMerge)/service*60;
+  (extension>0?loss(source,turn,config.fromM):0)+(state.waitingRoad+state.waitingMerge)/service*60+
+  exitTerminalWait(source,config.fromM);
  const spans=cellQueueSpans(source);
  const approach=spans.find(s=>s.fromM<turn&&s.toM>=turn-source.cellM);
  const sourceAnchor=pastTurn?postExit:nearestExitBeforeQueue(path,route,exits,approach?.fromM??turn,turn);
@@ -212,7 +218,7 @@ export function routedDiversionChoice(entry:ChoiceRoute,entries:readonly ChoiceR
   (config.toM-(config.targetEntryM??0))/1000/freeSpeedKmh(target)*60:
   (config.toM-config.fromM)/1000/freeSpeedKmh(path)*60;
  const extra=Math.max(0,config.geometry.freeMinutes-motorwayFree)+
-  (state.waitingRoad+state.waitingMerge)/service*60;
+  (state.waitingRoad+state.waitingMerge)/service*60+exitTerminalWait(source,config.fromM);
  const spans=cellQueueSpans(source);
  const eligible=(tail:number,end:number)=>{
   const nearest=nearestExitBeforeQueue(path,route,exits,tail,approachEnd);

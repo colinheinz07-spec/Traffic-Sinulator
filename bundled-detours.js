@@ -3,9 +3,9 @@
  * Every normal AS has a route in both directions, including network exits.
  * Longer bypasses concatenate the same sections; no routing server is used.
  */
-import { DIRECTIONS, names, exitPosition } from './core.js?build=8b08edf9bc043858';
-import { diversionJunctions } from './diversions.js?build=8b08edf9bc043858';
-import { metres } from './spatial.js?build=8b08edf9bc043858';
+import { DIRECTIONS, names, exitPosition } from './core.js?build=d322a47ab35b6164';
+import { diversionJunctions } from './diversions.js?build=d322a47ab35b6164';
+import { metres } from './spatial.js?build=d322a47ab35b6164';
 export const BUNDLED_SECTIONS = [
     { from: 'A3:33', to: 'A3:34', capacity: 820, via: [[50.6840, 7.2697], [50.6760, 7.2745], [50.6679, 7.2812], [50.6597, 7.2930], [50.6550, 7.3070], [50.6509, 7.3215]] },
     { from: 'A3:34', to: 'A3:35', capacity: 820, via: [[50.6450, 7.3414], [50.6379, 7.3547], [50.6268, 7.3675], [50.6212, 7.3900], [50.6087, 7.4115], [50.5986, 7.4184]] },

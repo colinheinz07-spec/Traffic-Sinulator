@@ -14,7 +14,8 @@ import type {SimEvent} from './events.js';
 import {baselineCapacity,eventCapacity,type PathKey,type TrafficColor} from './traffic.js';
 import {flowPolicy,DEFAULT_CLEARANCE_MIN} from './events.js';
 import {colorAtSpeed,freeSpeedKmh,QUEUE_JAM_DENSITY_PER_LANE,CONGESTION_WAVE_KMH} from './traffic-physics.js';
-import {normalJunctionTraffic,type JunctionTrafficDemand,type JunctionTrafficState} from './junction-traffic.js';
+import {normalJunctionTraffic,exitRampVehicles,DEFAULT_EXIT_TERMINAL_VPH,DEFAULT_EXIT_STORAGE_VEHICLES,
+ type JunctionTrafficDemand,type JunctionTrafficState} from './junction-traffic.js';
 
 export interface TrafficCell {
  fromM:number;toM:number;vehicles:number;flowVph:number;speedKmh:number;densityVehKm:number;
@@ -89,7 +90,7 @@ export function initialiseCells(route:Corridor,initialDemandVph:number):CellRout
 }
 export function cellInventory(state:CellRouteState):number{
  return state.backlog+state.cells.reduce((s,c)=>s+c.vehicles,0)+
-  (state.junctions??[]).reduce((s,j)=>s+j.waiting,0);
+  (state.junctions??[]).reduce((s,j)=>s+j.waiting+exitRampVehicles(j),0);
 }
 export function assertCellConservation(state:CellRouteState):void{
  const lhs=cellInventory(state)+state.exitedTotal+(state.divertedTotal??0);
@@ -98,6 +99,9 @@ export function assertCellConservation(state:CellRouteState):void{
  if(!Number.isFinite(lhs)||!Number.isFinite(rhs)||Math.abs(lhs-rhs)>tolerance)
   throw Error('Zellmodell hat Fahrzeuge verloren oder dupliziert');
  for(const j of state.junctions??[]){
+  const ramp=[j.exitQueue?.normal??0,...Object.values(j.exitQueue?.detours??{})];
+  if(ramp.some(v=>!Number.isFinite(v)||v<0)||exitRampVehicles(j)>(j.exitStorageVehicles??DEFAULT_EXIT_STORAGE_VEHICLES)+1e-6)
+   throw Error('Abfahrtsrampe hat ungültigen oder überfüllten Fahrzeugbestand');
   if(!Number.isFinite(j.waiting)||j.waiting<0||
    Math.abs(j.offeredTotal-j.enteredTotal-j.waiting)>1e-5*Math.max(1,j.offeredTotal))
    throw Error('Anschlussstellenzufluss hat Fahrzeuge verloren oder dupliziert');
@@ -249,7 +253,9 @@ export function advanceCells(previous:CellRouteState,route:Corridor,events:reado
  const junctions=junctionDemand.map(d=>{
   if(!Number.isFinite(d.entryVph)||d.entryVph<0||!Number.isFinite(d.exitPercent)||d.exitPercent<0||d.exitPercent>100||
    !Number.isFinite(d.metre)||d.metre<0||d.metre>=route.lengthM||
-   !Number.isFinite(d.entryCapacityVph)||!Number.isFinite(d.exitCapacityVph)||d.entryCapacityVph<=0||d.exitCapacityVph<=0)
+   !Number.isFinite(d.entryCapacityVph)||!Number.isFinite(d.exitCapacityVph)||d.entryCapacityVph<=0||d.exitCapacityVph<=0||
+   !Number.isFinite(d.exitTerminalVph??DEFAULT_EXIT_TERMINAL_VPH)||(d.exitTerminalVph??DEFAULT_EXIT_TERMINAL_VPH)<0||
+   !Number.isFinite(d.exitStorageVehicles??DEFAULT_EXIT_STORAGE_VEHICLES)||(d.exitStorageVehicles??DEFAULT_EXIT_STORAGE_VEHICLES)<=0)
    throw Error('Ungültiger Anschlussstellenzufluss');
   const old=previous.junctions?.find(j=>j.id===d.id);
   const face=Math.max(1,Math.min(n-1,Math.round(d.metre/previous.cellM)));
@@ -261,13 +267,16 @@ export function advanceCells(previous:CellRouteState,route:Corridor,events:reado
    .reduce((sum,p)=>sum+p.interestPercent,0));
   return {...d,entryVph:d.entryVph*(1-entryAvoidancePercent/100),entryAvoidancePercent,
    waiting:old?.waiting??0,offeredTotal:old?.offeredTotal??0,
-   enteredTotal:old?.enteredTotal??0,exitedTotal:old?.exitedTotal??0,lastEntered:0,lastExited:0,lastExitDemand:0,
+   enteredTotal:old?.enteredTotal??0,exitedTotal:old?.exitedTotal??0,lastEntered:0,lastExited:0,lastExitDemand:0,lastExitAdmitted:0,
+   exitQueue:{normal:old?.exitQueue?.normal??0,detours:{...old?.exitQueue?.detours}},
    face,entryBlocked};
  });
  // An existing ramp queue is a vehicle inventory, even if a caller stops
  // offering new local demand. It may still merge and must never be dropped.
  for(const old of previous.junctions??[])if(!junctions.some(j=>j.id===old.id))junctions.push({
-  ...old,entryVph:0,entryAvoidancePercent:0,lastEntered:0,lastExited:0,lastExitDemand:0,face:Math.max(1,Math.min(n-1,Math.round(old.metre/previous.cellM))),
+  ...old,entryVph:0,exitPercent:0,entryAvoidancePercent:0,lastEntered:0,lastExited:0,lastExitDemand:0,lastExitAdmitted:0,
+  exitQueue:{normal:old.exitQueue?.normal??0,detours:{...old.exitQueue?.detours}},
+  face:Math.max(1,Math.min(n-1,Math.round(old.metre/previous.cellM))),
   entryBlocked:closedEntries.some(c=>old.metre>=c.fromM&&old.metre<c.toM)});
  const occupancy=previous.cells.map(c=>c.vehicles);
  const closures=controls.closureGates.map(g=>{const interest=routed.filter(p=>p.from===g.face).reduce((n,p)=>n+p.interestPercent,0);
@@ -281,7 +290,7 @@ export function advanceCells(previous:CellRouteState,route:Corridor,events:reado
  const departuresAt=new Map<number,typeof routed>(),returnsAt=new Map<number,typeof routed>();
  const noPorts:typeof routed=[];
  for(const port of routed){
-  if(port.from>=1&&port.interestPercent>0)
+  if(port.from>=1)
    departuresAt.set(port.from,[...(departuresAt.get(port.from)??[]),port]);
   if(port.to>=1&&port.toM!==null&&!closedEntries.some(c=>port.toM!>=c.fromM&&port.toM!<c.toM))
    returnsAt.set(port.to,[...(returnsAt.get(port.to)??[]),port]);
@@ -399,15 +408,37 @@ export function advanceCells(previous:CellRouteState,route:Corridor,events:reado
    const requested=departures.map((p,k)=>Math.min(wanted[k]!,
     p.exitCapacityVph*dtMin/60,Math.max(0,p.exitCapacityVph/60-p.left)));
    const requestedTotal=normalRequest+requested.reduce((s,x)=>s+x,0);
-   // Local destination traffic and diversion traffic share the SAME exit.
-   const exitLimit=local?.exitCapacityVph??(departures.some(p=>p.motorway)?1500:baselineCapacity(route.key));
-   const scale=requestedTotal>0?Math.min(1,exitLimit*dtMin/60/requestedTotal):0;
-   departures.forEach((p,k)=>{const accepted=requested[k]!*scale;p.left+=accepted;leaving[i-1]+=accepted;
-    if(p.vehicleClass)classLeave.get(p.vehicleClass)![i-1]+=accepted;
-   });
    if(local){
-    const accepted=normalRequest*scale;local.lastExited+=accepted;local.exitedTotal+=accepted;
-    exitedTotal+=accepted;leaving[i-1]+=accepted;
+    // All local and detouring cars share ONE short off-ramp and ONE
+    // terminal. A long bypass is not extra storage before its first signal.
+    // Service already committed cars even after their route is disabled.
+    const queue=local.exitQueue;
+    const serviceRequests=departures.map(p=>Math.min(queue.detours[p.id]??0,
+     p.exitCapacityVph*dtMin/60,Math.max(0,p.exitCapacityVph/60-p.left)));
+    const serviceTotal=queue.normal+serviceRequests.reduce((s,v)=>s+v,0);
+    const serviceScale=serviceTotal>0?Math.min(1,(local.exitTerminalVph??DEFAULT_EXIT_TERMINAL_VPH)*dtMin/60/serviceTotal):0;
+    const normalService=queue.normal*serviceScale;queue.normal=Math.max(0,queue.normal-normalService);
+    local.lastExited+=normalService;local.exitedTotal+=normalService;exitedTotal+=normalService;
+    departures.forEach((p,k)=>{const served=serviceRequests[k]!*serviceScale;
+     queue.detours[p.id]=Math.max(0,(queue.detours[p.id]??0)-served);p.left+=served;
+    });
+    const admissionWanted=normalWanted+wanted.reduce((s,v)=>s+v,0);
+    const room=Math.max(0,(local.exitStorageVehicles??DEFAULT_EXIT_STORAGE_VEHICLES)-exitRampVehicles(local));
+    const admissionScale=admissionWanted>0?Math.min(1,local.exitCapacityVph*dtMin/60/admissionWanted,room/admissionWanted):0;
+    const normalAdmitted=normalWanted*admissionScale;queue.normal+=normalAdmitted;
+    leaving[i-1]+=normalAdmitted;local.lastExitAdmitted+=normalAdmitted;
+    departures.forEach((p,k)=>{const admitted=wanted[k]!*admissionScale;
+     queue.detours[p.id]=(queue.detours[p.id]??0)+admitted;
+     leaving[i-1]+=admitted;local.lastExitAdmitted+=admitted;
+     if(p.vehicleClass)classLeave.get(p.vehicleClass)![i-1]+=admitted;
+    });
+   }else{
+    // Freeway-to-freeway movements have no local traffic signal terminal.
+    const exitLimit=departures.some(p=>p.motorway)?1500:baselineCapacity(route.key);
+    const scale=requestedTotal>0?Math.min(1,exitLimit*dtMin/60/requestedTotal):0;
+    departures.forEach((p,k)=>{const accepted=requested[k]!*scale;p.left+=accepted;leaving[i-1]+=accepted;
+     if(p.vehicleClass)classLeave.get(p.vehicleClass)![i-1]+=accepted;
+    });
    }
    const passage=passages.get(i);
    const mainSend=passage?Math.max(0,(sent.get(passage.vehicleClass)??0)-
@@ -487,7 +518,7 @@ export function advanceCells(previous:CellRouteState,route:Corridor,events:reado
   const travelFlowVph=(c.travelFlowVph??c.flowVph)*(1-TRAVEL_ALPHA)+outflowVph*TRAVEL_ALPHA;
   const active=Number.isFinite(faceCapacity[i+1]),oldDetector=c.travelDetector;
   const exit=closures.find(g=>g.face===i+1&&g.diverting);
-  const detectorCapacity=exit?(localAt.get(i+1)?.exitCapacityVph??baselineCapacity(route.key)):
+  const detectorCapacity=exit?(localAt.get(i+1)?.exitTerminalVph??DEFAULT_EXIT_TERMINAL_VPH):
    active?faceCapacity[i+1]!:capacity[i]!;
   const observed=observationHours[i+1]!>0;
   const detectorFlow=observed?observationVehicles[i+1]!/observationHours[i+1]!:detectorCapacity;

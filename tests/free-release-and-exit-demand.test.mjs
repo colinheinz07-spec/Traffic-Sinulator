@@ -83,7 +83,7 @@ test('the detour ledger admits more than 1200/h when requested, then queues at i
 });
 
 for(const [path,from,to] of [['A3-koeln','40','38'],['A3-frankfurt','38','40'],['A48-koblenz','12','11']])
- test(`${path}: all exit requests share the real stream, exceed 1200/h and spill back when the side road fills`,()=>{
+ test(`${path}: high exit demand fills the short ramp and shares its terminal service`,()=>{
   const route=routes[path],entry=exitRoute(path,from,to),event={...block(path,entry.config.fromM+350),kind:'closure'};
   let state=initialiseCells(route,3000),detours=[entry];const initial=cellInventory(state);let peak=0,lateDemand=0,lateActual=0;
   for(let i=0;i<75;i++){
@@ -94,11 +94,13 @@ for(const [path,from,to] of [['A3-koeln','40','38'],['A3-frankfurt','38','40'],[
    assert.ok(Math.abs(cellInventory(state)+detourVehicles(detours[0].state)+state.exitedTotal-initial-state.offeredTotal)<1e-5);
    if(i>60){lateDemand=Math.max(lateDemand,local.lastExitDemand*60);lateActual=Math.max(lateActual,actual);}
   }
-  assert.ok(peak>2500,'the actual exit is not clipped to the former 1200/h limit');
-  assert.ok(lateDemand>2500&&lateActual<1600,'unserved exit demand remains visible when the 650/h road is full');
+  assert.ok(peak>650&&peak<=700+1e-6,'normal and diversion traffic share the 700/h terminal');
+  assert.ok(lateDemand>2500&&lateActual<=700+1e-6,'unserved exit demand stays visible');
   assert.ok(state.cells.some(c=>c.fromM<entry.config.fromM&&c.fromM>entry.config.fromM-3000&&c.speedKmh<20),
    'real vehicles must back up on the motorway rather than disappear into an unlimited side road');
-  assert.ok(detours[0].state.waitingRoad>100);
+  const ramp=state.junctions.find(j=>j.ref===from).exitQueue;
+  assert.ok(ramp.normal+Object.values(ramp.detours).reduce((s,v)=>s+v,0)>39,
+   'the short ramp fills without borrowing the complete side-road storage');
   const real=[{path,fromM:entry.config.fromM,toM:entry.config.toM,eventId:event.id,desiredPercent:100,
    outVph:detours[0].state.lastDeparture*60,inVph:detours[0].state.lastRejoined*60,vehiclesOnDetour:detourVehicles(detours[0].state),
    waitingAtReentry:detours[0].state.waitingMerge}];
