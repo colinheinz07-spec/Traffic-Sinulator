@@ -6,6 +6,7 @@
 import type {Exit,RoadId} from './core.js';
 import type {Corridor} from './spatial.js';
 import {diversionJunctions} from './diversions.js';
+import {baselineCapacity} from './traffic.js';
 
 export interface JunctionTrafficDemand {
  id:string;ref:string;metre:number;entryVph:number;exitPercent:number;
@@ -14,6 +15,8 @@ export interface JunctionTrafficDemand {
 export interface JunctionTrafficState extends JunctionTrafficDemand {
  waiting:number;offeredTotal:number;enteredTotal:number;exitedTotal:number;
  lastEntered:number;lastExited:number;
+ /** Exit requests, including drivers waiting for side-road receiving room. */
+ lastExitDemand?:number;
  /** New local trips choosing another road before entering the ramp.
   * Existing ramp inventory and returning detour vehicles stay conserved. */
  entryAvoidancePercent?:number;
@@ -26,6 +29,6 @@ export function normalJunctionTraffic(route:Corridor,exits:readonly Exit[],deman
   const share=4+Number(j.ref)%5;
   return {id:route.key+':local:'+j.ref,ref:j.ref,metre:j.metre,
    entryVph:Math.min(700,demandVph*share/100),exitPercent:share,
-   entryCapacityVph:900,exitCapacityVph:1200};
+   entryCapacityVph:900,exitCapacityVph:baselineCapacity(route.key)};
  });
 }

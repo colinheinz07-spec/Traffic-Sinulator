@@ -3,7 +3,7 @@
  * local speeds determine map shading, queue lengths and travel-time loss.
  * The legacy AD ramp turn-demand solver remains a separate approximation.
  *
- * Model: triangular fundamental diagram, homogeneous cells up to 100m,
+ * Model: capacity-consistent triangular fundamental diagram, cells up to 100m,
  * steps of at most two seconds (CFL checked per route), deterministic fluxes.
  * Every cell stores VEHICLES rather than a cosmetic pulse phase.
  */
@@ -216,6 +216,12 @@ export function advanceCells(previous:CellRouteState,route:Corridor,events:reado
  const substeps=Math.max(30,Math.ceil(freeSpeedKmh(route.key)*1000/(60*previous.cellM))),dtMin=1/substeps;
  const controls=localControls(route,events,demandVph,n,previous.cellM,exits);
  const {speeds,capacity,faceCapacity,faceControls,jam,releases,closedEntries}=controls;
+ // Join free flow to the congested branch at ONE capacity density. The
+ // former clipped linear receiver admitted capacity at much higher density
+ // too, leaving kilometres of stationary orange traffic after reopening.
+ // Calibrate the backward branch to Q/v instead of clipping a steeper
+ // branch at Q. Its wave speed stays within the existing 22-km/h CFL bound.
+ const receivingWave=capacity.map((q,i)=>q/(jam-q/speeds[i]!));
  const passages=new Map<number,NonNullable<CellDetourPort['closurePassage']>>();
  for(const gate of controls.closureGates){
   const candidate=ports.find(p=>p.closurePassage&&p.fromM!==null&&p.fromM>gate.fromM&&
@@ -255,13 +261,13 @@ export function advanceCells(previous:CellRouteState,route:Corridor,events:reado
    .reduce((sum,p)=>sum+p.interestPercent,0));
   return {...d,entryVph:d.entryVph*(1-entryAvoidancePercent/100),entryAvoidancePercent,
    waiting:old?.waiting??0,offeredTotal:old?.offeredTotal??0,
-   enteredTotal:old?.enteredTotal??0,exitedTotal:old?.exitedTotal??0,lastEntered:0,lastExited:0,
+   enteredTotal:old?.enteredTotal??0,exitedTotal:old?.exitedTotal??0,lastEntered:0,lastExited:0,lastExitDemand:0,
    face,entryBlocked};
  });
  // An existing ramp queue is a vehicle inventory, even if a caller stops
  // offering new local demand. It may still merge and must never be dropped.
  for(const old of previous.junctions??[])if(!junctions.some(j=>j.id===old.id))junctions.push({
-  ...old,entryVph:0,entryAvoidancePercent:0,lastEntered:0,lastExited:0,face:Math.max(1,Math.min(n-1,Math.round(old.metre/previous.cellM))),
+  ...old,entryVph:0,entryAvoidancePercent:0,lastEntered:0,lastExited:0,lastExitDemand:0,face:Math.max(1,Math.min(n-1,Math.round(old.metre/previous.cellM))),
   entryBlocked:closedEntries.some(c=>old.metre>=c.fromM&&old.metre<c.toM)});
  const occupancy=previous.cells.map(c=>c.vehicles);
  const closures=controls.closureGates.map(g=>{const interest=routed.filter(p=>p.from===g.face).reduce((n,p)=>n+p.interestPercent,0);
@@ -311,7 +317,7 @@ export function advanceCells(previous:CellRouteState,route:Corridor,events:reado
   for(let i=0;i<n;i++){
    const k=occupancy[i]!/dx;density[i]=k;
    send[i]=Math.min(speeds[i]!*k,capacity[i]!)*dtMin/60;
-   receive[i]=Math.min(WAVE_KMH*Math.max(0,jam-k),capacity[i]!)*dtMin/60;
+   receive[i]=Math.min(receivingWave[i]!*Math.max(0,jam-k),capacity[i]!)*dtMin/60;
   }
   // Drivers approach a locally visible slow tail instead of retaining
   // free speed until they hit its last 100m cell. Comfortable braking
@@ -389,11 +395,12 @@ export function advanceCells(previous:CellRouteState,route:Corridor,events:reado
     Math.min(1,departures.filter(q=>q.vehicleClass===p.vehicleClass).reduce((s,q)=>s+q.interestPercent,0)/100)*
     p.interestPercent/Math.max(1e-9,departures.filter(q=>q.vehicleClass===p.vehicleClass).reduce((s,q)=>s+q.interestPercent,0)):
     totalInterest>0?Math.max(0,ordinarySend-normalWanted)*detourFraction*p.interestPercent/totalInterest:0);
+   if(local)local.lastExitDemand+=normalWanted+wanted.reduce((s,v)=>s+v,0);
    const requested=departures.map((p,k)=>Math.min(wanted[k]!,
     p.exitCapacityVph*dtMin/60,Math.max(0,p.exitCapacityVph/60-p.left)));
    const requestedTotal=normalRequest+requested.reduce((s,x)=>s+x,0);
    // Local destination traffic and diversion traffic share the SAME exit.
-   const exitLimit=local?.exitCapacityVph??(departures.some(p=>p.motorway)?1500:1200);
+   const exitLimit=local?.exitCapacityVph??(departures.some(p=>p.motorway)?1500:baselineCapacity(route.key));
    const scale=requestedTotal>0?Math.min(1,exitLimit*dtMin/60/requestedTotal):0;
    departures.forEach((p,k)=>{const accepted=requested[k]!*scale;p.left+=accepted;leaving[i-1]+=accepted;
     if(p.vehicleClass)classLeave.get(p.vehicleClass)![i-1]+=accepted;
@@ -480,7 +487,8 @@ export function advanceCells(previous:CellRouteState,route:Corridor,events:reado
   const travelFlowVph=(c.travelFlowVph??c.flowVph)*(1-TRAVEL_ALPHA)+outflowVph*TRAVEL_ALPHA;
   const active=Number.isFinite(faceCapacity[i+1]),oldDetector=c.travelDetector;
   const exit=closures.find(g=>g.face===i+1&&g.diverting);
-  const detectorCapacity=exit?1200:active?faceCapacity[i+1]!:capacity[i]!;
+  const detectorCapacity=exit?(localAt.get(i+1)?.exitCapacityVph??baselineCapacity(route.key)):
+   active?faceCapacity[i+1]!:capacity[i]!;
   const observed=observationHours[i+1]!>0;
   const detectorFlow=observed?observationVehicles[i+1]!/observationHours[i+1]!:detectorCapacity;
   // Changing time-of-day demand may slightly change effective capacity.

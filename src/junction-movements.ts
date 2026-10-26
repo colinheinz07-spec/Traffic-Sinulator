@@ -20,6 +20,7 @@ export interface JunctionMovement {
  outVph:number;inVph:number;vehiclesOnDetour:number;
  waitingAtReentry:number;validatedRouteActive:boolean;
  normalOutVph:number;normalInVph:number;diversionOutVph:number;returningInVph:number;waitingToEnter:number;
+ exitDemandVph:number;
 }
 export interface RealDetourFlow {
  path:RoadId;fromM:number;toM:number;eventId:string;
@@ -42,7 +43,7 @@ export function junctionMovements(path:RoadId,route:Corridor,exits:readonly Exit
  const rows=junctions.map((exit):JunctionMovement=>({
   path,exit,desiredPercent:0,mandatory:false,entryClosed:false,eventId:null,distanceBeforeClosureKm:null,
   outVph:0,inVph:0,vehiclesOnDetour:0,waitingAtReentry:0,validatedRouteActive:false,
-  normalOutVph:0,normalInVph:0,diversionOutVph:0,returningInVph:0,waitingToEnter:0
+  normalOutVph:0,normalInVph:0,diversionOutVph:0,returningInVph:0,waitingToEnter:0,exitDemandVph:0
  }));
  for(const event of events.filter(x=>x.pathKey===path)){
   const at=positionM(route,event.point);
@@ -65,6 +66,7 @@ export function junctionMovements(path:RoadId,route:Corridor,exits:readonly Exit
   const row=rows.find(r=>!r.exit.isInterchange&&r.exit.ref===movement.ref);
   if(!row)continue;
   row.normalOutVph=movement.lastExited*60;row.normalInVph=movement.lastEntered*60;
+  row.exitDemandVph=(movement.lastExitDemand??movement.lastExited)*60;
   row.waitingToEnter=movement.waiting;row.outVph+=row.normalOutVph;row.inVph+=row.normalInVph;
  }
  const measured=new Map<JunctionMovement,Map<string,number>>();

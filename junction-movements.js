@@ -4,9 +4,9 @@
  * Every normal AS is covered; AK/AD are separate motorway nodes and cannot
  * be misrepresented as exits onto local roads.
  */
-import { names } from './core.js?build=ea0ccaec88a33b8e';
-import { positionM, closureGate } from './spatial.js?build=ea0ccaec88a33b8e';
-import { diversionJunctions } from './diversions.js?build=ea0ccaec88a33b8e';
+import { names } from './core.js?build=8b08edf9bc043858';
+import { positionM, closureGate } from './spatial.js?build=8b08edf9bc043858';
+import { diversionJunctions } from './diversions.js?build=8b08edf9bc043858';
 /** A formal closure forces departure only at the LAST usable normal exit.
  * Earlier exits are voluntary alternatives chosen by remaining time loss,
  * independently of the tail's distance from any junction.
@@ -18,7 +18,7 @@ export function junctionMovements(path, route, exits, events, _delayMin, real = 
     const rows = junctions.map((exit) => ({
         path, exit, desiredPercent: 0, mandatory: false, entryClosed: false, eventId: null, distanceBeforeClosureKm: null,
         outVph: 0, inVph: 0, vehiclesOnDetour: 0, waitingAtReentry: 0, validatedRouteActive: false,
-        normalOutVph: 0, normalInVph: 0, diversionOutVph: 0, returningInVph: 0, waitingToEnter: 0
+        normalOutVph: 0, normalInVph: 0, diversionOutVph: 0, returningInVph: 0, waitingToEnter: 0, exitDemandVph: 0
     }));
     for (const event of events.filter(x => x.pathKey === path)) {
         const at = positionM(route, event.point);
@@ -50,6 +50,7 @@ export function junctionMovements(path, route, exits, events, _delayMin, real = 
             continue;
         row.normalOutVph = movement.lastExited * 60;
         row.normalInVph = movement.lastEntered * 60;
+        row.exitDemandVph = (movement.lastExitDemand ?? movement.lastExited) * 60;
         row.waitingToEnter = movement.waiting;
         row.outVph += row.normalOutVph;
         row.inVph += row.normalInVph;

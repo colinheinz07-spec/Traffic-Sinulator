@@ -43,7 +43,12 @@ export function voluntaryDiversionPercent(delayMin:number,extraMinutes=0,startsA
  // Keep the small initial uptake and the three-hour upper anchor when a
  // particular movement has a later threshold than ordinary queue bypasses.
  const curveMinute=startsAtMin===45?delayMin:45+Math.max(0,delayMin-startsAtMin)*135/(180-startsAtMin);
- return Math.round((potentialDiversionPercent(curveMinute,false)??0)*saving*10)/10;
+ const net=delayMin-Math.max(0,extraMinutes);
+ const netMinute=startsAtMin===45?net:45+Math.max(0,net-startsAtMin)*135/(180-startsAtMin);
+ // A viable route still saving three hours may attract every traveller.
+ // A fixed cost percentage must not make 100% mathematically unreachable.
+ const netChoice=net<startsAtMin?0:potentialDiversionPercent(netMinute,false)??0;
+ return Math.round(Math.max((potentialDiversionPercent(curveMinute,false)??0)*saving,netChoice)*10)/10;
 }
 function excessQueue(state:CellRouteState,fromM:number,toM:number,demandVph:number):number{
  const freeDensity=demandVph/freeSpeedKmh(state.pathKey);let vehicles=0;
@@ -73,7 +78,7 @@ function interchangeChoice(entry:ChoiceRoute,cells:Readonly<Partial<Record<PathK
   const gate=closureGate(targetRoute,event,exits);
   if(gate&&config.toM>=gate.metre-25&&config.toM<gate.endM-25)return empty;
  }
- const service=Math.max(1,Math.min(1200,config.geometry.roadCapacityVph));
+ const service=Math.max(1,config.geometry.roadCapacityVph);
  const loss=(grid:CellRouteState,from:number,to:number)=>{
   const read=speedDelayInCells(grid,from,to,to+grid.cellM);
   return read.blocked?Math.max(read.delayMin,excessQueue(grid,from,to,demands[grid.pathKey]??0)/service*60):read.delayMin;
@@ -198,10 +203,10 @@ export function routedDiversionChoice(entry:ChoiceRoute,entries:readonly ChoiceR
   .filter(j=>!j.isInterchange&&j.metre>config.fromM+25&&j.metre<=approachEnd+25).length+1;
  if(gate&&config.fromM>=gate.metre-25)
   return {percent:0,mandatory:false,delayMin:0,upstreamRank};
- const service=Math.max(1,Math.min(1200,config.geometry.roadCapacityVph));
+ const service=Math.max(1,config.geometry.roadCapacityVph);
  const normal=gate?entries.find(e=>e.enabled!==false&&e.config.path===path&&Math.abs(e.config.fromM-gate.metre)<=25&&
   requiredDiversionGate(e.config,route,events,exits)):undefined;
- const gateService=Math.max(1,Math.min(1200,normal?.config.geometry.roadCapacityVph??service));
+ const gateService=Math.max(1,normal?.config.geometry.roadCapacityVph??service);
  const motorwayFree=gate?(gate.metre-config.fromM)/1000/freeSpeedKmh(path)*60+
   (normal?.config.geometry.freeMinutes??0):cross?(sourceEnd-config.fromM)/1000/freeSpeedKmh(path)*60+
   (config.toM-(config.targetEntryM??0))/1000/freeSpeedKmh(target)*60:

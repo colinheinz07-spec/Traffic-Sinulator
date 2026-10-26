@@ -83,7 +83,8 @@ test('all ordinary incident kinds select the nearest AS as the actual queue grow
    const next=advanceRoutedNetwork(cells,routes,[event],demands,exits,entries);
    assert.deepEqual(next.detours.filter(d=>d.state.lastDeparture>0).map(d=>d.config.geometry.sourceExitRef).sort(),
     choices.filter(c=>c.percent>0).map(c=>c.ref).sort());
-   assert.ok(next.detours.every(d=>d.state.lastDeparture*60+(next.cells[path].junctions.find(j=>j.ref===d.config.geometry.sourceExitRef)?.lastExited??0)*60<=1200+1e-6));
+   assert.ok(next.detours.every(d=>{const row=next.cells[path].junctions.find(j=>j.ref===d.config.geometry.sourceExitRef);
+    return d.state.lastDeparture*60+(row?.lastExited??0)*60<=(row?.exitCapacityVph??Infinity)+1e-6;}));
   }
  }
 });
@@ -137,7 +138,7 @@ test('a live long closure uses delay for voluntary choices and conserves boundar
    if(!choices[i].mandatory&&choices[i].delayMin<45)assert.equal(d.desiredPercent,0);
   }
   const previous=entries.find(d=>d.config.geometry.sourceExitRef==='40');
-  if(previous.state.lastDeparture>0&&firstPrevious===null){firstPrevious=t;assert.ok(previous.desiredPercent<5);}
+  if(previous.state.lastDeparture>0&&firstPrevious===null){firstPrevious=t;assert.ok(previous.desiredPercent<=5);}
   const completed=entries.reduce((n,d)=>n+(d.state.exitedNetworkTotal??0),0);
   const total=cellInventory(cells[path])+entries.reduce((n,d)=>n+detourVehicles(d.state),0);
   assert.ok(Math.abs(total+cells[path].exitedTotal+completed-initial-cells[path].offeredTotal)<1e-5);

@@ -410,6 +410,8 @@ function renderJunctionMovements(path:PathKey){
    split.textContent='Regulär ↓ '+trafficNumber(row.normalOutVph)+' / ↑ '+trafficNumber(row.normalInVph)+
     ' Fzg/h · Stauumfahrung ↓ '+trafficNumber(row.diversionOutVph)+
     ' · Rückkehr ↑ '+trafficNumber(row.returningInVph)+' Fzg/h';
+   if(row.desiredPercent>0||row.exitDemandVph>row.outVph+1)
+    split.textContent+=' · Abfahrtswunsch ↓ '+trafficNumber(row.exitDemandVph)+' Fzg/h';
    if(row.waitingToEnter>.1)split.textContent+=' · '+trafficNumber(row.waitingToEnter)+' Fzg warten auf der Auffahrt';
    if(row.entryClosed)split.textContent+=' · ⛔ Auffahrt geschlossen';
    card.append(split);

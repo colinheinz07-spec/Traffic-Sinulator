@@ -107,7 +107,7 @@ test('a source-side full closure splits mandatory A48 traffic into both destinat
   assert.equal(state[path].junctions.find(j=>j.ref==='12').lastEntered,0);
   const local=state[path].junctions.find(j=>j.ref==='12');
   assert.ok(local.lastExited+entries.filter(e=>e.config.path===path&&Math.abs(e.config.fromM-local.metre)<25)
-   .reduce((n,e)=>n+e.state.lastDeparture,0)<=20+1e-6,'all targets share one exit ramp');
+   .reduce((n,e)=>n+e.state.lastDeparture,0)<=local.exitCapacityVph/60+1e-6,'all targets share one exit movement');
   assertBudget(state,entries,initial);
  }
  const branches=entries.filter(e=>e.config.path===path&&e.config.geometry.sourceExitRef==='12'&&e.config.movementId);

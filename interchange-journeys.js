@@ -1,10 +1,10 @@
-import { baselineCapacity, eventCapacity, defaultDemand } from './traffic.js?build=ea0ccaec88a33b8e';
-import { positionM, closureGate, metres } from './spatial.js?build=ea0ccaec88a33b8e';
-import { cellQueueSpans } from './traffic-cells.js?build=ea0ccaec88a33b8e';
-import { diversionJunctions } from './diversions.js?build=ea0ccaec88a33b8e';
-import { bundledTargets, bundledDetourGeometry, isNetworkDestination } from './bundled-detours.js?build=ea0ccaec88a33b8e';
-import { speedDelayInCells } from './speed-delay.js?build=ea0ccaec88a33b8e';
-import { queueFundamentalDiagram, colorAtSpeed } from './traffic-physics.js?build=ea0ccaec88a33b8e';
+import { baselineCapacity, eventCapacity, defaultDemand } from './traffic.js?build=8b08edf9bc043858';
+import { positionM, closureGate, metres } from './spatial.js?build=8b08edf9bc043858';
+import { cellQueueSpans } from './traffic-cells.js?build=8b08edf9bc043858';
+import { diversionJunctions } from './diversions.js?build=8b08edf9bc043858';
+import { bundledTargets, bundledDetourGeometry, isNetworkDestination } from './bundled-detours.js?build=8b08edf9bc043858';
+import { speedDelayInCells } from './speed-delay.js?build=8b08edf9bc043858';
+import { queueFundamentalDiagram, colorAtSpeed } from './traffic-physics.js?build=8b08edf9bc043858';
 export function rampCapacity(id, events, demands) {
     return Math.min(baselineCapacity(id), ...events.filter(e => e.pathKey === id).map(e => eventCapacity(e, demands[id])));
 }

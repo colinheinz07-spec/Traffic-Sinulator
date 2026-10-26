@@ -22,7 +22,7 @@ export function advanceDetour(state, config, minute, motorwayDemandVph, interest
     // Capacity of an exit ramp and the side road are separate constraints.
     const maxLocalStorage = detourStorage(config);
     const wanted = motorwayDemandVph / 60 * interestPercent / 100;
-    const admitted = Math.min(wanted, 1200 / 60, Math.max(0, maxLocalStorage - detourVehicles(state)));
+    const admitted = Math.min(wanted, d.source === 'osm-motorway-ramp' ? d.roadCapacityVph / 60 : Infinity, Math.max(0, maxLocalStorage - detourVehicles(state)));
     // Junctions and actual tagged signals already reduce the routed capacity.
     // Avoid a fictional sine-wave traffic light shared by every vehicle.
     const capacity = Math.min(d.roadCapacityVph, Math.max(0, availableRoadServiceVph));

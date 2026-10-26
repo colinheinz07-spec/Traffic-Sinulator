@@ -84,7 +84,7 @@ export function advanceRoutedPath(previous:CellRouteState,route:Corridor,
    events,exits,{[route.key]:demandVph}).percent;
   const storage=detourStorage(config);
   return {id:config.id,fromM:config.fromM,toM:config.exitsNetwork?null:config.toM,interestPercent:wanted,
-   exitCapacityVph:Math.min(1200,Math.max(0,storage-detourVehicles(state))*60),
+   exitCapacityVph:Math.max(0,storage-detourVehicles(state))*60,
    returnVehicles:config.exitsNetwork?0:detourReadyToReturn(state,previous.minute)};
  });
  const cells=advanceCells(previous,route,events,demandVph,exits,ports);
@@ -127,7 +127,7 @@ export function advanceRoutedNetwork(previous:Partial<Record<PathKey,CellRouteSt
   const journey=config.journey,motorway=journey?.kind==='via'||journey?.kind==='protected';
   const committed=journey&&journey.kind!=='closure-bypass'?journey:undefined;
   const roadLimit=journeyRampCapacity(config,events,demands);
-  const capacity=Math.min(motorway?1500:1200,Math.max(0,detourStorage(config)-detourVehicles(state))*60,
+  const capacity=Math.min(motorway?1500:Infinity,Math.max(0,detourStorage(config)-detourVehicles(state))*60,
    motorway?roadLimit:Infinity);
   const passage=journey?.kind==='protected'&&roadLimit>0&&entry.enabled!==false&&
    events.some(e=>e.id===journey.closureEventId&&e.kind==='closure')?{

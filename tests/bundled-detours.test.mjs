@@ -86,8 +86,12 @@ test('boundary detours finish outside the network and conserve all cars without 
   assert.ok(detours[0].state.exitedNetworkTotal>100,`${path} must actually complete outside trips`);
   assert.equal(detours[0].state.waitingMerge,0);
   detours=detours.map(entry=>({...entry,enabled:false}));demands[path]=0;
-  for(let t=0;t<75;t++){
+  const admitted=detours[0].state.admittedTotal;
+  const service=Math.min(c.geometry.roadCapacityVph,...(c.geometry.sections??[]).map(s=>s.capacityVph));
+  const clearingMinutes=Math.ceil(detourVehicles(detours[0].state)/service*60+c.geometry.freeMinutes)+3;
+  for(let t=0;t<clearingMinutes;t++){
    const next=advanceRoutedNetwork(cells,routes,[],demands,exits,detours);cells=next.cells;detours=next.detours;
+   assert.equal(detours[0].state.admittedTotal,admitted,'pausing closes admission while the larger existing queue finishes');
   }
   assert.ok(detourVehicles(detours[0].state)<1e-6);
   assert.ok(Math.abs(detours[0].state.admittedTotal-detours[0].state.exitedNetworkTotal)<1e-6);

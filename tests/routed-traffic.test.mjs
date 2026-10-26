@@ -65,7 +65,7 @@ test('multiple simultaneous exits remove only cars reaching those cells, then re
   offered+=cells.offeredTotal-before.offeredTotal;departures+=cells.exitedTotal-before.exitedTotal;
   const total=cellInventory(cells)+detours.reduce((n,e)=>n+detourVehicles(e.state),0);
   assert.ok(Math.abs(total+departures-initial-offered)<1e-5);
-  assert.ok(detours.every(e=>e.state.lastDeparture<=20+1e-6));
+  assert.ok(detours.every(e=>e.state.lastDeparture*60<=cells.junctions.find(j=>Math.abs(j.metre-e.config.fromM)<25).exitCapacityVph+1e-6));
  }
  assert.ok(detours.every(e=>e.state.admittedTotal>20),'both real exits must receive cars');
  assert.ok(detours.some(e=>e.state.returnedTotal>0));

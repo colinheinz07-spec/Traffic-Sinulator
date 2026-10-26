@@ -1,4 +1,5 @@
-import { diversionJunctions } from './diversions.js?build=ea0ccaec88a33b8e';
+import { diversionJunctions } from './diversions.js?build=8b08edf9bc043858';
+import { baselineCapacity } from './traffic.js?build=8b08edf9bc043858';
 export function normalJunctionTraffic(route, exits, demandVph) {
     if (route.key.startsWith('ramp-'))
         return [];
@@ -8,6 +9,6 @@ export function normalJunctionTraffic(route, exits, demandVph) {
         const share = 4 + Number(j.ref) % 5;
         return { id: route.key + ':local:' + j.ref, ref: j.ref, metre: j.metre,
             entryVph: Math.min(700, demandVph * share / 100), exitPercent: share,
-            entryCapacityVph: 900, exitCapacityVph: 1200 };
+            entryCapacityVph: 900, exitCapacityVph: baselineCapacity(route.key) };
     });
 }

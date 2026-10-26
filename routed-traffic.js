@@ -2,11 +2,11 @@
  * Side-road admission is limited by cars reaching the real exit cell; cars
  * return only after their local journey and when the merge accepts them.
  */
-import { advanceCells, cellInventory } from './traffic-cells.js?build=ea0ccaec88a33b8e';
-import { advanceDetour, detourVehicles, detourStorage } from './detour-flow.js?build=ea0ccaec88a33b8e';
-import { routedDiversionChoice, requiredDiversionGate } from './diversion-policy.js?build=ea0ccaec88a33b8e';
-import { journeyRampCapacity } from './interchange-journeys.js?build=ea0ccaec88a33b8e';
-import { interchangeTrafficShare } from './interchange.js?build=ea0ccaec88a33b8e';
+import { advanceCells, cellInventory } from './traffic-cells.js?build=8b08edf9bc043858';
+import { advanceDetour, detourVehicles, detourStorage } from './detour-flow.js?build=8b08edf9bc043858';
+import { routedDiversionChoice, requiredDiversionGate } from './diversion-policy.js?build=8b08edf9bc043858';
+import { journeyRampCapacity } from './interchange-journeys.js?build=8b08edf9bc043858';
+import { interchangeTrafficShare } from './interchange.js?build=8b08edf9bc043858';
 /** The remaining legacy turn solver must not offer a second copy of trips
  * that chose a side-road/alternate-ramp journey. Existing ramp inventories
  * remain in that solver and finish normally when their control permits it. */
@@ -91,7 +91,7 @@ export function advanceRoutedPath(previous, route, events, demandVph, exits, det
         const wanted = routedDiversionChoice(entry, detours, { [route.key]: previous }, { [route.key]: route }, events, exits, { [route.key]: demandVph }).percent;
         const storage = detourStorage(config);
         return { id: config.id, fromM: config.fromM, toM: config.exitsNetwork ? null : config.toM, interestPercent: wanted,
-            exitCapacityVph: Math.min(1200, Math.max(0, storage - detourVehicles(state)) * 60),
+            exitCapacityVph: Math.max(0, storage - detourVehicles(state)) * 60,
             returnVehicles: config.exitsNetwork ? 0 : detourReadyToReturn(state, previous.minute) };
     });
     const cells = advanceCells(previous, route, events, demandVph, exits, ports);
@@ -132,7 +132,7 @@ export function advanceRoutedNetwork(previous, routes, events, demands, exits, d
         const journey = config.journey, motorway = journey?.kind === 'via' || journey?.kind === 'protected';
         const committed = journey && journey.kind !== 'closure-bypass' ? journey : undefined;
         const roadLimit = journeyRampCapacity(config, events, demands);
-        const capacity = Math.min(motorway ? 1500 : 1200, Math.max(0, detourStorage(config) - detourVehicles(state)) * 60, motorway ? roadLimit : Infinity);
+        const capacity = Math.min(motorway ? 1500 : Infinity, Math.max(0, detourStorage(config) - detourVehicles(state)) * 60, motorway ? roadLimit : Infinity);
         const passage = journey?.kind === 'protected' && roadLimit > 0 && entry.enabled !== false &&
             events.some(e => e.id === journey.closureEventId && e.kind === 'closure') ? {
             eventId: journey.closureEventId, vehicleClass: journey.token,
