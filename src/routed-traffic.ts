@@ -10,7 +10,7 @@ import type {Exit} from './core.js';
 import type {SimEvent} from './events.js';
 import type {PathKey} from './traffic.js';
 import type {SpatialTransfer} from './spatial.js';
-import {journeyRampCapacity} from './interchange-journeys.js';
+import {journeyRampCapacity,journeyTrafficShare} from './interchange-journeys.js';
 import {interchangeTrafficShare} from './interchange.js';
 
 export interface RoutedDetour {config:DetourConfig;state:DetourState;enabled?:boolean;desiredPercent?:number}
@@ -32,7 +32,7 @@ export function remainingInterchangeDemands(demands:Readonly<Record<PathKey,numb
    }
    const target=j?.kind==='via'?j.targetPath:entry.config.targetPath;
    if(!target)continue;
-   const share=interchangeTrafficShare(id,entry.config.path,target,demands);
+   const share=journeyTrafficShare(entry.config,demands);
    if(share>0)avoided=Math.max(avoided,Math.min(1,(entry.desiredPercent??0)/100/share));
   }
   result[id]=Math.max(0,demands[id]-Math.max(demands[id]*avoided,owned));

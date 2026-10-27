@@ -2,11 +2,11 @@
  * Side-road admission is limited by cars reaching the real exit cell; cars
  * return only after their local journey and when the merge accepts them.
  */
-import { advanceCells, cellInventory } from './traffic-cells.js?build=d322a47ab35b6164';
-import { advanceDetour, detourVehicles, detourStorage } from './detour-flow.js?build=d322a47ab35b6164';
-import { routedDiversionChoice, requiredDiversionGate } from './diversion-policy.js?build=d322a47ab35b6164';
-import { journeyRampCapacity } from './interchange-journeys.js?build=d322a47ab35b6164';
-import { interchangeTrafficShare } from './interchange.js?build=d322a47ab35b6164';
+import { advanceCells, cellInventory } from './traffic-cells.js?build=0c7a00bfbf79fa0d';
+import { advanceDetour, detourVehicles, detourStorage } from './detour-flow.js?build=0c7a00bfbf79fa0d';
+import { routedDiversionChoice, requiredDiversionGate } from './diversion-policy.js?build=0c7a00bfbf79fa0d';
+import { journeyRampCapacity, journeyTrafficShare } from './interchange-journeys.js?build=0c7a00bfbf79fa0d';
+import { interchangeTrafficShare } from './interchange.js?build=0c7a00bfbf79fa0d';
 /** The remaining legacy turn solver must not offer a second copy of trips
  * that chose a side-road/alternate-ramp journey. Existing ramp inventories
  * remain in that solver and finish normally when their control permits it. */
@@ -28,7 +28,7 @@ export function remainingInterchangeDemands(demands, entries, events) {
             const target = j?.kind === 'via' ? j.targetPath : entry.config.targetPath;
             if (!target)
                 continue;
-            const share = interchangeTrafficShare(id, entry.config.path, target, demands);
+            const share = journeyTrafficShare(entry.config, demands);
             if (share > 0)
                 avoided = Math.max(avoided, Math.min(1, (entry.desiredPercent ?? 0) / 100 / share));
         }

@@ -1,10 +1,24 @@
-import { baselineCapacity, eventCapacity, defaultDemand } from './traffic.js?build=d322a47ab35b6164';
-import { positionM, closureGate, metres } from './spatial.js?build=d322a47ab35b6164';
-import { cellQueueSpans } from './traffic-cells.js?build=d322a47ab35b6164';
-import { diversionJunctions } from './diversions.js?build=d322a47ab35b6164';
-import { bundledTargets, bundledDetourGeometry, isNetworkDestination } from './bundled-detours.js?build=d322a47ab35b6164';
-import { speedDelayInCells } from './speed-delay.js?build=d322a47ab35b6164';
-import { queueFundamentalDiagram, colorAtSpeed } from './traffic-physics.js?build=d322a47ab35b6164';
+import { interchangeTrafficShare } from './interchange.js?build=0c7a00bfbf79fa0d';
+import { baselineCapacity, eventCapacity, defaultDemand } from './traffic.js?build=0c7a00bfbf79fa0d';
+import { positionM, closureGate, metres } from './spatial.js?build=0c7a00bfbf79fa0d';
+import { cellQueueSpans } from './traffic-cells.js?build=0c7a00bfbf79fa0d';
+import { diversionJunctions } from './diversions.js?build=0c7a00bfbf79fa0d';
+import { bundledTargets, bundledDetourGeometry, isNetworkDestination } from './bundled-detours.js?build=0c7a00bfbf79fa0d';
+import { speedDelayInCells } from './speed-delay.js?build=0c7a00bfbf79fa0d';
+import { queueFundamentalDiagram, colorAtSpeed } from './traffic-physics.js?build=0c7a00bfbf79fa0d';
+/** A detour of one configured turn cannot acquire the entire A48's
+ * destination mix when its mainline reference volume is larger. */
+export function journeyTrafficShare(config, demands) {
+    const target = config.journey?.kind === 'via' ? config.journey.targetPath : config.targetPath;
+    if (!config.movementId || !target)
+        return 0;
+    const share = interchangeTrafficShare(config.movementId, config.path, target, demands);
+    if (config.journey?.kind !== 'via')
+        return share;
+    const source = Math.max(0, demands[config.path] ?? defaultDemand(config.path));
+    const movement = Math.max(0, demands[config.movementId] ?? defaultDemand(config.movementId));
+    return source > 0 ? Math.min(share, movement / source) : 0;
+}
 export function rampCapacity(id, events, demands) {
     return Math.min(baselineCapacity(id), ...events.filter(e => e.pathKey === id).map(e => eventCapacity(e, demands[id])));
 }

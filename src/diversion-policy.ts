@@ -13,7 +13,7 @@ import {diversionJunctions,nearestExitBeforeQueue,potentialDiversionPercent} fro
 import {speedDelayInCells} from './speed-delay.js';
 import {freeSpeedKmh} from './traffic-physics.js';
 import {INTERCHANGE_DIVERSION_START_MIN,interchangeTrafficShare} from './interchange.js';
-import {closedMovementEvent,viaJourneyUsable,journeyRampCapacity} from './interchange-journeys.js';
+import {closedMovementEvent,viaJourneyUsable,journeyRampCapacity,journeyTrafficShare} from './interchange-journeys.js';
 import {exitRampVehicles,DEFAULT_EXIT_TERMINAL_VPH} from './junction-traffic.js';
 
 interface ChoiceRoute {config:DetourConfig;state:DetourState;enabled?:boolean}
@@ -69,7 +69,7 @@ function interchangeChoice(entry:ChoiceRoute,cells:Readonly<Partial<Record<PathK
  demands:Readonly<Partial<Record<PathKey,number>>>,turnDelays:Readonly<Partial<Record<PathKey,number>>>):DiversionChoice{
  const {config,state}=entry,path=config.path,target=config.targetPath!,source=cells[path]!,destination=cells[target]!;
  const route=routes[path]!,targetRoute=routes[target]!,turn=config.sourceEndM!,merge=config.targetEntryM!;
- const share=interchangeTrafficShare(config.movementId!,path,target,demands);
+ const share=journeyTrafficShare(config,demands);
  const empty={percent:0,mandatory:false,delayMin:0,upstreamRank:0};
  if(share<=0||!Number.isFinite(turn)||!Number.isFinite(merge))return empty;
  const sourceExits=diversionJunctions(path,exits,route).filter(j=>!j.isInterchange);
@@ -144,7 +144,7 @@ export function routedDiversionChoice(entry:ChoiceRoute,entries:readonly ChoiceR
  if(journey?.kind==='via'){
   if(entry.enabled===false||!viaJourneyUsable(config,cells,routes,events,exits,demands))
    return {percent:0,mandatory:false,delayMin:0,upstreamRank:0};
-  const share=interchangeTrafficShare(config.movementId!,path,journey.targetPath,demands);
+  const share=journeyTrafficShare(config,demands);
   if(journey.forcedByEventId&&events.some(e=>e.id===journey.forcedByEventId&&e.kind==='closure'))
    return {percent:100*share,mandatory:true,delayMin:0,upstreamRank:0};
   const virtual:DetourConfig={...config,fromM:journey.decisionM,targetPath:journey.targetPath,toM:journey.toM,

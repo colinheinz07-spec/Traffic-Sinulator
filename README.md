@@ -1,6 +1,17 @@
-# A3/A48 Stausimulator – TRAFFIC 1.12.4
+# A3/A48 Stausimulator – TRAFFIC 1.12.5
 
 **Ein Repository, eine Startdatei:** `index.html` im Hauptverzeichnis direkt in SPCK öffnen. Keine Cloudflare-Konfiguration und keine externe Kartenbibliothek.
+
+## Zielgebundene A48-Umleitung und freie Durchgangsspuren (1.12.5)
+
+- Eine gesperrte Frankfurt-Abzweigung darf nur ihren eingestellten A48-Fahrzeugstrom über den offenen Köln-Zweig nach Ransbach führen. Die zusätzliche Umleitungsbereitschaft wird nun mit der **tatsächlichen Quellmenge und dem konfigurierten Frankfurt-Abbiegestrom** abgeglichen. Beispiel: 2.400 Fzg/h auf A48 und je 700 Fzg/h für die beiden Abzweigungen ergeben für diese Umleitung höchstens 700/2.400 der Quelle, statt irrtümlich deren Hälfte. Bereits wartende Fahrzeuge bleiben erhalten und können später in einem stärkeren Pulk abfließen. Die übrige normale AD-Abbiegeberechnung bleibt eine separate Modellapproximation.
+- Der bisher vollständig gemischte Zellfluss ließ einen wartenden Frankfurt-Abfahrer auch den Köln-Durchgang auf sämtlichen Fahrstreifen ausbremsen. **Zielgebundene Ortsausfahrt-Kohorten erhalten jetzt ein gemeinsames Fahrstreifenbudget**: eine gestörte Abfahrt kann einen Fahrstreifen beanspruchen; die übrigen Fahrstreifen behalten ihren eigenen echten Sende- und Aufnahmefluss. Im ungestörten Zustand ist keine freie Spur dauerhaft reserviert. Alle Gruppen teilen weiterhin den vorhandenen Zellbestand und die verfügbare Gesamtfahrbahnkapazität. Es gibt keine zusätzliche unsichtbare Warteschlange und keine kopierten Fahrzeuge. Die tatsächliche Verteilung auf einzelne Fahrstreifen bleibt eine makroskopische Näherung.
+- Der vorhandene 40-Fahrzeuge-Rampenspeicher und der gemeinsame 700-Fzg/h-Kreuzungsabfluss gelten weiter. Ist er voll, können **die betroffenen Abfahrwilligen** in den Autobahnzellen zurückstauen; eine echte Einschränkung der übrigen Spuren oder fortdauernde Überlastung kann weiterhin auch Durchgangsstau erzeugen. Diese Änderung enthält keine pauschale Obergrenze für Zeitverlust oder Staulänge.
+- Die Weiterfahrt einer bereits festgelegten Frankfurt-Gruppe ist keine Ausweichempfehlung für gewöhnliche Köln-Fahrzeuge. Sie unterdrückt deshalb **nicht mehr die normalen Auffahrten an Ransbach**. Nur tatsächlich auf A48 zugeordnete und auf A3 zurückgekehrte Frankfurt-Fahrzeuge dürfen diese Weiterleitung nehmen; passende Kohorten- und Gesamtbilanzen werden geprüft.
+- Nach Freigabe der Frankfurt-Rampe oder -Fahrbahn fällt der formale Umleitungszwang weg. Alte Fahrzeuge fahren ihre gewählte Route zu Ende; eine freiwillige weitere Umfahrung setzt den tatsächlichen verbleibenden Zeitverlust voraus. Normale Köln-Fahrzeuge werden nicht nachträglich in die Frankfurt-Gruppe umetikettiert.
+- Neue Regressionen prüfen das Quellenbudget, eine blockierte Abfahrt mit weiterfließenden Köln-Spuren, die physische Belegung nur eines Fahrstreifens durch die gebundene Gruppe, offene normale Auffahrten, Frankfurt-Rampen- und Streckensperren sowie die spätere vollständige Abfertigung aller bereits umgeleiteten Fahrzeuge.
+
+- Validierung: **484 JavaScript-Tests**, **6 Geometrieprüfungen**, **5 Fahrstreifenprüfungen** und **5 native mobile Chromium-Szenarien** sind grün (390 × 844 Pixel, Touch-Emulation). Im mobilen Langlauf wurden Rampen- und Streckensperren, 300 bzw. 700 Fzg/h eingestellter Frankfurt-Strom, zwei- und sechsstündige Sperrphasen, Tagesverkehr und das echte Entfernen des Ereignisses geprüft. Alle betroffenen Köln-Fahrbahnen erholen sich nach Freigabe; Herkunfts- und Fahrzeugbilanzen bleiben geschlossen.
 
 ## Kurze Abfahrtsrampe und gemeinsamer Kreuzungsabfluss (1.12.4)
 

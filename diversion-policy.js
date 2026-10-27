@@ -1,11 +1,11 @@
-import { cellQueueSpans } from './traffic-cells.js?build=d322a47ab35b6164';
-import { closureGate } from './spatial.js?build=d322a47ab35b6164';
-import { diversionJunctions, nearestExitBeforeQueue, potentialDiversionPercent } from './diversions.js?build=d322a47ab35b6164';
-import { speedDelayInCells } from './speed-delay.js?build=d322a47ab35b6164';
-import { freeSpeedKmh } from './traffic-physics.js?build=d322a47ab35b6164';
-import { INTERCHANGE_DIVERSION_START_MIN, interchangeTrafficShare } from './interchange.js?build=d322a47ab35b6164';
-import { closedMovementEvent, viaJourneyUsable, journeyRampCapacity } from './interchange-journeys.js?build=d322a47ab35b6164';
-import { exitRampVehicles, DEFAULT_EXIT_TERMINAL_VPH } from './junction-traffic.js?build=d322a47ab35b6164';
+import { cellQueueSpans } from './traffic-cells.js?build=0c7a00bfbf79fa0d';
+import { closureGate } from './spatial.js?build=0c7a00bfbf79fa0d';
+import { diversionJunctions, nearestExitBeforeQueue, potentialDiversionPercent } from './diversions.js?build=0c7a00bfbf79fa0d';
+import { speedDelayInCells } from './speed-delay.js?build=0c7a00bfbf79fa0d';
+import { freeSpeedKmh } from './traffic-physics.js?build=0c7a00bfbf79fa0d';
+import { INTERCHANGE_DIVERSION_START_MIN, interchangeTrafficShare } from './interchange.js?build=0c7a00bfbf79fa0d';
+import { closedMovementEvent, viaJourneyUsable, journeyRampCapacity, journeyTrafficShare } from './interchange-journeys.js?build=0c7a00bfbf79fa0d';
+import { exitRampVehicles, DEFAULT_EXIT_TERMINAL_VPH } from './junction-traffic.js?build=0c7a00bfbf79fa0d';
 function exitTerminalWait(source, metre) {
     const ramp = source.junctions?.find(j => Math.abs(j.metre - metre) < 25);
     return ramp ? exitRampVehicles(ramp) / Math.max(1, ramp.exitTerminalVph ?? DEFAULT_EXIT_TERMINAL_VPH) * 60 : 0;
@@ -59,7 +59,7 @@ function excessQueue(state, fromM, toM, demandVph) {
 function interchangeChoice(entry, cells, routes, events, exits, demands, turnDelays) {
     const { config, state } = entry, path = config.path, target = config.targetPath, source = cells[path], destination = cells[target];
     const route = routes[path], targetRoute = routes[target], turn = config.sourceEndM, merge = config.targetEntryM;
-    const share = interchangeTrafficShare(config.movementId, path, target, demands);
+    const share = journeyTrafficShare(config, demands);
     const empty = { percent: 0, mandatory: false, delayMin: 0, upstreamRank: 0 };
     if (share <= 0 || !Number.isFinite(turn) || !Number.isFinite(merge))
         return empty;
@@ -141,7 +141,7 @@ export function routedDiversionChoice(entry, entries, cells, routes, events, exi
     if (journey?.kind === 'via') {
         if (entry.enabled === false || !viaJourneyUsable(config, cells, routes, events, exits, demands))
             return { percent: 0, mandatory: false, delayMin: 0, upstreamRank: 0 };
-        const share = interchangeTrafficShare(config.movementId, path, journey.targetPath, demands);
+        const share = journeyTrafficShare(config, demands);
         if (journey.forcedByEventId && events.some(e => e.id === journey.forcedByEventId && e.kind === 'closure'))
             return { percent: 100 * share, mandatory: true, delayMin: 0, upstreamRank: 0 };
         const virtual = { ...config, fromM: journey.decisionM, targetPath: journey.targetPath, toM: journey.toM,

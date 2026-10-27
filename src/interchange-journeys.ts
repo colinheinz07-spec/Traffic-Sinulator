@@ -6,7 +6,7 @@ import type {Exit,Ramp,RoadId} from './core.js';
 import type {SimEvent} from './events.js';
 import type {DetourConfig} from './detour-flow.js';
 import type {CellRouteState} from './traffic-cells.js';
-import type {RampConnection} from './interchange.js';
+import {interchangeTrafficShare,type RampConnection} from './interchange.js';
 import type {Corridor,Jam} from './spatial.js';
 import type {DetourGeometry} from './detour-routing.js';
 import {baselineCapacity,eventCapacity,defaultDemand,type PathKey} from './traffic.js';
@@ -17,6 +17,18 @@ import {bundledTargets,bundledDetourGeometry,isNetworkDestination} from './bundl
 import {speedDelayInCells} from './speed-delay.js';
 import type {RoutedDetour} from './routed-traffic.js';
 import {queueFundamentalDiagram,colorAtSpeed} from './traffic-physics.js';
+
+/** A detour of one configured turn cannot acquire the entire A48's
+ * destination mix when its mainline reference volume is larger. */
+export function journeyTrafficShare(config:DetourConfig,demands:Readonly<Partial<Record<PathKey,number>>>):number{
+ const target=config.journey?.kind==='via'?config.journey.targetPath:config.targetPath;
+ if(!config.movementId||!target)return 0;
+ const share=interchangeTrafficShare(config.movementId,config.path,target,demands);
+ if(config.journey?.kind!=='via')return share;
+ const source=Math.max(0,demands[config.path]??defaultDemand(config.path));
+ const movement=Math.max(0,demands[config.movementId]??defaultDemand(config.movementId));
+ return source>0?Math.min(share,movement/source):0;
+}
 
 export function rampCapacity(id:PathKey,events:readonly SimEvent[],demands:Readonly<Partial<Record<PathKey,number>>>):number{
  return Math.min(baselineCapacity(id),...events.filter(e=>e.pathKey===id).map(e=>eventCapacity(e,demands[id])));

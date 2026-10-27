@@ -263,7 +263,7 @@ export function advanceCells(previous:CellRouteState,route:Corridor,events:reado
   // Apply the SAME delay-based route choice to new local trips. This is
   // demand avoided before entering our network, not cars deleted from an
   // existing ramp queue. Actual ramp/side-road capacities do not set it.
-  const entryAvoidancePercent=entryBlocked?0:Math.min(100,routed.filter(p=>p.from===face)
+  const entryAvoidancePercent=entryBlocked?0:Math.min(100,routed.filter(p=>p.from===face&&!p.vehicleClass)
    .reduce((sum,p)=>sum+p.interestPercent,0));
   return {...d,entryVph:d.entryVph*(1-entryAvoidancePercent/100),entryAvoidancePercent,
    waiting:old?.waiting??0,offeredTotal:old?.offeredTotal??0,
@@ -306,6 +306,17 @@ export function advanceCells(previous:CellRouteState,route:Corridor,events:reado
  const classFace=new Map(classIds.map(id=>[id,new Float64Array(n+1)]));
  const classLeave=new Map(classIds.map(id=>[id,new Float64Array(n)]));
  const classJoin=new Map(classIds.map(id=>[id,new Float64Array(n)]));
+ // A committed off-ramp cohort queues in one lane. Its occupied lane can
+ // reduce through capacity, but cannot turn the other lanes into a FIFO
+ // copy of the blocked exit. All groups still occupy the SAME cell stock.
+ const exitClasses=new Set(routed.filter(p=>p.from>=1&&!p.motorway&&p.vehicleClass).map(p=>p.vehicleClass!));
+ const exitStock=new Float64Array(n),exitSend=new Float64Array(n),exitReceive=new Float64Array(n);
+ const lanes=cellLanes(route.key),exitJam=jam/lanes;
+ const classSending=(id:string,i:number)=>{
+  const selected=exitClasses.has(id),stock=selected?exitStock[i]!:Math.max(0,occupancy[i]!-exitStock[i]!);
+  const flow=selected?exitSend[i]!:Math.max(0,send[i]!-exitSend[i]!);
+  return stock>0?flow*classStock.get(id)![i]!/stock:0;
+ };
  const classifiedJourneys=new Set(previous.classifiedJourneys??[]);
  const classifications=ports.flatMap(p=>p.classifyAt?[p.classifyAt]:[]);
  // Throughput describes queue service only while cars actually request it.
@@ -327,6 +338,16 @@ export function advanceCells(previous:CellRouteState,route:Corridor,events:reado
    const k=occupancy[i]!/dx;density[i]=k;
    send[i]=Math.min(speeds[i]!*k,capacity[i]!)*dtMin/60;
    receive[i]=Math.min(receivingWave[i]!*Math.max(0,jam-k),capacity[i]!)*dtMin/60;
+   if(exitClasses.size){
+    exitStock[i]=[...exitClasses].reduce((s,id)=>s+classStock.get(id)![i]!,0);
+    const ek=exitStock[i]!/dx,q=capacity[i]!/lanes;
+    const exitFlow=Math.min(speeds[i]!*ek,q);
+    const throughCapacity=capacity[i]!-(ek>q/speeds[i]!*1.10?q:0);
+    const otherFlow=Math.min(speeds[i]!*Math.max(0,k-ek),throughCapacity);
+    const scale=exitFlow+otherFlow>0?Math.min(1,capacity[i]!/(exitFlow+otherFlow)):0;
+    send[i]=(exitFlow+otherFlow)*scale*dtMin/60;exitSend[i]=exitFlow*scale*dtMin/60;
+    exitReceive[i]=Math.min(q,receivingWave[i]!*Math.max(0,exitJam-ek))*dtMin/60;
+   }
   }
   // Drivers approach a locally visible slow tail instead of retaining
   // free speed until they hit its last 100m cell. Comfortable braking
@@ -344,7 +365,8 @@ export function advanceCells(previous:CellRouteState,route:Corridor,events:reado
      const limit=Math.sqrt((slowSpeed/3.6)**2+2*1.4*distance)*3.6;
      if(limit<speeds[i]!){
       approachLimit[i]=limit;
-      send[i]=Math.min(send[i]!,k*limit*dtMin/60);
+      const before=send[i]!;send[i]=Math.min(before,k*limit*dtMin/60);
+      if(before>0)exitSend[i]*=send[i]!/before;
      }
     }
    }
@@ -387,13 +409,17 @@ export function advanceCells(previous:CellRouteState,route:Corridor,events:reado
    const local=localAt.get(i),departures=departuresAt.get(i)??noPorts;
    const returnPorts=returnsAt.get(i)??noPorts;
    if(!local&&!departures.length&&!returnPorts.length){
-    face[i]=Math.min(send[i-1]!,receive[i]!,currentCapacity[i]!*dtMin/60);
-    for(const id of classIds)classFace.get(id)![i]=occupancy[i-1]!>0?
-     face[i]!*classStock.get(id)![i-1]!/occupancy[i-1]!:0;
+    const room=Math.min(receive[i]!,currentCapacity[i]!*dtMin/60);
+    const selected=Math.min(exitSend[i-1]!,exitReceive[i]!,room);
+    const other=Math.min(Math.max(0,send[i-1]!-exitSend[i-1]!),Math.max(0,room-selected));
+    face[i]=selected+other;
+    for(const id of classIds){
+     const group=exitClasses.has(id)?exitSend[i-1]!:Math.max(0,send[i-1]!-exitSend[i-1]!);
+     classFace.get(id)![i]=group>0?classSending(id,i-1)*(exitClasses.has(id)?selected:other)/group:0;
+    }
     continue;
    }
-   const sent=new Map(classIds.map(id=>[id,occupancy[i-1]!>0?
-    send[i-1]!*classStock.get(id)![i-1]!/occupancy[i-1]!:0]));
+   const sent=new Map(classIds.map(id=>[id,classSending(id,i-1)]));
    const ordinarySend=Math.max(0,send[i-1]!-[...sent.values()].reduce((s,v)=>s+v,0));
    const totalInterest=departures.filter(p=>!p.vehicleClass).reduce((s,p)=>s+p.interestPercent,0);
    const normalFraction=(local?.exitPercent??0)/100;
@@ -446,37 +472,48 @@ export function advanceCells(previous:CellRouteState,route:Corridor,events:reado
     Math.max(0,send[i-1]!-normalWanted-wanted.reduce((s,v)=>s+v,0));
    const returns=returnPorts.length?returnPorts.filter(p=>p.returnVehicles-p.joined>1e-9):noPorts;
    const localEntry=local&&!local.entryBlocked?Math.min(local.waiting,local.entryCapacityVph*dtMin/60):0;
-   const mergeDemand=localEntry+returns.reduce((s,p)=>s+Math.min(p.returnVehicles-p.joined,1200*dtMin/60),0);
+   const retained=new Map(classIds.map(id=>[id,passage&&id!==passage.vehicleClass?0:Math.max(0,
+    (sent.get(id)??0)-departures.reduce((s,p,k)=>s+(p.vehicleClass===id?wanted[k]!:0),0))]));
+   const exitMain=[...exitClasses].reduce((s,id)=>s+(retained.get(id)??0),0),otherMain=Math.max(0,mainSend-exitMain);
+   const returnRequests=returns.map(p=>Math.min(p.returnVehicles-p.joined,1200*dtMin/60));
+   const exitMergeDemand=returns.reduce((s,p,k)=>s+(p.returnClass&&exitClasses.has(p.returnClass)?returnRequests[k]!:0),0);
+   const otherMergeDemand=localEntry+returns.reduce((s,p,k)=>s+(!p.returnClass||!exitClasses.has(p.returnClass)?returnRequests[k]!:0),0);
+   const mergeDemand=exitMergeDemand+otherMergeDemand;
    const mergeLimit=Math.min(mergeDemand,(local?.entryCapacityVph??1200)*dtMin/60);
    const room=Math.min(receive[i]!,currentCapacity[i]!*dtMin/60);
-   let main=Math.min(mainSend,room),merge=0;
-   if(mergeDemand>0){
-    merge=Math.min(mergeLimit,room*.22);main=Math.min(mainSend,room-merge);
-    merge=Math.min(mergeLimit,room-main);
-   }
-   for(const p of returns){
-    const accepted=merge*Math.min(p.returnVehicles-p.joined,1200*dtMin/60)/mergeDemand;
+   const takeMerge=(budget:number,laneRoom:number,laneDemand:number,otherDemand:number)=>{
+    let selected=Math.min(laneDemand,laneRoom,budget*laneDemand/Math.max(1e-9,laneDemand+otherDemand));
+    const other=Math.min(otherDemand,Math.max(0,budget-selected));
+    selected=Math.min(laneDemand,laneRoom,Math.max(0,budget-other));return {selected,other};
+   };
+   const merge=takeMerge(Math.min(mergeLimit,room*.22),exitReceive[i]!,exitMergeDemand,otherMergeDemand);
+   const selectedMain=Math.min(exitMain,Math.max(0,exitReceive[i]!-merge.selected),Math.max(0,room-merge.selected-merge.other));
+   const ordinaryMain=Math.min(otherMain,Math.max(0,room-merge.selected-merge.other-selectedMain));
+   const extra=takeMerge(Math.max(0,Math.min(mergeLimit,room-selectedMain-ordinaryMain)-merge.selected-merge.other),
+    Math.max(0,exitReceive[i]!-selectedMain-merge.selected),exitMergeDemand-merge.selected,otherMergeDemand-merge.other);
+   merge.selected+=extra.selected;merge.other+=extra.other;
+   returns.forEach((p,k)=>{
+    const selected=p.returnClass&&exitClasses.has(p.returnClass),demand=selected?exitMergeDemand:otherMergeDemand;
+    const accepted=demand>0?(selected?merge.selected:merge.other)*returnRequests[k]!/demand:0;
     p.joined+=accepted;joining[i]+=accepted;
     if(p.returnClass)classJoin.get(p.returnClass)![i]+=accepted;
-   }
+   });
    if(local&&localEntry>0){
-    const accepted=merge*localEntry/mergeDemand;
+    const accepted=otherMergeDemand>0?merge.other*localEntry/otherMergeDemand:0;
     local.waiting=Math.max(0,local.waiting-accepted);local.enteredTotal+=accepted;local.lastEntered+=accepted;
     joining[i]+=accepted;
     for(const rule of classifications)if(rule.metre<=0&&i*previous.cellM<rule.untilM||
      rule.metre>0&&Math.round(rule.metre/previous.cellM)===i)
      classJoin.get(rule.vehicleClass)![i]+=accepted*rule.sharePercent/100;
    }
-   face[i]=main;
+   face[i]=selectedMain+ordinaryMain;
    for(const id of classIds){
-    const retained=passage&&id!==passage.vehicleClass?0:
-     (sent.get(id)??0)-departures.reduce((s,p,k)=>s+(p.vehicleClass===id?wanted[k]!:0),0);
-    classFace.get(id)![i]=mainSend>0?main*Math.max(0,retained)/mainSend:0;
+    const selected=exitClasses.has(id),demand=selected?exitMain:otherMain;
+    classFace.get(id)![i]=demand>0?(selected?selectedMain:ordinaryMain)*(retained.get(id)??0)/demand:0;
    }
   }
   face[n]=Math.min(send[n-1]!,currentCapacity[n]!*dtMin/60);
-  for(const id of classIds)classFace.get(id)![n]=occupancy[n-1]!>0?
-   face[n]!*classStock.get(id)![n-1]!/occupancy[n-1]!:0;
+  for(const id of classIds)classFace.get(id)![n]=send[n-1]!>0?face[n]!*classSending(id,n-1)/send[n-1]!:0;
   for(const rule of classifications){
    if(rule.metre<=0){classJoin.get(rule.vehicleClass)![0]+=face[0]!*rule.sharePercent/100;continue;}
    const at=Math.max(1,Math.min(n-1,Math.round(rule.metre/previous.cellM)));
