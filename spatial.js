@@ -2,10 +2,10 @@
  * A first-pass conservation model (not a calibrated traffic forecast).
  * No vehicle sprites, hidden road connectors, A3/A48 transfers, or invented detours.
  */
-import { buildContinuousRoads } from './cartography.js?build=ed27dd0b4550e3ff';
-import { exitPosition } from './core.js?build=ed27dd0b4550e3ff';
-import { PATHS, baselineCapacity, eventCapacity, defaultDemand } from './traffic.js?build=ed27dd0b4550e3ff';
-import { colorAtSpeed, queueFundamentalDiagram, freeSpeedKmh } from './traffic-physics.js?build=ed27dd0b4550e3ff';
+import { buildContinuousRoads } from './cartography.js?build=be2032f48965c933';
+import { exitPosition } from './core.js?build=be2032f48965c933';
+import { PATHS, baselineCapacity, eventCapacity, defaultDemand } from './traffic.js?build=be2032f48965c933';
+import { colorAtSpeed, queueFundamentalDiagram, freeSpeedKmh } from './traffic-physics.js?build=be2032f48965c933';
 const rad = Math.PI / 180;
 export function metres(a, b) {
     const dx = (b[1] - a[1]) * 111195 * Math.cos((a[0] + b[0]) / 2 * rad);
@@ -118,13 +118,19 @@ export function queueCondition(vehicles, capacityVph, lanes, path) {
 }
 /** Positive downstream capacity always leaves a positive merge service share.
  * Demand ratios are scenario assumptions, not a calibrated junction solver.
- * Retain baseline demand entitlement when arrivals drop, so old queues drain.
+ * Retain baseline demand entitlement when arrivals drop. Already waiting
+ * vehicles may also use spare ramp service instead of having their outflow
+ * capped forever at the new-arrival rate. Actual passing still cannot
+ * exceed stored vehicles plus arrivals or the physical ramp capacity.
  */
-export function mergeSupplyVph(ramp, targetCapacityVph, targetDemandVph, rampDemandVph) {
+export function mergeSupplyVph(ramp, targetCapacityVph, targetDemandVph, rampDemandVph, queuedVehicles = 0) {
+    if (!Number.isFinite(queuedVehicles) || queuedVehicles < 0)
+        throw Error('Ungültiger Rampenrückstau');
     if (targetCapacityVph <= 0)
         return 0;
     const supplyRatio = Math.min(1, targetCapacityVph / Math.max(targetCapacityVph, targetDemandVph));
-    return Math.min(baselineCapacity(ramp), Math.round(Math.max(defaultDemand(ramp), rampDemandVph) * supplyRatio));
+    const requested = Math.min(baselineCapacity(ramp), Math.max(defaultDemand(ramp), rampDemandVph + queuedVehicles * 60));
+    return Math.min(baselineCapacity(ramp), Math.round(requested * supplyRatio));
 }
 export function advanceSpatial(prev, events, demands, minutes, corridors, links = [], transfers = [], exits = [], physicalMainline) {
     if (!Number.isInteger(minutes) || minutes < 1 || minutes > 60)
@@ -170,7 +176,7 @@ export function advanceSpatial(prev, events, demands, minutes, corridors, links 
                     if (blocked.length) {
                         // A dark-red queue is not a closed merge: calculate actual downstream supply.
                         const targetCapacity = Math.min(...blocked.map(j => j.capacityVph));
-                        const cap = mergeSupplyVph(key, targetCapacity, demands[link.to], volume);
+                        const cap = mergeSupplyVph(key, targetCapacity, demands[link.to], volume, current['merge:' + key]?.vehicles ?? 0);
                         nodes.push({ id: 'merge:' + key, event: null, place: Math.max(0, route.lengthM - .5),
                             point: route.points.at(-1), limitVph: cap });
                     }

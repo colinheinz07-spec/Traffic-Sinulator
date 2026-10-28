@@ -111,12 +111,17 @@ export function queueCondition(vehicles:number,capacityVph:number,lanes:number,p
 }
 /** Positive downstream capacity always leaves a positive merge service share.
  * Demand ratios are scenario assumptions, not a calibrated junction solver.
- * Retain baseline demand entitlement when arrivals drop, so old queues drain.
+ * Retain baseline demand entitlement when arrivals drop. Already waiting
+ * vehicles may also use spare ramp service instead of having their outflow
+ * capped forever at the new-arrival rate. Actual passing still cannot
+ * exceed stored vehicles plus arrivals or the physical ramp capacity.
  */
-export function mergeSupplyVph(ramp:PathKey,targetCapacityVph:number,targetDemandVph:number,rampDemandVph:number):number{
+export function mergeSupplyVph(ramp:PathKey,targetCapacityVph:number,targetDemandVph:number,rampDemandVph:number,queuedVehicles=0):number{
+ if(!Number.isFinite(queuedVehicles)||queuedVehicles<0)throw Error('Ungültiger Rampenrückstau');
  if(targetCapacityVph<=0)return 0;
  const supplyRatio=Math.min(1,targetCapacityVph/Math.max(targetCapacityVph,targetDemandVph));
- return Math.min(baselineCapacity(ramp),Math.round(Math.max(defaultDemand(ramp),rampDemandVph)*supplyRatio));
+ const requested=Math.min(baselineCapacity(ramp),Math.max(defaultDemand(ramp),rampDemandVph+queuedVehicles*60));
+ return Math.min(baselineCapacity(ramp),Math.round(requested*supplyRatio));
 }
 export function advanceSpatial(prev:SpatialState,events:readonly SimEvent[],demands:Readonly<Record<PathKey,number>>,minutes:number,corridors:Record<PathKey,Corridor>,links:readonly RampConnection[]=[],transfers:readonly SpatialTransfer[]=[],exits:readonly Exit[]=[],physicalMainline?:readonly Jam[]):SpatialState{
  if(!Number.isInteger(minutes)||minutes<1||minutes>60)throw Error('Ungültiger Simulations-Zeitschritt');
@@ -152,7 +157,7 @@ export function advanceSpatial(prev:SpatialState,events:readonly SimEvent[],dema
    if(blocked.length){
     // A dark-red queue is not a closed merge: calculate actual downstream supply.
     const targetCapacity=Math.min(...blocked.map(j=>j.capacityVph));
-    const cap=mergeSupplyVph(key,targetCapacity,demands[link.to],volume);
+    const cap=mergeSupplyVph(key,targetCapacity,demands[link.to],volume,current['merge:'+key]?.vehicles??0);
     nodes.push({id:'merge:'+key,event:null,place:Math.max(0,route.lengthM-.5),
      point:route.points.at(-1)!,limitVph:cap});
    }

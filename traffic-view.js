@@ -3,13 +3,13 @@
  * Legacy queues remain the simulation input for the separate ramp ledger;
  * their synthetic lengths never truncate a mainline display queue.
  */
-import { PATHS } from './traffic.js?build=ed27dd0b4550e3ff';
-import { routeSlice } from './spatial.js?build=ed27dd0b4550e3ff';
-import { cellSpeedBands, cellQueueSpans } from './traffic-cells.js?build=ed27dd0b4550e3ff';
-import { physicalSpeedBands, stopAndGoBands, resolveSpeedBands, freeSpeedKmh, colorAtSpeed } from './traffic-physics.js?build=ed27dd0b4550e3ff';
-import { speedDelayInCells, speedDelayInBands, queueTravelHeads } from './speed-delay.js?build=ed27dd0b4550e3ff';
-import { routeReport } from './network-report.js?build=ed27dd0b4550e3ff';
-import { positionM } from './spatial.js?build=ed27dd0b4550e3ff';
+import { PATHS, baselineCapacity } from './traffic.js?build=be2032f48965c933';
+import { routeSlice } from './spatial.js?build=be2032f48965c933';
+import { cellSpeedBands, cellQueueSpans } from './traffic-cells.js?build=be2032f48965c933';
+import { physicalSpeedBands, stopAndGoBands, resolveSpeedBands, freeSpeedKmh, colorAtSpeed } from './traffic-physics.js?build=be2032f48965c933';
+import { speedDelayInCells, speedDelayInBands, queueTravelHeads } from './speed-delay.js?build=be2032f48965c933';
+import { routeReport } from './network-report.js?build=be2032f48965c933';
+import { positionM } from './spatial.js?build=be2032f48965c933';
 function extents(bands) {
     const groups = [];
     for (const b of bands) {
@@ -128,11 +128,18 @@ export function trafficView(legacy, cells, corridors, events, spills, minute) {
             ownVehicles += vehicles;
             const point = routeSlice(route, Math.max(0, group.toM - 1), group.toM)[0] ?? route.points.at(-1);
             const waveHeadM = forecast ? approach?.toM : head?.toM;
+            // Backpressure at an AD merge belongs to THIS connected queue. A
+            // separate accident elsewhere on the same motorway may still have
+            // zero capacity after this head reopens. The route-wide minimum would
+            // falsely keep this ramp blocked and grow its feeder queue indefinitely.
+            // Released heads recover their own road capacity; an uncontrolled
+            // local queue cannot borrow a distant restriction through a free gap.
+            const serviceCapacity = state ? head?.travelDetector?.capacityVph ?? baselineCapacity(path) : root?.capacityVph ?? 0;
             jams.push({ id: 'display:' + path + ':' + Math.round(group.toM), eventId: event?.id, queueOwnerId: root?.id, waveHeadM,
                 pathKey: path, eventKind: event?.kind ?? null, point, anchorM: group.toM,
                 queueVehicles: vehicles, queueM: group.toM - group.fromM + feederM,
                 visibleQueueM: group.toM - group.fromM, delayMin: delay.blocked ? null : delay.delayMin,
-                capacityVph: state?.capacityVph ?? root?.capacityVph ?? 0, speedKmh, color: colorAtSpeed(speedKmh),
+                capacityVph: serviceCapacity, speedKmh, color: colorAtSpeed(speedKmh),
                 released: root?.released ?? false, outOfBoundsM: 0, delay, feederM });
         }
         let delay = state ? speedDelayInCells(state) : speedDelayInBands(path, mapped);

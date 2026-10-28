@@ -1,6 +1,16 @@
-# A3/A48 Stausimulator – TRAFFIC 1.12.6
+# A3/A48 Stausimulator – TRAFFIC 1.12.7
 
 **Ein Repository, eine Startdatei:** `index.html` im Hauptverzeichnis direkt in SPCK öffnen. Keine Cloudflare-Konfiguration und keine externe Kartenbibliothek.
+
+## Abfluss nach Spurfreigabe und getrennte Rampenstaus (1.12.7)
+
+Die Rückstauübertragung am AD verwendet jetzt die Kapazität des **jeweils verbundenen Staus**, entsprechend der bereits verwendeten örtlichen Zeitverlustberechnung. Bisher lieferte jeder einzelne A3-Stau die kleinste Kapazität der gesamten Fahrtrichtung an die Rampenrechnung. Eine räumlich getrennte Vollblockade oder ein engerer Abschnitt vor dem AD konnte deshalb auch eine bereits mit zwei freien Fahrstreifen wieder durchlässige Einmündung rechnerisch geschlossen halten. Der zugehörige Rampenbestand wuchs unnötig weiter. Ein wieder freier Staukopf erhält jetzt seine eigene verfügbare Kapazität; ein tatsächlich verbundener, weiter gesperrter Abschnitt bleibt maßgeblich.
+
+Bereits auf der Rampe wartende Fahrzeuge dürfen zusätzlich die noch verfügbare Rampenleistung anfordern. Der Abfluss wird nicht mehr dauerhaft auf den Referenzzufluss beziehungsweise die neuen Ankünfte begrenzt. Die vorhandenen Fahrzeugbestände, die begrenzte Rampenkapazität und die Zielautobahn begrenzen weiterhin jeden tatsächlichen Abfluss. Die normalen AD-Fahrbeziehungen bleiben eine vereinfachte, von den Hauptfahrbahnzellen getrennte Rechnung.
+
+Die dynamischen Geschwindigkeiten und Farben des Zellmodells bleiben erhalten. Bei zwei offenen Fahrstreifen baut verfügbarer Mehrabfluss den Bestand ab; bei fortdauernd höherem Zufluss darf echter Rückstau entstehen. Es gibt keine künstliche maximale Staulänge, keine gelöschten wartenden Fahrzeuge und keine unabhängig vom Fluss umgefärbten Abschnitte. Elf neue Regressionen prüfen beide A3-Richtungen, eine/zwei/drei freigegebene Spuren, räumlich getrennte und tatsächlich verbundene Blockaden sowie die Nutzung freier Rampenkapazität während einer noch laufenden Stauauflösung.
+
+Validierung: Typprüfung, **495 JavaScript-Tests**, **6 Geometrieprüfungen** und **5 Fahrstreifenprüfungen** sind grün. Sieben mobile Chromium-Abläufe (390 × 844 Pixel, Touch-Emulation) bearbeiten die vollständige Unfallblockade im tatsächlichen Formular zu zwei offenen Spuren. Enthalten sind beide A3-Richtungen, Tagesprofil und konstanter Zufluss, eine zusätzliche getrennte Vollblockade und eine engere Baustelle. Die vorhandenen Rampenbestände sinken, die Fahrzeugbilanzen bleiben geschlossen und es treten keine Browser-Laufzeitfehler auf. Bei niedrigerem Abendzufluss werden beide A3-Richtungen einschließlich Rampen vollständig frei. Kein Test auf einem physischen iPhone.
 
 ## Standard-Referenzzuflüsse nach Nutzervorgabe (1.12.6)
 
