@@ -1,11 +1,11 @@
-import { cellQueueSpans } from './traffic-cells.js?build=0c7a00bfbf79fa0d';
-import { closureGate } from './spatial.js?build=0c7a00bfbf79fa0d';
-import { diversionJunctions, nearestExitBeforeQueue, potentialDiversionPercent } from './diversions.js?build=0c7a00bfbf79fa0d';
-import { speedDelayInCells } from './speed-delay.js?build=0c7a00bfbf79fa0d';
-import { freeSpeedKmh } from './traffic-physics.js?build=0c7a00bfbf79fa0d';
-import { INTERCHANGE_DIVERSION_START_MIN, interchangeTrafficShare } from './interchange.js?build=0c7a00bfbf79fa0d';
-import { closedMovementEvent, viaJourneyUsable, journeyRampCapacity, journeyTrafficShare } from './interchange-journeys.js?build=0c7a00bfbf79fa0d';
-import { exitRampVehicles, DEFAULT_EXIT_TERMINAL_VPH } from './junction-traffic.js?build=0c7a00bfbf79fa0d';
+import { cellQueueSpans } from './traffic-cells.js?build=ed27dd0b4550e3ff';
+import { closureGate } from './spatial.js?build=ed27dd0b4550e3ff';
+import { diversionJunctions, nearestExitBeforeQueue, potentialDiversionPercent } from './diversions.js?build=ed27dd0b4550e3ff';
+import { speedDelayInCells } from './speed-delay.js?build=ed27dd0b4550e3ff';
+import { freeSpeedKmh } from './traffic-physics.js?build=ed27dd0b4550e3ff';
+import { INTERCHANGE_DIVERSION_START_MIN, interchangeTrafficShare } from './interchange.js?build=ed27dd0b4550e3ff';
+import { closedMovementEvent, viaJourneyUsable, journeyRampCapacity, journeyTrafficShare } from './interchange-journeys.js?build=ed27dd0b4550e3ff';
+import { exitRampVehicles, DEFAULT_EXIT_TERMINAL_VPH } from './junction-traffic.js?build=ed27dd0b4550e3ff';
 function exitTerminalWait(source, metre) {
     const ramp = source.junctions?.find(j => Math.abs(j.metre - metre) < 25);
     return ramp ? exitRampVehicles(ramp) / Math.max(1, ramp.exitTerminalVph ?? DEFAULT_EXIT_TERMINAL_VPH) * 60 : 0;

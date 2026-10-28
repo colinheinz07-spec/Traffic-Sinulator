@@ -30,13 +30,15 @@ function prepare(cells,event){return automaticDiversions([event],routes,exits,ce
  return {config,state:emptyDetour(config)};
 });}
 test('an alternate motorway journey uses the configured turn budget, not half of a larger A48 stream',()=>{
- const cells=Object.fromEntries(paths.map(p=>[p,initialiseCells(routes[p],base[p])])),entries=prepare(cells,closure());
+ // Keep the overbooked-source regression independent of editable UI defaults.
+ const profile={...base,'ramp-a48-to-frankfurt':700,'ramp-a48-to-koeln':700};
+ const cells=Object.fromEntries(paths.map(p=>[p,initialiseCells(routes[p],profile[p])])),entries=prepare(cells,closure());
  const via=entries.find(e=>e.config.journey?.kind==='via');assert.ok(via);
- assert.equal(journeyTrafficShare(via.config,base),700/2400);
- assert.equal(journeyTrafficShare(via.config,{...base,'ramp-a48-to-frankfurt':0}),0);
- assert.equal(journeyTrafficShare(via.config,{...base,'A48-dernbach':0}),0);
- assert.equal(journeyTrafficShare(via.config,{...base,'A48-dernbach':800,'ramp-a48-to-frankfurt':300,'ramp-a48-to-koeln':500}),.375);
- assert.equal(journeyTrafficShare(via.config,{...base,'A48-dernbach':1000}),.5,'overbooked turn settings cannot allocate more than the real source');
+ assert.equal(journeyTrafficShare(via.config,profile),700/2400);
+ assert.equal(journeyTrafficShare(via.config,{...profile,'ramp-a48-to-frankfurt':0}),0);
+ assert.equal(journeyTrafficShare(via.config,{...profile,'A48-dernbach':0}),0);
+ assert.equal(journeyTrafficShare(via.config,{...profile,'A48-dernbach':800,'ramp-a48-to-frankfurt':300,'ramp-a48-to-koeln':500}),.375);
+ assert.equal(journeyTrafficShare(via.config,{...profile,'A48-dernbach':1000}),.5,'overbooked turn settings cannot allocate more than the real source');
 });
 
 test('a blocked committed off-ramp queue occupies one lane while ordinary Cologne traffic still passes',()=>{

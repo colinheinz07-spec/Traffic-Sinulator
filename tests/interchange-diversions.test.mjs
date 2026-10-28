@@ -65,7 +65,7 @@ test('each A48 destination uses its own target-arm queue and its configured traf
  assert.deepEqual(used.map(c=>routeName(c.entry)),['A48-dernbach:12>A3-koeln:38']);
  const noCologne={...base,'ramp-a48-to-koeln':0};
  assert.equal(choices(entries,cells,[],noCologne).filter(c=>c.entry.config.path==='A48-dernbach'&&c.percent>0).length,0);
- assert.equal(interchangeTrafficShare('ramp-a48-to-koeln','A48-dernbach','A3-koeln',base),.5);
+ assert.equal(interchangeTrafficShare('ramp-a48-to-koeln','A48-dernbach','A3-koeln',base),5/12);
  assert.equal(interchangeTrafficShare('ramp-a48-to-koeln','A48-dernbach','A3-frankfurt',base),0);
 });
 test('Koblenz-bound traffic from Frankfurt passes its normal AD turn to reach Ransbach; straight A3 traffic stays',()=>{
@@ -111,7 +111,8 @@ test('a source-side full closure splits mandatory A48 traffic into both destinat
   assertBudget(state,entries,initial);
  }
  const branches=entries.filter(e=>e.config.path===path&&e.config.geometry.sourceExitRef==='12'&&e.config.movementId);
- assert.equal(branches.length,2);assert.ok(branches.every(e=>e.desiredPercent===50&&e.state.returnedTotal>50));
+ assert.equal(branches.length,2);assert.ok(branches.every(e=>Math.abs(e.desiredPercent-
+  (e.config.movementId==='ramp-a48-to-koeln'?5/12:7/12)*100)<1e-8&&e.state.returnedTotal>50));
  const unspecific=entries.find(e=>e.config.path===path&&e.config.geometry.sourceExitRef==='12'&&!e.config.movementId);
  assert.equal(unspecific.desiredPercent,0);assert.equal(unspecific.state.admittedTotal,0);
  for(const e of branches){

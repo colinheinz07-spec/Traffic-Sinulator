@@ -3,8 +3,8 @@
  * NOT measured flows, road regulations, official diversion routes, or observed jams.
  * One controlling bottleneck per directional path; no A3/A48 ramp transfer yet.
  */
-import { flowPolicy } from './events.js?build=0c7a00bfbf79fa0d';
-import { QUEUE_JAM_DENSITY_PER_LANE } from './traffic-physics.js?build=0c7a00bfbf79fa0d';
+import { flowPolicy } from './events.js?build=ed27dd0b4550e3ff';
+import { QUEUE_JAM_DENSITY_PER_LANE } from './traffic-physics.js?build=ed27dd0b4550e3ff';
 export const PATHS = [
     'A3-koeln', 'A3-frankfurt', 'A48-dernbach', 'A48-koblenz',
     'ramp-a3-to-a48-from-frankfurt', 'ramp-a48-to-koeln',
@@ -12,9 +12,9 @@ export const PATHS = [
 ];
 const demandDefaults = {
     'A3-koeln': 4200, 'A3-frankfurt': 4100,
-    'A48-dernbach': 2400, 'A48-koblenz': 2200,
-    'ramp-a3-to-a48-from-frankfurt': 700, 'ramp-a48-to-koeln': 700,
-    'ramp-a3-to-a48-from-koeln': 700, 'ramp-a48-to-frankfurt': 700
+    'A48-dernbach': 2400, 'A48-koblenz': 1700,
+    'ramp-a3-to-a48-from-frankfurt': 1000, 'ramp-a48-to-koeln': 1000,
+    'ramp-a3-to-a48-from-koeln': 700, 'ramp-a48-to-frankfurt': 1400
 };
 const motorwayBaseLanes = {
     'A3-koeln': 3, 'A3-frankfurt': 3, 'A48-dernbach': 2, 'A48-koblenz': 2

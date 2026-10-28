@@ -1,6 +1,21 @@
-# A3/A48 Stausimulator – TRAFFIC 1.12.5
+# A3/A48 Stausimulator – TRAFFIC 1.12.6
 
 **Ein Repository, eine Startdatei:** `index.html` im Hauptverzeichnis direkt in SPCK öffnen. Keine Cloudflare-Konfiguration und keine externe Kartenbibliothek.
+
+## Standard-Referenzzuflüsse nach Nutzervorgabe (1.12.6)
+
+Beim Öffnen der App und beim Auswählen der jeweiligen Fahrtrichtung werden folgende Referenzwerte vorbelegt:
+
+| Fahrtrichtung / Rampe | Referenzzufluss (Fzg/h) |
+| --- | ---: |
+| A48 Richtung Koblenz | 1.700 |
+| A48 → A3 Frankfurt | 1.400 |
+| A48 → A3 Köln | 1.000 |
+| A3 Richtung Köln → A48 | 1.000 |
+
+Der automatische Tagesverlauf berechnet den aktuellen Zufluss weiterhin aus diesen Referenzwerten. Manuelle Änderungen gelten für die laufende Sitzung; ein erneutes Öffnen lädt wieder diese Standardwerte. Die übrigen Referenzzuflüsse bleiben erhalten.
+
+Validiert mit 484 JavaScript-Tests, 6 Geometrie- und 5 Fahrstreifenprüfungen. Im mobilen Browser wurden alle acht Auswahlen vor und nach Neuladen geprüft; die vier vorgegebenen Werte erscheinen korrekt, das automatische Tagesprofil bleibt ausgewählt.
 
 ## Zielgebundene A48-Umleitung und freie Durchgangsspuren (1.12.5)
 

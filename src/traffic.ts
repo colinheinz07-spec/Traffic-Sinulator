@@ -31,9 +31,9 @@ export interface TrafficEstimate {
 }
 const demandDefaults:Record<PathKey,number>={
  'A3-koeln':4200,'A3-frankfurt':4100,
- 'A48-dernbach':2400,'A48-koblenz':2200,
- 'ramp-a3-to-a48-from-frankfurt':700,'ramp-a48-to-koeln':700,
- 'ramp-a3-to-a48-from-koeln':700,'ramp-a48-to-frankfurt':700
+ 'A48-dernbach':2400,'A48-koblenz':1700,
+ 'ramp-a3-to-a48-from-frankfurt':1000,'ramp-a48-to-koeln':1000,
+ 'ramp-a3-to-a48-from-koeln':700,'ramp-a48-to-frankfurt':1400
 };
 const motorwayBaseLanes:Record<RoadId,number>={
  'A3-koeln':3,'A3-frankfurt':3,'A48-dernbach':2,'A48-koblenz':2

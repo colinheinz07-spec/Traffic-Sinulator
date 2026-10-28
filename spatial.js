@@ -2,10 +2,10 @@
  * A first-pass conservation model (not a calibrated traffic forecast).
  * No vehicle sprites, hidden road connectors, A3/A48 transfers, or invented detours.
  */
-import { buildContinuousRoads } from './cartography.js?build=0c7a00bfbf79fa0d';
-import { exitPosition } from './core.js?build=0c7a00bfbf79fa0d';
-import { PATHS, baselineCapacity, eventCapacity, defaultDemand } from './traffic.js?build=0c7a00bfbf79fa0d';
-import { colorAtSpeed, queueFundamentalDiagram, freeSpeedKmh } from './traffic-physics.js?build=0c7a00bfbf79fa0d';
+import { buildContinuousRoads } from './cartography.js?build=ed27dd0b4550e3ff';
+import { exitPosition } from './core.js?build=ed27dd0b4550e3ff';
+import { PATHS, baselineCapacity, eventCapacity, defaultDemand } from './traffic.js?build=ed27dd0b4550e3ff';
+import { colorAtSpeed, queueFundamentalDiagram, freeSpeedKmh } from './traffic-physics.js?build=ed27dd0b4550e3ff';
 const rad = Math.PI / 180;
 export function metres(a, b) {
     const dx = (b[1] - a[1]) * 111195 * Math.cos((a[0] + b[0]) / 2 * rad);
