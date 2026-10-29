@@ -1,6 +1,27 @@
-# A3/A48 Stausimulator – TRAFFIC 1.12.11
+# A3/A48 Stausimulator – TRAFFIC 1.12.12
 
 **Ein Repository, eine Startdatei:** `index.html` im Hauptverzeichnis direkt in SPCK öffnen. Keine Cloudflare-Konfiguration und keine externe Kartenbibliothek.
+
+## Bewegungen im gesamten Rückstau (1.12.12)
+
+Die Kartengeschwindigkeit verwendete bislang einen über eine ganze Simulationsminute gemittelten Abfluss. Kurze Anfahrphasen wurden dadurch geglättet. `flowVph` und `speedKmh` zeigen jetzt den tatsächlich übertragenen Fluss des aktuellen Rechenschritts von höchstens zwei Sekunden. `minuteFlowVph` hält die gesamte Minutenmenge getrennt fest. Die länger gemittelten Abflussbeobachtungen für den Zeitverlust bleiben erhalten.
+
+Zusätzlich dämpfte die erste Ordnung des Zellverfahrens die rückwärts laufenden Anfahrwellen stark. Auf homogenen, gestauten Innenabschnitten wird jetzt die empfangende Zelldichte mit einer begrenzten MUSCL-Hancock-Rekonstruktion bestimmt. Sie verwendet nur die benachbarten Zellbestände, bleibt auf dem gestauten Ast des Fluss-Dichte-Diagramms und respektiert die freie Speicherkapazität. An Anschlussstellen, physischen Engstellen und getrennten Ausfahrtgruppen arbeitet der vorhandene Knotensolver weiter. Es werden keine entfernten Ereignissignale auf jede Zelle gelegt.
+
+Bei mindestens zwei geöffneten Spuren teilt sich der tatsächliche Abfluss in eine längere gemeinsame Anfahrphase und einen kleineren Anteil unabhängiger Spurbewegungen. Die gemeinsame Phase entsteht ausschließlich am belegten Engpass. Ihre physische Spitzengrenze verändert auch die niedrige Phase, sodass nicht durch reines Abschneiden der Spitzen zusätzliche mittlere Kapazität verloren geht. Die freigegebene Zielkapazität sowie die 2.000-Fzg/h-Grundkapazität je regulärem Fahrstreifen bleiben erhalten.
+
+Orange Abschnitte entstehen dadurch auch im Inneren des Rückstaus, mehrere Kilometer hinter der Ursache. Rot und Dunkelrot folgen weiterhin den tatsächlichen Geschwindigkeiten; freie Abschnitte werden grün, sobald sie tatsächlich frei fließen. Es gibt keine feste maximale Staulänge, keine künstlich eingefärbten Lücken und keine gelöschten Fahrzeuge. Bei anhaltender Überlastung kann ein Rückstau weiterhin wachsen; nach ausreichendem Abtransport verschwinden auch die orangefarbenen Abschnitte.
+
+Geprüft: Typprüfung, **522 JavaScript-Tests**, sechs Geometrie- und fünf Fahrstreifenprüfungen. Fünf neue Regressionen prüfen die mittlere Abflussleistung trotz physischer Spitzengrenze, orange Anfahrphasen weit innerhalb des Rückstaus in beiden A3-Richtungen sowie den tatsächlichen Abtransport des alten Stauinventars und das vollständige Verschwinden der Rückstaubänder. Die vorhandenen Prüfungen gegen getrennte Bremsketten, Verzögerungssprünge, falsche Umleitungen und Fahrzeugverlust bleiben bestanden.
+
+Zehn mobile Chromium-Läufe (390 × 844 Pixel, Touch-Emulation) vergleichen 1.12.11 und 1.12.12 bei identischen Zuflüssen. Die zwei freien Spuren werden über die tatsächlichen Checkboxen eingestellt. Enthalten sind beide A3-Richtungen, je ein dauerhafter Spitzenzufluss und eine vorherige einstündige Vollblockade mit Kalenderprofil sowie zwei unterlastete Fälle bei 3.000 Fzg/h. Vollständiges Entfernen der Ursache wird zusätzlich über beide Bestätigungsklicks geprüft; nach Abtransport bleiben keine Rückstaubänder. Keine Browser-Laufzeitfehler; maximale Abweichung der gemeinsamen Fahrzeugbilanz unter 0,000001 Fahrzeugen. Keine Prüfung auf einem physischen iPhone.
+
+| Drei-Stunden-Vergleich, zwei Spuren bei 60 km/h | 1.12.11: km / Zeitverlust | 1.12.12: km / Zeitverlust |
+| --- | --- | --- |
+| Frankfurt, konstant 4.100 Fzg/h | 8,0 km / 19,7 min | 5,9 km / 13,1 min |
+| Köln, konstant 4.200 Fzg/h | 10,7 km / 26,7 min | 8,0 km / 18,0 min |
+
+Nach einer Stunde Vollblockade ab 07:00 Ortszeit und drei Stunden mit zwei offenen Spuren im Kalenderprofil verbleiben Richtung Frankfurt 0,7 statt 3,3 km und 1,4 statt 9,5 Minuten. Richtung Köln sind es 1,7 statt 3,9 km und 3,1 statt 11,3 Minuten. Diese kontrollierten Modellvergleiche erklären die Änderung; sie ersetzen keine lokalen Messungen und setzen keine allgemeine Höchstlänge realer Staus fest.
 
 ## Grundkapazität der freien Autobahn (1.12.11)
 

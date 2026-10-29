@@ -1,4 +1,4 @@
-/** Experimental first-order cell-transmission traffic on real OSM carriageways.
+/** Experimental cell-transmission traffic on real OSM carriageways.
  * Mainline cells and simulator detours share mass-conserving transfers. Their
  * local speeds determine map shading, queue lengths and travel-time loss.
  * The legacy AD ramp turn-demand solver remains a separate approximation.
@@ -19,6 +19,9 @@ import {normalJunctionTraffic,exitRampVehicles,DEFAULT_EXIT_TERMINAL_VPH,DEFAULT
 
 export interface TrafficCell {
  fromM:number;toM:number;vehicles:number;flowVph:number;speedKmh:number;densityVehKm:number;
+ /** Actual whole-minute discharge, separate from the current substep's
+  * flow/velocity snapshot used for the map. */
+ minuteFlowVph?:number;
  blockedAtM?:number;
  /** Time-averaged observations for travel-time estimation. Instantaneous
   * speed remains the source for map colors and the actual cell fluxes. */
@@ -200,8 +203,8 @@ function dischargeRandom(seed:number,index:number,channel:number):number{
  x=Math.imul(x^(x>>>16),0x7feb352d);x=Math.imul(x^(x>>>15),0x846ca68b);
  return ((x^(x>>>16))>>>0)/4294967296;
 }
-export function platoonServiceFactor(id:string,minute:number):number{
- if(!Number.isFinite(minute))throw Error('Ungültige Anfahrzeit');
+export function platoonServiceFactor(id:string,minute:number,ceiling=Infinity):number{
+ if(!Number.isFinite(minute)||Number.isNaN(ceiling)||ceiling<1)throw Error('Ungültige Anfahrzeit oder Durchflussgrenze');
  // Generate a reproducible history with independently varying episode
  // duration, braking depth and recovery. There is no repeating pulse period.
  let history=dischargeHistories.get(id);
@@ -219,10 +222,15 @@ export function platoonServiceFactor(id:string,minute:number):number{
  let lo=0,hi=history.episodes.length-1;
  while(lo<hi){const mid=Math.ceil((lo+hi)/2);if(history.episodes[mid]!.start<=minute)lo=mid;else hi=mid-1;}
  const e=history.episodes[lo]!,t=minute-e.start;
- if(t<e.stop)return e.low;
- if(t<e.stop+e.rise)return e.low+(e.high-e.low)*(t-e.stop)/e.rise;
- if(t<e.stop+e.rise+e.flow)return e.high;
- return e.high-(e.high-e.low)*(t-e.stop-e.rise-e.flow)/e.fall;
+ const high=Math.min(e.high,Math.max(1,ceiling));
+ const total=e.stop+e.rise+e.flow+e.fall,lowWeight=e.stop+(e.rise+e.fall)/2;
+ // A physical peak bound changes the low phase too, preserving the mean
+ // requested service. Clipping only the peaks silently loses capacity.
+ const low=ceiling===Infinity?e.low:(total-high*(total-lowWeight))/lowWeight;
+ if(t<e.stop)return low;
+ if(t<e.stop+e.rise)return low+(high-low)*(t-e.stop)/e.rise;
+ if(t<e.stop+e.rise+e.flow)return high;
+ return high-(high-low)*(t-e.stop-e.rise-e.flow)/e.fall;
 }
 /** Advance exactly one model minute, including stable updates of at most 2s.
  * Domain demand not admitted at the map entry is retained in backlog.
@@ -345,6 +353,21 @@ export function advanceCells(previous:CellRouteState,route:Corridor,events:reado
  const classifications=ports.flatMap(p=>p.classifyAt?[p.classifyAt]:[]).sort((a,b)=>Number(!!a.seedOnly)-Number(!!b.seedOnly));
  const classifiedJourneys=new Set((previous.classifiedJourneys??[]).filter(id=>
   classifications.some(r=>r.vehicleClass===id&&r.sharePercent>0)));
+ // The congested branch travels upstream much more slowly than free flow.
+ // First-order receiving averages smear a short release into a permanently
+ // red band after only a few hundred metres. Reconstruct its left edge on
+ // homogeneous interior cells, with a TVD slope and half-step prediction.
+ // Junctions, physical controls and separate exit-lane groups retain their
+ // existing node solver. No remote event signal is imposed on the cells.
+ const waveCells:number[]=[];
+ if(!grouped)for(let i=1;i<n-1;i++){
+  if(speeds[i-1]!==speeds[i]||speeds[i+1]!==speeds[i]||
+   capacity[i-1]!==capacity[i]||capacity[i+1]!==capacity[i])continue;
+  let node=false;
+  for(let at=i-1;at<=i+2;at++)if(Number.isFinite(faceCapacity[at])||
+   localAt.has(at)||departuresAt.has(at)||returnsAt.has(at)){node=true;break;}
+  if(!node)waveCells.push(i);
+ }
  // Throughput describes queue service only while cars actually request it.
  // An empty new bottleneck has a low arrival count, not a tiny capacity.
  const observationFaces=previous.cells.flatMap((c,i)=>Number.isFinite(faceCapacity[i+1])||c.travelDetector?[i+1]:[]);
@@ -386,6 +409,18 @@ export function advanceCells(previous:CellRouteState,route:Corridor,events:reado
     send[i]=(exitFlow+otherFlow)*scale*dtMin/60;exitSend[i]=exitFlow*scale*dtMin/60;
     exitReceive[i]=Math.min(selectedCapacity,receivingWave[i]!*Math.max(0,exitJam-ek))*dtMin/60;
    }
+  }
+  for(const i of waveCells){
+   const k=density[i]!,before=density[i-1]!,after=density[i+1]!;
+   const critical=capacity[i]!/speeds[i]!;
+   if(Math.min(before,k,after)<=critical)continue;
+   const left=k-before,right=after-k;
+   if(left*right<=0)continue;
+   const slope=Math.sign(left)*Math.min(2*Math.abs(left),Math.abs((left+right)/2),2*Math.abs(right));
+   const courant=receivingWave[i]!*dtMin/(60*dx);
+   const edge=Math.max(critical,Math.min(jam,k-.5*(1-courant)*slope));
+   receive[i]=Math.min(capacity[i]!,receivingWave[i]!*(jam-edge),
+    Math.max(0,jam*dx-occupancy[i]!)*60/dtMin)*dtMin/60;
   }
   // Drivers approach a locally visible slow tail instead of retaining
   // free speed until they hit its last 100m cell. Comfortable braking
@@ -430,7 +465,13 @@ export function advanceCells(previous:CellRouteState,route:Corridor,events:reado
     for(let lane=0;lane<open;lane++)
      service+=1+(open>=2?.85:1)*(platoonServiceFactor(release.event.id+':lane:'+lane,previous.minute+sub*dtMin)-1);
     const shoulder=release.event.settings.shoulder==='open'?.65:0;
-    const factor=(service+shoulder)/(open+shoulder);
+    const independent=(service+shoulder)/(open+shoulder);
+    // Queued lanes share the advancing platoon at their real head while
+    // retaining individual departures. Longer, bounded release phases
+    // survive travel through the queue; their mean remains its capacity.
+    const time=previous.minute+sub*dtMin;
+    const factor=open>=2?.90*platoonServiceFactor(release.event.id+':parallel',time/2,
+     release.maximum/release.capacity)+.10*independent:independent;
     currentCapacity[release.face]=Math.min(currentCapacity[release.face]!*factor,release.maximum);
    }
   }
@@ -604,12 +645,13 @@ export function advanceCells(previous:CellRouteState,route:Corridor,events:reado
  }
  const cells=previous.cells.map((c,i)=>{
   const densityVehKm=occupancy[i]!/dx;
-  const outflowVph=cumulativeOut[i]!*60;
+  const minuteFlowVph=cumulativeOut[i]!*60;
+  const outflowVph=(face[i+1]!+leaving[i]!)*60/dtMin;
   // Density/flow give local velocity. The physically clear free-flow state
   // remains green when the cell has no vehicles or is initially settling.
   const speedKmh=densityVehKm<.05?freeSpeedKmh(route.key):
    Math.min(speeds[i]!,outflowVph/Math.max(.05,densityVehKm));
-  const travelFlowVph=(c.travelFlowVph??c.flowVph)*(1-TRAVEL_ALPHA)+outflowVph*TRAVEL_ALPHA;
+  const travelFlowVph=(c.travelFlowVph??c.flowVph)*(1-TRAVEL_ALPHA)+minuteFlowVph*TRAVEL_ALPHA;
   const active=Number.isFinite(faceCapacity[i+1]),oldDetector=c.travelDetector;
   const exit=closures.find(g=>g.face===i+1&&g.diverting);
   const detectorCapacity=exit?(localAt.get(i+1)?.exitTerminalVph??DEFAULT_EXIT_TERMINAL_VPH):
@@ -639,7 +681,7 @@ export function advanceCells(previous:CellRouteState,route:Corridor,events:reado
    meanFlowVph:!sameControl?detectorFlow:
     observed?oldDetector.meanFlowVph*(1-detectorAlpha)+detectorFlow*detectorAlpha:oldDetector.meanFlowVph
   }:undefined;
-  return {...c,vehicles:occupancy[i]!,flowVph:outflowVph,
+  return {...c,vehicles:occupancy[i]!,flowVph:outflowVph,minuteFlowVph,
    speedKmh:Math.max(0,speedKmh),densityVehKm,
    queueMemoryMin:densityVehKm>=localCritical[i]!*1.10?3:Math.max(0,(c.queueMemoryMin??0)-1),
    travelFlowVph,limitKmh:speeds[i],criticalDensityVehKm:localCritical[i],travelDetector,
