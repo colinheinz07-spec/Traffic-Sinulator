@@ -7,7 +7,7 @@ import {exitPosition,type Road,type Ramp,type Point,type Exit,type RoadId} from 
 import type {SimEvent} from './events.js';
 import type {RampConnection} from './interchange.js';
 import {PATHS,baselineCapacity,eventCapacity,defaultDemand,type PathKey,type TrafficColor} from './traffic.js';
-import {colorAtSpeed,queueFundamentalDiagram,freeSpeedKmh} from './traffic-physics.js';
+import {baseLaneCapacity,colorAtSpeed,queueFundamentalDiagram,freeSpeedKmh} from './traffic-physics.js';
 
 export interface Corridor {key:PathKey;points:Point[];metres:number[];lengthM:number}
 export interface SpeedHistorySample {minute:number;speedKmh:number}
@@ -216,7 +216,7 @@ export function advanceSpatial(prev:SpatialState,events:readonly SimEvent[],dema
    const cap=fullCapacityVph*recoveryFactor/60;
    const available=stored+entering,passing=Math.min(available,cap),waiting=Math.max(0,available-passing);
    if(waiting>1e-6){
-    const lanes=node.event?.laneCount??previous?.lanes??(key.startsWith('ramp-')?1:Math.round(baselineCapacity(key)/1800));
+    const lanes=node.event?.laneCount??previous?.lanes??Math.round(baselineCapacity(key)/baseLaneCapacity(key));
     const target=queueCondition(waiting,cap*60,lanes,key);
     // A queue does not instantaneously decompress along kilometres of road
     // when a worksite reopens. Relax its density only as stored vehicles drain.

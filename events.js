@@ -1,4 +1,4 @@
-import { validDailyRecurrence, dailyRecurrenceBounds, dailyOccurrenceAt } from './recurring-events.js?build=3a8775b1f1ba64c0';
+import { validDailyRecurrence, dailyRecurrenceBounds, dailyOccurrenceAt } from './recurring-events.js?build=2f18e240f686aefb';
 export const EVENT_KINDS = ['roadworks', 'accident', 'breakdown', 'closure'];
 export const eventNames = { roadworks: 'Baustelle', accident: 'Unfall', breakdown: 'Lkw-Panne', closure: 'Vollsperrung' };
 export const eventSymbols = { roadworks: '🚧', accident: '💥', breakdown: '🚛', closure: '⛔' };

@@ -35,7 +35,9 @@ test('a blocked accident forecasts declared reopening without dividing by tiny C
  assert.deepEqual(speedDelayInCells({...state,minute:100000}),speedDelayInCells(state),'forecast is independent of event age');
 });
 
-for(const [lanes,demand] of [[[0,1],3400],[[0],4200]]){
+// Keep a substantial overload for the smoothness regression after raising
+// two-lane service. Standard peak inputs are checked separately.
+for(const [lanes,demand] of [[[0,1],3400],[[0],4600]]){
  test(`${3-lanes.length} open lanes: stop-and-go does not cause ten/twenty-minute prediction jumps`,()=>{
   const event=incident(lanes);let state=initialiseCells(route,demand),previous=0,peak=0,maxChange=0;
   const flows=[],colors=new Set();let previousCard=0,maxCardChange=0;

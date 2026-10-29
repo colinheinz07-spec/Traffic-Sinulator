@@ -40,7 +40,7 @@ test('a work zone creates no queue below capacity and no arbitrary delay surchar
  const noOverload={...defaultDemands(),'A3-koeln':2500};
  const free=advanceTraffic(emptyTraffic(),[event],noOverload,30);
  assert.equal(free.vehiclesWaiting['A3-koeln'],0);
- const high={...noOverload,'A3-koeln':3650};
+ const high={...noOverload,'A3-koeln':4100};
  assert.ok(eventCapacity(event)<high['A3-koeln']);
  const loaded=advanceTraffic(emptyTraffic(),[event],high,30);
  const delay=trafficEstimate(loaded,'A3-koeln',[event],high['A3-koeln']).delayMin;

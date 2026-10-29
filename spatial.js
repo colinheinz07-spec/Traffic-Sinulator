@@ -2,10 +2,10 @@
  * A first-pass conservation model (not a calibrated traffic forecast).
  * No vehicle sprites, hidden road connectors, A3/A48 transfers, or invented detours.
  */
-import { buildContinuousRoads } from './cartography.js?build=3a8775b1f1ba64c0';
-import { exitPosition } from './core.js?build=3a8775b1f1ba64c0';
-import { PATHS, baselineCapacity, eventCapacity, defaultDemand } from './traffic.js?build=3a8775b1f1ba64c0';
-import { colorAtSpeed, queueFundamentalDiagram, freeSpeedKmh } from './traffic-physics.js?build=3a8775b1f1ba64c0';
+import { buildContinuousRoads } from './cartography.js?build=2f18e240f686aefb';
+import { exitPosition } from './core.js?build=2f18e240f686aefb';
+import { PATHS, baselineCapacity, eventCapacity, defaultDemand } from './traffic.js?build=2f18e240f686aefb';
+import { baseLaneCapacity, colorAtSpeed, queueFundamentalDiagram, freeSpeedKmh } from './traffic-physics.js?build=2f18e240f686aefb';
 const rad = Math.PI / 180;
 export function metres(a, b) {
     const dx = (b[1] - a[1]) * 111195 * Math.cos((a[0] + b[0]) / 2 * rad);
@@ -243,7 +243,7 @@ export function advanceSpatial(prev, events, demands, minutes, corridors, links 
                 const cap = fullCapacityVph * recoveryFactor / 60;
                 const available = stored + entering, passing = Math.min(available, cap), waiting = Math.max(0, available - passing);
                 if (waiting > 1e-6) {
-                    const lanes = node.event?.laneCount ?? previous?.lanes ?? (key.startsWith('ramp-') ? 1 : Math.round(baselineCapacity(key) / 1800));
+                    const lanes = node.event?.laneCount ?? previous?.lanes ?? Math.round(baselineCapacity(key) / baseLaneCapacity(key));
                     const target = queueCondition(waiting, cap * 60, lanes, key);
                     // A queue does not instantaneously decompress along kilometres of road
                     // when a worksite reopens. Relax its density only as stored vehicles drain.

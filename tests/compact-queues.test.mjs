@@ -19,10 +19,12 @@ function groups(bands){
  return result;
 }
 for(const path of ['A3-koeln','A3-frankfurt'])test(`${path}: two free lanes sustain flow and a compact, moving two-hour queue`,()=>{
+ // Keep this wave/stock stress case overloaded after the base-capacity increase.
+ // Unchanged 4100/4200 reference demand is exercised by calibration/mobile cases.
  const route=routes[path],event=incident(path),flows=[],layouts=new Set();
- let state=initialiseCells(route,4200),mixed=0;
+ let state=initialiseCells(route,4600),mixed=0;
  for(let minute=0;minute<120;minute++){
-  state=advanceCells(state,route,[event],4200,exits);assertCellConservation(state);
+  state=advanceCells(state,route,[event],4600,exits);assertCellConservation(state);
   const bands=cellSpeedBands(state);
   if(minute>=30){
    flows.push(state.dischargeVph);
@@ -32,9 +34,9 @@ for(const path of ['A3-koeln','A3-frankfurt'])test(`${path}: two free lanes sust
   assert.ok(groups(bands).length<=2,'do not restore detached brake trains');
  }
  const mean=flows.reduce((n,f)=>n+f,0)/flows.length;
- assert.ok(mean>2900&&mean<=3600,'use the available two-lane capacity: '+mean);
+ assert.ok(mean>3500&&mean<=4000,'use the available two-lane capacity: '+mean);
  const length=cellSpeedBands(state).reduce((n,b)=>n+b.toM-b.fromM,0);
- assert.ok(length>3000&&length<14000,'4200/h for two hours must not automatically create a 25–35km queue: '+length);
+ assert.ok(length>3000&&length<14000,'4600/h for two hours must not automatically create a 25–35km queue: '+length);
  assert.ok(mixed>=8,'retain simultaneous physical orange/red/dark-red sections: '+mixed);
  assert.ok(layouts.size>=35,'the local density pattern must keep moving');
  assert.ok(cellInventory(state)>state.initialVehicles+1000,'compaction cannot erase waiting cars');

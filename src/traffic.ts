@@ -5,7 +5,7 @@
  */
 import {flowPolicy,type SimEvent} from './events.js';
 import type {RoadId} from './core.js';
-import {QUEUE_JAM_DENSITY_PER_LANE} from './traffic-physics.js';
+import {baseLaneCapacity,QUEUE_JAM_DENSITY_PER_LANE} from './traffic-physics.js';
 
 export const PATHS=[
  'A3-koeln','A3-frankfurt','A48-dernbach','A48-koblenz',
@@ -41,7 +41,7 @@ const motorwayBaseLanes:Record<RoadId,number>={
 const defaultKmH=(key:PathKey)=>key.startsWith('ramp-')?80:130;
 export function defaultDemand(key:PathKey):number{return demandDefaults[key]}
 export function baselineCapacity(key:PathKey):number{
- return key.startsWith('ramp-')?1500:1800*motorwayBaseLanes[key as RoadId];
+ return baseLaneCapacity(key)*(key.startsWith('ramp-')?1:motorwayBaseLanes[key as RoadId]);
 }
 export function emptyTraffic():TrafficState{
  return {minute:0,vehiclesWaiting:Object.fromEntries(PATHS.map(p=>[p,0])) as Record<PathKey,number>};
@@ -83,12 +83,11 @@ export function eventCapacity(e:SimEvent,
  if(!policy.canEnter)return 0;
  if(!Number.isFinite(volumeVph)||volumeVph<0||volumeVph>8000)throw Error('Ungültiger Zufluss');
  if(!Number.isFinite(heavyFraction)||heavyFraction<0||heavyFraction>1)throw Error('Ungültiger Schwerlastanteil');
- const ramp=e.pathKey.startsWith('ramp-');
- const perLane=ramp?1500:1800;
+ const perLane=baseLaneCapacity(e.pathKey as PathKey);
  const laneCapacity=perLane*(policy.openMainLanes+(e.settings.shoulder==='open'?.65:0));
  const normalSpeed=defaultKmH(e.pathKey as PathKey);
  const parallel=policy.openMainLanes>=2&&e.closedLanes.length>0;
- // The 1800 veh/h/lane reference is a saturated service headway, not
+ // The 2000 veh/h/lane motorway reference is a saturated service headway, not
  // 130 km/h times a fixed density. Two usable lanes can still serve that
  // headway at 60 km/h. Do not penalize them against free motorway speed
  // and then apply the same merge disturbance a second and third time.

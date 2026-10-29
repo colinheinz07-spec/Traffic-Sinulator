@@ -39,7 +39,7 @@ for(const path of ['A3-koeln','A3-frankfurt'])test(`${path}: two lanes at 60 ret
   assert.ok(bands.every(b=>b.color===colorAtSpeed(b.speedKmh)));
  }
  const mean=flows.reduce((n,f)=>n+f,0)/flows.length;
- assert.ok(mean>3000&&mean<3600,`sustained two-lane discharge remains finite: ${mean}`);
+ assert.ok(mean>3500&&mean<4000,`sustained two-lane discharge remains finite: ${mean}`);
  assert.ok(peak>3700&&peak<=4500+1e-6,'shorter platoon headways transfer real vehicles, not only orange paint: '+peak);
  assert.ok(mixed>25&&movingInside>5,'orange phases propagate into the congested section: '+[mixed,movingInside]);
  assert.ok(maximumOrange>=200&&positions.size>65,'visible moving pockets, not a single recurring 100m symbol');
@@ -49,10 +49,10 @@ test('queue mean speed weights real vehicles, preserves local minima and is iden
  const path='A3-frankfurt',grid=initialiseCells(routes[path],1200);
  const first=grid.cells[10],second=grid.cells[11];
  Object.assign(first,{vehicles:10,speedKmh:10,densityVehKm:10/(grid.cellM/1000),flowVph:100/(grid.cellM/1000)});
- Object.assign(second,{vehicles:5,speedKmh:50,densityVehKm:5/(grid.cellM/1000),flowVph:250/(grid.cellM/1000)});
+ Object.assign(second,{vehicles:6,speedKmh:50,densityVehKm:6/(grid.cellM/1000),flowVph:300/(grid.cellM/1000)});
  const view=trafficView([],{[path]:grid},routes,[],[],0),jam=view.jams.find(j=>j.pathKey===path);
  assert.ok(jam);assert.equal(jam.speedKmh,10,'the slowest section still controls its own color');
- const expected=(10*10+5*50)/15;
+ const expected=(10*10+6*50)/16;
  assert.ok(Math.abs(jam.meanSpeedKmh-expected)<1e-8);
  assert.ok(Math.abs(view.reports[path].meanSpeedKmh-expected)<1e-8);
  assert.equal(jam.color,'standstill');assert.ok(jam.meanSpeedKmh>jam.speedKmh);

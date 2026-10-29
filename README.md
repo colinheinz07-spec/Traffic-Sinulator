@@ -1,6 +1,28 @@
-# A3/A48 Stausimulator – TRAFFIC 1.12.10
+# A3/A48 Stausimulator – TRAFFIC 1.12.11
 
 **Ein Repository, eine Startdatei:** `index.html` im Hauptverzeichnis direkt in SPCK öffnen. Keine Cloudflare-Konfiguration und keine externe Kartenbibliothek.
+
+## Grundkapazität der freien Autobahn (1.12.11)
+
+Die Grundkapazität regulärer Autobahnfahrstreifen steigt von **1.800 auf 2.000 Fzg/h je Fahrstreifen**. Vor ereignisbedingten Einschränkungen ergeben sich damit **6.000 Fzg/h je Richtung auf der dreistreifigen A3** und **4.000 Fzg/h je Richtung auf der zweistreifigen A48**. Dies ist ein vereinbarter Modell-Ausgangswert für günstige Bedingungen, keine örtlich gemessene Kapazität und keine Garantie dieses Durchflusses an jeder Engstelle.
+
+Die Kapazitätsberechnung für Ereignisse, das Fluss-Dichte-Diagramm und die Ermittlung der Fahrstreifenanzahl verwenden denselben Grundwert. Die Erhöhung wirkt dadurch auch im Zellfluss und beim Stauabbau. Spurverlust, bestehende Einfädel-/Schwerverkehrseffekte und niedrige Geschwindigkeiten werden anschließend wie bisher berücksichtigt; die Geschwindigkeitsfunktion selbst wird in dieser Änderung nicht neu abgestimmt. Bei zwei verbleibenden A3-Spuren und 60 km/h liegt die nachhaltige Zielkapazität damit je nach gesperrter Spur und Ereignis bei ungefähr 3.850–3.960 Fzg/h vor den zeitlichen Anfahrbewegungen.
+
+Die Referenzzuflüsse und Tagesprofile bleiben erhalten. Verbindungsrampen am Dreieck behalten ihre eigene Grundkapazität von 1.500 Fzg/h; der getrennte 700-Fzg/h-Kreuzungsabfluss gewöhnlicher Anschlussstellen wird nicht auf Autobahnleistung angehoben. Fahrzeugbilanz, Zielzuordnung und Umleitungsregeln bleiben Bestandteil der Prüfungen. Die nachfolgenden Abschnitte dokumentieren frühere Versionsstände mit ihren damaligen Parametern.
+
+Vier neue Zellfluss-Regressionen bieten auf der freien A3 tatsächlich 5.700 Fzg/h und auf der freien A48 3.800 Fzg/h an, also mehr als die bisherigen Grundkapazitäten. Sie prüfen den tatsächlichen vollständigen Abfluss über eine Stunde, ohne künstlichen Rückstau oder Fahrzeugverlust. Die Engpassprüfungen verwenden jetzt die passende Zweispuren-Obergrenze von 4.000 Fzg/h. Für ausdrücklich stark überlastete Testfälle wurde der angebotene Stresszufluss erhöht; die normalen Referenzwerte der App wurden nicht geändert. Die Umleitungsprüfung lässt entsprechend der vorhandenen Regel 100 % freiwillige Nachfrage bei sehr hohem verbleibendem Zeitverlust ab drei Stunden zu, ohne einen Unfall als formale Vollsperrung zu behandeln.
+
+Geprüft: Typprüfung, **517 JavaScript-Tests**, sechs Geometrie- und fünf Fahrstreifenprüfungen. Die Kapazitätsanzeige wurde zusätzlich auf 6.000 Fzg/h für die freie A3 und 4.000 Fzg/h für die freie A48 im Browser geprüft.
+
+Mobiler Chromium-Vergleich (390 × 844 Pixel, Touch-Emulation): zwölf Läufe mit Version 1.12.10 und 1.12.11, davon acht Vergleichsläufe und vier freie Richtungen. Zwei offene A3-Spuren werden über die tatsächlichen Checkboxen und „Speichern“ eingestellt. Die beiden konstanten Spitzenzuflüsse bleiben 4.100 Richtung Frankfurt und 4.200 Richtung Köln. Keine Browser-Laufzeitfehler; maximale Abweichung der gemeinsamen Fahrzeugbilanz unter 0,000001 Fahrzeugen. Keine Prüfung auf einem physischen iPhone.
+
+| Vergleich nach zwei Stunden, zwei Spuren offen bei 60 km/h | 1.12.10: km / Zeitverlust | 1.12.11: km / Zeitverlust |
+| --- | --- | --- |
+| Richtung Frankfurt, konstant 4.100 Fzg/h | 9,5 km / 23,9 min | 6,0 km / 15,0 min |
+| Richtung Köln, konstant 4.200 Fzg/h | 11,3 km / 29,1 min | 7,3 km / 18,9 min |
+
+Nach einer Stunde Vollblockade ab 07:00 Ortszeit und drei Stunden mit zwei offenen Spuren im Kalenderprofil verbleiben im entsprechenden Vergleich Richtung Frankfurt 3,3 statt 7,4 km und 9,5 statt 19,3 Minuten. Richtung Köln sind es 3,9 statt 7,9 km und 11,3 statt 21,5 Minuten. Dies sind kontrollierte Modellvergleiche mit unveränderten Zuflüssen und keine gemessene Prognose für einzelne reale Ereignisse.
+
 
 ## Zwei freie Spuren und Tagesbelastung (1.12.10)
 

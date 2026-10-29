@@ -68,9 +68,9 @@ test('reopening during continued overload may grow the real queue, but cannot cr
  let state=initialiseCells(route,3200);
  for(let i=0;i<45;i++)state=advanceCells(state,route,[blocked],3200,exits);
  const before=cellInventory(state),beforeLength=footprint(state).metres,released={...blocked,closedLanes:[0],settings:{...blocked.settings,speedKmh:80}};
- assert.ok(eventCapacity(released,3600)<3600);
+ assert.ok(eventCapacity(released,4200)<4200);
  for(let i=0;i<240;i++){
-  state=advanceCells(state,route,[released],3600,exits);assertCellConservation(state);
+  state=advanceCells(state,route,[released],4200,exits);assertCellConservation(state);
   assert.ok(footprint(state).groups<=2);
  }
  assert.ok(cellInventory(state)>before+1000,'retain genuine excess arrivals instead of hiding them');

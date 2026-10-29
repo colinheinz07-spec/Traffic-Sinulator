@@ -3,8 +3,8 @@
  * NOT measured flows, road regulations, official diversion routes, or observed jams.
  * One controlling bottleneck per directional path; no A3/A48 ramp transfer yet.
  */
-import { flowPolicy } from './events.js?build=3a8775b1f1ba64c0';
-import { QUEUE_JAM_DENSITY_PER_LANE } from './traffic-physics.js?build=3a8775b1f1ba64c0';
+import { flowPolicy } from './events.js?build=2f18e240f686aefb';
+import { baseLaneCapacity, QUEUE_JAM_DENSITY_PER_LANE } from './traffic-physics.js?build=2f18e240f686aefb';
 export const PATHS = [
     'A3-koeln', 'A3-frankfurt', 'A48-dernbach', 'A48-koblenz',
     'ramp-a3-to-a48-from-frankfurt', 'ramp-a48-to-koeln',
@@ -22,7 +22,7 @@ const motorwayBaseLanes = {
 const defaultKmH = (key) => key.startsWith('ramp-') ? 80 : 130;
 export function defaultDemand(key) { return demandDefaults[key]; }
 export function baselineCapacity(key) {
-    return key.startsWith('ramp-') ? 1500 : 1800 * motorwayBaseLanes[key];
+    return baseLaneCapacity(key) * (key.startsWith('ramp-') ? 1 : motorwayBaseLanes[key]);
 }
 export function emptyTraffic() {
     return { minute: 0, vehiclesWaiting: Object.fromEntries(PATHS.map(p => [p, 0])) };
@@ -66,12 +66,11 @@ export function eventCapacity(e, volumeVph = defaultDemand(e.pathKey), heavyFrac
         throw Error('Ungültiger Zufluss');
     if (!Number.isFinite(heavyFraction) || heavyFraction < 0 || heavyFraction > 1)
         throw Error('Ungültiger Schwerlastanteil');
-    const ramp = e.pathKey.startsWith('ramp-');
-    const perLane = ramp ? 1500 : 1800;
+    const perLane = baseLaneCapacity(e.pathKey);
     const laneCapacity = perLane * (policy.openMainLanes + (e.settings.shoulder === 'open' ? .65 : 0));
     const normalSpeed = defaultKmH(e.pathKey);
     const parallel = policy.openMainLanes >= 2 && e.closedLanes.length > 0;
-    // The 1800 veh/h/lane reference is a saturated service headway, not
+    // The 2000 veh/h/lane motorway reference is a saturated service headway, not
     // 130 km/h times a fixed density. Two usable lanes can still serve that
     // headway at 60 km/h. Do not penalize them against free motorway speed
     // and then apply the same merge disturbance a second and third time.

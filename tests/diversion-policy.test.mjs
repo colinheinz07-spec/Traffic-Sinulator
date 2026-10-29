@@ -215,7 +215,11 @@ test('long real Unfall runs never force remote exits and use the remaining delay
     }
     const remaining=speedDelayInCells(previous,d.config.fromM,d.config.toM);
     assert.ok(remaining.delayMin>=45-1e-9,'voluntary departures require remaining delay, even at distant AS');
-    assert.ok(d.desiredPercent<100);
+    assert.ok(d.desiredPercent>=0&&d.desiredPercent<=100);
+    if(d.desiredPercent===100)assert.ok(remaining.delayMin>=180,
+     'all drivers may choose a viable bypass only with a genuinely very high remaining delay');
+    assert.equal(routedDiversionChoice(d,entries,{[path]:previous},routes,[event],exits,
+     {...defaultDemands(),[path]:4200}).mandatory,false,'an accident remains a voluntary diversion');
    }
   }
   assert.notEqual(firstDiez,null);

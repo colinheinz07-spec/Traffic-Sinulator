@@ -36,7 +36,7 @@ test('triangular diagram: capacity, speed and density obey flow conservation',()
  assert.equal(colorAtSpeed(congested.speedKmh),'standstill');
  assert.equal(colorAtSpeed(moderate.speedKmh),'jam');
  assert.ok(slow.speedKmh>moderate.speedKmh&&moderate.speedKmh>congested.speedKmh);
- assert.equal(colorAtSpeed(queueFundamentalDiagram(5400,3,'A3-koeln').speedKmh),'free');
+ assert.equal(colorAtSpeed(queueFundamentalDiagram(6000,3,'A3-koeln').speedKmh),'free');
 });
 
 test('approach colors follow calculated braking distance and local speeds',()=>{

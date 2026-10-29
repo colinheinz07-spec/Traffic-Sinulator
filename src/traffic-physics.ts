@@ -3,6 +3,13 @@
  */
 import type {PathKey,TrafficColor} from './traffic.js';
 
+/** Unrestricted base service before event-specific reductions. These are
+ * simulator assumptions, not measured capacities for every A3/A48 section.
+ * Motorway lanes and single-lane interchange connectors remain distinct. */
+export function baseLaneCapacity(path:PathKey):number{
+ return path.startsWith('ramp-')?1500:2000;
+}
+
 export interface SpeedBand {
  fromM:number;toM:number;color:TrafficColor;speedKmh:number;
  source:'queue'|'approach'|'restriction'|'cell';
@@ -33,7 +40,7 @@ export function queueFundamentalDiagram(capacityVph:number,lanes:number,path:Pat
  if(!Number.isFinite(capacityVph)||capacityVph<0||!Number.isFinite(lanes)||lanes<=0)
   throw Error('Ungültige Kapazität oder Fahrstreifenanzahl');
  const free=freeSpeedKmh(path),jamDensity=QUEUE_JAM_DENSITY_PER_LANE*lanes,w=CONGESTION_WAVE_KMH;
- const unimpededCapacity=(path.startsWith('ramp-')?1500:1800)*lanes;
+ const unimpededCapacity=baseLaneCapacity(path)*lanes;
  if(capacityVph>=unimpededCapacity)return {densityVehPerKm:unimpededCapacity/free,speedKmh:free};
  const criticalDensity=jamDensity*w/(free+w);
  const density=Math.max(criticalDensity,jamDensity-capacityVph/w);

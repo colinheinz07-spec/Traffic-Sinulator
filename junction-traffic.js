@@ -1,4 +1,4 @@
-import { diversionJunctions } from './diversions.js?build=3a8775b1f1ba64c0';
+import { diversionJunctions } from './diversions.js?build=2f18e240f686aefb';
 // No surveyed AS signal plans or local off-ramp lengths are bundled. These
 // are explicit defaults: roughly one 300 m queue lane, and ~39% effective
 // green at 1800 veh/h/lane. They are not measured AS-specific capacities.
