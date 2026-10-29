@@ -1,8 +1,8 @@
-import { positionM, closureGate } from './spatial.js?build=097f013eb25b1ace';
-import { baselineCapacity, eventCapacity } from './traffic.js?build=097f013eb25b1ace';
-import { flowPolicy, DEFAULT_CLEARANCE_MIN } from './events.js?build=097f013eb25b1ace';
-import { colorAtSpeed, freeSpeedKmh, QUEUE_JAM_DENSITY_PER_LANE, CONGESTION_WAVE_KMH } from './traffic-physics.js?build=097f013eb25b1ace';
-import { normalJunctionTraffic, exitRampVehicles, DEFAULT_EXIT_TERMINAL_VPH, DEFAULT_EXIT_STORAGE_VEHICLES } from './junction-traffic.js?build=097f013eb25b1ace';
+import { positionM, closureGate } from './spatial.js?build=2907b734e9aa6fa7';
+import { baselineCapacity, eventCapacity } from './traffic.js?build=2907b734e9aa6fa7';
+import { flowPolicy, DEFAULT_CLEARANCE_MIN } from './events.js?build=2907b734e9aa6fa7';
+import { colorAtSpeed, freeSpeedKmh, QUEUE_JAM_DENSITY_PER_LANE, CONGESTION_WAVE_KMH } from './traffic-physics.js?build=2907b734e9aa6fa7';
+import { normalJunctionTraffic, exitRampVehicles, DEFAULT_EXIT_TERMINAL_VPH, DEFAULT_EXIT_STORAGE_VEHICLES } from './junction-traffic.js?build=2907b734e9aa6fa7';
 const TARGET_CELL_M = 100, WAVE_KMH = CONGESTION_WAVE_KMH, JAM_PER_LANE = QUEUE_JAM_DENSITY_PER_LANE;
 // One observation per MODEL minute; repainting/pause never advances this.
 const TRAVEL_ALPHA = 1 - Math.exp(-1 / 6);
@@ -139,9 +139,65 @@ function dischargeRandom(seed, index, channel) {
     x = Math.imul(x ^ (x >>> 15), 0x846ca68b);
     return ((x ^ (x >>> 16)) >>> 0) / 4294967296;
 }
+const serviceHistories = new Map();
+/** Irregular parallel-lane service: a variable number of unequal brakes,
+ * shoulders and recoveries, rather than one repeated low/high trapezoid.
+ * Normalize the area, not the colours: each complete episode still offers
+ * the same sustained service, within the real open-lane peak bound. */
+function parallelServiceFactor(id, minute, ceiling) {
+    let history = serviceHistories.get(id);
+    if (!history) {
+        history = { seed: dischargeSeed(id), end: -300, episodes: [] };
+        serviceHistories.set(id, history);
+    }
+    if (minute < -300)
+        return 1;
+    while (history.end <= minute) {
+        const i = history.episodes.length, r = (channel) => dischargeRandom(history.seed, i, channel);
+        const knots = [[0, 1]];
+        let t = 0, channel = 0;
+        const next = () => r(channel++), add = (duration, value) => { t += duration; knots.push([t, value]); };
+        const brakes = 1 + Math.floor(next() * 3);
+        for (let brake = 0; brake < brakes; brake++) {
+            add(.25 + 1.3 * next(), .02 + .45 * next() ** 2);
+            if (next() < .8)
+                add(.2 + 1.4 * next(), .02 + .4 * next());
+            add(.3 + 1.5 * next(), .995 + .005 * next());
+            // No constant release plateau: some platoons accelerate in stages,
+            // others briefly hesitate, and their lengths vary independently.
+            add(.8 + 2.8 * next(), .995 + .005 * next());
+            if (next() < .55)
+                add(.3 + 1.6 * next(), .94 + .05 * next());
+            add(1.0 + 3.4 * next(), 1);
+        }
+        let area = 0;
+        for (let k = 1; k < knots.length; k++)
+            area += (knots[k][0] - knots[k - 1][0]) * (knots[k][1] + knots[k - 1][1]) / 2;
+        history.episodes.push({ start: history.end, end: history.end + t, knots, mean: area / t,
+            floor: .02 + .2 * next() });
+        history.end += t;
+    }
+    let lo = 0, hi = history.episodes.length - 1;
+    while (lo < hi) {
+        const mid = Math.ceil((lo + hi) / 2);
+        if (history.episodes[mid].start <= minute)
+            lo = mid;
+        else
+            hi = mid - 1;
+    }
+    const e = history.episodes[lo], t = minute - e.start;
+    let k = 1;
+    while (k < e.knots.length - 1 && e.knots[k][0] < t)
+        k++;
+    const a = e.knots[k - 1], b = e.knots[k], value = a[1] + (b[1] - a[1]) * (t - a[0]) / (b[0] - a[0]);
+    const scale = Math.min((ceiling - 1) / (1 - e.mean), (1 - e.floor) / e.mean);
+    return 1 + scale * (value - e.mean);
+}
 export function platoonServiceFactor(id, minute, ceiling = Infinity) {
     if (!Number.isFinite(minute) || Number.isNaN(ceiling) || ceiling < 1)
         throw Error('Ungültige Anfahrzeit oder Durchflussgrenze');
+    if (Number.isFinite(ceiling))
+        return parallelServiceFactor(id, minute, ceiling);
     // Generate a reproducible history with independently varying episode
     // duration, braking depth and recovery. There is no repeating pulse period.
     let history = dischargeHistories.get(id);
@@ -170,11 +226,7 @@ export function platoonServiceFactor(id, minute, ceiling = Infinity) {
             hi = mid - 1;
     }
     const e = history.episodes[lo], t = minute - e.start;
-    const high = Math.min(e.high, Math.max(1, ceiling));
-    const total = e.stop + e.rise + e.flow + e.fall, lowWeight = e.stop + (e.rise + e.fall) / 2;
-    // A physical peak bound changes the low phase too, preserving the mean
-    // requested service. Clipping only the peaks silently loses capacity.
-    const low = ceiling === Infinity ? e.low : (total - high * (total - lowWeight)) / lowWeight;
+    const high = e.high, low = e.low;
     if (t < e.stop)
         return low;
     if (t < e.stop + e.rise)
@@ -448,7 +500,7 @@ export function advanceCells(previous, route, events, demandVph, exits = [], por
                 // retaining individual departures. Longer, bounded release phases
                 // survive travel through the queue; their mean remains its capacity.
                 const time = previous.minute + sub * dtMin;
-                const factor = open >= 2 ? .90 * platoonServiceFactor(release.event.id + ':parallel', time / 2, release.maximum / release.capacity) + .10 * independent : independent;
+                const factor = open >= 2 ? .90 * platoonServiceFactor(release.event.id + ':parallel', time, release.maximum / release.capacity) + .10 * independent : independent;
                 currentCapacity[release.face] = Math.min(currentCapacity[release.face] * factor, release.maximum);
             }
         }

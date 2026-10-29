@@ -14,6 +14,7 @@ import {bundledTargets,isNetworkDestination} from './bundled-detours.js';
 import type {DetourGeometry} from './detour-routing.js';
 import type {InterchangeJourney} from './detour-flow.js';
 import {interchangeJourneys} from './interchange-journeys.js';
+import {INTERCHANGE_DIVERSION_START_MIN} from './interchange.js';
 export interface AutomaticDiversion {
  key:string;event:SimEvent|null;causeId?:string;path:RoadId;from:JunctionAnchor;to:JunctionAnchor;link:DiversionLink;
  delayMin:number|null;
@@ -124,7 +125,7 @@ export function automaticDiversions(events:readonly SimEvent[],corridors:Readonl
   const targetEvent=events.some(e=>e.pathKey===target&&(()=>{const at=positionM(targetRoute,e.point);
    return at!==null&&at+e.settings.lengthM>connection.downstreamMergeM&&at<=first.metre;})());
   if(!sourceQueue&&!sourceEvent&&!targetEvent&&!relevant.length&&!events.some(e=>e.pathKey===connection.rampId)&&
-   (turnDelays[connection.rampId]??0)<85)continue;
+   (turnDelays[connection.rampId]??0)<INTERCHANGE_DIVERSION_START_MIN)continue;
   for(const span of relevant)end=Math.max(end,span.toM);
   for(const event of events.filter(e=>e.pathKey===target)){
    const at=positionM(targetRoute,event.point);

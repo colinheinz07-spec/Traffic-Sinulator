@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {networkData} from '../dist/geodata.js';
 import {makeCorridors,routeSlice} from '../dist/spatial.js';
-import {buildRampConnections,interchangeTrafficShare,interchangeDelays} from '../dist/interchange.js';
+import {buildRampConnections,interchangeTrafficShare,interchangeDelays,INTERCHANGE_DIVERSION_START_MIN} from '../dist/interchange.js';
 import {initialiseCells,cellInventory,cellSpeedBands} from '../dist/traffic-cells.js';
 import {defaultDemands} from '../dist/traffic.js';
 import {automaticDiversions} from '../dist/auto-diversions.js';
@@ -39,22 +39,23 @@ const expected={
  'A48-koblenz':['A3-frankfurt:38>A48-koblenz:12','A3-koeln:38>A48-koblenz:12']
 };
 const routeName=e=>e.config.path+':'+e.config.geometry.sourceExitRef+'>'+e.config.targetPath+':'+e.config.geometry.targetExitRef;
-for(const path of ['A48-dernbach','A48-koblenz'])for(const delay of [84.9,85,120])
+for(const path of ['A48-dernbach','A48-koblenz'])for(const delay of [44.9,45,120])
  test(`${path}: ${delay} minutes selects only the matching AD destinations at the correct AS`,()=>{
   const cells=grids(),from=path==='A48-dernbach'?20000:2000;
   queue(cells,path,from,from+1500,delay);
   const entries=prepare(cells),used=choices(entries,cells).filter(c=>c.percent>0);
-  assert.deepEqual(used.map(c=>routeName(c.entry)).sort(),delay<85?[]:expected[path]);
-  if(delay===85)assert.ok(used.every(c=>c.percent>0&&c.percent<2),'only the first willing vehicles leave');
+  assert.deepEqual(used.map(c=>routeName(c.entry)).sort(),delay<45?[]:expected[path]);
+  if(delay===45)assert.ok(used.every(c=>c.percent>0&&c.percent<2),'only the first willing vehicles leave');
   assert.ok(used.every(c=>!c.mandatory));
   const before=structuredClone(entries);
   for(let i=0;i<5;i++)choices(entries,cells);
   assert.deepEqual(entries,before,'repainting cannot grow a share');
  });
-test('85-minute movement uptake increases gradually while ordinary bypasses still start at 45',()=>{
- assert.equal(voluntaryDiversionPercent(84.99,0,85),0);
- assert.equal(voluntaryDiversionPercent(85,0,85),2);
- const values=[85,100,120,150,180].map(t=>voluntaryDiversionPercent(t,0,85));
+test('AD movements and ordinary queue bypasses start gradually at the same 45-minute threshold',()=>{
+ assert.equal(INTERCHANGE_DIVERSION_START_MIN,45);
+ assert.equal(voluntaryDiversionPercent(44.99,0,INTERCHANGE_DIVERSION_START_MIN),0);
+ assert.equal(voluntaryDiversionPercent(45,0,INTERCHANGE_DIVERSION_START_MIN),2);
+ const values=[45,60,90,120,180].map(t=>voluntaryDiversionPercent(t,0,INTERCHANGE_DIVERSION_START_MIN));
  assert.ok(values.every((v,i)=>i===0||v>values[i-1]));assert.equal(values.at(-1),100);
  assert.equal(voluntaryDiversionPercent(45),2);
 });

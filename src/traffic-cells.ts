@@ -203,8 +203,46 @@ function dischargeRandom(seed:number,index:number,channel:number):number{
  x=Math.imul(x^(x>>>16),0x7feb352d);x=Math.imul(x^(x>>>15),0x846ca68b);
  return ((x^(x>>>16))>>>0)/4294967296;
 }
+interface ServiceEpisode {start:number;end:number;knots:[number,number][];mean:number;floor:number}
+const serviceHistories=new Map<string,{seed:number;end:number;episodes:ServiceEpisode[]}>();
+/** Irregular parallel-lane service: a variable number of unequal brakes,
+ * shoulders and recoveries, rather than one repeated low/high trapezoid.
+ * Normalize the area, not the colours: each complete episode still offers
+ * the same sustained service, within the real open-lane peak bound. */
+function parallelServiceFactor(id:string,minute:number,ceiling:number):number{
+ let history=serviceHistories.get(id);
+ if(!history){history={seed:dischargeSeed(id),end:-300,episodes:[]};serviceHistories.set(id,history);}
+ if(minute<-300)return 1;
+ while(history.end<=minute){
+  const i=history.episodes.length,r=(channel:number)=>dischargeRandom(history!.seed,i,channel);
+  const knots:[number,number][]=[[0,1]];let t=0,channel=0;
+  const next=()=>r(channel++),add=(duration:number,value:number)=>{t+=duration;knots.push([t,value]);};
+  const brakes=1+Math.floor(next()*3);
+  for(let brake=0;brake<brakes;brake++){
+   add(.25+1.3*next(),.02+.45*next()**2);
+   if(next()<.8)add(.2+1.4*next(),.02+.4*next());
+   add(.3+1.5*next(),.995+.005*next());
+   // No constant release plateau: some platoons accelerate in stages,
+   // others briefly hesitate, and their lengths vary independently.
+   add(.8+2.8*next(),.995+.005*next());
+   if(next()<.55)add(.3+1.6*next(),.94+.05*next());
+   add(1.0+3.4*next(),1);
+  }
+  let area=0;for(let k=1;k<knots.length;k++)area+=(knots[k]![0]-knots[k-1]![0])*(knots[k]![1]+knots[k-1]![1])/2;
+  history.episodes.push({start:history.end,end:history.end+t,knots,mean:area/t,
+   floor:.02+.2*next()});history.end+=t;
+ }
+ let lo=0,hi=history.episodes.length-1;
+ while(lo<hi){const mid=Math.ceil((lo+hi)/2);if(history.episodes[mid]!.start<=minute)lo=mid;else hi=mid-1;}
+ const e=history.episodes[lo]!,t=minute-e.start;
+ let k=1;while(k<e.knots.length-1&&e.knots[k]![0]<t)k++;
+ const a=e.knots[k-1]!,b=e.knots[k]!,value=a[1]+(b[1]-a[1])*(t-a[0])/(b[0]-a[0]);
+ const scale=Math.min((ceiling-1)/(1-e.mean),(1-e.floor)/e.mean);
+ return 1+scale*(value-e.mean);
+}
 export function platoonServiceFactor(id:string,minute:number,ceiling=Infinity):number{
  if(!Number.isFinite(minute)||Number.isNaN(ceiling)||ceiling<1)throw Error('Ungültige Anfahrzeit oder Durchflussgrenze');
+ if(Number.isFinite(ceiling))return parallelServiceFactor(id,minute,ceiling);
  // Generate a reproducible history with independently varying episode
  // duration, braking depth and recovery. There is no repeating pulse period.
  let history=dischargeHistories.get(id);
@@ -222,11 +260,7 @@ export function platoonServiceFactor(id:string,minute:number,ceiling=Infinity):n
  let lo=0,hi=history.episodes.length-1;
  while(lo<hi){const mid=Math.ceil((lo+hi)/2);if(history.episodes[mid]!.start<=minute)lo=mid;else hi=mid-1;}
  const e=history.episodes[lo]!,t=minute-e.start;
- const high=Math.min(e.high,Math.max(1,ceiling));
- const total=e.stop+e.rise+e.flow+e.fall,lowWeight=e.stop+(e.rise+e.fall)/2;
- // A physical peak bound changes the low phase too, preserving the mean
- // requested service. Clipping only the peaks silently loses capacity.
- const low=ceiling===Infinity?e.low:(total-high*(total-lowWeight))/lowWeight;
+ const high=e.high,low=e.low;
  if(t<e.stop)return low;
  if(t<e.stop+e.rise)return low+(high-low)*(t-e.stop)/e.rise;
  if(t<e.stop+e.rise+e.flow)return high;
@@ -470,7 +504,7 @@ export function advanceCells(previous:CellRouteState,route:Corridor,events:reado
     // retaining individual departures. Longer, bounded release phases
     // survive travel through the queue; their mean remains its capacity.
     const time=previous.minute+sub*dtMin;
-    const factor=open>=2?.90*platoonServiceFactor(release.event.id+':parallel',time/2,
+    const factor=open>=2?.90*platoonServiceFactor(release.event.id+':parallel',time,
      release.maximum/release.capacity)+.10*independent:independent;
     currentCapacity[release.face]=Math.min(currentCapacity[release.face]!*factor,release.maximum);
    }

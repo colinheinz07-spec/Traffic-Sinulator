@@ -488,7 +488,7 @@ function renderDiversionPlanner(key:PathKey,jams:ReturnType<typeof jamsAt>,spill
   const note=document.createElement('span'),entry=activeDetours.get(option.key);
   note.textContent=entry?`Automatisch · ${entry.config.geometry.label} · ${trafficNumber(entry.state.lastDeparture*60)} Fzg/h abgezweigt · ${entry.config.exitsNetwork?trafficNumber((entry.state.lastExitedNetwork??0)*60)+' Fzg/h verlassen das Netz':trafficNumber(entry.state.lastRejoined*60)+' Fzg/h zurück'}`:
    'Enthaltene simulierte Umfahrung des Autobahnknotens';
-  if(entry?.config.movementId)note.textContent+=' · freiwillig ab 85 min · nur Verkehr mit diesem Fahrtziel';
+  if(entry?.config.movementId)note.textContent+=' · freiwillig ab 45 min · Zeitverlust der verbleibenden Fahrt · nur Verkehr mit diesem Fahrtziel';
   row.append(title,note);parent.append(row);
  }
  const active=activeEvents().filter(e=>e.pathKey===direction);

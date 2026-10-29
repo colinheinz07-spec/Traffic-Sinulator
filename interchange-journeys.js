@@ -1,11 +1,11 @@
-import { interchangeTrafficShare } from './interchange.js?build=097f013eb25b1ace';
-import { baselineCapacity, eventCapacity, defaultDemand } from './traffic.js?build=097f013eb25b1ace';
-import { positionM, closureGate, metres } from './spatial.js?build=097f013eb25b1ace';
-import { cellQueueSpans } from './traffic-cells.js?build=097f013eb25b1ace';
-import { diversionJunctions } from './diversions.js?build=097f013eb25b1ace';
-import { bundledTargets, bundledDetourGeometry, isNetworkDestination } from './bundled-detours.js?build=097f013eb25b1ace';
-import { speedDelayInCells } from './speed-delay.js?build=097f013eb25b1ace';
-import { queueFundamentalDiagram, colorAtSpeed } from './traffic-physics.js?build=097f013eb25b1ace';
+import { INTERCHANGE_DIVERSION_START_MIN, interchangeTrafficShare } from './interchange.js?build=2907b734e9aa6fa7';
+import { baselineCapacity, eventCapacity, defaultDemand } from './traffic.js?build=2907b734e9aa6fa7';
+import { positionM, closureGate, metres } from './spatial.js?build=2907b734e9aa6fa7';
+import { cellQueueSpans } from './traffic-cells.js?build=2907b734e9aa6fa7';
+import { diversionJunctions } from './diversions.js?build=2907b734e9aa6fa7';
+import { bundledTargets, bundledDetourGeometry, isNetworkDestination } from './bundled-detours.js?build=2907b734e9aa6fa7';
+import { speedDelayInCells } from './speed-delay.js?build=2907b734e9aa6fa7';
+import { queueFundamentalDiagram, colorAtSpeed } from './traffic-physics.js?build=2907b734e9aa6fa7';
 /** A detour of one configured turn cannot acquire the entire A48's
  * destination mix when its mainline reference volume is larger. */
 export function journeyTrafficShare(config, demands) {
@@ -107,11 +107,8 @@ export function viaJourneyUsable(config, cells, routes, events, exits, demands) 
                 return false;
         }
     }
-    const sourceGrid = cells[config.path];
-    if (sourceGrid && speedDelayInCells(sourceGrid, j.decisionM, config.sourceEndM, config.sourceEndM).delayMin >= 85)
-        return false;
     const targetGrid = cells[config.targetPath];
-    if (targetGrid && speedDelayInCells(targetGrid, config.toM, j.localExitM, j.localExitM).delayMin >= 85)
+    if (targetGrid && speedDelayInCells(targetGrid, config.toM, j.localExitM, j.localExitM).blocked)
         return false;
     return true;
 }
@@ -185,7 +182,7 @@ export function interchangeJourneys(events, routes, exits, cells, connections, t
         const at = positionM(targetRoute, e.point);
         return at !== null && at < Math.max(first.metre, ...relevant.map(s => s.toM)) && at + e.settings.lengthM > intended.downstreamMergeM;
     })());
-    if (!related.length && !relevant.length && (turnDelays[intended.rampId] ?? 0) < 85)
+    if (!related.length && !relevant.length && (turnDelays[intended.rampId] ?? 0) < INTERCHANGE_DIVERSION_START_MIN)
         return result;
     let end = Math.max(intended.downstreamMergeM, ...relevant.map(s => s.toM));
     for (const e of related)

@@ -10,7 +10,7 @@ import {positionM,metres,type Corridor,type Jam} from './spatial.js';
 import {defaultDemand,eventCapacity,type PathKey} from './traffic.js';
 import {DEFAULT_CLEARANCE_MIN,type SimEvent} from './events.js';
 
-export const INTERCHANGE_DIVERSION_START_MIN=85;
+export const INTERCHANGE_DIVERSION_START_MIN=45;
 const movements:Partial<Record<PathKey,{from:RoadId;to:RoadId}>>={
  'ramp-a48-to-koeln':{from:'A48-dernbach',to:'A3-koeln'},
  'ramp-a48-to-frankfurt':{from:'A48-dernbach',to:'A3-frankfurt'},

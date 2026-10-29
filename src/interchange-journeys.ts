@@ -6,7 +6,7 @@ import type {Exit,Ramp,RoadId} from './core.js';
 import type {SimEvent} from './events.js';
 import type {DetourConfig} from './detour-flow.js';
 import type {CellRouteState} from './traffic-cells.js';
-import {interchangeTrafficShare,type RampConnection} from './interchange.js';
+import {INTERCHANGE_DIVERSION_START_MIN,interchangeTrafficShare,type RampConnection} from './interchange.js';
 import type {Corridor,Jam} from './spatial.js';
 import type {DetourGeometry} from './detour-routing.js';
 import {baselineCapacity,eventCapacity,defaultDemand,type PathKey} from './traffic.js';
@@ -115,10 +115,8 @@ export function viaJourneyUsable(config:DetourConfig,cells:Readonly<Partial<Reco
     at!==null&&at>=config.toM&&at<j.localExitM&&eventCapacity(e,demands[config.targetPath!])===0)return false;
   }
  }
- const sourceGrid=cells[config.path];
- if(sourceGrid&&speedDelayInCells(sourceGrid,j.decisionM,config.sourceEndM,config.sourceEndM).delayMin>=85)return false;
  const targetGrid=cells[config.targetPath!];
- if(targetGrid&&speedDelayInCells(targetGrid,config.toM,j.localExitM,j.localExitM).delayMin>=85)return false;
+ if(targetGrid&&speedDelayInCells(targetGrid,config.toM,j.localExitM,j.localExitM).blocked)return false;
  return true;
 }
 export function interchangeJourneys(events:readonly SimEvent[],routes:Readonly<Record<PathKey,Corridor>>,
@@ -182,7 +180,7 @@ export function interchangeJourneys(events:readonly SimEvent[],routes:Readonly<R
  const relevant=cells[target]?cellQueueSpans(cells[target]!).filter(s=>s.fromM<first.metre&&s.toM>intended.downstreamMergeM):[];
  const related=events.filter(e=>e.pathKey===intended.rampId||e.pathKey===target&&(()=>{
   const at=positionM(targetRoute,e.point);return at!==null&&at<Math.max(first.metre,...relevant.map(s=>s.toM))&&at+e.settings.lengthM>intended.downstreamMergeM;})());
- if(!related.length&&!relevant.length&&(turnDelays[intended.rampId]??0)<85)return result;
+ if(!related.length&&!relevant.length&&(turnDelays[intended.rampId]??0)<INTERCHANGE_DIVERSION_START_MIN)return result;
  let end=Math.max(intended.downstreamMergeM,...relevant.map(s=>s.toM));
  for(const e of related)if(e.pathKey===target){const at=positionM(targetRoute,e.point)!;
   end=Math.max(end,closureGate(targetRoute,e,exits)?.endM??at+e.settings.lengthM+50);}

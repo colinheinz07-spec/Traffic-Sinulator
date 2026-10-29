@@ -1,6 +1,20 @@
-# A3/A48 Stausimulator – TRAFFIC 1.12.12
+# A3/A48 Stausimulator – TRAFFIC 1.12.13
 
 **Ein Repository, eine Startdatei:** `index.html` im Hauptverzeichnis direkt in SPCK öffnen. Keine Cloudflare-Konfiguration und keine externe Kartenbibliothek.
+
+## Unregelmäßige Stauwellen und verbleibende Fahrt am AD (1.12.13)
+
+Die gemeinsame Abflusssteuerung mehrerer offener Spuren verwendet keine Folge gleich aufgebauter Brems-/Anfahrtrapeze mehr. Anzahl und Verlauf der Bremsungen, ihre Tiefe, Zwischenstufen und die Länge der Anfahrpakete variieren reproduzierbar je Ereignis. Auch innerhalb einer Anfahrphase bleibt die angebotene Abflussleistung veränderlich. Die Fläche jeder vollständigen Folge wird auf dieselbe nachhaltige Zielkapazität normiert; die physische Spitzengrenze und nichtnegative Flüsse bleiben erhalten. Nachbarzellen transportieren diese Änderungen mit den tatsächlichen Fahrzeugmengen weiter. Farben folgen weiterhin den örtlichen Geschwindigkeiten. Pausieren und Neuzeichnen erzeugen keine neuen Bewegungen. Die Grundkapazitäten und Referenzzuflüsse werden in dieser Version nicht geändert.
+
+Bei allen vier Überleitungen am AD werden die aufeinanderfolgenden Abschnitte der verbleibenden Fahrt gemeinsam bewertet: betroffene Zufahrt, jeweilige Rampe und Zielautobahn **ab der tatsächlichen Einmündung** bis hinter den umfahrenen Stau. Vorher wurde teilweise das Maximum einzelner Messwerte verwendet. **17 Minuten Rampenverlust plus 45 Minuten auf dem folgenden A3-Abschnitt ergeben jetzt 62 Minuten** für die Routenentscheidung. Ein A3-Rückstau vor dieser Einmündung wird für von der A48 kommende Fahrzeuge nicht mitgezählt. Mehrere betroffene Teilstücke innerhalb desselben Zielabschnitts werden einmal gemeinsam ausgewertet. Die Kartenanzeigen für Rampe und A3 bleiben getrennt.
+
+Die freiwillige Bereitschaft beginnt jetzt auch für die AD-Alternativen bei **45 Minuten**, entsprechend der aktuellen Vorgabe für A3 und A48; die frühere 85-Minuten-Schwelle entfällt. Der Anteil steigt weiterhin schrittweise und gilt nur für das passende Fahrtziel. Die nächste nutzbare Ausfahrt vor dem jeweiligen Rückstau bleibt maßgeblich; ein entfernter Stau hinter einer noch frei erreichbaren Anschlussstelle aktiviert nicht alle vorherigen Ausfahrten.
+
+Für Frankfurt-Fahrten von der A48 werden Höhr → Montabaur und die offene Köln-Rampe → Ransbach → Montabaur anhand ihrer verbleibenden Zeitersparnis verglichen. Die Fahrt über die Köln-Rampe spart die gemeinsame A48-Zufahrt nicht ein. Sie berücksichtigt auch Wartezeiten auf dem Köln-Zweig, an der Ransbacher Abfahrt und auf der anschließenden Nebenstraße. Daher kann Höhr schon günstiger sein, obwohl keine einzelne Teilverzögerung für sich 45 Minuten erreicht. Ein fester zusätzlicher Grenzwert auf der Zufahrt entscheidet dies nicht mehr. Formale Sperren, bereits unterwegs gebundene Fahrzeuggruppen und die getrennte Köln-Nachfrage bleiben berücksichtigt.
+
+Geprüft: Typprüfung, **536 JavaScript-Tests**, sechs Geometrie- und fünf Fahrstreifenprüfungen. Vier neue Prüfungen betreffen variable Abflussverläufe, mittlere Leistung, physische Grenzen und unveränderliche Wiederholung bei Pause; zehn weitere prüfen die aufsummierte verbleibende Fahrt an allen Überleitungen, die 17+45-Minuten-Situation, Höhr gegenüber der Köln-Rampe, einen Stau auf der Alternative sowie das Ausschließen vorheriger A3-Abschnitte. Die bestehenden Prüfungen gegen anwachsende getrennte Bremsketten, Fahrzeugverlust, überlange Zweispuren-Rückstaus und falsche Zielzuordnung bestehen weiter.
+
+Zusätzlich geprüft: 14 mobile Chromium-Läufe (390 × 844 Pixel, Touch-Emulation). Enthalten sind beide A3-Richtungen mit zwei offenen Spuren im Vergleich zu 1.12.12, Wiederfreigabe und vollständiges Entfernen über die tatsächlichen Ereignis-Buttons, gezielt gesetzte Teilverzögerungen für die Routenentscheidung sowie eine Frankfurt-Sperre mit anschließender Freigabe. Die gezielten Verzögerungsfälle prüfen Entscheidungslogik, keine gemessenen Verkehrsprognosen. Keine Browser-Laufzeitfehler; maximale Abweichung der gemeinsamen Fahrzeugbilanz unter 0,000001 Fahrzeugen. Keine Prüfung auf einem physischen iPhone.
 
 ## Bewegungen im gesamten Rückstau (1.12.12)
 

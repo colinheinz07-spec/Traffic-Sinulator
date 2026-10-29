@@ -1,9 +1,10 @@
-import { positionM, closureGate } from './spatial.js?build=097f013eb25b1ace';
-import { DIVERSION_LINKS, diversionJunctions, nearestExitBeforeQueue } from './diversions.js?build=097f013eb25b1ace';
-import { speedDelayInCells } from './speed-delay.js?build=097f013eb25b1ace';
-import { cellQueueSpans } from './traffic-cells.js?build=097f013eb25b1ace';
-import { bundledTargets, isNetworkDestination } from './bundled-detours.js?build=097f013eb25b1ace';
-import { interchangeJourneys } from './interchange-journeys.js?build=097f013eb25b1ace';
+import { positionM, closureGate } from './spatial.js?build=2907b734e9aa6fa7';
+import { DIVERSION_LINKS, diversionJunctions, nearestExitBeforeQueue } from './diversions.js?build=2907b734e9aa6fa7';
+import { speedDelayInCells } from './speed-delay.js?build=2907b734e9aa6fa7';
+import { cellQueueSpans } from './traffic-cells.js?build=2907b734e9aa6fa7';
+import { bundledTargets, isNetworkDestination } from './bundled-detours.js?build=2907b734e9aa6fa7';
+import { interchangeJourneys } from './interchange-journeys.js?build=2907b734e9aa6fa7';
+import { INTERCHANGE_DIVERSION_START_MIN } from './interchange.js?build=2907b734e9aa6fa7';
 export function automaticDiversions(events, corridors, exits, cells, connections = [], turnDelays = {}) {
     const plans = new Map();
     for (const event of events) {
@@ -115,7 +116,7 @@ export function automaticDiversions(events, corridors, exits, cells, connections
             return at !== null && at + e.settings.lengthM > connection.downstreamMergeM && at <= first.metre;
         })());
         if (!sourceQueue && !sourceEvent && !targetEvent && !relevant.length && !events.some(e => e.pathKey === connection.rampId) &&
-            (turnDelays[connection.rampId] ?? 0) < 85)
+            (turnDelays[connection.rampId] ?? 0) < INTERCHANGE_DIVERSION_START_MIN)
             continue;
         for (const span of relevant)
             end = Math.max(end, span.toM);
