@@ -5,6 +5,7 @@ import {makeCorridors,routeSlice,positionM,closureGate,advanceSpatial,emptySpati
 import {initialiseCells,type CellRouteState} from './traffic-cells.js';
 import {speedDelayLabel} from './speed-delay.js';
 import {trafficView} from './traffic-view.js';
+import {resolveSpeedBands} from './traffic-physics.js';
 import {advanceRoutedNetwork,remainingInterchangeDemands,type RoutedDetour} from './routed-traffic.js';
 import {routedDiversionChoice,requiredDiversionGate} from './diversion-policy.js';
 import {automaticDiversions,type AutomaticDiversion} from './auto-diversions.js';
@@ -845,9 +846,16 @@ function drawSpatialJams(){
  const spillbacks=rampSpillbacks(list,rampConnections,spatialCorridors);
  const view=trafficView(list,cellNetwork,spatialCorridors,timeline,spillbacks,spatialState.minute);
  const widths=lineWidths(zoom);
+ // A motorway ending at an AD split has no separate straight-ahead road.
+ // Show a backed-up branch across the full approach stroke, matching the
+ // worst-lane route status. Keep destination flows and delays independent.
+ const terminalFeeders=new Set<PathKey>(spillbacks.filter(s=>
+  Math.abs(s.sourceAnchorM-spatialCorridors[s.source].lengthM)<1).map(s=>s.source));
  for(const [key,bands] of view.bands){
   const route=spatialCorridors[key],narrow=key.startsWith('ramp-');
-  for(const band of bands){
+  const shown=terminalFeeders.has(key)
+   ?resolveSpeedBands([...bands,...(view.spillBands.get(key)??[])]):bands;
+  for(const band of shown){
    if(band.color==='free')continue;
    const line=routeSlice(route,band.fromM,band.toM);
    if(line.length<2)continue;
@@ -856,8 +864,11 @@ function drawSpatialJams(){
    stroke(line,width+.65,jamColors[band.color]);
   }
  }
- // Overflow is measured and drawn from the same narrow exit-lane bands.
+ // A branch off a continuing motorway keeps its separate narrow exit lane.
+ // Terminal approaches were already resolved at full width above; drawing
+ // them again could paint a faster ramp band over a slower mainline queue.
  for(const [key,bands] of view.spillBands){
+  if(terminalFeeders.has(key))continue;
   const route=spatialCorridors[key];
   for(const band of bands){
    if(band.color==='free')continue;

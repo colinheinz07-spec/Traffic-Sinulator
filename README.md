@@ -1,6 +1,14 @@
-# A3/A48 Stausimulator – TRAFFIC 1.12.8
+# A3/A48 Stausimulator – TRAFFIC 1.12.9
 
 **Ein Repository, eine Startdatei:** `index.html` im Hauptverzeichnis direkt in SPCK öffnen. Keine Cloudflare-Konfiguration und keine externe Kartenbibliothek.
+
+## Sichtbarer Rampenrückstau auf der A48 (1.12.9)
+
+Endet eine Autobahn an einer Verzweigung, färbt ein zurückgestauter Zweig die betroffene gemeinsame Zufahrt jetzt in voller Kartenstrichbreite. Damit erscheint der Rückstau von A48→A3 Frankfurt auf der A48 nicht mehr als dünne rote Linie innerhalb eines breiten grünen Balkens. Für den Köln-Zweig gilt dieselbe Regel. Die Zuordnung folgt dem tatsächlichen Streckenende und dem Rampenanschluss, nicht einem fest benannten Fahrtziel.
+
+Überlagern sich eine langsamere Hauptfahrbahn und ein schnellerer Rampenrückstau, bleibt die langsamere örtliche Farbe maßgeblich. Freie Abschnitte werden weiterhin grün; die Farbgrenzen folgen denselben berechneten Rückstaubändern. Die volle Strichbreite zeigt hier – wie der bestehende Richtungsstatus – den am stärksten beeinträchtigten Zweig. Sie bedeutet keine zusätzliche Sperrung aller Fahrstreifen. Verkehrsströme, Fahrzeugbestände, Geschwindigkeiten, Zeitverluste und Umleitungsentscheidungen bleiben unverändert. An einer weiterführenden Autobahn wie der A3 bleibt ein ausschließlich abzweigender Rückstau als eigener schmaler Ausfahrtstreifen erkennbar.
+
+Geprüft: Typprüfung, **506 JavaScript-Tests**, sechs Geometrie- und fünf Fahrstreifenprüfungen. Im mobilen Chromium-Browser (390 × 844 Pixel, Touch-Emulation) wurde die alte dünne Linie zunächst reproduziert. Danach bestanden 16 Darstellungsfälle: zwölf kontrollierte Rückstauzustände auf allen vier Rampen mit drei Geschwindigkeitsklassen und jeweils drei Zoomstufen, ein überlagerter langsamerer Hauptfahrbahnstau, zwei tatsächlich simulierte Rückstaus hinter dem AD Richtung Frankfurt beziehungsweise Köln und eine wieder freie Darstellung. Das Zeichnen verändert keinen Verkehrszustand; die beiden Simulationsfälle halten ihre Fahrzeugbilanz mit einer Abweichung unter 0,000001 Fahrzeugen ein. Keine Browser-Laufzeitfehler; keine Prüfung auf einem physischen iPhone.
 
 ## Bewegte Staus und erreichbare AD-Abzweige (1.12.8)
 

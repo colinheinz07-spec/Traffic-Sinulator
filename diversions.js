@@ -6,8 +6,8 @@
  * This module produces ROUTE PLANNING PREVIEWS only. It must never silently
  * subtract or teleport vehicles from the conserved A3/A48 motorway queues.
  */
-import { exitPosition } from './core.js?build=7745efc9892751d5';
-import { positionM, closureGate } from './spatial.js?build=7745efc9892751d5';
+import { exitPosition } from './core.js?build=affaac1a376e3e5c';
+import { positionM, closureGate } from './spatial.js?build=affaac1a376e3e5c';
 const r = (code, path, fromRef, toRef, evidence = 'named-endpoints') => ({
     id: path + '-' + code, code, path, fromRoad: path.startsWith('A3') ? 'A3' : 'A48', fromRef,
     toRoad: toRef ? (path.startsWith('A3') ? 'A3' : 'A48') : null, toRef, evidence,

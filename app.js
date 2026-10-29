@@ -1,26 +1,27 @@
-import { PATHS, pathBottleneck, defaultDemands, demandAtMinute, demandAtClock } from './traffic.js?build=7745efc9892751d5';
-import { networkData } from './geodata.js?build=7745efc9892751d5';
-import { routeReport } from './network-report.js?build=7745efc9892751d5';
-import { makeCorridors, routeSlice, positionM, closureGate, advanceSpatial, emptySpatial, jamsAt } from './spatial.js?build=7745efc9892751d5';
-import { initialiseCells } from './traffic-cells.js?build=7745efc9892751d5';
-import { speedDelayLabel } from './speed-delay.js?build=7745efc9892751d5';
-import { trafficView } from './traffic-view.js?build=7745efc9892751d5';
-import { advanceRoutedNetwork, remainingInterchangeDemands } from './routed-traffic.js?build=7745efc9892751d5';
-import { routedDiversionChoice, requiredDiversionGate } from './diversion-policy.js?build=7745efc9892751d5';
-import { automaticDiversions } from './auto-diversions.js?build=7745efc9892751d5';
-import { buildRampConnections, rampSpillbacks, interchangeDelays, interchangeTrafficShare } from './interchange.js?build=7745efc9892751d5';
-import { journeyRampCapacity, journeyRampJams, rampCapacity } from './interchange-journeys.js?build=7745efc9892751d5';
-import { planDiversion } from './diversions.js?build=7745efc9892751d5';
-import { junctionMovements, junctionMovementHint } from './junction-movements.js?build=7745efc9892751d5';
-import { bundledDetourGeometry, bundledExitRoutes, bundledTargets, isNetworkDestination } from './bundled-detours.js?build=7745efc9892751d5';
-import { emptyDetour, detourVehicles } from './detour-flow.js?build=7745efc9892751d5';
-import { decodeEvents, eventFromHit, updatedEvent, eventNames, eventSymbols, eventSummary, defaultLengthM, maxLengthM, suggestedSpeed, DEFAULT_CLEARANCE_MIN, STORAGE_KEY, isEventKind, validEvent, effectiveEventsAt, eventScheduleStatus } from './events.js?build=7745efc9892751d5';
-import { roadLaneInfo, rampLaneInfo } from './lane-info.js?build=7745efc9892751d5';
-import { mapCandidates, chooseMapHits, closestJunction, lanePositions, hitLabel } from './selection.js?build=7745efc9892751d5';
-import { buildContinuousRoads, lineWidths, rampBadges, layoutJunctionLabels } from './cartography.js?build=7745efc9892751d5';
-import { placeJamCallout } from './map-callouts.js?build=7745efc9892751d5';
-import { installScheduleForm } from './schedule-form.js?build=7745efc9892751d5';
-import { DIRECTIONS, validateMap, names, mercator, inverse, exitPosition } from './core.js?build=7745efc9892751d5';
+import { PATHS, pathBottleneck, defaultDemands, demandAtMinute, demandAtClock } from './traffic.js?build=affaac1a376e3e5c';
+import { networkData } from './geodata.js?build=affaac1a376e3e5c';
+import { routeReport } from './network-report.js?build=affaac1a376e3e5c';
+import { makeCorridors, routeSlice, positionM, closureGate, advanceSpatial, emptySpatial, jamsAt } from './spatial.js?build=affaac1a376e3e5c';
+import { initialiseCells } from './traffic-cells.js?build=affaac1a376e3e5c';
+import { speedDelayLabel } from './speed-delay.js?build=affaac1a376e3e5c';
+import { trafficView } from './traffic-view.js?build=affaac1a376e3e5c';
+import { resolveSpeedBands } from './traffic-physics.js?build=affaac1a376e3e5c';
+import { advanceRoutedNetwork, remainingInterchangeDemands } from './routed-traffic.js?build=affaac1a376e3e5c';
+import { routedDiversionChoice, requiredDiversionGate } from './diversion-policy.js?build=affaac1a376e3e5c';
+import { automaticDiversions } from './auto-diversions.js?build=affaac1a376e3e5c';
+import { buildRampConnections, rampSpillbacks, interchangeDelays, interchangeTrafficShare } from './interchange.js?build=affaac1a376e3e5c';
+import { journeyRampCapacity, journeyRampJams, rampCapacity } from './interchange-journeys.js?build=affaac1a376e3e5c';
+import { planDiversion } from './diversions.js?build=affaac1a376e3e5c';
+import { junctionMovements, junctionMovementHint } from './junction-movements.js?build=affaac1a376e3e5c';
+import { bundledDetourGeometry, bundledExitRoutes, bundledTargets, isNetworkDestination } from './bundled-detours.js?build=affaac1a376e3e5c';
+import { emptyDetour, detourVehicles } from './detour-flow.js?build=affaac1a376e3e5c';
+import { decodeEvents, eventFromHit, updatedEvent, eventNames, eventSymbols, eventSummary, defaultLengthM, maxLengthM, suggestedSpeed, DEFAULT_CLEARANCE_MIN, STORAGE_KEY, isEventKind, validEvent, effectiveEventsAt, eventScheduleStatus } from './events.js?build=affaac1a376e3e5c';
+import { roadLaneInfo, rampLaneInfo } from './lane-info.js?build=affaac1a376e3e5c';
+import { mapCandidates, chooseMapHits, closestJunction, lanePositions, hitLabel } from './selection.js?build=affaac1a376e3e5c';
+import { buildContinuousRoads, lineWidths, rampBadges, layoutJunctionLabels } from './cartography.js?build=affaac1a376e3e5c';
+import { placeJamCallout } from './map-callouts.js?build=affaac1a376e3e5c';
+import { installScheduleForm } from './schedule-form.js?build=affaac1a376e3e5c';
+import { DIRECTIONS, validateMap, names, mercator, inverse, exitPosition } from './core.js?build=affaac1a376e3e5c';
 const $ = (id) => { const element = document.getElementById(id); if (!element)
     throw Error(`Element fehlt: ${id}`); return element; };
 const canvas = $('map'), wrapper = canvas.parentElement;
@@ -1159,9 +1160,15 @@ function drawSpatialJams() {
     const spillbacks = rampSpillbacks(list, rampConnections, spatialCorridors);
     const view = trafficView(list, cellNetwork, spatialCorridors, timeline, spillbacks, spatialState.minute);
     const widths = lineWidths(zoom);
+    // A motorway ending at an AD split has no separate straight-ahead road.
+    // Show a backed-up branch across the full approach stroke, matching the
+    // worst-lane route status. Keep destination flows and delays independent.
+    const terminalFeeders = new Set(spillbacks.filter(s => Math.abs(s.sourceAnchorM - spatialCorridors[s.source].lengthM) < 1).map(s => s.source));
     for (const [key, bands] of view.bands) {
         const route = spatialCorridors[key], narrow = key.startsWith('ramp-');
-        for (const band of bands) {
+        const shown = terminalFeeders.has(key)
+            ? resolveSpeedBands([...bands, ...(view.spillBands.get(key) ?? [])]) : bands;
+        for (const band of shown) {
             if (band.color === 'free')
                 continue;
             const line = routeSlice(route, band.fromM, band.toM);
@@ -1172,8 +1179,12 @@ function drawSpatialJams() {
             stroke(line, width + .65, jamColors[band.color]);
         }
     }
-    // Overflow is measured and drawn from the same narrow exit-lane bands.
+    // A branch off a continuing motorway keeps its separate narrow exit lane.
+    // Terminal approaches were already resolved at full width above; drawing
+    // them again could paint a faster ramp band over a slower mainline queue.
     for (const [key, bands] of view.spillBands) {
+        if (terminalFeeders.has(key))
+            continue;
         const route = spatialCorridors[key];
         for (const band of bands) {
             if (band.color === 'free')
