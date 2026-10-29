@@ -1,27 +1,29 @@
-import { positionM, closureGate } from './spatial.js?build=2907b734e9aa6fa7';
-import { DIVERSION_LINKS, diversionJunctions, nearestExitBeforeQueue } from './diversions.js?build=2907b734e9aa6fa7';
-import { speedDelayInCells } from './speed-delay.js?build=2907b734e9aa6fa7';
-import { cellQueueSpans } from './traffic-cells.js?build=2907b734e9aa6fa7';
-import { bundledTargets, isNetworkDestination } from './bundled-detours.js?build=2907b734e9aa6fa7';
-import { interchangeJourneys } from './interchange-journeys.js?build=2907b734e9aa6fa7';
-import { INTERCHANGE_DIVERSION_START_MIN } from './interchange.js?build=2907b734e9aa6fa7';
+import { positionM, closureGate } from './spatial.js?build=320aeaf18baab650';
+import { DIVERSION_LINKS, diversionJunctions, nearestExitBeforeQueue } from './diversions.js?build=320aeaf18baab650';
+import { speedDelayInCells } from './speed-delay.js?build=320aeaf18baab650';
+import { cellQueueSpans } from './traffic-cells.js?build=320aeaf18baab650';
+import { bundledTargets, isNetworkDestination } from './bundled-detours.js?build=320aeaf18baab650';
+import { junctionAccess, accessibleExits } from './road-controls.js?build=320aeaf18baab650';
+import { interchangeJourneys } from './interchange-journeys.js?build=320aeaf18baab650';
+import { INTERCHANGE_DIVERSION_START_MIN } from './interchange.js?build=320aeaf18baab650';
 export function automaticDiversions(events, corridors, exits, cells, connections = [], turnDelays = {}) {
     const plans = new Map();
+    const available = (path, access) => accessibleExits(corridors[path], events, exits, access);
     for (const event of events) {
         if (event.pathKey.startsWith('ramp-'))
             continue;
         const path = event.pathKey, route = corridors[path], at = positionM(route, event.point);
         if (at === null)
             continue;
-        const targets = bundledTargets(path, exits, route), all = targets.filter(x => !isNetworkDestination(x));
-        const section = closureGate(route, event, exits);
+        const targets = bundledTargets(path, exits, route), all = targets.filter(x => !isNetworkDestination(x) && junctionAccess(route, events, x.metre, x.ref).exit);
+        const section = closureGate(route, event, exits, events);
         const end = Math.min(route.lengthM, at + event.settings.lengthM + 50);
-        const after = targets.filter(x => isNetworkDestination(x) || (section ? x.metre >= section.endM - 1 : x.metre > end));
+        const after = targets.filter(x => isNetworkDestination(x) || junctionAccess(route, events, x.metre, x.ref).entry && (section ? x.metre >= section.endM - 1 : x.metre > end));
         for (const connection of connections.filter(c => c.to === path && at > c.downstreamMergeM)) {
             // Prepare cross-motorway alternatives before the target queue reaches
             // the AD. The remaining journey's delay controls whether anyone uses it.
             const source = connection.from, to = after[0];
-            const junctions = diversionJunctions(source, exits, corridors[source]).filter(x => !x.isInterchange);
+            const junctions = diversionJunctions(source, available(source, 'exit'), corridors[source]).filter(x => !x.isInterchange);
             const sources = source === 'A3-koeln' && path === 'A48-koblenz'
                 ? junctions.filter(x => x.metre > connection.rampEntryM).slice(0, 1)
                 : junctions.filter(x => x.metre < connection.rampEntryM - 50);
@@ -64,8 +66,8 @@ export function automaticDiversions(events, corridors, exits, cells, connections
             const time = speedDelayInCells(grid, span.fromM, span.toM, span.toM + grid.cellM);
             if (time.blocked || time.delayMin < 45 - 1e-9)
                 continue;
-            const from = nearestExitBeforeQueue(path, route, exits, span.fromM);
-            const to = targets.find(t => isNetworkDestination(t) || t.metre > span.toM + 1);
+            const from = nearestExitBeforeQueue(path, route, available(path, 'exit'), span.fromM);
+            const to = targets.find(t => isNetworkDestination(t) || junctionAccess(route, events, t.metre, t.ref).entry && t.metre > span.toM + 1);
             if (from && to) {
                 const old = plans.get(path + ':' + from.ref);
                 if (!old || old.to.metre < span.toM - 1) {
@@ -81,8 +83,8 @@ export function automaticDiversions(events, corridors, exits, cells, connections
                 const approach = sourceGrid && cellQueueSpans(sourceGrid).find(s => s.fromM < connection.rampEntryM &&
                     s.toM >= connection.rampEntryM - sourceGrid.cellM);
                 const from = source === 'A3-koeln' && path === 'A48-koblenz'
-                    ? diversionJunctions(source, exits, sourceRoute).find(j => !j.isInterchange && j.metre > connection.rampEntryM)
-                    : nearestExitBeforeQueue(source, sourceRoute, exits, approach?.fromM ?? connection.rampEntryM, connection.rampEntryM);
+                    ? diversionJunctions(source, available(source, 'exit'), sourceRoute).find(j => !j.isInterchange && j.metre > connection.rampEntryM)
+                    : nearestExitBeforeQueue(source, sourceRoute, available(source, 'exit'), approach?.fromM ?? connection.rampEntryM, connection.rampEntryM);
                 if (!from || !to || plans.has(source + ':' + from.ref + ':' + path))
                     continue;
                 const link = { id: source + '-BUNDLED-' + from.ref + '-to-' + path, code: 'SIM', path: source,
@@ -99,12 +101,13 @@ export function automaticDiversions(events, corridors, exits, cells, connections
     // under distinct keys must not replace one destination with the other.
     for (const connection of connections) {
         const source = connection.from, target = connection.to, sourceRoute = corridors[source], targetRoute = corridors[target];
-        const targetExits = bundledTargets(target, exits, targetRoute);
-        const first = targetExits.find(j => j.metre > connection.downstreamMergeM + 1);
+        const targetExits = bundledTargets(target, available(target, 'entry'), targetRoute);
+        const first = diversionJunctions(target, available(target, 'exit'), targetRoute)
+            .find(j => !j.isInterchange && j.metre > connection.downstreamMergeM + 1) ?? targetExits.at(-1);
         let end = connection.downstreamMergeM;
         const relevant = cells[target] ? cellQueueSpans(cells[target]).filter(s => s.fromM <= first.metre + 1 &&
             s.toM > connection.downstreamMergeM) : [];
-        const sourceExits = diversionJunctions(source, exits, sourceRoute).filter(j => !j.isInterchange);
+        const sourceExits = diversionJunctions(source, available(source, 'exit'), sourceRoute).filter(j => !j.isInterchange);
         const lastSource = sourceExits.filter(j => j.metre < connection.rampEntryM - 1).at(-1);
         const sourceQueue = cells[source] && cellQueueSpans(cells[source]).some(s => s.toM >= (lastSource?.metre ?? connection.rampEntryM) - 1 && s.fromM < connection.rampEntryM);
         const sourceEvent = events.some(e => e.pathKey === source && (() => {
@@ -124,7 +127,7 @@ export function automaticDiversions(events, corridors, exits, cells, connections
             const at = positionM(targetRoute, event.point);
             if (at === null || at + event.settings.lengthM <= connection.downstreamMergeM || at > Math.max(first.metre, end) + 150)
                 continue;
-            const closure = closureGate(targetRoute, event, exits);
+            const closure = closureGate(targetRoute, event, exits, events);
             end = Math.max(end, closure?.endM ?? at + event.settings.lengthM + 50);
         }
         const to = targetExits.find(j => isNetworkDestination(j) || j.metre >= end - 1 && j.metre > connection.downstreamMergeM + 1);
@@ -140,14 +143,14 @@ export function automaticDiversions(events, corridors, exits, cells, connections
                 for (const span of cellQueueSpans(cells[source])) {
                     if (span.toM < (lastSource?.metre ?? connection.rampEntryM) - 1)
                         continue;
-                    const near = nearestExitBeforeQueue(source, sourceRoute, exits, span.fromM, connection.rampEntryM);
+                    const near = nearestExitBeforeQueue(source, sourceRoute, available(source, 'exit'), span.fromM, connection.rampEntryM);
                     for (const j of sources)
                         if (j.metre >= (near?.metre ?? span.fromM) - 25 && j.metre <= Math.min(span.toM, connection.rampEntryM) + 25)
                             allowed.add(j.ref);
                 }
             if (relevant.length || (turnDelays[connection.rampId] ?? 0) > 0) {
                 const approach = cells[source] && cellQueueSpans(cells[source]).find(s => s.fromM < connection.rampEntryM && s.toM >= connection.rampEntryM - cells[source].cellM);
-                const near = nearestExitBeforeQueue(source, sourceRoute, exits, approach?.fromM ?? connection.rampEntryM, connection.rampEntryM);
+                const near = nearestExitBeforeQueue(source, sourceRoute, available(source, 'exit'), approach?.fromM ?? connection.rampEntryM, connection.rampEntryM);
                 for (const j of sources)
                     if (near && (j.ref === near.ref || approach && j.metre >= approach.fromM && j.metre <= connection.rampEntryM))
                         allowed.add(j.ref);

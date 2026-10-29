@@ -2,10 +2,11 @@
  * A first-pass conservation model (not a calibrated traffic forecast).
  * No vehicle sprites, hidden road connectors, A3/A48 transfers, or invented detours.
  */
-import { buildContinuousRoads } from './cartography.js?build=2907b734e9aa6fa7';
-import { exitPosition } from './core.js?build=2907b734e9aa6fa7';
-import { PATHS, baselineCapacity, eventCapacity, defaultDemand } from './traffic.js?build=2907b734e9aa6fa7';
-import { baseLaneCapacity, colorAtSpeed, queueFundamentalDiagram, freeSpeedKmh } from './traffic-physics.js?build=2907b734e9aa6fa7';
+import { buildContinuousRoads } from './cartography.js?build=320aeaf18baab650';
+import { exitPosition } from './core.js?build=320aeaf18baab650';
+import { PATHS, baselineCapacity, eventCapacity, defaultDemand } from './traffic.js?build=320aeaf18baab650';
+import { baseLaneCapacity, colorAtSpeed, queueFundamentalDiagram, freeSpeedKmh } from './traffic-physics.js?build=320aeaf18baab650';
+import { physicalEvents, accessibleExits } from './road-controls.js?build=320aeaf18baab650';
 const rad = Math.PI / 180;
 export function metres(a, b) {
     const dx = (b[1] - a[1]) * 111195 * Math.cos((a[0] + b[0]) / 2 * rad);
@@ -87,14 +88,14 @@ export function emptySpatial() { return { minute: 0, queues: {} }; }
  * If there is no upstream local exit in the map, deny new traffic at
  * the network boundary rather than allowing it through the closure.
  */
-export function closureGate(route, event, exits) {
+export function closureGate(route, event, exits, events = []) {
     if (event.kind !== 'closure' || event.pathKey !== route.key || route.key.startsWith('ramp-'))
         return null;
     const at = positionM(route, event.point);
     if (at === null)
         return null;
     const road = route.key.startsWith('A3') ? 'A3' : 'A48';
-    const junctions = exits.filter(x => x.road === road && !/^(AD |AK )/.test(x.name))
+    const junctions = exits.filter(x => x.road === road)
         .map(exit => {
         const position = exitPosition(exit, route.key);
         return { exit: { ...exit, position }, metre: positionM(route, position, 900) };
@@ -102,7 +103,8 @@ export function closureGate(route, event, exits) {
         .filter((x) => x.metre !== null).sort((a, b) => a.metre - b.metre);
     // A marker on or immediately after an off-ramp belongs to that AS.
     // The former 50m exclusion incorrectly moved the gate to the previous AS.
-    const closest = junctions.filter(j => j.metre <= at + 1).at(-1);
+    const allowed = new Set(accessibleExits(route, events, exits, 'exit').map(e => e.road + ':' + e.ref));
+    const closest = junctions.filter(j => !/^(AD |AK )/.test(j.exit.name) && allowed.has(j.exit.road + ':' + j.exit.ref) && j.metre <= at + 1).at(-1);
     const physicalEnd = Math.min(route.lengthM, at + event.settings.lengthM);
     const end = junctions.find(j => j.metre > at + 1 && j.metre >= physicalEnd - 1);
     return { metre: closest?.metre ?? 0, exit: closest?.exit ?? null, eventM: at,
@@ -149,12 +151,12 @@ export function advanceSpatial(prev, events, demands, minutes, corridors, links 
                 throw Error('Ungültiger Zufluss');
             const route = corridors[key];
             const nodes = [];
-            for (const e of events)
+            for (const e of physicalEvents(route, events))
                 if (e.pathKey === key) {
                     const place = positionM(route, e.point);
                     if (place === null)
                         continue;
-                    const gate = exits.length ? closureGate(route, e, exits) : null;
+                    const gate = exits.length ? closureGate(route, e, exits, events) : null;
                     const nodeM = gate ? gate.metre : place;
                     const nodePoint = gate ? (routeSlice(route, Math.max(0, nodeM - 1), Math.min(route.lengthM, nodeM + 1))[0] ?? route.points[0]) : e.point;
                     nodes.push({ id: e.id, event: e, place: nodeM, point: nodePoint });
@@ -164,7 +166,7 @@ export function advanceSpatial(prev, events, demands, minutes, corridors, links 
             for (const link of links)
                 if (link.rampId === key) {
                     const closedMerge = events.some(event => {
-                        const gate = closureGate(corridors[link.to], event, exits);
+                        const gate = closureGate(corridors[link.to], event, exits, events);
                         return gate && link.downstreamMergeM >= gate.metre - 1 && link.downstreamMergeM < gate.endM - 1;
                     });
                     if (closedMerge) {

@@ -1,4 +1,4 @@
-import { validDailyRecurrence, dailyRecurrenceBounds, dailyOccurrenceAt } from './recurring-events.js?build=2907b734e9aa6fa7';
+import { validDailyRecurrence, dailyRecurrenceBounds, dailyOccurrenceAt } from './recurring-events.js?build=320aeaf18baab650';
 export const EVENT_KINDS = ['roadworks', 'accident', 'breakdown', 'closure'];
 export const eventNames = { roadworks: 'Baustelle', accident: 'Unfall', breakdown: 'Lkw-Panne', closure: 'Vollsperrung' };
 export const eventSymbols = { roadworks: '🚧', accident: '💥', breakdown: '🚛', closure: '⛔' };
@@ -42,6 +42,9 @@ export function validEvent(v) {
     if (!s || !Number.isInteger(s.lengthM) || s.lengthM < 1 || s.lengthM > maxLengthM(x.kind))
         return false;
     if (s.clearanceMin !== undefined && (!Number.isInteger(s.clearanceMin) || s.clearanceMin < 0 || s.clearanceMin > 720))
+        return false;
+    if (s.junctionClosures !== undefined && (!s.junctionClosures || typeof s.junctionClosures !== 'object' || Array.isArray(s.junctionClosures) ||
+        Object.entries(s.junctionClosures).some(([ref, mode]) => !/^\d{1,3}$/.test(ref) || !['entry', 'exit', 'both'].includes(mode))))
         return false;
     if (!isShoulder(s.shoulder) || (!directions.has(x.pathKey) && s.shoulder !== 'normal' && x.kind !== 'closure'))
         return false;
@@ -165,6 +168,8 @@ export function eventSummary(e) {
         parts.push('Standstreifen freigegeben (Simulation)');
     if (e.settings.shoulder === 'blocked')
         parts.push('Standstreifen gesperrt');
+    for (const [ref, mode] of Object.entries(e.settings.junctionClosures ?? {}))
+        parts.push('AS ' + ref + ': ' + (mode === 'entry' ? 'Auffahrt' : mode === 'exit' ? 'Abfahrt' : 'Auf- und Abfahrt') + ' gesperrt');
     if (e.kind !== 'closure' && !flowPolicy(e).canEnter)
         parts.push('Prognose: Freigabe eines Fahrstreifens in angenommenen ' + (e.settings.clearanceMin ?? DEFAULT_CLEARANCE_MIN) + ' min');
     return parts.join(' · ');

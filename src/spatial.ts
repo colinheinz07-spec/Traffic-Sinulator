@@ -8,6 +8,7 @@ import type {SimEvent} from './events.js';
 import type {RampConnection} from './interchange.js';
 import {PATHS,baselineCapacity,eventCapacity,defaultDemand,type PathKey,type TrafficColor} from './traffic.js';
 import {baseLaneCapacity,colorAtSpeed,queueFundamentalDiagram,freeSpeedKmh} from './traffic-physics.js';
+import {physicalEvents,accessibleExits} from './road-controls.js';
 
 export interface Corridor {key:PathKey;points:Point[];metres:number[];lengthM:number}
 export interface SpeedHistorySample {minute:number;speedKmh:number}
@@ -79,20 +80,21 @@ export function emptySpatial():SpatialState{return {minute:0,queues:{}}}
  * If there is no upstream local exit in the map, deny new traffic at
  * the network boundary rather than allowing it through the closure.
  */
-export function closureGate(route:Corridor,event:SimEvent,exits:readonly Exit[]):{
+export function closureGate(route:Corridor,event:SimEvent,exits:readonly Exit[],events:readonly SimEvent[]=[]):{
  metre:number;exit:Exit|null;eventM:number;endM:number;endExit:Exit|null
 }|null{
  if(event.kind!=='closure'||event.pathKey!==route.key||route.key.startsWith('ramp-'))return null;
  const at=positionM(route,event.point);
  if(at===null)return null;
  const road=route.key.startsWith('A3')?'A3':'A48';
- const junctions=exits.filter(x=>x.road===road&&!/^(AD |AK )/.test(x.name))
+ const junctions=exits.filter(x=>x.road===road)
   .map(exit=>{const position=exitPosition(exit,route.key as RoadId);
    return {exit:{...exit,position},metre:positionM(route,position,900)};})
   .filter((x):x is {exit:Exit;metre:number}=>x.metre!==null).sort((a,b)=>a.metre-b.metre);
  // A marker on or immediately after an off-ramp belongs to that AS.
  // The former 50m exclusion incorrectly moved the gate to the previous AS.
- const closest=junctions.filter(j=>j.metre<=at+1).at(-1);
+ const allowed=new Set(accessibleExits(route,events,exits,'exit').map(e=>e.road+':'+e.ref));
+ const closest=junctions.filter(j=>!/^(AD |AK )/.test(j.exit.name)&&allowed.has(j.exit.road+':'+j.exit.ref)&&j.metre<=at+1).at(-1);
  const physicalEnd=Math.min(route.lengthM,at+event.settings.lengthM);
  const end=junctions.find(j=>j.metre>at+1&&j.metre>=physicalEnd-1);
  return {metre:closest?.metre??0,exit:closest?.exit??null,eventM:at,
@@ -136,9 +138,9 @@ export function advanceSpatial(prev:SpatialState,events:readonly SimEvent[],dema
   const route=corridors[key];
   const nodes:{id:string;event:SimEvent|null;place:number;point:Point;limitVph?:number;
    leavingVpm?:number;joiningVpm?:number}[]=[];
-  for(const e of events)if(e.pathKey===key){
+  for(const e of physicalEvents(route,events))if(e.pathKey===key){
    const place=positionM(route,e.point);if(place===null)continue;
-   const gate=exits.length?closureGate(route,e,exits):null;
+   const gate=exits.length?closureGate(route,e,exits,events):null;
    const nodeM=gate?gate.metre:place;
    const nodePoint=gate?(routeSlice(route,Math.max(0,nodeM-1),Math.min(route.lengthM,nodeM+1))[0]??route.points[0]!):e.point;
    nodes.push({id:e.id,event:e,place:nodeM,point:nodePoint});
@@ -146,7 +148,7 @@ export function advanceSpatial(prev:SpatialState,events:readonly SimEvent[],dema
   // If a downstream jam reaches a REAL motorway merge, incoming ramp traffic
   // becomes a queue at that ramp. It is no longer an uncounted red overlay.
   for(const link of links)if(link.rampId===key){
-   const closedMerge=events.some(event=>{const gate=closureGate(corridors[link.to],event,exits);
+   const closedMerge=events.some(event=>{const gate=closureGate(corridors[link.to],event,exits,events);
     return gate&&link.downstreamMergeM>=gate.metre-1&&link.downstreamMergeM<gate.endM-1;});
    if(closedMerge){
     nodes.push({id:'closed-merge:'+key,event:null,place:Math.max(0,route.lengthM-.5),

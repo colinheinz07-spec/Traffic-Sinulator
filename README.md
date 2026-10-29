@@ -1,6 +1,24 @@
-# A3/A48 Stausimulator – TRAFFIC 1.12.13
+# A3/A48 Stausimulator – TRAFFIC 1.12.14
 
 **Ein Repository, eine Startdatei:** `index.html` im Hauptverzeichnis direkt in SPCK öffnen. Keine Cloudflare-Konfiguration und keine externe Kartenbibliothek.
+
+## Sperrgrenzen, überlagerte Spuren und Baustellen-Anschlussstellen (1.12.14)
+
+Eine Sperre Montabaur–AD Dernbach endet jetzt auch am Autobahndreieck. Bisher wurden nur reguläre Anschlussstellen als Sperrende berücksichtigt: Richtung Köln sprang das Ende dadurch bis Ransbach-Baumbach und sperrte fälschlich die danach einmündende A48-Rampe. Reguläre Ausleitungen liegen weiterhin an nutzbaren AS; AD/AK dienen zusätzlich als Abschnittsgrenzen. Eine vor dem Abzweig liegende Sperre bleibt für diesen Abzweig relevant. Die Rampenprüfung und der Zellfluss verwenden dieselbe Sperrgrenze, einschließlich gesperrter AS-Ausfahrten.
+
+`road-controls.ts` verknüpft physische Spursperrungen nur dort, wo sich ihre realen Streckenintervalle überlagern. Baustelle links/mittig plus Pannen-Lkw rechts ergibt dort keinen Durchfluss, solange kein nutzbarer Standstreifen verbleibt. Dafür wird kein zusätzliches administratives Vollsperrungs-Ereignis erzeugt. Die bekannte Wiederfreigabe-Prognose bleibt für den tatsächlichen physischen Block erhalten. Gleichartige überlagerte Ereignisse dürfen keine zusätzlichen Bremsfaktoren multiplizieren.
+
+Alle Hauptspuren können bei Baustellen, Unfall oder Panne gesperrt und der Standstreifen freigegeben werden. Im Formular gibt es zusätzlich die Aktion **„Alle Hauptspuren sperren · über Standstreifen führen“**. Aus einer administrativen Vollsperrung wird dabei eine befahrbare Baustellenführung mit passender positiver Geschwindigkeit. Der Standstreifen behält seine reduzierte Modellkapazität; die Hauptfahrstreifen werden dadurch nicht wieder geöffnet.
+
+Im Baustellenformular erscheinen reguläre AS innerhalb des gewählten Abschnitts. Pro AS lassen sich **nur Auffahrt**, **nur Abfahrt** oder **beides** sperren; die Auswahl gilt für diese Fahrtrichtung und wird mit dem Ereignis gespeichert. Neue Umfahrungen wählen nutzbare Ausfahrten und Wiedereinfahrten getrennt. Eine geschlossene Ausfahrt kann nicht als noch erreichbare Abfahrmöglichkeit auf dem Zielabschnitt gelten. Ist Ransbachs Ausfahrt geschlossen, können die gebundenen Frankfurt-Fahrten über den nächsten offenen Köln-seitigen Anschluss weitergeführt werden. Bestehende Rampen- und Umleitungsbestände bleiben in ihrer Bilanz; neue Einfahrten werden an geschlossenen Auffahrten nicht angenommen.
+
+Zellenspeicher im Baustellenbereich entsprechen jetzt den tatsächlich nutzbaren Fahrstreifen, mit 130 Fzg/km je Spur als Modell-Staudichte. Rückstau von einem Unfall hinter der Baustelle belegt innerhalb einer einspurigen Verkehrsführung nur diese Spur. Schon vorhandene Bestände werden beim Verengen erhalten und nehmen oberhalb des neuen Speicherlimits keinen weiteren Zufluss an. Für die kurzzeitige Anfahrleistung bleibt die bisherige Spitzenleistung offener Spuren verfügbar; die lokale empfangende Kennlinie bleibt unter 30 km/h und innerhalb der vorhandenen stabilen Rechenschritte. Auf der Karte liegen die berechneten Farben auf den nutzbaren Spuren, gesperrte Baustellenspuren sind grau.
+
+Das eingestellte Tempo ist eine **Obergrenze**. Lokale Einfädel- und Spurwechselphasen am Baustellenanfang beeinflussen den tatsächlich übertragenen Fluss, abhängig von Belegung und Verkehrsführung. Die beobachtete Zellgeschwindigkeit erscheint auch unterhalb der Staudichte im Baustellenband; eine geringere Geschwindigkeit allein zählt weiterhin nicht als Stau. Unterlast kann ohne Rückstau durchfahren, bei anhaltendem Zufluss über der Abflussleistung entsteht ein Rückstau. Die Referenzzuflüsse und Grundkapazitäten werden dafür nicht angehoben.
+
+Geprüft: Typprüfung, **548 JavaScript-Tests**, sechs Geometrie- und fünf Fahrstreifenprüfungen. Die neuen Regressionen umfassen beidseitige Montabaur–AD-Sperren mit tatsächlich befahrener Köln-Rampe, vertauschte Ereignisreihenfolge bei überlagerten Spursperren, reine Standstreifenführung, nachgelagerten Unfall mit einspurigem Baustellenrückstau, alle drei AS-Optionen samt Speicherung und Richtungstrennung, gesperrte Ausfahrten im Umleitungssystem und Fahrten unterhalb des Tempolimits. Die Prüfungen gegen extreme Verzögerungswerte, verlorene Fahrzeuge und zurückbleibende Staus bleiben erhalten.
+
+13 mobile Chromium-Prüffälle bei 390 × 844 Pixel mit Touch-Emulation: Formularaktionen, Speichern und Neuladen, AS-Auswahl, Überlagerung und Freigabe, Einspur-Rückstau sowie Unter- und Überlast. Ein Vergleich mit 1.12.13 reproduziert die fälschlich blockierte Köln-Rampe; der neue Stand lässt sie im selben Szenario durchfahren. Keine Browser-Laufzeitfehler; maximale Abweichung der gemeinsamen Fahrzeugbilanz unter 0,000001 Fahrzeugen. Keine Prüfung auf einem physischen iPhone.
 
 ## Unregelmäßige Stauwellen und verbleibende Fahrt am AD (1.12.13)
 

@@ -1,27 +1,28 @@
-import { PATHS, pathBottleneck, defaultDemands, demandAtMinute, demandAtClock } from './traffic.js?build=2907b734e9aa6fa7';
-import { networkData } from './geodata.js?build=2907b734e9aa6fa7';
-import { routeReport } from './network-report.js?build=2907b734e9aa6fa7';
-import { makeCorridors, routeSlice, positionM, closureGate, advanceSpatial, emptySpatial, jamsAt } from './spatial.js?build=2907b734e9aa6fa7';
-import { initialiseCells } from './traffic-cells.js?build=2907b734e9aa6fa7';
-import { speedDelayLabel } from './speed-delay.js?build=2907b734e9aa6fa7';
-import { trafficView } from './traffic-view.js?build=2907b734e9aa6fa7';
-import { resolveSpeedBands } from './traffic-physics.js?build=2907b734e9aa6fa7';
-import { advanceRoutedNetwork, remainingInterchangeDemands } from './routed-traffic.js?build=2907b734e9aa6fa7';
-import { routedDiversionChoice, requiredDiversionGate } from './diversion-policy.js?build=2907b734e9aa6fa7';
-import { automaticDiversions } from './auto-diversions.js?build=2907b734e9aa6fa7';
-import { buildRampConnections, rampSpillbacks, interchangeDelays, interchangeTrafficShare } from './interchange.js?build=2907b734e9aa6fa7';
-import { journeyRampCapacity, journeyRampJams, rampCapacity } from './interchange-journeys.js?build=2907b734e9aa6fa7';
-import { planDiversion } from './diversions.js?build=2907b734e9aa6fa7';
-import { junctionMovements, junctionMovementHint } from './junction-movements.js?build=2907b734e9aa6fa7';
-import { bundledDetourGeometry, bundledExitRoutes, bundledTargets, isNetworkDestination } from './bundled-detours.js?build=2907b734e9aa6fa7';
-import { emptyDetour, detourVehicles } from './detour-flow.js?build=2907b734e9aa6fa7';
-import { decodeEvents, eventFromHit, updatedEvent, eventNames, eventSymbols, eventSummary, defaultLengthM, maxLengthM, suggestedSpeed, DEFAULT_CLEARANCE_MIN, STORAGE_KEY, isEventKind, validEvent, effectiveEventsAt, eventScheduleStatus } from './events.js?build=2907b734e9aa6fa7';
-import { roadLaneInfo, rampLaneInfo } from './lane-info.js?build=2907b734e9aa6fa7';
-import { mapCandidates, chooseMapHits, closestJunction, lanePositions, hitLabel } from './selection.js?build=2907b734e9aa6fa7';
-import { buildContinuousRoads, lineWidths, rampBadges, layoutJunctionLabels } from './cartography.js?build=2907b734e9aa6fa7';
-import { placeJamCallout } from './map-callouts.js?build=2907b734e9aa6fa7';
-import { installScheduleForm } from './schedule-form.js?build=2907b734e9aa6fa7';
-import { DIRECTIONS, validateMap, names, mercator, inverse, exitPosition } from './core.js?build=2907b734e9aa6fa7';
+import { PATHS, pathBottleneck, defaultDemands, demandAtMinute, demandAtClock } from './traffic.js?build=320aeaf18baab650';
+import { networkData } from './geodata.js?build=320aeaf18baab650';
+import { routeReport } from './network-report.js?build=320aeaf18baab650';
+import { makeCorridors, routeSlice, positionM, closureGate, advanceSpatial, emptySpatial, jamsAt } from './spatial.js?build=320aeaf18baab650';
+import { initialiseCells } from './traffic-cells.js?build=320aeaf18baab650';
+import { speedDelayLabel } from './speed-delay.js?build=320aeaf18baab650';
+import { trafficView } from './traffic-view.js?build=320aeaf18baab650';
+import { resolveSpeedBands } from './traffic-physics.js?build=320aeaf18baab650';
+import { advanceRoutedNetwork, remainingInterchangeDemands } from './routed-traffic.js?build=320aeaf18baab650';
+import { routedDiversionChoice, requiredDiversionGate } from './diversion-policy.js?build=320aeaf18baab650';
+import { automaticDiversions } from './auto-diversions.js?build=320aeaf18baab650';
+import { buildRampConnections, rampSpillbacks, interchangeDelays, interchangeTrafficShare } from './interchange.js?build=320aeaf18baab650';
+import { journeyRampCapacity, journeyRampJams, rampCapacity } from './interchange-journeys.js?build=320aeaf18baab650';
+import { diversionJunctions, planDiversion } from './diversions.js?build=320aeaf18baab650';
+import { junctionMovements, junctionMovementHint } from './junction-movements.js?build=320aeaf18baab650';
+import { bundledDetourGeometry, bundledExitRoutes, bundledTargets, isNetworkDestination } from './bundled-detours.js?build=320aeaf18baab650';
+import { emptyDetour, detourVehicles } from './detour-flow.js?build=320aeaf18baab650';
+import { decodeEvents, eventFromHit, updatedEvent, eventNames, eventSymbols, eventSummary, flowPolicy, defaultLengthM, maxLengthM, suggestedSpeed, DEFAULT_CLEARANCE_MIN, STORAGE_KEY, isEventKind, validEvent, effectiveEventsAt, eventScheduleStatus } from './events.js?build=320aeaf18baab650';
+import { roadLaneInfo, rampLaneInfo } from './lane-info.js?build=320aeaf18baab650';
+import { mapCandidates, chooseMapHits, closestJunction, lanePositions, hitLabel } from './selection.js?build=320aeaf18baab650';
+import { buildContinuousRoads, lineWidths, rampBadges, layoutJunctionLabels } from './cartography.js?build=320aeaf18baab650';
+import { placeJamCallout } from './map-callouts.js?build=320aeaf18baab650';
+import { installScheduleForm } from './schedule-form.js?build=320aeaf18baab650';
+import { roadSections, physicalEvents } from './road-controls.js?build=320aeaf18baab650';
+import { DIRECTIONS, validateMap, names, mercator, inverse, exitPosition } from './core.js?build=320aeaf18baab650';
 const $ = (id) => { const element = document.getElementById(id); if (!element)
     throw Error(`Element fehlt: ${id}`); return element; };
 const canvas = $('map'), wrapper = canvas.parentElement;
@@ -177,6 +178,47 @@ function formPathKey() {
 }
 function chosenLanes() { return Array.from(document.querySelectorAll('#event-lanes input:checked')).map(x => Number(x.value)); }
 function currentShoulder() { return $('event-shoulder').value; }
+let formJunctionClosures = {};
+function renderEventJunctionChoices() {
+    const container = $('event-junctions'), kind = $('event-kind').value;
+    container.replaceChildren();
+    $('event-junction-row').hidden = kind !== 'roadworks' || formPathKey().startsWith('ramp-');
+    if ($('event-junction-row').hidden)
+        return;
+    const path = formPathKey(), route = spatialCorridors[path];
+    const point = editingEventId ? events.find(e => e.id === editingEventId)?.point : selected?.point;
+    const at = point ? positionM(route, point) : null;
+    if (at === null)
+        return;
+    const end = at + Number($('event-length').value);
+    const junctions = diversionJunctions(path, exits, route).filter(j => !j.isInterchange && j.metre >= at - 1 && j.metre <= end + 1);
+    if (!junctions.length) {
+        container.textContent = 'Keine reguläre Anschlussstelle im gewählten Baustellenabschnitt.';
+        return;
+    }
+    for (const j of junctions) {
+        const label = document.createElement('label');
+        label.className = 'row-label';
+        label.textContent = j.name;
+        const select = document.createElement('select');
+        select.dataset.junctionRef = j.ref;
+        for (const [value, text] of [['open', 'Auf- und Abfahrt offen'], ['entry', 'Nur Auffahrt gesperrt'], ['exit', 'Nur Abfahrt gesperrt'], ['both', 'Auf- und Abfahrt gesperrt']]) {
+            const option = document.createElement('option');
+            option.value = value;
+            option.textContent = text;
+            select.append(option);
+        }
+        select.value = formJunctionClosures[j.ref] ?? 'open';
+        select.onchange = () => {
+            if (select.value === 'open')
+                delete formJunctionClosures[j.ref];
+            else
+                formJunctionClosures[j.ref] = select.value;
+        };
+        label.append(select);
+        container.append(label);
+    }
+}
 function renderEventLaneChoices(preset) {
     const help = $('event-lane-help'), parent = $('event-lanes');
     const selectedBefore = preset ?? chosenLanes();
@@ -210,6 +252,7 @@ function updateEventConfigPreview(resetSpeed = false) {
     const count = formLaneCount(), closed = kind === 'closure' ? Array.from({ length: count }, (_, i) => i) : chosenLanes();
     const shoulder = $('event-shoulder'), shoulderRow = $('event-shoulder-row');
     const isRamp = formPathKey().startsWith('ramp-');
+    $('event-shoulder-only').hidden = isRamp;
     shoulderRow.hidden = isRamp;
     $('event-shoulder-note').hidden = isRamp;
     if (isRamp)
@@ -245,12 +288,23 @@ function updateEventConfigPreview(resetSpeed = false) {
         ? 'Vollsperrung: Betroffene Fahrten verlassen die Autobahn an der letzten regulären AS davor. Ein noch vor der Sperre offener Autobahnabzweig bleibt für dessen Fahrtziel erreichbar. Auffahrten in den gesperrten Abschnitt bleiben geschlossen; vorhandene Fahrzeuge fahren heraus.'
         : open === 0 ? 'Kein freier Fahrstreifen: derzeit kein Durchfluss. Ein Unfall ist trotzdem KEIN formales Vollsperrungs-Ereignis.'
             : `${open} nutzbare Fahrstreifen (davon ${mode === 'open' ? '1 Standstreifen' : '0 Standstreifen'}). Geschwindigkeitsvorschlag ${suggested} km/h – frei anpassbar. Nur Simulationsannahme, keine StVO-Vorgabe.`;
+    renderEventJunctionChoices();
+    const point = editingEventId ? events.find(e => e.id === editingEventId)?.point : selected?.point;
+    if (point && kind !== 'closure') {
+        const candidate = { id: editingEventId ?? 'preview', kind, pathKey: formPathKey(), point, laneCount: count, closedLanes: closed,
+            createdAt: new Date().toISOString(), settings: { lengthM: Number(input.value), speedKmh: Number(speed.value), shoulder: mode } };
+        const effective = physicalEvents(spatialCorridors[candidate.pathKey], [...activeEvents().filter(e => e.id !== candidate.id), candidate])
+            .find(e => e.id === candidate.id);
+        if (flowPolicy(candidate).canEnter && !flowPolicy(effective).canEnter)
+            $('event-rule-hint').textContent += ' Zusammen mit den vorhandenen Spursperren ist hier kein Fahrstreifen mehr befahrbar.';
+    }
 }
 function beginEventForm() {
     if (!selected)
         return;
     editingEventId = null;
     speedManuallyChanged = false;
+    formJunctionClosures = {};
     $('new-event-button').hidden = true;
     $('event-form').hidden = false;
     $('event-kind').value = 'roadworks';
@@ -268,6 +322,7 @@ function beginEditEvent() {
     if (!current)
         return;
     const id = current.id;
+    formJunctionClosures = { ...current.settings.junctionClosures };
     clearEventUi();
     editingEventId = id;
     speedManuallyChanged = current.settings.speedKmh !== suggestedSpeed(current.kind, current.laneCount, current.closedLanes, current.settings.shoulder);
@@ -293,6 +348,8 @@ function saveNewEvent() {
     const count = formLaneCount();
     const closed = chosenLanes();
     const settings = { lengthM: Number($('event-length').value), speedKmh: Number($('event-speed').value), shoulder: currentShoulder(),
+        ...(kind === 'roadworks' ? { junctionClosures: Object.fromEntries(Array.from($('event-junctions').querySelectorAll('select'))
+                .filter(s => s.value !== 'open').map(s => [s.dataset.junctionRef, s.value])) } : {}),
         ...(!$('event-forecast-row').hidden ? { clearanceMin: Number($('event-clearance').value) } : {}) };
     try {
         let entry;
@@ -549,6 +606,8 @@ function renderJunctionMovements(path) {
                     ' Fzg · Kreuzungsabfluss bis ' + trafficNumber(row.exitTerminalVph) + ' Fzg/h (Modellannahme)';
             if (row.entryClosed)
                 split.textContent += ' · ⛔ Auffahrt geschlossen';
+            if (row.exitClosed)
+                split.textContent += ' · ⛔ Abfahrt geschlossen';
             card.append(split);
             const note = document.createElement('span');
             note.className = 'junction-note';
@@ -572,7 +631,7 @@ function drawJunctionMovementHints(width, height) {
     // Closed entries remain visible even when the panel shows the opposite
     // direction. Give the mandatory movement priority over ordinary traffic.
     const rows = DIRECTIONS.flatMap(path => junctionRows(path)
-        .filter(row => path === key || row.entryClosed))
+        .filter(row => path === key || row.entryClosed || row.exitClosed))
         .sort((a, b) => Number(b.mandatory) - Number(a.mandatory) || Number(b.entryClosed) - Number(a.entryClosed));
     const used = [
         ...trafficLabelRects,
@@ -580,7 +639,7 @@ function drawJunctionMovementHints(width, height) {
         ...activeEvents().map(event => { const [x, y] = toScreen(event.point); return { x: x - 25, y: y - 25, width: 50, height: 50 }; })
     ];
     for (const row of rows) {
-        if (row.exit.isInterchange || !row.entryClosed && row.desiredPercent <= 0 && row.outVph <= 0 && row.inVph <= 0)
+        if (row.exit.isInterchange || !row.entryClosed && !row.exitClosed && row.desiredPercent <= 0 && row.outVph <= 0 && row.inVph <= 0)
             continue;
         const [x, y] = toScreen(row.exit.position);
         if (x < 24 || x > width - 24 || y < 78 || y > height - 90)
@@ -594,10 +653,10 @@ function drawJunctionMovementHints(width, height) {
         context.save();
         context.fillStyle = '#091e2ce9';
         context.fillRect(candidate.x, candidate.y, candidate.width, candidate.height);
-        context.strokeStyle = row.entryClosed ? '#ffcd76' : '#52bfe6';
+        context.strokeStyle = row.entryClosed || row.exitClosed ? '#ffcd76' : '#52bfe6';
         context.lineWidth = 1.3;
         context.strokeRect(candidate.x, candidate.y, candidate.width, candidate.height);
-        context.fillStyle = row.entryClosed ? '#ffdd9c' : '#d1f1ff';
+        context.fillStyle = row.entryClosed || row.exitClosed ? '#ffdd9c' : '#d1f1ff';
         context.fillText(label.title, candidate.x + 6, candidate.y + 15, w - 12);
         context.font = '10px system-ui';
         context.fillText(label.flow, candidate.x + 6, candidate.y + 31, w - 12);
@@ -793,10 +852,10 @@ function renderTraffic() {
         const legacy = routeReport(key, jams.filter(j => !j.id.startsWith('journey-ramp:')), spillbacks, timeline);
         const link = rampConnections.find(c => c.rampId === key);
         const closed = link && timeline.some(e => {
-            const gate = closureGate(spatialCorridors[link.to], e, exits);
+            const gate = closureGate(spatialCorridors[link.to], e, exits, timeline);
             return gate && link.downstreamMergeM >= gate.metre - 1 && link.downstreamMergeM < gate.endM - 1;
         });
-        shownCapacity = closed ? 0 : Math.min(rampCapacity(key, timeline, currentDemands()), legacy.capacityVph);
+        shownCapacity = closed ? 0 : Math.min(rampCapacity(key, timeline, currentDemands(), spatialCorridors[key]), legacy.capacityVph);
         normalOut = Math.min(shownCapacity, activeDemands[key] - (extraRampFlow.get(key)?.enter ?? 0) + legacy.ownVehicles * 60);
     }
     $('traffic-capacity').textContent = trafficNumber(shownCapacity);
@@ -1070,12 +1129,18 @@ function drawTiles(width, height) {
             imageCache.delete(key);
     }
 }
-function stroke(points, width, color) {
+function stroke(points, width, color, offset = 0) {
     if (points.length < 2)
         return;
     context.beginPath();
     for (let i = 0; i < points.length; i++) {
-        const [x, y] = toScreen(points[i]);
+        let [x, y] = toScreen(points[i]);
+        if (offset) {
+            const a = toScreen(points[Math.max(0, i - 1)]), b = toScreen(points[Math.min(points.length - 1, i + 1)]);
+            const dx = b[0] - a[0], dy = b[1] - a[1], length = Math.hypot(dx, dy) || 1;
+            x -= dy / length * offset;
+            y += dx / length * offset;
+        }
         if (i === 0)
             context.moveTo(x, y);
         else
@@ -1166,17 +1231,37 @@ function drawSpatialJams() {
     const terminalFeeders = new Set(spillbacks.filter(s => Math.abs(s.sourceAnchorM - spatialCorridors[s.source].lengthM) < 1).map(s => s.source));
     for (const [key, bands] of view.bands) {
         const route = spatialCorridors[key], narrow = key.startsWith('ramp-');
+        const count = key.startsWith('A48') ? 2 : 3;
+        const restricted = narrow ? [] : roadSections(route, timeline).filter(s => s.openLanes.length < count);
+        const drawOpen = (line, section, color) => {
+            const lanes = [...section.openLanes, ...(section.shoulderOpen ? [-1] : [])];
+            for (const lane of lanes)
+                stroke(line, widths.motorway / count + .15, color, ((count - 1) / 2 - lane) * widths.motorway / count);
+        };
+        for (const section of restricted) {
+            const line = routeSlice(route, section.fromM, section.toM);
+            stroke(line, widths.motorway + .65, '#667582');
+            drawOpen(line, section, '#26bb7c');
+        }
         const shown = terminalFeeders.has(key)
             ? resolveSpeedBands([...bands, ...(view.spillBands.get(key) ?? [])]) : bands;
         for (const band of shown) {
             if (band.color === 'free')
                 continue;
-            const line = routeSlice(route, band.fromM, band.toM);
-            if (line.length < 2)
-                continue;
-            const width = narrow ? widths.ramp : widths.motorway;
-            stroke(line, width + 1.5, '#112537');
-            stroke(line, width + .65, jamColors[band.color]);
+            const cuts = [band.fromM, ...restricted.flatMap(s => [s.fromM, s.toM]).filter(m => m > band.fromM && m < band.toM), band.toM].sort((a, b) => a - b);
+            for (let i = 1; i < cuts.length; i++) {
+                const from = cuts[i - 1], to = cuts[i], line = routeSlice(route, from, to);
+                if (line.length < 2)
+                    continue;
+                const section = restricted.find(s => s.fromM < (from + to) / 2 && s.toM > (from + to) / 2);
+                if (section && (section.openLanes.length || section.shoulderOpen))
+                    drawOpen(line, section, jamColors[band.color]);
+                else {
+                    const width = narrow ? widths.ramp : widths.motorway;
+                    stroke(line, width + 1.5, '#112537');
+                    stroke(line, width + .65, jamColors[band.color]);
+                }
+            }
         }
     }
     // A branch off a continuing motorway keeps its separate narrow exit lane.
@@ -1419,6 +1504,15 @@ function bind() {
     } };
     $('event-kind').addEventListener('change', () => { renderEventLaneChoices(); updateEventConfigPreview(true); scheduleForm.display(); });
     $('event-shoulder').addEventListener('change', () => updateEventConfigPreview());
+    $('event-length').addEventListener('change', () => updateEventConfigPreview());
+    $('event-shoulder-only').onclick = () => {
+        if ($('event-kind').value === 'closure')
+            $('event-kind').value = 'roadworks';
+        $('event-shoulder').value = 'open';
+        speedManuallyChanged = false;
+        renderEventLaneChoices(Array.from({ length: formLaneCount() }, (_, i) => i));
+        updateEventConfigPreview();
+    };
     $('event-speed').addEventListener('change', () => { speedManuallyChanged = true; updateEventConfigPreview(); });
     $('event-edit').onclick = beginEditEvent;
     $('event-save').onclick = saveNewEvent;

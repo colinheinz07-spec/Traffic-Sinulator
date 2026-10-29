@@ -1,11 +1,12 @@
-import { INTERCHANGE_DIVERSION_START_MIN, interchangeTrafficShare } from './interchange.js?build=2907b734e9aa6fa7';
-import { baselineCapacity, eventCapacity, defaultDemand } from './traffic.js?build=2907b734e9aa6fa7';
-import { positionM, closureGate, metres } from './spatial.js?build=2907b734e9aa6fa7';
-import { cellQueueSpans } from './traffic-cells.js?build=2907b734e9aa6fa7';
-import { diversionJunctions } from './diversions.js?build=2907b734e9aa6fa7';
-import { bundledTargets, bundledDetourGeometry, isNetworkDestination } from './bundled-detours.js?build=2907b734e9aa6fa7';
-import { speedDelayInCells } from './speed-delay.js?build=2907b734e9aa6fa7';
-import { queueFundamentalDiagram, colorAtSpeed } from './traffic-physics.js?build=2907b734e9aa6fa7';
+import { INTERCHANGE_DIVERSION_START_MIN, interchangeTrafficShare } from './interchange.js?build=320aeaf18baab650';
+import { baselineCapacity, eventCapacity, defaultDemand } from './traffic.js?build=320aeaf18baab650';
+import { positionM, closureGate, metres } from './spatial.js?build=320aeaf18baab650';
+import { cellQueueSpans } from './traffic-cells.js?build=320aeaf18baab650';
+import { diversionJunctions } from './diversions.js?build=320aeaf18baab650';
+import { bundledTargets, bundledDetourGeometry, isNetworkDestination } from './bundled-detours.js?build=320aeaf18baab650';
+import { accessibleExits, physicalEvents } from './road-controls.js?build=320aeaf18baab650';
+import { speedDelayInCells } from './speed-delay.js?build=320aeaf18baab650';
+import { queueFundamentalDiagram, colorAtSpeed } from './traffic-physics.js?build=320aeaf18baab650';
 /** A detour of one configured turn cannot acquire the entire A48's
  * destination mix when its mainline reference volume is larger. */
 export function journeyTrafficShare(config, demands) {
@@ -19,14 +20,18 @@ export function journeyTrafficShare(config, demands) {
     const movement = Math.max(0, demands[config.movementId] ?? defaultDemand(config.movementId));
     return source > 0 ? Math.min(share, movement / source) : 0;
 }
-export function rampCapacity(id, events, demands) {
-    return Math.min(baselineCapacity(id), ...events.filter(e => e.pathKey === id).map(e => eventCapacity(e, demands[id])));
+export function rampCapacity(id, events, demands, route) {
+    const physical = route ? physicalEvents(route, events) : events;
+    return Math.min(baselineCapacity(id), ...physical.filter(e => e.pathKey === id).map(e => eventCapacity(e, demands[id])));
 }
 export function journeyRampCapacity(config, events, demands) {
     const j = config.journey;
     if (j?.kind !== 'via' && j?.kind !== 'protected' && j?.kind !== 'evacuation')
         return config.geometry.roadCapacityVph;
-    const total = rampCapacity(j.rampId, events, demands);
+    const points = config.geometry.points, cumulative = [0];
+    for (let i = 1; i < points.length; i++)
+        cumulative.push(cumulative[i - 1] + metres(points[i - 1], points[i]));
+    const total = rampCapacity(j.rampId, events, demands, { key: j.rampId, points, metres: cumulative, lengthM: cumulative.at(-1) });
     // The alternate Köln ramp also carries its normal Köln traffic. Do not
     // give the additional Frankfurt journey another full copy of its lanes.
     const reserved = j.kind === 'via' ? (demands[j.rampId] ?? defaultDemand(j.rampId)) : 0;
@@ -48,7 +53,7 @@ export function journeyRampJams(entries, routes, events, demands) {
         if (waiting < .01)
             continue;
         const route = routes[path], anchorM = Math.max(0, route.lengthM - .5);
-        const flow = Math.min(rampCapacity(path, events, demands), group.reduce((n, e) => n + (e.state.travelFlowVph ?? 0), 0));
+        const flow = Math.min(rampCapacity(path, events, demands, route), group.reduce((n, e) => n + (e.state.travelFlowVph ?? 0), 0));
         const base = queueFundamentalDiagram(Math.min(flow, baselineCapacity(path) * .95), 1, path);
         const density = Math.max(base.densityVehPerKm, waiting / (anchorM / 1000));
         const queueM = waiting / density * 1000, speedKmh = flow > 0 ? Math.min(80, flow / density) : 0;
@@ -95,13 +100,13 @@ export function viaJourneyUsable(config, cells, routes, events, exits, demands) 
     const source = routes[config.path], target = routes[config.targetPath];
     for (const e of events) {
         if (e.pathKey === config.path) {
-            const gate = closureGate(source, e, exits), at = positionM(source, e.point);
+            const gate = closureGate(source, e, exits, events), at = positionM(source, e.point);
             if (gate && gate.metre < config.sourceEndM && gate.endM > j.decisionM ||
                 at !== null && at >= j.decisionM && at < config.sourceEndM && eventCapacity(e, demands[config.path]) === 0)
                 return false;
         }
         if (e.pathKey === config.targetPath) {
-            const gate = closureGate(target, e, exits), at = positionM(target, e.point);
+            const gate = closureGate(target, e, exits, events), at = positionM(target, e.point);
             if (gate && gate.metre < j.localExitM && gate.endM > config.toM ||
                 at !== null && at >= config.toM && at < j.localExitM && eventCapacity(e, demands[config.targetPath]) === 0)
                 return false;
@@ -120,20 +125,21 @@ export function interchangeJourneys(events, routes, exits, cells, connections, t
     for (const event of events) {
         if (event.kind !== 'closure' || !event.pathKey.startsWith('A3-'))
             continue;
-        const path = event.pathKey, route = routes[path], gate = closureGate(route, event, exits), at = positionM(route, event.point);
+        const path = event.pathKey, route = routes[path], gate = closureGate(route, event, exits, events), at = positionM(route, event.point);
         if (!gate?.exit || at === null)
             continue;
         for (const c of connections.filter(c => c.from === path && c.to === 'A48-koblenz' &&
-            c.rampEntryM > gate.metre + 1 && c.rampEntryM < gate.endM)) {
+            c.rampEntryM > gate.metre + 1 && (c.rampEntryM < gate.endM ||
+            gate.endExit && /^(AD |AK )/.test(gate.endExit.name) && at < c.rampEntryM))) {
             const approachClosed = events.some(e => {
                 if (e.kind !== 'closure' || e.pathKey !== path)
                     return false;
-                const block = closureGate(route, e, exits), point = positionM(route, e.point);
+                const block = closureGate(route, e, exits, events), point = positionM(route, e.point);
                 return block && point !== null && block.metre < c.rampEntryM && point <= c.rampEntryM;
             });
-            if (approachClosed || rampCapacity(c.rampId, events, {}) <= 0) {
+            if (approachClosed || rampCapacity(c.rampId, events, {}, routes[c.rampId]) <= 0) {
                 const from = diversionJunctions(path, exits, route).find(j => j.ref === gate.exit.ref);
-                const to = bundledTargets(c.to, exits, routes[c.to]).find(j => j.metre > c.downstreamMergeM);
+                const to = bundledTargets(c.to, accessibleExits(routes[c.to], events, exits, 'entry'), routes[c.to]).find(j => j.metre > c.downstreamMergeM);
                 const key = 'CLOSED-TURN-' + event.id + '-' + c.rampId;
                 const option = plan(key, path, from, c.to, to, bundledDetourGeometry(key, path, from, to, exits), c.rampId, event);
                 option.sourceEndM = c.rampEntryM;
@@ -154,8 +160,8 @@ export function interchangeJourneys(events, routes, exits, cells, connections, t
             // Only cars already PAST the last regular exit and still BEFORE the
             // open AD branch can leave the closed arm this way. New through trips
             // use the mandatory regular exit. No backward motorway jump is allowed.
-            const localFrom = diversionJunctions(c.to, exits, routes[c.to]).find(j => !j.isInterchange && j.metre > c.downstreamMergeM);
-            const localTo = bundledTargets(path, exits, route).find(j => j.metre >= gate.endM - 1);
+            const localFrom = diversionJunctions(c.to, accessibleExits(routes[c.to], events, exits, 'exit'), routes[c.to]).find(j => !j.isInterchange && j.metre > c.downstreamMergeM);
+            const localTo = bundledTargets(path, accessibleExits(route, events, exits, 'entry'), route).find(j => j.metre >= gate.endM - 1);
             if (localFrom && localTo) {
                 const key = 'EVACUATE-' + event.id + '-' + c.rampId + '-' + localTo.ref, token = 'evacuation:' + key;
                 const escape = plan(key, path, from, c.to, to, motorwayGeometry(key, ramp), undefined, event);
@@ -163,7 +169,7 @@ export function interchangeJourneys(events, routes, exits, cells, connections, t
                 escape.targetEntryM = c.downstreamMergeM;
                 escape.journey = { kind: 'evacuation', token, rampId: c.rampId, closureEventId: event.id, gateM: gate.metre, forcedByEventId: event.id };
                 result.push(escape);
-                const localKey = key + '-LOCAL', local = plan(localKey, c.to, localFrom, path, localTo, bundledDetourGeometry(localKey, c.to, localFrom, localTo, exits), undefined, event);
+                const localKey = key + '-LOCAL-' + localFrom.ref, local = plan(localKey, c.to, localFrom, path, localTo, bundledDetourGeometry(localKey, c.to, localFrom, localTo, exits), undefined, event);
                 local.journey = { kind: 'continuation', token };
                 result.push(local);
             }
@@ -174,9 +180,13 @@ export function interchangeJourneys(events, routes, exits, cells, connections, t
     if (!intended || !alternate)
         return result;
     const source = intended.from, target = intended.to, sourceRoute = routes[source], targetRoute = routes[target];
-    const from = diversionJunctions(source, exits, sourceRoute).filter(e => !e.isInterchange && e.metre < intended.rampEntryM).at(-1);
-    const localFrom = diversionJunctions(alternate.to, exits, routes[alternate.to]).find(e => !e.isInterchange && e.metre > alternate.downstreamMergeM);
-    const targets = bundledTargets(target, exits, targetRoute), first = targets.find(e => e.metre > intended.downstreamMergeM);
+    const from = diversionJunctions(source, accessibleExits(sourceRoute, events, exits, 'exit'), sourceRoute).filter(e => !e.isInterchange && e.metre < intended.rampEntryM).at(-1);
+    const localFrom = diversionJunctions(alternate.to, accessibleExits(routes[alternate.to], events, exits, 'exit'), routes[alternate.to]).find(e => !e.isInterchange && e.metre > alternate.downstreamMergeM);
+    if (!from || !localFrom)
+        return result;
+    const targets = bundledTargets(target, accessibleExits(targetRoute, events, exits, 'entry'), targetRoute);
+    const first = diversionJunctions(target, accessibleExits(targetRoute, events, exits, 'exit'), targetRoute)
+        .find(e => !e.isInterchange && e.metre > intended.downstreamMergeM) ?? targets.at(-1);
     const relevant = cells[target] ? cellQueueSpans(cells[target]).filter(s => s.fromM < first.metre && s.toM > intended.downstreamMergeM) : [];
     const related = events.filter(e => e.pathKey === intended.rampId || e.pathKey === target && (() => {
         const at = positionM(targetRoute, e.point);
@@ -188,14 +198,14 @@ export function interchangeJourneys(events, routes, exits, cells, connections, t
     for (const e of related)
         if (e.pathKey === target) {
             const at = positionM(targetRoute, e.point);
-            end = Math.max(end, closureGate(targetRoute, e, exits)?.endM ?? at + e.settings.lengthM + 50);
+            end = Math.max(end, closureGate(targetRoute, e, exits, events)?.endM ?? at + e.settings.lengthM + 50);
         }
     const localTo = targets.find(e => isNetworkDestination(e) || e.metre >= end - 1 && e.metre > intended.downstreamMergeM);
     const token = 'via-frankfurt:' + localTo.ref, key = 'A48-VIA-KOELN-TO-' + localTo.ref;
     const ramp = rampFor(alternate);
     const rampFrom = anchor(source, 'AD-' + alternate.rampId, 'AD Dernbach · Köln-Rampe', ramp.points[0], Math.min(alternate.rampEntryM, sourceRoute.lengthM - .1));
     const rampTo = anchor(alternate.to, 'merge-' + alternate.rampId, 'AD Dernbach · A3 Köln', ramp.points.at(-1), alternate.downstreamMergeM);
-    const localKey = 'A3-RANSBACH-VIA-FRANKFURT-' + localTo.ref;
+    const localKey = 'A3-' + localFrom.ref + '-VIA-FRANKFURT-' + localTo.ref;
     const localGeometry = bundledDetourGeometry(localKey, alternate.to, localFrom, localTo, exits);
     const geometry = motorwayGeometry(key, ramp);
     const forced = closedMovementEvent(intended.rampId, target, intended.downstreamMergeM, first.metre, events, routes);

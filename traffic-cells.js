@@ -1,8 +1,9 @@
-import { positionM, closureGate } from './spatial.js?build=2907b734e9aa6fa7';
-import { baselineCapacity, eventCapacity } from './traffic.js?build=2907b734e9aa6fa7';
-import { flowPolicy, DEFAULT_CLEARANCE_MIN } from './events.js?build=2907b734e9aa6fa7';
-import { colorAtSpeed, freeSpeedKmh, QUEUE_JAM_DENSITY_PER_LANE, CONGESTION_WAVE_KMH } from './traffic-physics.js?build=2907b734e9aa6fa7';
-import { normalJunctionTraffic, exitRampVehicles, DEFAULT_EXIT_TERMINAL_VPH, DEFAULT_EXIT_STORAGE_VEHICLES } from './junction-traffic.js?build=2907b734e9aa6fa7';
+import { positionM, closureGate } from './spatial.js?build=320aeaf18baab650';
+import { baselineCapacity, eventCapacity } from './traffic.js?build=320aeaf18baab650';
+import { flowPolicy, DEFAULT_CLEARANCE_MIN } from './events.js?build=320aeaf18baab650';
+import { colorAtSpeed, freeSpeedKmh, QUEUE_JAM_DENSITY_PER_LANE, CONGESTION_WAVE_KMH } from './traffic-physics.js?build=320aeaf18baab650';
+import { normalJunctionTraffic, exitRampVehicles, DEFAULT_EXIT_TERMINAL_VPH, DEFAULT_EXIT_STORAGE_VEHICLES } from './junction-traffic.js?build=320aeaf18baab650';
+import { roadSections, physicalEvents, junctionAccess } from './road-controls.js?build=320aeaf18baab650';
 const TARGET_CELL_M = 100, WAVE_KMH = CONGESTION_WAVE_KMH, JAM_PER_LANE = QUEUE_JAM_DENSITY_PER_LANE;
 // One observation per MODEL minute; repainting/pause never advances this.
 const TRAVEL_ALPHA = 1 - Math.exp(-1 / 6);
@@ -65,18 +66,43 @@ function localControls(route, events, demandVph, count, cellM, exits = []) {
     const closedEntries = [];
     const closureGates = [];
     const forecasts = new Map(), unknownBlocks = new Set();
-    for (const event of events) {
+    const sections = roadSections(route, events);
+    const openLanes = Array.from({ length: count }, () => Array.from({ length: laneCount }, (_, i) => i));
+    const shoulders = Array(count).fill(false), storageLanes = Array(count).fill(laneCount);
+    const weaving = new Map();
+    const otherPhysical = events.filter(e => e.pathKey === route.key && e.kind !== 'roadworks' && e.kind !== 'closure').flatMap(e => {
+        const at = positionM(route, e.point);
+        return at === null ? [] : [{ fromM: at, toM: at + e.settings.lengthM }];
+    });
+    for (const s of sections)
+        for (let i = Math.floor(s.fromM / cellM); i < Math.min(count, Math.ceil(s.toM / cellM)); i++) {
+            // A complete point obstruction closes its through FACE. Cars queued
+            // immediately before it still occupy the otherwise available approach
+            // lanes and can leave at a local exit; zero sending across the entire
+            // cell would also erase that legal exit service and its forecast.
+            const available = s.openLanes.length + Number(s.shoulderOpen) || s.queueLanes;
+            if (available <= storageLanes[i]) {
+                storageLanes[i] = available;
+                openLanes[i] = s.openLanes;
+                shoulders[i] = s.shoulderOpen;
+            }
+        }
+    for (const event of physicalEvents(route, events, sections)) {
         if (event.pathKey !== route.key)
             continue;
         const at = positionM(route, event.point);
         if (at === null)
             continue;
         const from = Math.max(0, at), to = Math.min(route.lengthM, from + event.settings.lengthM);
+        if (event.kind === 'roadworks' && event.closedLanes.length && flowPolicy(event).canEnter &&
+            !otherPhysical.some(s => s.fromM < Math.min(to, from + 300) && s.toM > from))
+            for (let i = Math.floor(from / cellM); i < Math.min(count, Math.ceil(Math.min(to, from + 300) / cellM)); i++)
+                weaving.set(i, { id: event.id, mix: event.closedLanes.length / event.laneCount });
         // An administrative closure forbids entry at the last exit, NOT travel
         // for cars already in the road segment after that exit. Do not reduce
         // free speeds downstream of that gate.
         if (event.kind === 'closure' && exits.length) {
-            const gate = closureGate(route, event, exits);
+            const gate = closureGate(route, event, exits, events);
             if (!gate)
                 continue;
             const face = gate.exit ? Math.max(1, Math.min(count, Math.round(gate.metre / cellM))) : 0;
@@ -108,7 +134,7 @@ function localControls(route, events, demandVph, count, cellM, exits = []) {
         }
         faceControls[face].push(JSON.stringify([event.id, event.kind, event.closedLanes, event.settings]));
         const policy = flowPolicy(event);
-        if (event.closedLanes.length && policy.openMainLanes > 0) {
+        if (event.closedLanes.length && policy.openTotalLanes > 0) {
             // Sustained capacity is eventCapacity(). A short dense platoon can
             // pass at a smaller headway (~1.6s), then brake and leave a gap. Capping
             // every such burst at the hourly mean erased the faster moving phases.
@@ -120,11 +146,17 @@ function localControls(route, events, demandVph, count, cellM, exits = []) {
                 releaseHeads.set(face, { face, event, capacity: limit, maximum: Math.min(baselineCapacity(route.key), 2250 * (policy.openMainLanes + (event.settings.shoulder === 'open' ? .65 : 0))) });
         }
     }
-    const jam = JAM_PER_LANE * laneCount;
-    const capacity = speeds.map(v => Math.min(baselineCapacity(route.key), v * WAVE_KMH * jam / (v + WAVE_KMH)));
+    const jam = storageLanes.map(n => JAM_PER_LANE * n);
+    // Short open-lane platoons retain their peak service while the work zone
+    // stores cars only on its usable lanes. The local backward branch remains
+    // below 30 km/h, inside the free-speed CFL step already used by the solver.
+    const capacity = speeds.map((v, i) => {
+        const restricted = storageLanes[i] < laneCount, w = restricted ? 30 : WAVE_KMH;
+        return Math.min(baselineCapacity(route.key), restricted ? 2250 * (openLanes[i].length + (shoulders[i] ? .65 : 0) || storageLanes[i]) : Infinity, v * w * jam[i] / (v + w));
+    });
     for (const face of unknownBlocks)
         forecasts.delete(face);
-    return { speeds, capacity, faceCapacity, faceControls: faceControls.map(c => c.sort().join('|')), jam, releases: [...releaseHeads.values()], closedEntries, closureGates, forecasts };
+    return { speeds, capacity, faceCapacity, faceControls: faceControls.map(c => c.sort().join('|')), jam, storageLanes, openLanes, shoulders, weaving, releases: [...releaseHeads.values()], closedEntries, closureGates, forecasts };
 }
 const dischargeHistories = new Map();
 function dischargeSeed(id) {
@@ -250,8 +282,9 @@ export function advanceCells(previous, route, events, demandVph, exits = [], por
     // former clipped linear receiver admitted capacity at much higher density
     // too, leaving kilometres of stationary orange traffic after reopening.
     // Calibrate the backward branch to Q/v instead of clipping a steeper
-    // branch at Q. Its wave speed stays within the existing 22-km/h CFL bound.
-    const receivingWave = capacity.map((q, i) => q / (jam - q / speeds[i]));
+    // branch at Q. Restricted-lane receivers stay below 30 km/h; the CFL
+    // step is already bounded by the faster free-road characteristic.
+    const receivingWave = capacity.map((q, i) => q / (jam[i] - q / speeds[i]));
     const localCritical = capacity.map((q, i) => Math.min(q, faceCapacity[i + 1] > 0 ? faceCapacity[i + 1] : Infinity) / speeds[i]);
     const passages = new Map();
     for (const gate of controls.closureGates) {
@@ -287,7 +320,8 @@ export function advanceCells(previous, route, events, demandVph, exits = [], por
             throw Error('Ungültiger Anschlussstellenzufluss');
         const old = previous.junctions?.find(j => j.id === d.id);
         const face = Math.max(1, Math.min(n - 1, Math.round(d.metre / previous.cellM)));
-        const entryBlocked = closedEntries.some(c => d.metre >= c.fromM && d.metre < c.toM);
+        const access = junctionAccess(route, events, d.metre, d.ref);
+        const entryBlocked = !access.entry || closedEntries.some(c => d.metre >= c.fromM && d.metre < c.toM), exitBlocked = !access.exit;
         // Apply the SAME delay-based route choice to new local trips. This is
         // demand avoided before entering our network, not cars deleted from an
         // existing ramp queue. Actual ramp/side-road capacities do not set it.
@@ -297,7 +331,7 @@ export function advanceCells(previous, route, events, demandVph, exits = [], por
             waiting: old?.waiting ?? 0, offeredTotal: old?.offeredTotal ?? 0,
             enteredTotal: old?.enteredTotal ?? 0, exitedTotal: old?.exitedTotal ?? 0, lastEntered: 0, lastExited: 0, lastExitDemand: 0, lastExitAdmitted: 0,
             exitQueue: { normal: old?.exitQueue?.normal ?? 0, detours: { ...old?.exitQueue?.detours } },
-            face, entryBlocked };
+            face, entryBlocked, exitBlocked };
     });
     // An existing ramp queue is a vehicle inventory, even if a caller stops
     // offering new local demand. It may still merge and must never be dropped.
@@ -307,7 +341,8 @@ export function advanceCells(previous, route, events, demandVph, exits = [], por
                 ...old, entryVph: 0, exitPercent: 0, entryAvoidancePercent: 0, lastEntered: 0, lastExited: 0, lastExitDemand: 0, lastExitAdmitted: 0,
                 exitQueue: { normal: old.exitQueue?.normal ?? 0, detours: { ...old.exitQueue?.detours } },
                 face: Math.max(1, Math.min(n - 1, Math.round(old.metre / previous.cellM))),
-                entryBlocked: closedEntries.some(c => old.metre >= c.fromM && old.metre < c.toM)
+                entryBlocked: !junctionAccess(route, events, old.metre, old.ref).entry || closedEntries.some(c => old.metre >= c.fromM && old.metre < c.toM),
+                exitBlocked: !junctionAccess(route, events, old.metre, old.ref).exit
             });
     const occupancy = previous.cells.map(c => c.vehicles);
     const closures = controls.closureGates.map(g => {
@@ -325,7 +360,7 @@ export function advanceCells(previous, route, events, demandVph, exits = [], por
     for (const port of routed) {
         if (port.from >= 1)
             departuresAt.set(port.from, [...(departuresAt.get(port.from) ?? []), port]);
-        if (port.to >= 1 && port.toM !== null && !closedEntries.some(c => port.toM >= c.fromM && port.toM < c.toM))
+        if (port.to >= 1 && port.toM !== null && !localAt.get(port.to)?.entryBlocked && !closedEntries.some(c => port.toM >= c.fromM && port.toM < c.toM))
             returnsAt.set(port.to, [...(returnsAt.get(port.to) ?? []), port]);
     }
     const density = new Float64Array(n), send = new Float64Array(n), receive = new Float64Array(n);
@@ -351,7 +386,9 @@ export function advanceCells(previous, route, events, demandVph, exits = [], por
     const grouped = exitClasses.size > 0 || passages.size > 0;
     const boundaryClasses = new Map(classIds.map(id => [id, previous.routedBacklog?.[id] ?? 0]));
     const exitStock = new Float64Array(n), exitSend = new Float64Array(n), exitReceive = new Float64Array(n);
-    const lanes = cellLanes(route.key), exitJam = jam / lanes;
+    const lanes = controls.storageLanes;
+    const movementSpeeds = [...speeds];
+    const storageCeilings = previous.cells.map((c, i) => Math.max(c.vehicles, jam[i] * dx));
     const classSending = (id, i) => {
         const selected = selectedGroup(id, i), stock = selected ? exitStock[i] : Math.max(0, occupancy[i] - exitStock[i]);
         const flow = selected ? exitSend[i] : Math.max(0, send[i] - exitSend[i]);
@@ -369,7 +406,7 @@ export function advanceCells(previous, route, events, demandVph, exits = [], por
     if (!grouped)
         for (let i = 1; i < n - 1; i++) {
             if (speeds[i - 1] !== speeds[i] || speeds[i + 1] !== speeds[i] ||
-                capacity[i - 1] !== capacity[i] || capacity[i + 1] !== capacity[i])
+                capacity[i - 1] !== capacity[i] || capacity[i + 1] !== capacity[i] || jam[i - 1] !== jam[i] || jam[i + 1] !== jam[i])
                 continue;
             let node = false;
             for (let at = i - 1; at <= i + 2; at++)
@@ -406,25 +443,29 @@ export function advanceCells(previous, route, events, demandVph, exits = [], por
         for (let i = 0; i < n; i++) {
             const k = occupancy[i] / dx;
             density[i] = k;
-            send[i] = Math.min(speeds[i] * k, capacity[i]) * dtMin / 60;
-            receive[i] = Math.min(receivingWave[i] * Math.max(0, jam - k), capacity[i]) * dtMin / 60;
+            const weave = controls.weaving.get(i);
+            const load = Math.min(1, k * speeds[i] / Math.max(1, capacity[i]));
+            const hesitation = weave ? Math.max(0, 1 - platoonServiceFactor(weave.id + ':weave', previous.minute + sub * dtMin, 1.1)) : 0;
+            movementSpeeds[i] = speeds[i] * (1 - (weave?.mix ?? 0) * load * (.06 + .20 * hesitation));
+            send[i] = Math.min(movementSpeeds[i] * k, capacity[i]) * dtMin / 60;
+            receive[i] = Math.min(receivingWave[i] * Math.max(0, jam[i] - k), capacity[i]) * dtMin / 60;
             if (grouped) {
                 const tagged = classIds.reduce((s, id) => s + classStock.get(id)[i], 0);
                 exitStock[i] = (ordinaryExitLane[i] ? Math.max(0, occupancy[i] - tagged) : 0) +
                     classIds.reduce((s, id) => s + (selectedGroup(id, i) ? classStock.get(id)[i] : 0), 0);
-                const ek = exitStock[i] / dx, q = capacity[i] / lanes;
+                const ek = exitStock[i] / dx, q = capacity[i] / lanes[i];
                 // Closure-bound cars still use the free motorway normally until the
                 // physical exit queue reaches them. Do not reserve one lane for all
                 // those trips tens of kilometres before they encounter that queue.
                 const queuedExit = ordinaryExitLane[i] ? k > localCritical[i] * 1.10 : ek > q / speeds[i] * 1.10;
                 const selectedCapacity = ordinaryExitLane[i] && !queuedExit ? capacity[i] : q;
-                const exitFlow = Math.min(speeds[i] * ek, selectedCapacity);
+                const exitFlow = Math.min(movementSpeeds[i] * ek, selectedCapacity);
                 const throughCapacity = capacity[i] - (queuedExit ? q : 0);
-                const otherFlow = Math.min(speeds[i] * Math.max(0, k - ek), throughCapacity);
+                const otherFlow = Math.min(movementSpeeds[i] * Math.max(0, k - ek), throughCapacity);
                 const scale = exitFlow + otherFlow > 0 ? Math.min(1, capacity[i] / (exitFlow + otherFlow)) : 0;
                 send[i] = (exitFlow + otherFlow) * scale * dtMin / 60;
                 exitSend[i] = exitFlow * scale * dtMin / 60;
-                exitReceive[i] = Math.min(selectedCapacity, receivingWave[i] * Math.max(0, exitJam - ek)) * dtMin / 60;
+                exitReceive[i] = Math.min(selectedCapacity, receivingWave[i] * Math.max(0, JAM_PER_LANE - ek)) * dtMin / 60;
             }
         }
         for (const i of waveCells) {
@@ -437,8 +478,8 @@ export function advanceCells(previous, route, events, demandVph, exits = [], por
                 continue;
             const slope = Math.sign(left) * Math.min(2 * Math.abs(left), Math.abs((left + right) / 2), 2 * Math.abs(right));
             const courant = receivingWave[i] * dtMin / (60 * dx);
-            const edge = Math.max(critical, Math.min(jam, k - .5 * (1 - courant) * slope));
-            receive[i] = Math.min(capacity[i], receivingWave[i] * (jam - edge), Math.max(0, jam * dx - occupancy[i]) * 60 / dtMin) * dtMin / 60;
+            const edge = Math.max(critical, Math.min(jam[i], k - .5 * (1 - courant) * slope));
+            receive[i] = Math.min(capacity[i], receivingWave[i] * (jam[i] - edge), Math.max(0, jam[i] * dx - occupancy[i]) * 60 / dtMin) * dtMin / 60;
         }
         // Drivers approach a locally visible slow tail instead of retaining
         // free speed until they hit its last 100m cell. Comfortable braking
@@ -450,7 +491,7 @@ export function advanceCells(previous, route, events, demandVph, exits = [], por
         let slowAt = -1, slowSpeed = 0;
         for (let i = n - 1; i >= 0; i--) {
             const k = density[i];
-            if (slowAt > i && k < jam * .55) {
+            if (slowAt > i && k < jam[i] * .55) {
                 const distance = (slowAt - i) * previous.cellM;
                 if (distance <= 500) {
                     const limit = Math.sqrt((slowSpeed / 3.6) ** 2 + 2 * 1.4 * distance) * 3.6;
@@ -463,7 +504,7 @@ export function advanceCells(previous, route, events, demandVph, exits = [], por
                     }
                 }
             }
-            if (k >= jam * .55) {
+            if (k >= jam[i] * .55) {
                 const velocity = Math.min(speeds[i], receive[i] * 60 / dtMin / k);
                 if (velocity <= 65) {
                     slowAt = i;
@@ -550,11 +591,11 @@ export function advanceCells(previous, route, events, demandVph, exits = [], por
             const sent = new Map(classIds.map(id => [id, classSending(id, i - 1)]));
             const ordinarySend = Math.max(0, send[i - 1] - [...sent.values()].reduce((s, v) => s + v, 0));
             const totalInterest = departures.filter(p => !p.vehicleClass).reduce((s, p) => s + p.interestPercent, 0);
-            const normalFraction = (local?.exitPercent ?? 0) / 100;
+            const normalFraction = local?.exitBlocked ? 0 : (local?.exitPercent ?? 0) / 100;
             const detourFraction = Math.min(1, totalInterest / 100);
             const normalWanted = Math.min(ordinarySend, send[i - 1] * normalFraction);
             const normalRequest = Math.min(normalWanted, (local?.exitCapacityVph ?? 0) * dtMin / 60);
-            const wanted = departures.map(p => p.vehicleClass ? (sent.get(p.vehicleClass) ?? 0) *
+            const wanted = departures.map(p => local?.exitBlocked ? 0 : p.vehicleClass ? (sent.get(p.vehicleClass) ?? 0) *
                 Math.min(1, departures.filter(q => q.vehicleClass === p.vehicleClass).reduce((s, q) => s + q.interestPercent, 0) / 100) *
                 p.interestPercent / Math.max(1e-9, departures.filter(q => q.vehicleClass === p.vehicleClass).reduce((s, q) => s + q.interestPercent, 0)) :
                 totalInterest > 0 ? Math.max(0, ordinarySend - normalWanted) * detourFraction * p.interestPercent / totalInterest : 0);
@@ -688,7 +729,7 @@ export function advanceCells(previous, route, events, demandVph, exits = [], por
         for (let i = 0; i < n; i++) {
             occupancy[i] = Math.max(0, occupancy[i] + face[i] + joining[i] - face[i + 1] - leaving[i]);
             cumulativeOut[i] += face[i + 1] + leaving[i];
-            if (occupancy[i] > jam * dx + 1e-5)
+            if (occupancy[i] > storageCeilings[i] + 1e-5)
                 throw Error('Zellmodell: Speicherdichte überschritten');
             for (const id of classIds) {
                 const stock = classStock.get(id);
@@ -742,7 +783,7 @@ export function advanceCells(previous, route, events, demandVph, exits = [], por
             meanFlowVph: !sameControl ? detectorFlow :
                 observed ? oldDetector.meanFlowVph * (1 - detectorAlpha) + detectorFlow * detectorAlpha : oldDetector.meanFlowVph
         } : undefined;
-        return { ...c, vehicles: occupancy[i], flowVph: outflowVph, minuteFlowVph,
+        return { ...c, openLanes: controls.openLanes[i], shoulderOpen: controls.shoulders[i], jamDensityVehKm: jam[i], vehicles: occupancy[i], flowVph: outflowVph, minuteFlowVph,
             speedKmh: Math.max(0, speedKmh), densityVehKm,
             queueMemoryMin: densityVehKm >= localCritical[i] * 1.10 ? 3 : Math.max(0, (c.queueMemoryMin ?? 0) - 1),
             travelFlowVph, limitKmh: speeds[i], criticalDensityVehKm: localCritical[i], travelDetector,

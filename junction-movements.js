@@ -4,10 +4,11 @@
  * Every normal AS is covered; AK/AD are separate motorway nodes and cannot
  * be misrepresented as exits onto local roads.
  */
-import { names } from './core.js?build=2907b734e9aa6fa7';
-import { positionM, closureGate } from './spatial.js?build=2907b734e9aa6fa7';
-import { diversionJunctions } from './diversions.js?build=2907b734e9aa6fa7';
-import { exitRampVehicles, DEFAULT_EXIT_TERMINAL_VPH, DEFAULT_EXIT_STORAGE_VEHICLES } from './junction-traffic.js?build=2907b734e9aa6fa7';
+import { names } from './core.js?build=320aeaf18baab650';
+import { positionM, closureGate } from './spatial.js?build=320aeaf18baab650';
+import { diversionJunctions } from './diversions.js?build=320aeaf18baab650';
+import { exitRampVehicles, DEFAULT_EXIT_TERMINAL_VPH, DEFAULT_EXIT_STORAGE_VEHICLES } from './junction-traffic.js?build=320aeaf18baab650';
+import { junctionAccess } from './road-controls.js?build=320aeaf18baab650';
 /** A formal closure forces departure only at the LAST usable normal exit.
  * Earlier exits are voluntary alternatives chosen by remaining time loss,
  * independently of the tail's distance from any junction.
@@ -17,7 +18,8 @@ import { exitRampVehicles, DEFAULT_EXIT_TERMINAL_VPH, DEFAULT_EXIT_STORAGE_VEHIC
 export function junctionMovements(path, route, exits, events, _delayMin, real = [], local = []) {
     const junctions = diversionJunctions(path, exits, route);
     const rows = junctions.map((exit) => ({
-        path, exit, desiredPercent: 0, mandatory: false, entryClosed: false, eventId: null, distanceBeforeClosureKm: null,
+        path, exit, desiredPercent: 0, mandatory: false, entryClosed: !junctionAccess(route, events, exit.metre, exit.ref).entry,
+        exitClosed: !junctionAccess(route, events, exit.metre, exit.ref).exit, eventId: null, distanceBeforeClosureKm: null,
         outVph: 0, inVph: 0, vehiclesOnDetour: 0, waitingAtReentry: 0, validatedRouteActive: false,
         normalOutVph: 0, normalInVph: 0, diversionOutVph: 0, returningInVph: 0, waitingToEnter: 0, exitDemandVph: 0,
         exitRampVehicles: 0, exitRampStorageVehicles: DEFAULT_EXIT_STORAGE_VEHICLES, exitTerminalVph: DEFAULT_EXIT_TERMINAL_VPH, exitAdmittedVph: 0
@@ -27,7 +29,7 @@ export function junctionMovements(path, route, exits, events, _delayMin, real = 
         if (at === null)
             continue;
         if (event.kind === 'closure') {
-            const gate = closureGate(route, event, exits);
+            const gate = closureGate(route, event, exits, events);
             if (gate)
                 for (const row of rows)
                     if (!row.exit.isInterchange &&
@@ -91,5 +93,5 @@ export function junctionMovements(path, route, exits, events, _delayMin, real = 
 export function junctionMovementHint(row) {
     const count = (value) => value.toLocaleString('de-DE', { maximumFractionDigits: 0 });
     return { title: 'AS ' + row.exit.ref + ' · ' + names[row.path].replace(' Richtung ', ' → '),
-        flow: 'Abfahrt ' + count(row.outVph) + '/h · Auffahrt ' + count(row.inVph) + '/h' + (row.entryClosed ? ' ⛔' : '') };
+        flow: 'Abfahrt ' + count(row.outVph) + '/h' + (row.exitClosed ? ' ⛔' : '') + ' · Auffahrt ' + count(row.inVph) + '/h' + (row.entryClosed ? ' ⛔' : '') };
 }

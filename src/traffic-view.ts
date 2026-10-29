@@ -114,6 +114,14 @@ export function trafficView(
    restrictions.push({fromM:at,toM:Math.min(route.lengthM,at+event.settings.lengthM),
     speedKmh,color:colorAtSpeed(speedKmh),source:'restriction'});
   }
+  // A posted maximum is not a speed observation. Show measured cell flow
+  // within the worksite even before it reaches queued density; keep these
+  // bands separate from queueBands so a lower speed alone adds no jam km.
+  if(state)for(const restriction of [...restrictions])for(const cell of state.cells){
+   const fromM=Math.max(restriction.fromM,cell.fromM),toM=Math.min(restriction.toM,cell.toM);
+   if(toM<=fromM||cell.vehicles<.01||cell.speedKmh>=restriction.speedKmh)continue;
+   restrictions.push({fromM,toM,speedKmh:cell.speedKmh,color:colorAtSpeed(cell.speedKmh),source:'restriction'});
+  }
   const mapped=resolveSpeedBands([...restrictions,...queueBands]);
   bands.set(path,mapped);
   let ownVehicles=0;

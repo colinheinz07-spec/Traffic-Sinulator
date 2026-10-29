@@ -10,7 +10,8 @@ export const eventNames:Record<EventKind,string>={roadworks:'Baustelle',accident
 export const eventSymbols:Record<EventKind,string>={roadworks:'🚧',accident:'💥',breakdown:'🚛',closure:'⛔'};
 /** Keep old key so 0.7 events do not disappear after updating to 0.8. */
 export const STORAGE_KEY='traffic-sinulator-events-v1';
-export interface EventSettings {lengthM:number;speedKmh:number;shoulder:ShoulderMode;clearanceMin?:number}
+export type JunctionClosure='entry'|'exit'|'both';
+export interface EventSettings {lengthM:number;speedKmh:number;shoulder:ShoulderMode;clearanceMin?:number;junctionClosures?:Record<string,JunctionClosure>}
 export const DEFAULT_CLEARANCE_MIN=30;
 export interface EventPhase {startAt:string;kind:'roadworks'|'closure';closedLanes:number[];speedKmh:number;shoulder:ShoulderMode}
 export interface EventSchedule {startAt:string;endAt:string;phases:EventPhase[];recurrence?:DailyRecurrence}
@@ -47,6 +48,8 @@ export function validEvent(v:unknown):v is SimEvent{
   &&typeof x.createdAt==='string'&&Number.isFinite(Date.parse(x.createdAt))))return false;
  if(!s||!Number.isInteger(s.lengthM)||s.lengthM<1||s.lengthM>maxLengthM(x.kind))return false;
  if(s.clearanceMin!==undefined&&(!Number.isInteger(s.clearanceMin)||s.clearanceMin<0||s.clearanceMin>720))return false;
+ if(s.junctionClosures!==undefined&&(!s.junctionClosures||typeof s.junctionClosures!=='object'||Array.isArray(s.junctionClosures)||
+  Object.entries(s.junctionClosures).some(([ref,mode])=>!/^\d{1,3}$/.test(ref)||!['entry','exit','both'].includes(mode))))return false;
  if(!isShoulder(s.shoulder)||(!directions.has(x.pathKey)&&s.shoulder!=='normal'&&x.kind!=='closure'))return false;
  if(x.kind==='closure'&&s.shoulder!=='blocked')return false;
  const passable=x.kind!=='closure'&&(laneCount-x.closedLanes.length+(s.shoulder==='open'?1:0)>0);
@@ -130,6 +133,8 @@ export function eventSummary(e:SimEvent):string{
  else parts.push('Kein Fahrstreifen gesperrt');
  if(e.settings.shoulder==='open')parts.push('Standstreifen freigegeben (Simulation)');
  if(e.settings.shoulder==='blocked')parts.push('Standstreifen gesperrt');
+ for(const [ref,mode] of Object.entries(e.settings.junctionClosures??{}))
+  parts.push('AS '+ref+': '+(mode==='entry'?'Auffahrt':mode==='exit'?'Abfahrt':'Auf- und Abfahrt')+' gesperrt');
  if(e.kind!=='closure'&&!flowPolicy(e).canEnter)
   parts.push('Prognose: Freigabe eines Fahrstreifens in angenommenen '+(e.settings.clearanceMin??DEFAULT_CLEARANCE_MIN)+' min');
  return parts.join(' · ');
