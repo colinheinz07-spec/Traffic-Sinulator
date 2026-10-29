@@ -174,7 +174,9 @@ for(const [path,from,to] of [['A3-frankfurt','42','43'],['A3-koeln','43','42'],
   if(path==='A3-frankfurt'){
    const opposite=junctionMovements('A3-koeln',routes['A3-koeln'],exits,[event],null,[],cells['A3-koeln'].junctions)
     .find(r=>r.exit.ref==='42');
-   assert.equal(Math.round(opposite.inVph),199,'the screenshot count belongs to the open Cologne direction');
+   const accepted=cells['A3-koeln'].junctions.find(j=>j.ref==='42').lastEntered*60;
+   assert.ok(accepted>0,'the opposite direction continues to admit ordinary local traffic');
+   assert.equal(Math.round(opposite.inVph),Math.round(accepted),'display the actual open Cologne inflow, including the current calendar profile');
    assert.equal(opposite.entryClosed,false);assert.match(junctionMovementHint(opposite).title,/Köln/);
   }
   const committed=grid=>grid.junctions.reduce((n,j)=>n+(j.exitQueue?.detours[main.config.id]??0),0);

@@ -1,6 +1,33 @@
-# A3/A48 Stausimulator – TRAFFIC 1.12.9
+# A3/A48 Stausimulator – TRAFFIC 1.12.10
 
 **Ein Repository, eine Startdatei:** `index.html` im Hauptverzeichnis direkt in SPCK öffnen. Keine Cloudflare-Konfiguration und keine externe Kartenbibliothek.
+
+## Zwei freie Spuren und Tagesbelastung (1.12.10)
+
+Ein Vergleichslauf mit demselben Rechenmodell ist kein Nachweis, dass das Modell die reale A3 richtig abbildet. Die Standardabstimmung hielt die Verkehrsmenge zu lange nahe den Spitzenstundenwerten und verminderte die Leistung zweier freier Spuren zusätzlich durch mehrere pauschale Abschläge.
+
+Mit den unveränderten Referenzen A3 Köln 4.200 und A3 Frankfurt 4.100 Fzg/h summierte das bisherige Kalenderprofil im Mittel einer repräsentativen Modellwoche rund **103.500 Fzg/Tag in beiden Richtungen**. Als örtliche Größenordnung nennt die [Autobahn GmbH für Dierdorf–Ransbach-Baumbach](https://www.autobahn.de/planen-bauen/projekt/gruenbruecke-oberhaid) **86.013 Fzg/Tag DTV aus 2022** und 17,4 % Schwerverkehr. Ein Jahresmittel von 2022 liefert keine gemessene Stundenganglinie für 2026. Es ist hier eine grobe Plausibilitätsgrenze für die Modellabstimmung, keine exakte Verkehrsvorhersage für jeden Abschnitt.
+
+Das synthetische Kalenderprofil wird unterhalb seiner Spitzen mit dem Exponenten 1,4 geschärft. Spitzen bleiben erhalten, die Verkehrsmengen dazwischen und nachts fallen stärker ab. Der entsprechende Modellwochenmittelwert liegt mit den A3-Standardreferenzen nun bei rund **87.300 Fzg/Tag**. Die eingestellten Referenzwerte selbst sowie der Modus „Konstanter Zufluss“ bleiben unverändert. Es gibt keine automatische Zuflusssenkung in Abhängigkeit von einer gewünschten Staulänge.
+
+Bei mindestens zwei offenen regulären Spuren mit einer Fahrstreifensperrung wird die nachhaltige Spurleistung ab 60 km/h nicht zusätzlich gegen 130 km/h freie Fahrt abgewertet. Die angenommene Dienstfolge von 1.800 Fzg/h je Spur ist eine Durchflussannahme; sie benötigt keine Fahrt mit 130 km/h. Einfädel- und Schwerverkehrseffekte bleiben in kleinerem Umfang erhalten und unterscheiden weiterhin rechte, mittlere und linke Sperrungen sowie geordnete Baustellen und Unfälle. In den geprüften Zwei-Spuren-Fällen sind rund 3.400–3.550 Fzg/h mittlerer Abfluss möglich. Niedrigere Geschwindigkeiten verringern die Leistung weiterhin. Einspurige Engpässe und Vollblockaden behalten ihre bisherige Kapazitätsberechnung. Die Zahlen bleiben Szenarioannahmen, keine vor Ort vermessenen Kapazitäten.
+
+Die unabhängigen Brems- und Anfahrphasen offener Spuren bleiben bestehen; bei mehreren offenen Spuren beträgt ihre Amplitude 85 % der bisherigen Schwankung um denselben Mittelwert. Ein zweiter Fehler betraf zwei Ereignisse an derselben physischen 100-m-Engstelle: Ihre Bremsfaktoren konnten sich multiplizieren und den mittleren Durchfluss zusätzlich verschlechtern. Jetzt steuert die stärkste Einschränkung eine gemeinsame Abflussphase; räumlich getrennte Engstellen bleiben getrennt. Neue Regressionen vergleichen dafür die tatsächlichen Zellbestände und Flüsse bei einer einzelnen und einer zusätzlich schwächeren, überlagerten Einschränkung.
+
+Die vorhandenen Fahrzeuge werden weiterhin zwischen Zellen, Rampen und Umleitungen bilanziert. Anfahrphasen verändern reale Flüsse und Dichten; Kartenfarben stammen daraus. Bei einem ausreichend großen Zufluss, einer langen vorherigen Vollblockade oder überlasteten Umleitungen können weiterhin lange Staus entstehen. Es gibt keine feste maximale Staulänge und keine sofortige Räumung durch einen Farbwechsel.
+
+Geprüft: Typprüfung, **513 JavaScript-Tests**, sechs Geometrie- und fünf Fahrstreifenprüfungen. Sieben neue Regressionen prüfen die Tagesgesamtmenge bei unveränderten Referenzen, einen kontrollierten Zwei-Stunden-Fall mit 4.100 Fzg/h in beiden A3-Richtungen, den Abbau echten alten Stauinventars nach einer Vollblockade sowie überlagerte Ereignisse an einer gemeinsamen Engstelle. Die bestehende Prüfung des gewöhnlichen Abflusses verwendet für ihren überlasteten Fall jetzt 3.650 statt 3.400 Fzg/h; 3.400 liegen mit der neuen Abstimmung unter der Zweispurenleistung. Der Gegenrichtungs-Zufluss bei einer Sperre muss weiterhin positiv sein und exakt dem angenommenen Zellzufluss entsprechen; er ist nicht auf den alten, vom Kalenderprofil abhängigen Screenshotwert 199/h festgelegt.
+
+Mobile Chromium-Prüfung (390 × 844 Pixel, Touch-Emulation): zwei Läufe mit dem veröffentlichten Modell 1.12.9 als Vergleich und fünf mit 1.12.10. Die Spurfreigaben wurden über die tatsächlichen Checkboxen und „Speichern“ vorgenommen. Beide A3-Richtungen, eine zusätzliche Baustelle mit drei offenen Spuren und zwei konstante Belastungstests mit den unveränderten Referenzen 4.100 beziehungsweise 4.200 Fzg/h sind enthalten. Alle Läufe bestanden ohne Browser-Laufzeitfehler; die größte Abweichung der gemeinsamen Fahrzeugbilanz beträgt weniger als 0,000001 Fahrzeuge. Keine Prüfung auf einem physischen iPhone.
+
+Die folgenden Vergleichsszenarien verwenden A3 Frankfurt mit Standardreferenzen und automatischem Tagesprofil, eine punktuelle Vollblockade zwischen AD Dernbach und Montabaur sowie anschließend zwei offene Spuren bei 60 km/h. Die Werte werden jeweils **drei Simulationsstunden nach Freigabe** aus demselben Richtungsbericht gelesen; es sind Vergleichsläufe, nicht die Rekonstruktion eines einzelnen Nutzerfotos.
+
+| Ablauf | Vorher: km / Zeitverlust | Jetzt: km / Zeitverlust | Fahrzeuge in den angezeigten A3-Stauabschnitten, vorher → jetzt |
+| --- | --- | --- | --- |
+| Eine Stunde Vollblockade ab 07:00, danach zwei Spuren frei | 15,0 km / 43,0 min | 7,3 km / 19,4 min | 2.595 → 1.205 |
+| Zehn Stunden Vollblockade ab 22:39, danach zwei Spuren frei | 28,4 km / 75,4 min | 15,3 km / 36,3 min | 4.734 → 2.443 |
+
+In der Gegenrichtung verbleiben im entsprechenden Morgenszenario 8,1 km und 22,9 Minuten. Bei dauerhaftem Spitzenzufluss bleiben im Zwei-Stunden-Browsertest 9,3 km Richtung Frankfurt beziehungsweise 11,1 km Richtung Köln bestehen; die höhere Kölner Referenz von 4.200 Fzg/h wird dabei vollständig angeboten. Die Verbesserung beruht auf geringerer Dauerbelastung außerhalb der Spitzen, verfügbarer Zweispurenleistung und tatsächlichem Abtransport des Stauinventars.
 
 ## Sichtbarer Rampenrückstau auf der A48 (1.12.9)
 

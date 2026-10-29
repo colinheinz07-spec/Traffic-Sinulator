@@ -87,16 +87,20 @@ export function eventCapacity(e:SimEvent,
  const perLane=ramp?1500:1800;
  const laneCapacity=perLane*(policy.openMainLanes+(e.settings.shoulder==='open'?.65:0));
  const normalSpeed=defaultKmH(e.pathKey as PathKey);
- const speedRatio=Math.min(1,policy.speedKmh/normalSpeed);
- const speedAt40=.86+.14*Math.min(1,40/normalSpeed);
+ const parallel=policy.openMainLanes>=2&&e.closedLanes.length>0;
+ // The 1800 veh/h/lane reference is a saturated service headway, not
+ // 130 km/h times a fixed density. Two usable lanes can still serve that
+ // headway at 60 km/h. Do not penalize them against free motorway speed
+ // and then apply the same merge disturbance a second and third time.
+ const speedRatio=Math.min(1,policy.speedKmh/(parallel?60:normalSpeed));
+ const speedAt40=parallel?.80+.20*(40/60):.86+.14*Math.min(1,40/normalSpeed);
  const speedFactor=policy.speedKmh<40
   ?speedAt40*(.45+.55*policy.speedKmh/40)
-  :policy.openMainLanes>=2&&e.closedLanes.length>0?.93+.07*speedRatio:.86+.14*speedRatio;
- const parallel=policy.openMainLanes>=2;
+  :parallel?Math.min(1,.80+.20*speedRatio):.86+.14*speedRatio;
  // Two usable lanes can sustain orderly parallel discharge. The per-lane
  // reference already represents a sustained flow; avoid stacking the full
  // single-lane speed/merging penalty onto both available lanes again.
- const baseMerge=e.closedLanes.length===0?1:parallel?(e.kind==='roadworks'?.98:.97):e.kind==='roadworks'?.92:.87;
+ const baseMerge=e.closedLanes.length===0?1:parallel?(e.kind==='roadworks'?.995:.985):e.kind==='roadworks'?.92:.87;
  const shares=laneDemandShares(e.laneCount,heavyFraction);
  const hgvDistribution=laneDemandShares(e.laneCount,1);
  const affectedShare=e.closedLanes.reduce((sum,i)=>sum+shares[i]!,0);
@@ -107,7 +111,7 @@ export function eventCapacity(e:SimEvent,
  const constrained=remaining<=1?.45:1;
  const loading=Math.min(1,volumeVph/Math.max(1,laneCapacity));
  const extraMergeLoss=e.closedLanes.length===0?0:
-  constrained*loading*(parallel?(.04*affectedShare+.05*divertedHeavyShare):(.10*affectedShare+.14*divertedHeavyShare));
+  constrained*loading*(parallel?(.03*affectedShare+.04*divertedHeavyShare):(.10*affectedShare+.14*divertedHeavyShare));
  const mergeFactor=baseMerge*Math.max(.72,1-extraMergeLoss);
  return Math.max(0,Math.round(laneCapacity*speedFactor*mergeFactor));
 }
@@ -188,7 +192,13 @@ export function demandAtClock(base:Readonly<Record<PathKey,number>>,moment:Date)
  if(!Number.isFinite(moment.getTime()))throw Error('Ungültiges Simulationsdatum');
  const weekday=moment.getDay(),hour=moment.getHours()+moment.getMinutes()/60;
  const profile=weekday===0?SUNDAY_PROFILE:weekday===6?SATURDAY_PROFILE:WEEKDAY_PROFILE;
- const factor=interpolateHourly(profile,hour);
+ // The reference is a PEAK-hour input. The former broad curve summed to
+ // about 103,500 A3 vehicles/day across a representative model week with
+ // the defaults, perpetuating overload far outside the rush hours.
+ // Sharpen the synthetic peaks without changing their reference inputs.
+ // 1.4 is a scenario calibration, not measured hourly A3/A48 count data.
+ const raw=interpolateHourly(profile,hour);
+ const factor=raw<1?raw**1.4:raw;
  return Object.fromEntries(PATHS.map(key=>{
   let direction=1;
   if(weekday!==0&&weekday!==6){

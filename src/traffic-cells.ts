@@ -123,7 +123,7 @@ function localControls(route:Corridor,events:readonly SimEvent[],demandVph:numbe
  const speeds=Array(count).fill(free) as number[];
  const faceCapacity=Array(count+1).fill(Infinity) as number[];
  const faceControls=Array.from({length:count+1},()=>[] as string[]);
- const releases:{face:number;event:SimEvent;maximum:number}[]=[];
+ const releaseHeads=new Map<number,{face:number;event:SimEvent;maximum:number;capacity:number}>();
  const closedEntries:{fromM:number;toM:number}[]=[];
  const closureGates:Omit<CellClosure,'diverting'>[]=[];
  const forecasts=new Map<number,{waitMin:number;serviceVph:number}>(),unknownBlocks=new Set<number>();
@@ -166,17 +166,23 @@ function localControls(route:Corridor,events:readonly SimEvent[],demandVph:numbe
   }
   faceControls[face]!.push(JSON.stringify([event.id,event.kind,event.closedLanes,event.settings]));
   const policy=flowPolicy(event);
-  if(event.closedLanes.length&&policy.openMainLanes>0)
+  if(event.closedLanes.length&&policy.openMainLanes>0){
    // Sustained capacity is eventCapacity(). A short dense platoon can
    // pass at a smaller headway (~1.6s), then brake and leave a gap. Capping
    // every such burst at the hourly mean erased the faster moving phases.
-   releases.push({face,event,maximum:Math.min(baselineCapacity(route.key),
-    2250*(policy.openMainLanes+(event.settings.shoulder==='open'?.65:0)))});
+   const old=releaseHeads.get(face);
+   // One physical queue-service head per face. Coincident incidents may
+   // constrain its capacity, but must not multiply independent braking
+   // factors and silently create an extra capacity loss at the same gate.
+   if(!old||limit<old.capacity||limit===old.capacity&&event.id.localeCompare(old.event.id)<0)
+    releaseHeads.set(face,{face,event,capacity:limit,maximum:Math.min(baselineCapacity(route.key),
+     2250*(policy.openMainLanes+(event.settings.shoulder==='open'?.65:0)))});
+  }
  }
  const jam=JAM_PER_LANE*laneCount;
  const capacity=speeds.map(v=>Math.min(baselineCapacity(route.key),v*WAVE_KMH*jam/(v+WAVE_KMH)));
  for(const face of unknownBlocks)forecasts.delete(face);
- return {speeds,capacity,faceCapacity,faceControls:faceControls.map(c=>c.sort().join('|')),jam,releases,closedEntries,closureGates,forecasts};
+ return {speeds,capacity,faceCapacity,faceControls:faceControls.map(c=>c.sort().join('|')),jam,releases:[...releaseHeads.values()],closedEntries,closureGates,forecasts};
 }
 /** Driver/platoon discharge at an occupied lane bottleneck. This modulates
  * actual transferred vehicles, never just map colors. Mean service stays
@@ -422,7 +428,7 @@ export function advanceCells(previous:CellRouteState,route:Corridor,events:reado
     const open=flowPolicy(release.event).openMainLanes;
     let service=0;
     for(let lane=0;lane<open;lane++)
-     service+=platoonServiceFactor(release.event.id+':lane:'+lane,previous.minute+sub*dtMin);
+     service+=1+(open>=2?.85:1)*(platoonServiceFactor(release.event.id+':lane:'+lane,previous.minute+sub*dtMin)-1);
     const shoulder=release.event.settings.shoulder==='open'?.65:0;
     const factor=(service+shoulder)/(open+shoulder);
     currentCapacity[release.face]=Math.min(currentCapacity[release.face]!*factor,release.maximum);

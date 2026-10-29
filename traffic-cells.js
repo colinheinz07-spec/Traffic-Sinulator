@@ -1,8 +1,8 @@
-import { positionM, closureGate } from './spatial.js?build=affaac1a376e3e5c';
-import { baselineCapacity, eventCapacity } from './traffic.js?build=affaac1a376e3e5c';
-import { flowPolicy, DEFAULT_CLEARANCE_MIN } from './events.js?build=affaac1a376e3e5c';
-import { colorAtSpeed, freeSpeedKmh, QUEUE_JAM_DENSITY_PER_LANE, CONGESTION_WAVE_KMH } from './traffic-physics.js?build=affaac1a376e3e5c';
-import { normalJunctionTraffic, exitRampVehicles, DEFAULT_EXIT_TERMINAL_VPH, DEFAULT_EXIT_STORAGE_VEHICLES } from './junction-traffic.js?build=affaac1a376e3e5c';
+import { positionM, closureGate } from './spatial.js?build=3a8775b1f1ba64c0';
+import { baselineCapacity, eventCapacity } from './traffic.js?build=3a8775b1f1ba64c0';
+import { flowPolicy, DEFAULT_CLEARANCE_MIN } from './events.js?build=3a8775b1f1ba64c0';
+import { colorAtSpeed, freeSpeedKmh, QUEUE_JAM_DENSITY_PER_LANE, CONGESTION_WAVE_KMH } from './traffic-physics.js?build=3a8775b1f1ba64c0';
+import { normalJunctionTraffic, exitRampVehicles, DEFAULT_EXIT_TERMINAL_VPH, DEFAULT_EXIT_STORAGE_VEHICLES } from './junction-traffic.js?build=3a8775b1f1ba64c0';
 const TARGET_CELL_M = 100, WAVE_KMH = CONGESTION_WAVE_KMH, JAM_PER_LANE = QUEUE_JAM_DENSITY_PER_LANE;
 // One observation per MODEL minute; repainting/pause never advances this.
 const TRAVEL_ALPHA = 1 - Math.exp(-1 / 6);
@@ -61,7 +61,7 @@ function localControls(route, events, demandVph, count, cellM, exits = []) {
     const speeds = Array(count).fill(free);
     const faceCapacity = Array(count + 1).fill(Infinity);
     const faceControls = Array.from({ length: count + 1 }, () => []);
-    const releases = [];
+    const releaseHeads = new Map();
     const closedEntries = [];
     const closureGates = [];
     const forecasts = new Map(), unknownBlocks = new Set();
@@ -108,17 +108,23 @@ function localControls(route, events, demandVph, count, cellM, exits = []) {
         }
         faceControls[face].push(JSON.stringify([event.id, event.kind, event.closedLanes, event.settings]));
         const policy = flowPolicy(event);
-        if (event.closedLanes.length && policy.openMainLanes > 0)
+        if (event.closedLanes.length && policy.openMainLanes > 0) {
             // Sustained capacity is eventCapacity(). A short dense platoon can
             // pass at a smaller headway (~1.6s), then brake and leave a gap. Capping
             // every such burst at the hourly mean erased the faster moving phases.
-            releases.push({ face, event, maximum: Math.min(baselineCapacity(route.key), 2250 * (policy.openMainLanes + (event.settings.shoulder === 'open' ? .65 : 0))) });
+            const old = releaseHeads.get(face);
+            // One physical queue-service head per face. Coincident incidents may
+            // constrain its capacity, but must not multiply independent braking
+            // factors and silently create an extra capacity loss at the same gate.
+            if (!old || limit < old.capacity || limit === old.capacity && event.id.localeCompare(old.event.id) < 0)
+                releaseHeads.set(face, { face, event, capacity: limit, maximum: Math.min(baselineCapacity(route.key), 2250 * (policy.openMainLanes + (event.settings.shoulder === 'open' ? .65 : 0))) });
+        }
     }
     const jam = JAM_PER_LANE * laneCount;
     const capacity = speeds.map(v => Math.min(baselineCapacity(route.key), v * WAVE_KMH * jam / (v + WAVE_KMH)));
     for (const face of unknownBlocks)
         forecasts.delete(face);
-    return { speeds, capacity, faceCapacity, faceControls: faceControls.map(c => c.sort().join('|')), jam, releases, closedEntries, closureGates, forecasts };
+    return { speeds, capacity, faceCapacity, faceControls: faceControls.map(c => c.sort().join('|')), jam, releases: [...releaseHeads.values()], closedEntries, closureGates, forecasts };
 }
 const dischargeHistories = new Map();
 function dischargeSeed(id) {
@@ -395,7 +401,7 @@ export function advanceCells(previous, route, events, demandVph, exits = [], por
                 const open = flowPolicy(release.event).openMainLanes;
                 let service = 0;
                 for (let lane = 0; lane < open; lane++)
-                    service += platoonServiceFactor(release.event.id + ':lane:' + lane, previous.minute + sub * dtMin);
+                    service += 1 + (open >= 2 ? .85 : 1) * (platoonServiceFactor(release.event.id + ':lane:' + lane, previous.minute + sub * dtMin) - 1);
                 const shoulder = release.event.settings.shoulder === 'open' ? .65 : 0;
                 const factor = (service + shoulder) / (open + shoulder);
                 currentCapacity[release.face] = Math.min(currentCapacity[release.face] * factor, release.maximum);
