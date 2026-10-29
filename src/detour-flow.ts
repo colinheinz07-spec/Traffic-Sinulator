@@ -11,6 +11,7 @@ export type InterchangeJourney=(
   localExitM:number;choiceMinutes:number}|
  {kind:'continuation';token:string}|
  {kind:'protected';token:string;rampId:PathKey;closureEventId:string;gateM:number}|
+ {kind:'evacuation';token:string;rampId:PathKey;closureEventId:string;gateM:number}|
  {kind:'closure-bypass';forcedByEventId:string}
 )&{forcedByEventId?:string};
 export interface DetourConfig {

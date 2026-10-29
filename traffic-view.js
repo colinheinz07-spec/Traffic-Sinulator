@@ -3,13 +3,13 @@
  * Legacy queues remain the simulation input for the separate ramp ledger;
  * their synthetic lengths never truncate a mainline display queue.
  */
-import { PATHS, baselineCapacity } from './traffic.js?build=be2032f48965c933';
-import { routeSlice } from './spatial.js?build=be2032f48965c933';
-import { cellSpeedBands, cellQueueSpans } from './traffic-cells.js?build=be2032f48965c933';
-import { physicalSpeedBands, stopAndGoBands, resolveSpeedBands, freeSpeedKmh, colorAtSpeed } from './traffic-physics.js?build=be2032f48965c933';
-import { speedDelayInCells, speedDelayInBands, queueTravelHeads } from './speed-delay.js?build=be2032f48965c933';
-import { routeReport } from './network-report.js?build=be2032f48965c933';
-import { positionM } from './spatial.js?build=be2032f48965c933';
+import { PATHS, baselineCapacity } from './traffic.js?build=7745efc9892751d5';
+import { routeSlice } from './spatial.js?build=7745efc9892751d5';
+import { cellSpeedBands, cellQueueSpans } from './traffic-cells.js?build=7745efc9892751d5';
+import { physicalSpeedBands, stopAndGoBands, resolveSpeedBands, freeSpeedKmh, colorAtSpeed } from './traffic-physics.js?build=7745efc9892751d5';
+import { speedDelayInCells, speedDelayInBands, queueTravelHeads } from './speed-delay.js?build=7745efc9892751d5';
+import { routeReport } from './network-report.js?build=7745efc9892751d5';
+import { positionM } from './spatial.js?build=7745efc9892751d5';
 function extents(bands) {
     const groups = [];
     for (const b of bands) {
@@ -27,6 +27,10 @@ function extents(bands) {
 }
 function lengthM(bands) {
     return extents(resolveSpeedBands(bands)).reduce((n, g) => n + g.toM - g.fromM, 0);
+}
+function bandMeanSpeed(bands, fallback) {
+    const length = bands.reduce((n, b) => n + b.toM - b.fromM, 0);
+    return length > 0 ? bands.reduce((n, b) => n + (b.toM - b.fromM) * b.speedKmh, 0) / length : fallback;
 }
 function addDelay(a, b) {
     const forecast = a.forecastWaitMin !== undefined || b.forecastWaitMin !== undefined;
@@ -53,6 +57,8 @@ function joinWaveFragments(jams, cellM) {
                 waveHeadM: next.waveHeadM ?? jam.waveHeadM,
                 queueM: next.queueM + jam.queueM, visibleQueueM: next.anchorM - (jam.anchorM - jam.visibleQueueM),
                 queueVehicles: next.queueVehicles + jam.queueVehicles, feederM: next.feederM + jam.feederM,
+                meanSpeedKmh: (next.meanSpeedKmh * next.queueVehicles + jam.meanSpeedKmh * jam.queueVehicles) /
+                    Math.max(1e-9, next.queueVehicles + jam.queueVehicles),
                 delay, delayMin: delay.blocked ? null : delay.delayMin, speedKmh, color: colorAtSpeed(speedKmh) };
         }
         else
@@ -125,6 +131,10 @@ export function trafficView(legacy, cells, corridors, events, spills, minute) {
                 const overlap = Math.max(0, Math.min(c.toM, group.toM) - Math.max(c.fromM, group.fromM));
                 return n + c.vehicles * overlap / (c.toM - c.fromM);
             }, 0) : roots.reduce((n, r) => n + r.jam.queueVehicles * r.overlap / Math.max(.1, r.jam.visibleQueueM), 0);
+            const meanSpeedKmh = state && vehicles > 0 ? state.cells.reduce((n, c) => {
+                const overlap = Math.max(0, Math.min(c.toM, group.toM) - Math.max(c.fromM, group.fromM));
+                return n + c.vehicles * overlap / (c.toM - c.fromM) * c.speedKmh;
+            }, 0) / vehicles : bandMeanSpeed([...group.bands, ...feederBands], speedKmh);
             ownVehicles += vehicles;
             const point = routeSlice(route, Math.max(0, group.toM - 1), group.toM)[0] ?? route.points.at(-1);
             const waveHeadM = forecast ? approach?.toM : head?.toM;
@@ -139,7 +149,7 @@ export function trafficView(legacy, cells, corridors, events, spills, minute) {
                 pathKey: path, eventKind: event?.kind ?? null, point, anchorM: group.toM,
                 queueVehicles: vehicles, queueM: group.toM - group.fromM + feederM,
                 visibleQueueM: group.toM - group.fromM, delayMin: delay.blocked ? null : delay.delayMin,
-                capacityVph: serviceCapacity, speedKmh, color: colorAtSpeed(speedKmh),
+                capacityVph: serviceCapacity, speedKmh, meanSpeedKmh, color: colorAtSpeed(speedKmh),
                 released: root?.released ?? false, outOfBoundsM: 0, delay, feederM });
         }
         let delay = state ? speedDelayInCells(state) : speedDelayInBands(path, mapped);
@@ -152,10 +162,12 @@ export function trafficView(legacy, cells, corridors, events, spills, minute) {
         const queueM = path.startsWith('ramp-') ? lengthM(queueBands) + spills.filter(s => s.rampId === path)
             .reduce((n, s) => n + lengthM(overflow.get(path + '|' + s.id) ?? []), 0) :
             lengthM([...queueBands, ...(spillBands.get(path) ?? [])]);
+        const ownJams = jams.filter(j => j.pathKey === path), ownStock = ownJams.reduce((n, j) => n + j.queueVehicles, 0);
+        const meanSpeedKmh = ownStock > 0 ? ownJams.reduce((n, j) => n + j.meanSpeedKmh * j.queueVehicles, 0) / ownStock : speedKmh;
         reports[path] = { ...base, queueKm: queueM / 1000,
             ...(state ? { ownVehicles, queueVehicles: ownVehicles + base.sharedRampVehicles } : {}),
             delayMin: delay.blocked ? null : delay.delayMin, speedKmh, color: colorAtSpeed(speedKmh),
-            throughSpeedKmh: speedKmh, throughColor: colorAtSpeed(speedKmh),
+            meanSpeedKmh, throughMeanSpeedKmh: meanSpeedKmh, throughSpeedKmh: speedKmh, throughColor: colorAtSpeed(speedKmh),
             capacityVph: state?.capacityVph ?? base.capacityVph, dischargeVph: state?.dischargeVph };
         delays[path] = delay;
     }
@@ -164,6 +176,9 @@ export function trafficView(legacy, cells, corridors, events, spills, minute) {
     for (const path of PATHS) {
         const shared = spills.filter(s => s.source === path).map(s => delays[s.rampId]);
         if (shared.length) {
+            const queues = spills.filter(s => s.source === path), stock = queues.reduce((n, s) => n + s.queuedVehiclesOnMotorway, 0);
+            reports[path].exitMeanSpeedKmh = stock > 0 ? queues.reduce((n, s) => n + s.queuedVehiclesOnMotorway *
+                (reports[s.rampId].meanSpeedKmh ?? reports[s.rampId].speedKmh), 0) / stock : reports[path].speedKmh;
             reports[path].exitDelayMin = shared.some(d => d.blocked) ? null : Math.max(...shared.map(d => d.delayMin));
             reports[path].exitColor = colorAtSpeed(Math.min(freeSpeedKmh(path), ...(spillBands.get(path) ?? []).map(b => b.speedKmh)));
             const exitSpeed = Math.min(freeSpeedKmh(path), ...(spillBands.get(path) ?? []).map(b => b.speedKmh));

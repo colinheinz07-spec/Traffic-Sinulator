@@ -36,7 +36,7 @@ export function rampCapacity(id:PathKey,events:readonly SimEvent[],demands:Reado
 export function journeyRampCapacity(config:DetourConfig,events:readonly SimEvent[],
  demands:Readonly<Partial<Record<PathKey,number>>>):number{
  const j=config.journey;
- if(j?.kind!=='via'&&j?.kind!=='protected')return config.geometry.roadCapacityVph;
+ if(j?.kind!=='via'&&j?.kind!=='protected'&&j?.kind!=='evacuation')return config.geometry.roadCapacityVph;
  const total=rampCapacity(j.rampId,events,demands);
  // The alternate Köln ramp also carries its normal Köln traffic. Do not
  // give the additional Frankfurt journey another full copy of its lanes.
@@ -50,7 +50,7 @@ export function journeyRampJams(entries:readonly RoutedDetour[],routes:Readonly<
  events:readonly SimEvent[],demands:Readonly<Partial<Record<PathKey,number>>>):Jam[]{
  const groups=new Map<PathKey,RoutedDetour[]>();
  for(const e of entries){const j=e.config.journey;
-  if(j?.kind==='via'||j?.kind==='protected')groups.set(j.rampId,[...(groups.get(j.rampId)??[]),e]);
+  if(j?.kind==='via'||j?.kind==='protected'||j?.kind==='evacuation')groups.set(j.rampId,[...(groups.get(j.rampId)??[]),e]);
  }
  const result:Jam[]=[];
  for(const [path,group] of groups){
@@ -79,7 +79,7 @@ function motorwayGeometry(id:string,ramp:MotorwayLeg):DetourGeometry{
   storageVehicles:Math.max(10,lengthKm*130),sections:[{id:'motorway:'+ramp.id,capacityVph:1500}]};
 }
 function plan(key:string,source:RoadId,from:JunctionAnchor,target:RoadId,to:JunctionAnchor,
- geometry:DetourGeometry,movementId:PathKey,event:SimEvent|null):AutomaticDiversion{
+ geometry:DetourGeometry,movementId:PathKey|undefined,event:SimEvent|null):AutomaticDiversion{
  const link:DiversionLink={id:key,code:'AD',path:source,fromRoad:from.road,fromRef:from.ref,
   toRoad:to.road,toRef:to.ref,evidence:'partial',description:'Zielgebundene Fahrt über einen offenen AD-Zweig'};
  return {key,path:source,targetPath:target,from,to,geometry,link,movementId,event,
@@ -133,8 +133,13 @@ export function interchangeJourneys(events:readonly SimEvent[],routes:Readonly<R
   const path=event.pathKey as RoadId,route=routes[path],gate=closureGate(route,event,exits),at=positionM(route,event.point);
   if(!gate?.exit||at===null)continue;
   for(const c of connections.filter(c=>c.from===path&&c.to==='A48-koblenz'&&
-   c.rampEntryM>gate.metre+1&&c.rampEntryM<at)){
-   if(rampCapacity(c.rampId,events,{})<=0){
+   c.rampEntryM>gate.metre+1&&c.rampEntryM<gate.endM)){
+   const approachClosed=events.some(e=>{
+    if(e.kind!=='closure'||e.pathKey!==path)return false;
+    const block=closureGate(route,e,exits),point=positionM(route,e.point);
+    return block&&point!==null&&block.metre<c.rampEntryM&&point<=c.rampEntryM;
+   });
+   if(approachClosed||rampCapacity(c.rampId,events,{})<=0){
     const from=diversionJunctions(path,exits,route).find(j=>j.ref===gate.exit!.ref)!;
     const to=bundledTargets(c.to,exits,routes[c.to]).find(j=>j.metre>c.downstreamMergeM)!;
     const key='CLOSED-TURN-'+event.id+'-'+c.rampId;
@@ -150,6 +155,21 @@ export function interchangeJourneys(events:readonly SimEvent[],routes:Readonly<R
    option.sourceEndM=c.rampEntryM;option.targetEntryM=c.downstreamMergeM;
    option.journey={kind:'protected',token,rampId:c.rampId,closureEventId:event.id,gateM:gate.metre,forcedByEventId:event.id};
    result.push(option);
+   // Only cars already PAST the last regular exit and still BEFORE the
+   // open AD branch can leave the closed arm this way. New through trips
+   // use the mandatory regular exit. No backward motorway jump is allowed.
+   const localFrom=diversionJunctions(c.to,exits,routes[c.to]).find(j=>!j.isInterchange&&j.metre>c.downstreamMergeM);
+   const localTo=bundledTargets(path,exits,route).find(j=>j.metre>=gate.endM-1);
+   if(localFrom&&localTo){
+    const key='EVACUATE-'+event.id+'-'+c.rampId+'-'+localTo.ref,token='evacuation:'+key;
+    const escape=plan(key,path,from,c.to,to,motorwayGeometry(key,ramp),undefined,event);
+    escape.sourceEndM=c.rampEntryM;escape.targetEntryM=c.downstreamMergeM;
+    escape.journey={kind:'evacuation',token,rampId:c.rampId,closureEventId:event.id,gateM:gate.metre,forcedByEventId:event.id};
+    result.push(escape);
+    const localKey=key+'-LOCAL',local=plan(localKey,c.to,localFrom,path,localTo,
+     bundledDetourGeometry(localKey,c.to,localFrom,localTo,exits),undefined,event);
+    local.journey={kind:'continuation',token};result.push(local);
+   }
   }
  }
  const intended=connections.find(c=>c.rampId==='ramp-a48-to-frankfurt');

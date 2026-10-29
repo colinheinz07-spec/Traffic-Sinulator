@@ -21,6 +21,8 @@ export interface RouteReport {
   capacityVph:number;
   /** Minimum modelled local speed on this path, not the full-route average. */
   speedKmh:number;
+  /** Vehicle-weighted mean in the affected queue; speedKmh remains local minimum. */
+  meanSpeedKmh?:number;throughMeanSpeedKmh?:number;exitMeanSpeedKmh?:number;
   throughSpeedKmh?:number;throughColor?:TrafficColor;
   dischargeVph?:number;
   /** Traffic on the actual through carriageway. */

@@ -1,11 +1,11 @@
-import { cellQueueSpans } from './traffic-cells.js?build=be2032f48965c933';
-import { closureGate } from './spatial.js?build=be2032f48965c933';
-import { diversionJunctions, nearestExitBeforeQueue, potentialDiversionPercent } from './diversions.js?build=be2032f48965c933';
-import { speedDelayInCells } from './speed-delay.js?build=be2032f48965c933';
-import { freeSpeedKmh } from './traffic-physics.js?build=be2032f48965c933';
-import { INTERCHANGE_DIVERSION_START_MIN, interchangeTrafficShare } from './interchange.js?build=be2032f48965c933';
-import { closedMovementEvent, viaJourneyUsable, journeyRampCapacity, journeyTrafficShare } from './interchange-journeys.js?build=be2032f48965c933';
-import { exitRampVehicles, DEFAULT_EXIT_TERMINAL_VPH } from './junction-traffic.js?build=be2032f48965c933';
+import { cellQueueSpans } from './traffic-cells.js?build=7745efc9892751d5';
+import { closureGate } from './spatial.js?build=7745efc9892751d5';
+import { diversionJunctions, nearestExitBeforeQueue, potentialDiversionPercent } from './diversions.js?build=7745efc9892751d5';
+import { speedDelayInCells } from './speed-delay.js?build=7745efc9892751d5';
+import { freeSpeedKmh } from './traffic-physics.js?build=7745efc9892751d5';
+import { INTERCHANGE_DIVERSION_START_MIN, interchangeTrafficShare } from './interchange.js?build=7745efc9892751d5';
+import { closedMovementEvent, viaJourneyUsable, journeyRampCapacity, journeyTrafficShare } from './interchange-journeys.js?build=7745efc9892751d5';
+import { exitRampVehicles, DEFAULT_EXIT_TERMINAL_VPH } from './junction-traffic.js?build=7745efc9892751d5';
 function exitTerminalWait(source, metre) {
     const ramp = source.junctions?.find(j => Math.abs(j.metre - metre) < 25);
     return ramp ? exitRampVehicles(ramp) / Math.max(1, ramp.exitTerminalVph ?? DEFAULT_EXIT_TERMINAL_VPH) * 60 : 0;
@@ -133,7 +133,7 @@ export function routedDiversionChoice(entry, entries, cells, routes, events, exi
     if (!source || !destination || !route)
         throw Error('Umleitungsentscheidung ohne verbundenen Fahrbahnzustand');
     const journey = config.journey;
-    if (journey?.kind === 'protected' || journey?.kind === 'continuation') {
+    if (journey?.kind === 'protected' || journey?.kind === 'evacuation' || journey?.kind === 'continuation') {
         const at = Math.max(1, Math.min(source.cells.length - 1, Math.round(config.fromM / source.cellM))) - 1;
         const cell = source.cells[at], tagged = cell.routedVehicles?.[journey.token] ?? 0;
         return { percent: cell.vehicles > 0 ? Math.min(100, tagged / cell.vehicles * 100) : 0, mandatory: true, delayMin: 0, upstreamRank: 0 };

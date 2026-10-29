@@ -82,7 +82,7 @@ export function speedDelayInCells(state:CellRouteState,fromM=0,toM=Infinity,dete
   // k=N/L and v=q/k, L/v=N/q: exactly the usual distance/speed formula
   // in a stationary queue, without assuming a temporary local stop lasts
   // throughout the journey. Detectors persist while a released queue drains.
-  const congested=c.speedKmh<=65&&c.densityVehKm>=critical*1.10;
+  const congested=c.speedKmh<=65&&c.densityVehKm>=(c.criticalDensityVehKm??critical)*1.10;
   const head=heads.get(c.toM);
   const forecast=head?.reopeningForecast;
   const detector=congested||forecast?head?.travelDetector:undefined;

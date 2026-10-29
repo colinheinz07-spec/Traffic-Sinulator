@@ -3,8 +3,8 @@
  * NOT measured flows, road regulations, official diversion routes, or observed jams.
  * One controlling bottleneck per directional path; no A3/A48 ramp transfer yet.
  */
-import { flowPolicy } from './events.js?build=be2032f48965c933';
-import { QUEUE_JAM_DENSITY_PER_LANE } from './traffic-physics.js?build=be2032f48965c933';
+import { flowPolicy } from './events.js?build=7745efc9892751d5';
+import { QUEUE_JAM_DENSITY_PER_LANE } from './traffic-physics.js?build=7745efc9892751d5';
 export const PATHS = [
     'A3-koeln', 'A3-frankfurt', 'A48-dernbach', 'A48-koblenz',
     'ramp-a3-to-a48-from-frankfurt', 'ramp-a48-to-koeln',
@@ -74,9 +74,12 @@ export function eventCapacity(e, volumeVph = defaultDemand(e.pathKey), heavyFrac
     const speedAt40 = .86 + .14 * Math.min(1, 40 / normalSpeed);
     const speedFactor = policy.speedKmh < 40
         ? speedAt40 * (.45 + .55 * policy.speedKmh / 40)
-        : .86 + .14 * speedRatio;
+        : policy.openMainLanes >= 2 && e.closedLanes.length > 0 ? .93 + .07 * speedRatio : .86 + .14 * speedRatio;
     const parallel = policy.openMainLanes >= 2;
-    const baseMerge = e.closedLanes.length === 0 ? 1 : parallel ? (e.kind === 'roadworks' ? .97 : .95) : e.kind === 'roadworks' ? .92 : .87;
+    // Two usable lanes can sustain orderly parallel discharge. The per-lane
+    // reference already represents a sustained flow; avoid stacking the full
+    // single-lane speed/merging penalty onto both available lanes again.
+    const baseMerge = e.closedLanes.length === 0 ? 1 : parallel ? (e.kind === 'roadworks' ? .98 : .97) : e.kind === 'roadworks' ? .92 : .87;
     const shares = laneDemandShares(e.laneCount, heavyFraction);
     const hgvDistribution = laneDemandShares(e.laneCount, 1);
     const affectedShare = e.closedLanes.reduce((sum, i) => sum + shares[i], 0);

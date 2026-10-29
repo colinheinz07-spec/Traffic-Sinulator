@@ -23,6 +23,8 @@ export interface TrafficCell {
  /** Time-averaged observations for travel-time estimation. Instantaneous
   * speed remains the source for map colors and the actual cell fluxes. */
  travelFlowVph?:number;limitKmh?:number;
+ /** Free/queued transition for the local speed limit and physical head. */
+ criticalDensityVehKm?:number;
  /** Local braking approach, computed from actual dense traffic ahead.
   * Used by the physical sending flow as well as the map. */
  approachLimitKmh?:number;
@@ -46,6 +48,8 @@ export interface CellRouteState {
   * and ordinary AS traffic. Waiting AS entrants remain in cellInventory.
   * Detour departures/returns are internal transfers counted separately. */
  backlog:number;initialVehicles:number;offeredTotal:number;exitedTotal:number;
+ /** Destination ownership also survives queues outside the map boundary. */
+ routedBacklog?:Record<string,number>;
  divertedTotal?:number;rejoinedTotal?:number;lastTransfers?:CellTransfer[];
  junctions?:JunctionTrafficState[];
  dischargeVph?:number;capacityVph?:number;
@@ -57,7 +61,7 @@ export interface CellDetourPort {
  exitCapacityVph:number;returnVehicles:number;
  vehicleClass?:string;returnClass?:string;motorway?:boolean;
  closurePassage?:{eventId:string;sharePercent:number;vehicleClass:string};
- classifyAt?:{metre:number;sharePercent:number;vehicleClass:string;untilM:number};
+ classifyAt?:{metre:number;sharePercent:number;vehicleClass:string;untilM:number;seedOnly?:boolean};
 }
 export interface CellTransfer {id:string;leaveVpm:number;joinVpm:number}
 export interface CellSpeedBand {fromM:number;toM:number;speedKmh:number;color:TrafficColor;source:'cell'}
@@ -98,6 +102,9 @@ export function assertCellConservation(state:CellRouteState):void{
  const tolerance=1e-5*Math.max(1,rhs);
  if(!Number.isFinite(lhs)||!Number.isFinite(rhs)||Math.abs(lhs-rhs)>tolerance)
   throw Error('Zellmodell hat Fahrzeuge verloren oder dupliziert');
+ const boundaryClasses=Object.values(state.routedBacklog??{});
+ if(boundaryClasses.some(v=>!Number.isFinite(v)||v<0)||boundaryClasses.reduce((n,v)=>n+v,0)>state.backlog+1e-5)
+  throw Error('Zielgebundener Zufluss widerspricht dem Randrückstau');
  for(const j of state.junctions??[]){
   const ramp=[j.exitQueue?.normal??0,...Object.values(j.exitQueue?.detours??{})];
   if(ramp.some(v=>!Number.isFinite(v)||v<0)||exitRampVehicles(j)>(j.exitStorageVehicles??DEFAULT_EXIT_STORAGE_VEHICLES)+1e-6)
@@ -160,7 +167,11 @@ function localControls(route:Corridor,events:readonly SimEvent[],demandVph:numbe
   faceControls[face]!.push(JSON.stringify([event.id,event.kind,event.closedLanes,event.settings]));
   const policy=flowPolicy(event);
   if(event.closedLanes.length&&policy.openMainLanes>0)
-   releases.push({face,event,maximum:1800*(policy.openMainLanes+(event.settings.shoulder==='open'?.65:0))});
+   // Sustained capacity is eventCapacity(). A short dense platoon can
+   // pass at a smaller headway (~1.6s), then brake and leave a gap. Capping
+   // every such burst at the hourly mean erased the faster moving phases.
+   releases.push({face,event,maximum:Math.min(baselineCapacity(route.key),
+    2250*(policy.openMainLanes+(event.settings.shoulder==='open'?.65:0)))});
  }
  const jam=JAM_PER_LANE*laneCount;
  const capacity=speeds.map(v=>Math.min(baselineCapacity(route.key),v*WAVE_KMH*jam/(v+WAVE_KMH)));
@@ -192,7 +203,7 @@ export function platoonServiceFactor(id:string,minute:number):number{
  if(minute<-300)return 1;
  while(history.end<=minute){
   const i=history.episodes.length,r=(channel:number)=>dischargeRandom(history!.seed,i,channel);
-  const stop=.28+.95*r(0),rise=.22+.6*r(1),flow=2+5.1*r(2),fall=.20+.65*r(3),low=.12+.32*r(4);
+  const stop=.28+.95*r(0),rise=.22+.6*r(1),flow=1.2+1.8*r(2),fall=.20+.65*r(3),low=.12+.32*r(4);
   const total=stop+rise+flow+fall,lowWeight=stop+(rise+fall)/2;
   // Mean requested service is sustained capacity, with physical free-lane
   // capacity still limiting the actual transfer at each substep.
@@ -226,6 +237,7 @@ export function advanceCells(previous:CellRouteState,route:Corridor,events:reado
  // Calibrate the backward branch to Q/v instead of clipping a steeper
  // branch at Q. Its wave speed stays within the existing 22-km/h CFL bound.
  const receivingWave=capacity.map((q,i)=>q/(jam-q/speeds[i]!));
+ const localCritical=capacity.map((q,i)=>Math.min(q,faceCapacity[i+1]!>0?faceCapacity[i+1]!:Infinity)/speeds[i]!);
  const passages=new Map<number,NonNullable<CellDetourPort['closurePassage']>>();
  for(const gate of controls.closureGates){
   const candidate=ports.find(p=>p.closurePassage&&p.fromM!==null&&p.fromM>gate.fromM&&
@@ -299,8 +311,7 @@ export function advanceCells(previous:CellRouteState,route:Corridor,events:reado
  const face=new Float64Array(n+1),leaving=new Float64Array(n),joining=new Float64Array(n);
  const currentCapacity=new Float64Array(n+1);
  const approachLimit=new Float64Array(n);
- const critical=cellCriticalDensity(route.key);
- const classIds=[...new Set([...previous.cells.flatMap(c=>Object.keys(c.routedVehicles??{})),
+ const classIds=[...new Set([...Object.keys(previous.routedBacklog??{}),...previous.cells.flatMap(c=>Object.keys(c.routedVehicles??{})),
   ...ports.flatMap(p=>[p.vehicleClass,p.returnClass,p.closurePassage?.vehicleClass,p.classifyAt?.vehicleClass].filter((x):x is string=>!!x))])];
  const classStock=new Map(classIds.map(id=>[id,Float64Array.from(previous.cells.map(c=>c.routedVehicles?.[id]??0))]));
  const classFace=new Map(classIds.map(id=>[id,new Float64Array(n+1)]));
@@ -310,15 +321,24 @@ export function advanceCells(previous:CellRouteState,route:Corridor,events:reado
  // reduce through capacity, but cannot turn the other lanes into a FIFO
  // copy of the blocked exit. All groups still occupy the SAME cell stock.
  const exitClasses=new Set(routed.filter(p=>p.from>=1&&!p.motorway&&p.vehicleClass).map(p=>p.vehicleClass!));
+ // At a closure with an open motorway branch, the ordinary closure-bound
+ // traffic queues for the local exit. It must not occupy every lane and
+ // trap the separately owned traffic still entitled to the open branch.
+ const passageClasses=new Set([...passages.values()].map(p=>p.vehicleClass));
+ const ordinaryExitLane=Array.from({length:n},(_,i)=>[...passages.keys()].some(at=>i<at));
+ const selectedGroup=(id:string|undefined,i:number)=>!!id&&exitClasses.has(id)||ordinaryExitLane[i]&&(!id||!passageClasses.has(id));
+ const grouped=exitClasses.size>0||passages.size>0;
+ const boundaryClasses=new Map(classIds.map(id=>[id,previous.routedBacklog?.[id]??0]));
  const exitStock=new Float64Array(n),exitSend=new Float64Array(n),exitReceive=new Float64Array(n);
  const lanes=cellLanes(route.key),exitJam=jam/lanes;
  const classSending=(id:string,i:number)=>{
-  const selected=exitClasses.has(id),stock=selected?exitStock[i]!:Math.max(0,occupancy[i]!-exitStock[i]!);
+  const selected=selectedGroup(id,i),stock=selected?exitStock[i]!:Math.max(0,occupancy[i]!-exitStock[i]!);
   const flow=selected?exitSend[i]!:Math.max(0,send[i]!-exitSend[i]!);
   return stock>0?flow*classStock.get(id)![i]!/stock:0;
  };
- const classifiedJourneys=new Set(previous.classifiedJourneys??[]);
- const classifications=ports.flatMap(p=>p.classifyAt?[p.classifyAt]:[]);
+ const classifications=ports.flatMap(p=>p.classifyAt?[p.classifyAt]:[]).sort((a,b)=>Number(!!a.seedOnly)-Number(!!b.seedOnly));
+ const classifiedJourneys=new Set((previous.classifiedJourneys??[]).filter(id=>
+  classifications.some(r=>r.vehicleClass===id&&r.sharePercent>0)));
  // Throughput describes queue service only while cars actually request it.
  // An empty new bottleneck has a low arrival count, not a tiny capacity.
  const observationFaces=previous.cells.flatMap((c,i)=>Number.isFinite(faceCapacity[i+1])||c.travelDetector?[i+1]:[]);
@@ -327,6 +347,11 @@ export function advanceCells(previous:CellRouteState,route:Corridor,events:reado
  // Assign an intent to the already-present vehicles when a new journey
  // becomes available. Later arrivals are classified at its decision face.
  for(const rule of classifications)if(rule.sharePercent>0&&!classifiedJourneys.has(rule.vehicleClass)){
+  if(rule.metre<=0&&!rule.seedOnly){
+   const tagged=classIds.reduce((s,id)=>s+boundaryClasses.get(id)!,0);
+   boundaryClasses.set(rule.vehicleClass,boundaryClasses.get(rule.vehicleClass)!+
+    Math.max(0,backlog-tagged)*rule.sharePercent/100);
+  }
   for(let i=0;i<n;i++)if(previous.cells[i]!.fromM>=rule.metre&&previous.cells[i]!.fromM<rule.untilM){
    const tagged=classIds.reduce((s,id)=>s+classStock.get(id)![i]!,0);
    classStock.get(rule.vehicleClass)![i]+=Math.max(0,occupancy[i]!-tagged)*rule.sharePercent/100;
@@ -338,15 +363,22 @@ export function advanceCells(previous:CellRouteState,route:Corridor,events:reado
    const k=occupancy[i]!/dx;density[i]=k;
    send[i]=Math.min(speeds[i]!*k,capacity[i]!)*dtMin/60;
    receive[i]=Math.min(receivingWave[i]!*Math.max(0,jam-k),capacity[i]!)*dtMin/60;
-   if(exitClasses.size){
-    exitStock[i]=[...exitClasses].reduce((s,id)=>s+classStock.get(id)![i]!,0);
+   if(grouped){
+    const tagged=classIds.reduce((s,id)=>s+classStock.get(id)![i]!,0);
+    exitStock[i]=(ordinaryExitLane[i]?Math.max(0,occupancy[i]!-tagged):0)+
+     classIds.reduce((s,id)=>s+(selectedGroup(id,i)?classStock.get(id)![i]!:0),0);
     const ek=exitStock[i]!/dx,q=capacity[i]!/lanes;
-    const exitFlow=Math.min(speeds[i]!*ek,q);
-    const throughCapacity=capacity[i]!-(ek>q/speeds[i]!*1.10?q:0);
+    // Closure-bound cars still use the free motorway normally until the
+    // physical exit queue reaches them. Do not reserve one lane for all
+    // those trips tens of kilometres before they encounter that queue.
+    const queuedExit=ordinaryExitLane[i]?k>localCritical[i]!*1.10:ek>q/speeds[i]!*1.10;
+    const selectedCapacity=ordinaryExitLane[i]&&!queuedExit?capacity[i]!:q;
+    const exitFlow=Math.min(speeds[i]!*ek,selectedCapacity);
+    const throughCapacity=capacity[i]!-(queuedExit?q:0);
     const otherFlow=Math.min(speeds[i]!*Math.max(0,k-ek),throughCapacity);
     const scale=exitFlow+otherFlow>0?Math.min(1,capacity[i]!/(exitFlow+otherFlow)):0;
     send[i]=(exitFlow+otherFlow)*scale*dtMin/60;exitSend[i]=exitFlow*scale*dtMin/60;
-    exitReceive[i]=Math.min(q,receivingWave[i]!*Math.max(0,exitJam-ek))*dtMin/60;
+    exitReceive[i]=Math.min(selectedCapacity,receivingWave[i]!*Math.max(0,exitJam-ek))*dtMin/60;
    }
   }
   // Drivers approach a locally visible slow tail instead of retaining
@@ -383,7 +415,7 @@ export function advanceCells(previous:CellRouteState,route:Corridor,events:reado
   for(const id of classIds){classFace.get(id)!.fill(0);classLeave.get(id)!.fill(0);classJoin.get(id)!.fill(0);}
   for(const release of releases){
    const densityBefore=density[release.face-1]??0;
-   if(densityBefore>critical*1.15){
+   if(densityBefore>localCritical[release.face-1]!*1.15){
     // Independent lane departures create actual local flow changes. A
     // pause on one of two open lanes does not stop both lanes together.
     // Disturbances then travel solely through adjacent conserved fluxes.
@@ -399,7 +431,23 @@ export function advanceCells(previous:CellRouteState,route:Corridor,events:reado
   const arrived=demandVph/60*dtMin;
   offeredTotal+=arrived;
   const available=arrived+backlog;
-  face[0]=Math.min(available,receive[0]!,currentCapacity[0]!*dtMin/60);
+  let fresh=arrived;
+  for(const rule of classifications.filter(r=>r.metre<=0&&!r.seedOnly)){
+   const tagged=Math.min(fresh,arrived*rule.sharePercent/100);fresh-=tagged;
+   boundaryClasses.set(rule.vehicleClass,(boundaryClasses.get(rule.vehicleClass)??0)+tagged);
+  }
+  const taggedBoundary=classIds.reduce((s,id)=>s+boundaryClasses.get(id)!,0);
+  const selectedBoundary=(ordinaryExitLane[0]?Math.max(0,available-taggedBoundary):0)+
+   classIds.reduce((s,id)=>s+(selectedGroup(id,0)?boundaryClasses.get(id)!:0),0);
+  const boundaryRoom=Math.min(receive[0]!,currentCapacity[0]!*dtMin/60);
+  const selectedIn=Math.min(selectedBoundary,exitReceive[0]!,boundaryRoom);
+  const otherIn=Math.min(Math.max(0,available-selectedBoundary),Math.max(0,boundaryRoom-selectedIn));
+  face[0]=selectedIn+otherIn;
+  for(const id of classIds){
+   const selected=selectedGroup(id,0),stock=selected?selectedBoundary:available-selectedBoundary;
+   const accepted=stock>0?(selected?selectedIn:otherIn)*boundaryClasses.get(id)!/stock:0;
+   classFace.get(id)![0]=accepted;boundaryClasses.set(id,Math.max(0,boundaryClasses.get(id)!-accepted));
+  }
   backlog=Math.max(0,available-face[0]!);
   for(const j of junctions){
    const arrived=j.entryVph*dtMin/60;
@@ -414,8 +462,8 @@ export function advanceCells(previous:CellRouteState,route:Corridor,events:reado
     const other=Math.min(Math.max(0,send[i-1]!-exitSend[i-1]!),Math.max(0,room-selected));
     face[i]=selected+other;
     for(const id of classIds){
-     const group=exitClasses.has(id)?exitSend[i-1]!:Math.max(0,send[i-1]!-exitSend[i-1]!);
-     classFace.get(id)![i]=group>0?classSending(id,i-1)*(exitClasses.has(id)?selected:other)/group:0;
+     const group=selectedGroup(id,i-1)?exitSend[i-1]!:Math.max(0,send[i-1]!-exitSend[i-1]!);
+     classFace.get(id)![i]=group>0?classSending(id,i-1)*(selectedGroup(id,i-1)?selected:other)/group:0;
     }
     continue;
    }
@@ -474,10 +522,12 @@ export function advanceCells(previous:CellRouteState,route:Corridor,events:reado
    const localEntry=local&&!local.entryBlocked?Math.min(local.waiting,local.entryCapacityVph*dtMin/60):0;
    const retained=new Map(classIds.map(id=>[id,passage&&id!==passage.vehicleClass?0:Math.max(0,
     (sent.get(id)??0)-departures.reduce((s,p,k)=>s+(p.vehicleClass===id?wanted[k]!:0),0))]));
-   const exitMain=[...exitClasses].reduce((s,id)=>s+(retained.get(id)??0),0),otherMain=Math.max(0,mainSend-exitMain);
+   const selectedWanted=(selectedGroup(undefined,i-1)?normalWanted:0)+departures.reduce((s,p,k)=>
+    s+(selectedGroup(p.vehicleClass,i-1)?wanted[k]!:0),0);
+   const exitMain=passage?0:Math.max(0,exitSend[i-1]!-selectedWanted),otherMain=Math.max(0,mainSend-exitMain);
    const returnRequests=returns.map(p=>Math.min(p.returnVehicles-p.joined,1200*dtMin/60));
-   const exitMergeDemand=returns.reduce((s,p,k)=>s+(p.returnClass&&exitClasses.has(p.returnClass)?returnRequests[k]!:0),0);
-   const otherMergeDemand=localEntry+returns.reduce((s,p,k)=>s+(!p.returnClass||!exitClasses.has(p.returnClass)?returnRequests[k]!:0),0);
+   const exitMergeDemand=(ordinaryExitLane[i]?localEntry:0)+returns.reduce((s,p,k)=>s+(selectedGroup(p.returnClass,i)?returnRequests[k]!:0),0);
+   const otherMergeDemand=(ordinaryExitLane[i]?0:localEntry)+returns.reduce((s,p,k)=>s+(!selectedGroup(p.returnClass,i)?returnRequests[k]!:0),0);
    const mergeDemand=exitMergeDemand+otherMergeDemand;
    const mergeLimit=Math.min(mergeDemand,(local?.entryCapacityVph??1200)*dtMin/60);
    const room=Math.min(receive[i]!,currentCapacity[i]!*dtMin/60);
@@ -493,36 +543,37 @@ export function advanceCells(previous:CellRouteState,route:Corridor,events:reado
     Math.max(0,exitReceive[i]!-selectedMain-merge.selected),exitMergeDemand-merge.selected,otherMergeDemand-merge.other);
    merge.selected+=extra.selected;merge.other+=extra.other;
    returns.forEach((p,k)=>{
-    const selected=p.returnClass&&exitClasses.has(p.returnClass),demand=selected?exitMergeDemand:otherMergeDemand;
+    const selected=selectedGroup(p.returnClass,i),demand=selected?exitMergeDemand:otherMergeDemand;
     const accepted=demand>0?(selected?merge.selected:merge.other)*returnRequests[k]!/demand:0;
     p.joined+=accepted;joining[i]+=accepted;
     if(p.returnClass)classJoin.get(p.returnClass)![i]+=accepted;
    });
    if(local&&localEntry>0){
-    const accepted=otherMergeDemand>0?merge.other*localEntry/otherMergeDemand:0;
+    const localDemand=ordinaryExitLane[i]?exitMergeDemand:otherMergeDemand;
+    const accepted=localDemand>0?(ordinaryExitLane[i]?merge.selected:merge.other)*localEntry/localDemand:0;
     local.waiting=Math.max(0,local.waiting-accepted);local.enteredTotal+=accepted;local.lastEntered+=accepted;
     joining[i]+=accepted;
-    for(const rule of classifications)if(rule.metre<=0&&i*previous.cellM<rule.untilM||
-     rule.metre>0&&Math.round(rule.metre/previous.cellM)===i)
+    for(const rule of classifications)if(!rule.seedOnly&&(rule.metre<=0&&i*previous.cellM<rule.untilM||
+     rule.metre>0&&Math.round(rule.metre/previous.cellM)===i))
      classJoin.get(rule.vehicleClass)![i]+=accepted*rule.sharePercent/100;
    }
    face[i]=selectedMain+ordinaryMain;
    for(const id of classIds){
-    const selected=exitClasses.has(id),demand=selected?exitMain:otherMain;
+    const selected=selectedGroup(id,i-1),demand=selected?exitMain:otherMain;
     classFace.get(id)![i]=demand>0?(selected?selectedMain:ordinaryMain)*(retained.get(id)??0)/demand:0;
    }
   }
   face[n]=Math.min(send[n-1]!,currentCapacity[n]!*dtMin/60);
   for(const id of classIds)classFace.get(id)![n]=send[n-1]!>0?face[n]!*classSending(id,n-1)/send[n-1]!:0;
   for(const rule of classifications){
-   if(rule.metre<=0){classJoin.get(rule.vehicleClass)![0]+=face[0]!*rule.sharePercent/100;continue;}
+   if(rule.seedOnly||rule.metre<=0)continue;
    const at=Math.max(1,Math.min(n-1,Math.round(rule.metre/previous.cellM)));
    const otherInterest=(departuresAt.get(at)??[]).filter(p=>!p.vehicleClass).reduce((s,p)=>s+p.interestPercent,0);
    const ratio=Math.min(1,rule.sharePercent/Math.max(1e-9,100-Math.min(100,otherInterest)));
    const already=classIds.reduce((s,id)=>s+classFace.get(id)![at]!,0);
    classJoin.get(rule.vehicleClass)![at]+=Math.max(0,face[at]!-already)*ratio;
   }
-  for(const at of observationFaces)if(density[at-1]!>=critical*1.10){
+  for(const at of observationFaces)if(density[at-1]!>=localCritical[at-1]!*1.10){
    // A queue blocked by a different downstream event cannot measure this
    // worksite's own service. Sample its braking phases only when the next
    // cell could accept its nominal discharge; keep the prior otherwise.
@@ -564,7 +615,7 @@ export function advanceCells(previous:CellRouteState,route:Corridor,events:reado
   const control=faceControls[i+1]!+(exit?'|exit:'+exit.exitRef:''),sameControl=oldDetector?.control===control;
   let queued=0;
   if(active&&detectorCapacity>0)for(let k=i;k>=0;k--){
-   if(occupancy[k]!/dx>=critical*1.10||(previous.cells[k]!.queueMemoryMin??0)>0)queued+=occupancy[k]!;
+   if(occupancy[k]!/dx>=localCritical[k]!*1.10||(previous.cells[k]!.queueMemoryMin??0)>0)queued+=occupancy[k]!;
    else break;
   }
   // A journey lasting many minutes spans several braking/platoon phases.
@@ -584,8 +635,8 @@ export function advanceCells(previous:CellRouteState,route:Corridor,events:reado
   }:undefined;
   return {...c,vehicles:occupancy[i]!,flowVph:outflowVph,
    speedKmh:Math.max(0,speedKmh),densityVehKm,
-   queueMemoryMin:densityVehKm>=critical*1.10?3:Math.max(0,(c.queueMemoryMin??0)-1),
-   travelFlowVph,limitKmh:speeds[i],travelDetector,
+   queueMemoryMin:densityVehKm>=localCritical[i]!*1.10?3:Math.max(0,(c.queueMemoryMin??0)-1),
+   travelFlowVph,limitKmh:speeds[i],criticalDensityVehKm:localCritical[i],travelDetector,
    approachLimitKmh:Number.isFinite(approachLimit[i])?approachLimit[i]:undefined,
    routedVehicles:classIds.length?Object.fromEntries(classIds.map(id=>[id,classStock.get(id)![i]!]).filter(([,v])=>Number(v)>1e-9)):undefined,
    blockedAtM:faceCapacity[i+1]===0?c.toM:undefined,
@@ -593,6 +644,7 @@ export function advanceCells(previous:CellRouteState,route:Corridor,events:reado
  });
  const limiting=faceCapacity.reduce((best,c,i)=>c<faceCapacity[best]!?i:best,0);
  const next={...previous,cells,closures,minute:previous.minute+1,backlog,offeredTotal,exitedTotal,
+  routedBacklog:Object.fromEntries([...boundaryClasses].filter(([,v])=>v>1e-9)),
   classifiedJourneys:[...classifiedJourneys],
   junctions:junctions.map(({face:_,entryBlocked:__,...j})=>j),
   divertedTotal:(previous.divertedTotal??0)+routed.reduce((s,p)=>s+p.left,0),
@@ -609,7 +661,7 @@ export function cellSpeedBands(state:CellRouteState):CellSpeedBand[]{
  const critical=cellCriticalDensity(state.pathKey);
  const bands:CellSpeedBand[]=[];
  for(const c of state.cells){
-  if((c.densityVehKm<critical*1.10&&c.approachLimitKmh===undefined)||c.speedKmh>65)continue;
+  if((c.densityVehKm<(c.criticalDensityVehKm??critical)*1.10&&c.approachLimitKmh===undefined)||c.speedKmh>65)continue;
   const color=colorAtSpeed(c.speedKmh);
   if(color==='free')continue;
   const last=bands.at(-1);
@@ -626,7 +678,7 @@ export function cellSpeedBands(state:CellRouteState):CellSpeedBand[]{
 export function cellQueueSpans(state:CellRouteState):{fromM:number;toM:number}[]{
  const threshold=cellCriticalDensity(state.pathKey)*1.10,spans:{fromM:number;toM:number}[]=[];
  for(const c of state.cells){
-  if(c.densityVehKm<threshold&&(c.queueMemoryMin??0)<=0&&
+  if(c.densityVehKm<(c.criticalDensityVehKm!==undefined?c.criticalDensityVehKm*1.10:threshold)&&(c.queueMemoryMin??0)<=0&&
    !(c.approachLimitKmh!==undefined&&c.speedKmh<=65))continue;
   const last=spans.at(-1);
   if(last&&Math.abs(last.toM-c.fromM)<.1)last.toM=c.toM;

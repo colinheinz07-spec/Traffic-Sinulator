@@ -136,7 +136,7 @@ export function routedDiversionChoice(entry:ChoiceRoute,entries:readonly ChoiceR
  const source=cells[path],destination=cells[target],route=routes[path];
  if(!source||!destination||!route)throw Error('Umleitungsentscheidung ohne verbundenen Fahrbahnzustand');
  const journey=config.journey;
- if(journey?.kind==='protected'||journey?.kind==='continuation'){
+ if(journey?.kind==='protected'||journey?.kind==='evacuation'||journey?.kind==='continuation'){
   const at=Math.max(1,Math.min(source.cells.length-1,Math.round(config.fromM/source.cellM)))-1;
   const cell=source.cells[at]!,tagged=cell.routedVehicles?.[journey.token]??0;
   return {percent:cell.vehicles>0?Math.min(100,tagged/cell.vehicles*100):0,mandatory:true,delayMin:0,upstreamRank:0};

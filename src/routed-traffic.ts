@@ -12,6 +12,7 @@ import type {PathKey} from './traffic.js';
 import type {SpatialTransfer} from './spatial.js';
 import {journeyRampCapacity,journeyTrafficShare} from './interchange-journeys.js';
 import {interchangeTrafficShare} from './interchange.js';
+import {normalJunctionTraffic} from './junction-traffic.js';
 
 export interface RoutedDetour {config:DetourConfig;state:DetourState;enabled?:boolean;desiredPercent?:number}
 /** The remaining legacy turn solver must not offer a second copy of trips
@@ -116,6 +117,7 @@ export function advanceRoutedNetwork(previous:Partial<Record<PathKey,CellRouteSt
  turnDelays:Readonly<Partial<Record<PathKey,number>>>={}){
  const ports=new Map<PathKey,CellDetourPort[]>();
  const intentions=new Map<string,number>();
+ const localOffers=new Map<PathKey,ReturnType<typeof normalJunctionTraffic>>();
  const add=(path:PathKey,port:CellDetourPort)=>ports.set(path,[...(ports.get(path)??[]),port]);
  for(const entry of detours){
   const {config,state}=entry,target=config.targetPath??config.path;
@@ -124,18 +126,29 @@ export function advanceRoutedNetwork(previous:Partial<Record<PathKey,CellRouteSt
   const cross=target!==config.path;
   const interest=routedDiversionChoice(entry,detours,previous,routes,events,exits,demands,turnDelays).percent;
   intentions.set(config.id,interest);
-  const journey=config.journey,motorway=journey?.kind==='via'||journey?.kind==='protected';
+  const journey=config.journey,motorway=journey?.kind==='via'||journey?.kind==='protected'||journey?.kind==='evacuation';
   const committed=journey&&journey.kind!=='closure-bypass'?journey:undefined;
   const roadLimit=journeyRampCapacity(config,events,demands);
-  const capacity=Math.min(motorway?1500:Infinity,Math.max(0,detourStorage(config)-detourVehicles(state))*60,
+  const rampSiblings=motorway?detours.filter(e=>{
+   const j=e.config.journey;return (j?.kind==='via'||j?.kind==='protected'||j?.kind==='evacuation')&&j.rampId===journey.rampId;
+  }):[];
+  const rampRoom=motorway?Math.max(0,Math.min(...rampSiblings.map(e=>detourStorage(e.config)))-
+   rampSiblings.reduce((n,e)=>n+detourVehicles(e.state),0))/rampSiblings.length:Infinity;
+  const capacity=Math.min(motorway?1500:Infinity,Math.min(rampRoom,Math.max(0,detourStorage(config)-detourVehicles(state)))*60,
    motorway?roadLimit:Infinity);
+  if(journey?.kind==='protected'&&!localOffers.has(config.path))
+   localOffers.set(config.path,normalJunctionTraffic(routes[config.path],exits,demands[config.path]));
+  const sourceOffers=demands[config.path]+(localOffers.get(config.path)??[])
+   .filter(j=>j.metre<config.fromM).reduce((n,j)=>n+j.entryVph,0);
   const passage=journey?.kind==='protected'&&roadLimit>0&&entry.enabled!==false&&
    events.some(e=>e.id===journey.closureEventId&&e.kind==='closure')?{
    eventId:journey.closureEventId,vehicleClass:journey.token,
-   sharePercent:interchangeTrafficShare(config.movementId!,config.path,target,demands)*100}:undefined;
+   sharePercent:sourceOffers>0?Math.min(1,demands[config.movementId!]/sourceOffers)*100:0}:undefined;
   const untilM=Math.max(1,Math.min(sourceGrid.cells.length-1,Math.round(config.fromM/sourceGrid.cellM)))*sourceGrid.cellM;
   const classifyAt=journey?.kind==='via'?{metre:journey.decisionM,sharePercent:interest,vehicleClass:journey.token,untilM}:
-   passage?{metre:0,sharePercent:passage.sharePercent,vehicleClass:passage.vehicleClass,untilM}:undefined;
+   passage?{metre:0,sharePercent:passage.sharePercent,vehicleClass:passage.vehicleClass,untilM}:
+   journey?.kind==='evacuation'&&events.some(e=>e.id===journey.closureEventId&&e.kind==='closure')?
+    {metre:Math.round(journey.gateM/sourceGrid.cellM)*sourceGrid.cellM,sharePercent:100,vehicleClass:journey.token,untilM,seedOnly:true}:undefined;
   const protectedExit=!config.movementId&&requiredDiversionGate(config,routes[config.path],events,exits)&&
    detours.some(e=>e.config.path===config.path&&e.config.journey?.kind==='protected'&&e.enabled!==false&&
     Math.abs(e.config.journey.gateM-config.fromM)<25&&journeyRampCapacity(e.config,events,demands)>0);
@@ -143,7 +156,7 @@ export function advanceRoutedNetwork(previous:Partial<Record<PathKey,CellRouteSt
    interestPercent:committed||protectedExit?100:interest,vehicleClass:committed?.token,motorway,closurePassage:passage,classifyAt,
    exitCapacityVph:capacity,returnVehicles:cross||config.exitsNetwork?0:detourReadyToReturn(state,sourceGrid.minute)});
   if(cross&&!config.exitsNetwork)add(target,{id:config.id,fromM:null,toM:config.toM,interestPercent:0,
-   returnClass:journey?.kind==='via'?journey.token:undefined,
+   returnClass:journey?.kind==='via'||journey?.kind==='protected'||journey?.kind==='evacuation'?journey.token:undefined,
    exitCapacityVph:0,returnVehicles:detourReadyToReturn(state,targetGrid.minute)});
  }
  const cells:Partial<Record<PathKey,CellRouteState>>={};

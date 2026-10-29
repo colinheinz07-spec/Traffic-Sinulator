@@ -1,11 +1,11 @@
-import { interchangeTrafficShare } from './interchange.js?build=be2032f48965c933';
-import { baselineCapacity, eventCapacity, defaultDemand } from './traffic.js?build=be2032f48965c933';
-import { positionM, closureGate, metres } from './spatial.js?build=be2032f48965c933';
-import { cellQueueSpans } from './traffic-cells.js?build=be2032f48965c933';
-import { diversionJunctions } from './diversions.js?build=be2032f48965c933';
-import { bundledTargets, bundledDetourGeometry, isNetworkDestination } from './bundled-detours.js?build=be2032f48965c933';
-import { speedDelayInCells } from './speed-delay.js?build=be2032f48965c933';
-import { queueFundamentalDiagram, colorAtSpeed } from './traffic-physics.js?build=be2032f48965c933';
+import { interchangeTrafficShare } from './interchange.js?build=7745efc9892751d5';
+import { baselineCapacity, eventCapacity, defaultDemand } from './traffic.js?build=7745efc9892751d5';
+import { positionM, closureGate, metres } from './spatial.js?build=7745efc9892751d5';
+import { cellQueueSpans } from './traffic-cells.js?build=7745efc9892751d5';
+import { diversionJunctions } from './diversions.js?build=7745efc9892751d5';
+import { bundledTargets, bundledDetourGeometry, isNetworkDestination } from './bundled-detours.js?build=7745efc9892751d5';
+import { speedDelayInCells } from './speed-delay.js?build=7745efc9892751d5';
+import { queueFundamentalDiagram, colorAtSpeed } from './traffic-physics.js?build=7745efc9892751d5';
 /** A detour of one configured turn cannot acquire the entire A48's
  * destination mix when its mainline reference volume is larger. */
 export function journeyTrafficShare(config, demands) {
@@ -24,7 +24,7 @@ export function rampCapacity(id, events, demands) {
 }
 export function journeyRampCapacity(config, events, demands) {
     const j = config.journey;
-    if (j?.kind !== 'via' && j?.kind !== 'protected')
+    if (j?.kind !== 'via' && j?.kind !== 'protected' && j?.kind !== 'evacuation')
         return config.geometry.roadCapacityVph;
     const total = rampCapacity(j.rampId, events, demands);
     // The alternate Köln ramp also carries its normal Köln traffic. Do not
@@ -39,7 +39,7 @@ export function journeyRampJams(entries, routes, events, demands) {
     const groups = new Map();
     for (const e of entries) {
         const j = e.config.journey;
-        if (j?.kind === 'via' || j?.kind === 'protected')
+        if (j?.kind === 'via' || j?.kind === 'protected' || j?.kind === 'evacuation')
             groups.set(j.rampId, [...(groups.get(j.rampId) ?? []), e]);
     }
     const result = [];
@@ -127,8 +127,14 @@ export function interchangeJourneys(events, routes, exits, cells, connections, t
         if (!gate?.exit || at === null)
             continue;
         for (const c of connections.filter(c => c.from === path && c.to === 'A48-koblenz' &&
-            c.rampEntryM > gate.metre + 1 && c.rampEntryM < at)) {
-            if (rampCapacity(c.rampId, events, {}) <= 0) {
+            c.rampEntryM > gate.metre + 1 && c.rampEntryM < gate.endM)) {
+            const approachClosed = events.some(e => {
+                if (e.kind !== 'closure' || e.pathKey !== path)
+                    return false;
+                const block = closureGate(route, e, exits), point = positionM(route, e.point);
+                return block && point !== null && block.metre < c.rampEntryM && point <= c.rampEntryM;
+            });
+            if (approachClosed || rampCapacity(c.rampId, events, {}) <= 0) {
                 const from = diversionJunctions(path, exits, route).find(j => j.ref === gate.exit.ref);
                 const to = bundledTargets(c.to, exits, routes[c.to]).find(j => j.metre > c.downstreamMergeM);
                 const key = 'CLOSED-TURN-' + event.id + '-' + c.rampId;
@@ -148,6 +154,22 @@ export function interchangeJourneys(events, routes, exits, cells, connections, t
             option.targetEntryM = c.downstreamMergeM;
             option.journey = { kind: 'protected', token, rampId: c.rampId, closureEventId: event.id, gateM: gate.metre, forcedByEventId: event.id };
             result.push(option);
+            // Only cars already PAST the last regular exit and still BEFORE the
+            // open AD branch can leave the closed arm this way. New through trips
+            // use the mandatory regular exit. No backward motorway jump is allowed.
+            const localFrom = diversionJunctions(c.to, exits, routes[c.to]).find(j => !j.isInterchange && j.metre > c.downstreamMergeM);
+            const localTo = bundledTargets(path, exits, route).find(j => j.metre >= gate.endM - 1);
+            if (localFrom && localTo) {
+                const key = 'EVACUATE-' + event.id + '-' + c.rampId + '-' + localTo.ref, token = 'evacuation:' + key;
+                const escape = plan(key, path, from, c.to, to, motorwayGeometry(key, ramp), undefined, event);
+                escape.sourceEndM = c.rampEntryM;
+                escape.targetEntryM = c.downstreamMergeM;
+                escape.journey = { kind: 'evacuation', token, rampId: c.rampId, closureEventId: event.id, gateM: gate.metre, forcedByEventId: event.id };
+                result.push(escape);
+                const localKey = key + '-LOCAL', local = plan(localKey, c.to, localFrom, path, localTo, bundledDetourGeometry(localKey, c.to, localFrom, localTo, exits), undefined, event);
+                local.journey = { kind: 'continuation', token };
+                result.push(local);
+            }
         }
     }
     const intended = connections.find(c => c.rampId === 'ramp-a48-to-frankfurt');

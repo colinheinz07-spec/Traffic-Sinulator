@@ -601,7 +601,7 @@ function renderTraffic(){
  const activeDemands=remainingInterchangeDemands(currentDemands(),[...activeDetours.values()],timeline);
  const extraRampFlow=new Map<PathKey,{enter:number;leave:number}>();
  for(const entry of activeDetours.values()){
-  const j=entry.config.journey;if(j?.kind!=='via'&&j?.kind!=='protected')continue;
+  const j=entry.config.journey;if(j?.kind!=='via'&&j?.kind!=='protected'&&j?.kind!=='evacuation')continue;
   const flow=extraRampFlow.get(j.rampId)??{enter:0,leave:0};
   flow.enter+=entry.state.lastDeparture*60;flow.leave+=entry.state.lastRejoined*60;extraRampFlow.set(j.rampId,flow);
  }
@@ -627,7 +627,9 @@ function renderTraffic(){
  $('traffic-shared').textContent=result.sharedRampVehicles>0?`Abfahrtsstreifen betroffen (${trafficColorName[result.exitColor]}): ${trafficNumber(result.sharedRampVehicles)} Fahrzeuge der Rampenwarteschlange auf dieser Autobahn. Abbieger-Wartezeit: ${result.exitDelayMin===null?'nicht berechenbar':trafficNumber(result.exitDelayMin,1)+' min'}. Kein zusätzlich erzeugter Stau im Durchgangsverkehr.`:'Keine Rampenfahrzeuge auf diesem Abschnitt';
  $('traffic-queue-km').textContent=`${trafficNumber(result.queueKm,1)} km${result.sharedRampVehicles>0&&result.ownVehicles===0?' · Abfahrt':''}`;
  $('traffic-delay').textContent=speedDelayLabel(view.delays[key])+(result.sharedRampVehicles>0?' durchgehend · Abfahrt '+(result.exitDelayMin===null?'blockiert':'+'+trafficNumber(result.exitDelayMin,1)+' min'):'');
- $('traffic-speed').textContent=`ca. ${trafficNumber(result.speedKmh,1)} km/h${result.sharedRampVehicles>0?' · Abfahrt / Durchgang '+trafficNumber(result.throughSpeedKmh??result.speedKmh)+' km/h':result.ownVehicles>0?' (Rückstau)':bn.count>0?' (Ereignisbereich)':' (freie Fahrt)'}`;
+ $('traffic-speed').textContent=result.sharedRampVehicles>0?
+  `Abfahrt Ø ${trafficNumber(result.exitMeanSpeedKmh??result.speedKmh,1)} / Durchgang Ø ${trafficNumber(result.throughMeanSpeedKmh??result.throughSpeedKmh??result.speedKmh,1)} km/h`:
+  `Ø ${trafficNumber(result.meanSpeedKmh??result.speedKmh,1)} km/h${result.ownVehicles>0?' (Rückstau)':bn.count>0?' (Ereignisbereich)':' (freie Fahrt)'}`;
  $('traffic-events').textContent=bn.count===0?'Kein eigenes Ereignis auf dieser Richtung – mögliche Rückstauübertragung am AD wird berücksichtigt':
   `${bn.count} eigene(s) Ereignis(se) auf dieser Richtung`;
  const stateLabel=$('traffic-state');stateLabel.textContent=result.sharedRampVehicles>0?trafficColorName[result.exitColor].split(' / ')[0]+' (Abfahrt) · Durchgang '+trafficColorName[result.throughColor??result.color].toLowerCase():trafficColorName[result.color];stateLabel.className=`traffic-state ${result.color}`;
@@ -642,7 +644,7 @@ function renderTraffic(){
   const button=document.createElement('button');button.type='button';button.className='traffic-summary-row';
   const label=document.createElement('span');label.textContent=trafficRouteLabel(item);
   const status=document.createElement('strong');status.className=`traffic-state ${m.color}`;
-  status.textContent=`${trafficNumber(m.queueKm,1)} km · ${speedDelayLabel(view.delays[item])} · ${trafficNumber(m.speedKmh)} km/h${m.sharedRampVehicles>0?' · Abfahrt '+trafficColorName[m.exitColor].toLowerCase():''}`;
+  status.textContent=`${trafficNumber(m.queueKm,1)} km · ${speedDelayLabel(view.delays[item])} · Ø ${trafficNumber(m.meanSpeedKmh??m.speedKmh)} km/h${m.sharedRampVehicles>0?' · Abfahrt '+trafficColorName[m.exitColor].toLowerCase():''}`;
   button.append(label,status);button.setAttribute('aria-label',`${label.textContent}, ${status.textContent}`);
   button.onclick=()=>selectTrafficRoute(item);parent.append(button);
  }
@@ -670,7 +672,7 @@ function renderTraffic(){
    const metrics=document.createElement('div');metrics.className='jam-card-metrics';
    const length=document.createElement('span');length.textContent=`↔ ${trafficNumber(jam.queueM/1000,1)} km Rückstau`;
    const speed=document.createElement('span');speed.className=`traffic-state ${jam.color}`;
-   speed.textContent=`ca. ${trafficNumber(jam.speedKmh)} km/h · ${trafficColorName[jam.color]}`;
+   speed.textContent=`Ø ${trafficNumber(jam.meanSpeedKmh)} km/h · langsamster Abschnitt ${trafficNumber(jam.speedKmh)} km/h`;
    metrics.append(length,speed);
    row.append(header,metrics);
    const overflow=spillbacks.find(x=>x.id===jam.queueOwnerId&&x.rampId===jam.pathKey);
@@ -883,7 +885,7 @@ function drawSpatialJams(){
    :jam.pathKey==='ramp-a48-to-frankfurt'?'A48→A3 Ffm':'AD Dernbach Rampe';
   const delay=speedDelayLabel(jam.delay,1,true);
   const first=`${sign} ${shortDirection} · ${delay}`;
-  const second=`${trafficNumber(jam.queueM/1000,1)} km · ${trafficNumber(jam.speedKmh)} km/h`;
+  const second=`${trafficNumber(jam.queueM/1000,1)} km · Ø ${trafficNumber(jam.meanSpeedKmh)} km/h`;
   context!.font='600 10px system-ui';
   const width=Math.min(194,Math.max(context!.measureText(first).width,context!.measureText(second).width)+15);
   const callout=placeJamCallout({x,y},width,33,
