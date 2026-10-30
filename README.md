@@ -1,6 +1,10 @@
-# A3/A48 Stausimulator – TRAFFIC 1.12.14
+# A3/A48 Stausimulator – TRAFFIC 1.12.15
 
 **Ein Repository, eine Startdatei:** `index.html` im Hauptverzeichnis direkt in SPCK öffnen. Keine Cloudflare-Konfiguration und keine externe Kartenbibliothek.
+
+## Stabile Kartenbedienung (1.12.15)
+
+Die Gestensteuerung wurde aus der App in ein eigenes Modul ausgelagert. Verlorene Pointer-Captures, abgebrochene Kontakte, App-Wechsel und neue primäre Kontakte setzen veraltete Gesten zurück. Nach dem Wechsel von zwei Fingern auf einen Finger lässt sich die Karte direkt weiter verschieben. Pinch- und Mausradzoom behalten den Kartenpunkt unter der Geste; Verschieben löst keine versehentliche Straßenauswahl aus. Die Verkehrsberechnung bleibt unverändert.
 
 ## Sperrgrenzen, überlagerte Spuren und Baustellen-Anschlussstellen (1.12.14)
 

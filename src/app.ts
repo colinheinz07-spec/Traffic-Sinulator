@@ -1,3 +1,4 @@
+import {bindMapGestures} from './map-gestures.js';
 import {PATHS,pathBottleneck,eventCapacity,baselineCapacity,defaultDemand,defaultDemands,demandAtMinute,demandAtClock,type DemandMode,type PathKey,type TrafficColor} from './traffic.js';
 import {networkData} from './geodata.js';
 import {routeReport} from './network-report.js';
@@ -37,7 +38,7 @@ const rampConnections=buildRampConnections(ramps,spatialCorridors);
 let badges:RampBadge[]=[];
 let junctionLabels:JunctionLabel[]=[];
 let trafficLabelRects:LabelRect[]=[];
-const pointerPositions=new Map<number,[number,number]>();let pointerDown:{x:number;y:number;at:number}|null=null;
+
 let selected:MapHit|null=null;
 let events:SimEvent[]=readStoredEvents();
 let activeEventId:string|null=null;
@@ -1102,17 +1103,12 @@ function bind(){
   mapRegion.addEventListener(type,event=>event.preventDefault());
  }
  canvas.addEventListener('dblclick',event=>event.preventDefault());
- canvas.addEventListener('pointerdown',e=>{canvas.setPointerCapture(e.pointerId);pointerPositions.set(e.pointerId,[e.clientX,e.clientY]);if(pointerPositions.size===1)pointerDown={x:e.clientX,y:e.clientY,at:performance.now()};else pointerDown=null});
- canvas.addEventListener('pointermove',e=>{const last=pointerPositions.get(e.pointerId);if(!last)return;
-  const current:[number,number]=[e.clientX,e.clientY];pointerPositions.set(e.pointerId,current);
-  if(pointerPositions.size===1){const pivot=mercator(focus,zoom);focus=inverse([pivot[0]-(current[0]-last[0]),pivot[1]-(current[1]-last[1])],zoom);refresh();}
-  else if(pointerPositions.size===2){const other=[...pointerPositions.entries()].find(([id])=>id!==e.pointerId)?.[1];if(!other)return;
-   const old=Math.hypot(last[0]-other[0],last[1]-other[1]),next=Math.hypot(current[0]-other[0],current[1]-other[1]);if(old>2){zoom=Math.max(8,Math.min(17,zoom+Math.log2(next/old)));refresh();}
-  }
+ bindMapGestures(canvas,{
+  pan(dx,dy){const pivot=mercator(focus,zoom);focus=inverse([pivot[0]-dx,pivot[1]-dy],zoom);refresh();},
+  zoomAt(x,y,delta){const anchor=fromScreen(x,y);zoom=Math.max(8,Math.min(17,zoom+delta));
+   const projected=mercator(anchor,zoom);focus=inverse([projected[0]-x+wrapper.clientWidth/2,projected[1]-y+wrapper.clientHeight/2],zoom);refresh();},
+  select:selectAt
  });
- canvas.addEventListener('pointerup',e=>{pointerPositions.delete(e.pointerId);if(pointerDown&&pointerPositions.size===0&&performance.now()-pointerDown.at<650&&Math.hypot(e.clientX-pointerDown.x,e.clientY-pointerDown.y)<8){const bound=canvas.getBoundingClientRect();selectAt(e.clientX-bound.left,e.clientY-bound.top)}if(pointerPositions.size===0)pointerDown=null;});
- canvas.addEventListener('pointercancel',e=>{pointerPositions.delete(e.pointerId);pointerDown=null});
- canvas.addEventListener('wheel',e=>{e.preventDefault();zoom=Math.max(8,Math.min(17,zoom+(e.deltaY<0?.4:-.4)));refresh()},{passive:false});
  window.addEventListener('resize',refresh);
 }
 function start(){if(!mapReady.valid){status.classList.add('error');status.textContent='Geodatenprüfung fehlgeschlagen';hint.textContent=mapReady.errors.join(' · ');return;}

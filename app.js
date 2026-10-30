@@ -1,28 +1,29 @@
-import { PATHS, pathBottleneck, defaultDemands, demandAtMinute, demandAtClock } from './traffic.js?build=320aeaf18baab650';
-import { networkData } from './geodata.js?build=320aeaf18baab650';
-import { routeReport } from './network-report.js?build=320aeaf18baab650';
-import { makeCorridors, routeSlice, positionM, closureGate, advanceSpatial, emptySpatial, jamsAt } from './spatial.js?build=320aeaf18baab650';
-import { initialiseCells } from './traffic-cells.js?build=320aeaf18baab650';
-import { speedDelayLabel } from './speed-delay.js?build=320aeaf18baab650';
-import { trafficView } from './traffic-view.js?build=320aeaf18baab650';
-import { resolveSpeedBands } from './traffic-physics.js?build=320aeaf18baab650';
-import { advanceRoutedNetwork, remainingInterchangeDemands } from './routed-traffic.js?build=320aeaf18baab650';
-import { routedDiversionChoice, requiredDiversionGate } from './diversion-policy.js?build=320aeaf18baab650';
-import { automaticDiversions } from './auto-diversions.js?build=320aeaf18baab650';
-import { buildRampConnections, rampSpillbacks, interchangeDelays, interchangeTrafficShare } from './interchange.js?build=320aeaf18baab650';
-import { journeyRampCapacity, journeyRampJams, rampCapacity } from './interchange-journeys.js?build=320aeaf18baab650';
-import { diversionJunctions, planDiversion } from './diversions.js?build=320aeaf18baab650';
-import { junctionMovements, junctionMovementHint } from './junction-movements.js?build=320aeaf18baab650';
-import { bundledDetourGeometry, bundledExitRoutes, bundledTargets, isNetworkDestination } from './bundled-detours.js?build=320aeaf18baab650';
-import { emptyDetour, detourVehicles } from './detour-flow.js?build=320aeaf18baab650';
-import { decodeEvents, eventFromHit, updatedEvent, eventNames, eventSymbols, eventSummary, flowPolicy, defaultLengthM, maxLengthM, suggestedSpeed, DEFAULT_CLEARANCE_MIN, STORAGE_KEY, isEventKind, validEvent, effectiveEventsAt, eventScheduleStatus } from './events.js?build=320aeaf18baab650';
-import { roadLaneInfo, rampLaneInfo } from './lane-info.js?build=320aeaf18baab650';
-import { mapCandidates, chooseMapHits, closestJunction, lanePositions, hitLabel } from './selection.js?build=320aeaf18baab650';
-import { buildContinuousRoads, lineWidths, rampBadges, layoutJunctionLabels } from './cartography.js?build=320aeaf18baab650';
-import { placeJamCallout } from './map-callouts.js?build=320aeaf18baab650';
-import { installScheduleForm } from './schedule-form.js?build=320aeaf18baab650';
-import { roadSections, physicalEvents } from './road-controls.js?build=320aeaf18baab650';
-import { DIRECTIONS, validateMap, names, mercator, inverse, exitPosition } from './core.js?build=320aeaf18baab650';
+import { bindMapGestures } from './map-gestures.js?build=689b5e524f9e182c';
+import { PATHS, pathBottleneck, defaultDemands, demandAtMinute, demandAtClock } from './traffic.js?build=689b5e524f9e182c';
+import { networkData } from './geodata.js?build=689b5e524f9e182c';
+import { routeReport } from './network-report.js?build=689b5e524f9e182c';
+import { makeCorridors, routeSlice, positionM, closureGate, advanceSpatial, emptySpatial, jamsAt } from './spatial.js?build=689b5e524f9e182c';
+import { initialiseCells } from './traffic-cells.js?build=689b5e524f9e182c';
+import { speedDelayLabel } from './speed-delay.js?build=689b5e524f9e182c';
+import { trafficView } from './traffic-view.js?build=689b5e524f9e182c';
+import { resolveSpeedBands } from './traffic-physics.js?build=689b5e524f9e182c';
+import { advanceRoutedNetwork, remainingInterchangeDemands } from './routed-traffic.js?build=689b5e524f9e182c';
+import { routedDiversionChoice, requiredDiversionGate } from './diversion-policy.js?build=689b5e524f9e182c';
+import { automaticDiversions } from './auto-diversions.js?build=689b5e524f9e182c';
+import { buildRampConnections, rampSpillbacks, interchangeDelays, interchangeTrafficShare } from './interchange.js?build=689b5e524f9e182c';
+import { journeyRampCapacity, journeyRampJams, rampCapacity } from './interchange-journeys.js?build=689b5e524f9e182c';
+import { diversionJunctions, planDiversion } from './diversions.js?build=689b5e524f9e182c';
+import { junctionMovements, junctionMovementHint } from './junction-movements.js?build=689b5e524f9e182c';
+import { bundledDetourGeometry, bundledExitRoutes, bundledTargets, isNetworkDestination } from './bundled-detours.js?build=689b5e524f9e182c';
+import { emptyDetour, detourVehicles } from './detour-flow.js?build=689b5e524f9e182c';
+import { decodeEvents, eventFromHit, updatedEvent, eventNames, eventSymbols, eventSummary, flowPolicy, defaultLengthM, maxLengthM, suggestedSpeed, DEFAULT_CLEARANCE_MIN, STORAGE_KEY, isEventKind, validEvent, effectiveEventsAt, eventScheduleStatus } from './events.js?build=689b5e524f9e182c';
+import { roadLaneInfo, rampLaneInfo } from './lane-info.js?build=689b5e524f9e182c';
+import { mapCandidates, chooseMapHits, closestJunction, lanePositions, hitLabel } from './selection.js?build=689b5e524f9e182c';
+import { buildContinuousRoads, lineWidths, rampBadges, layoutJunctionLabels } from './cartography.js?build=689b5e524f9e182c';
+import { placeJamCallout } from './map-callouts.js?build=689b5e524f9e182c';
+import { installScheduleForm } from './schedule-form.js?build=689b5e524f9e182c';
+import { roadSections, physicalEvents } from './road-controls.js?build=689b5e524f9e182c';
+import { DIRECTIONS, validateMap, names, mercator, inverse, exitPosition } from './core.js?build=689b5e524f9e182c';
 const $ = (id) => { const element = document.getElementById(id); if (!element)
     throw Error(`Element fehlt: ${id}`); return element; };
 const canvas = $('map'), wrapper = canvas.parentElement;
@@ -40,8 +41,6 @@ const rampConnections = buildRampConnections(ramps, spatialCorridors);
 let badges = [];
 let junctionLabels = [];
 let trafficLabelRects = [];
-const pointerPositions = new Map();
-let pointerDown = null;
 let selected = null;
 let events = readStoredEvents();
 let activeEventId = null;
@@ -1526,39 +1525,17 @@ function bind() {
         mapRegion.addEventListener(type, event => event.preventDefault());
     }
     canvas.addEventListener('dblclick', event => event.preventDefault());
-    canvas.addEventListener('pointerdown', e => { canvas.setPointerCapture(e.pointerId); pointerPositions.set(e.pointerId, [e.clientX, e.clientY]); if (pointerPositions.size === 1)
-        pointerDown = { x: e.clientX, y: e.clientY, at: performance.now() };
-    else
-        pointerDown = null; });
-    canvas.addEventListener('pointermove', e => {
-        const last = pointerPositions.get(e.pointerId);
-        if (!last)
-            return;
-        const current = [e.clientX, e.clientY];
-        pointerPositions.set(e.pointerId, current);
-        if (pointerPositions.size === 1) {
-            const pivot = mercator(focus, zoom);
-            focus = inverse([pivot[0] - (current[0] - last[0]), pivot[1] - (current[1] - last[1])], zoom);
+    bindMapGestures(canvas, {
+        pan(dx, dy) { const pivot = mercator(focus, zoom); focus = inverse([pivot[0] - dx, pivot[1] - dy], zoom); refresh(); },
+        zoomAt(x, y, delta) {
+            const anchor = fromScreen(x, y);
+            zoom = Math.max(8, Math.min(17, zoom + delta));
+            const projected = mercator(anchor, zoom);
+            focus = inverse([projected[0] - x + wrapper.clientWidth / 2, projected[1] - y + wrapper.clientHeight / 2], zoom);
             refresh();
-        }
-        else if (pointerPositions.size === 2) {
-            const other = [...pointerPositions.entries()].find(([id]) => id !== e.pointerId)?.[1];
-            if (!other)
-                return;
-            const old = Math.hypot(last[0] - other[0], last[1] - other[1]), next = Math.hypot(current[0] - other[0], current[1] - other[1]);
-            if (old > 2) {
-                zoom = Math.max(8, Math.min(17, zoom + Math.log2(next / old)));
-                refresh();
-            }
-        }
+        },
+        select: selectAt
     });
-    canvas.addEventListener('pointerup', e => { pointerPositions.delete(e.pointerId); if (pointerDown && pointerPositions.size === 0 && performance.now() - pointerDown.at < 650 && Math.hypot(e.clientX - pointerDown.x, e.clientY - pointerDown.y) < 8) {
-        const bound = canvas.getBoundingClientRect();
-        selectAt(e.clientX - bound.left, e.clientY - bound.top);
-    } if (pointerPositions.size === 0)
-        pointerDown = null; });
-    canvas.addEventListener('pointercancel', e => { pointerPositions.delete(e.pointerId); pointerDown = null; });
-    canvas.addEventListener('wheel', e => { e.preventDefault(); zoom = Math.max(8, Math.min(17, zoom + (e.deltaY < 0 ? .4 : -.4))); refresh(); }, { passive: false });
     window.addEventListener('resize', refresh);
 }
 function start() {
