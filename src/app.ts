@@ -335,6 +335,10 @@ function dateTimeInputValue(d:Date):string{
  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 function simulatedClock():Date{return new Date(simulationStartMs+spatialState.minute*60000);}
+// Panning and zooming repaint an unchanged simulation snapshot. Recompute
+// traffic analysis only when controls/events or the simulation state change.
+let mapTrafficSnapshot:{timeline:SimEvent[];list:ReturnType<typeof trafficJams>;
+ spillbacks:ReturnType<typeof rampSpillbacks>;view:ReturnType<typeof trafficView>}|undefined;
 function trafficJams(timeline:readonly SimEvent[]=activeEvents()){
  return [...jamsAt(spatialState,timeline,spatialCorridors),
   ...journeyRampJams([...activeDetours.values()],spatialCorridors,timeline,currentDemands())];
@@ -405,9 +409,18 @@ function prepareAutomaticDetour(option:AutomaticDiversion,enable=true){
  }else if(enable&&!suppressedDetours.has(k)&&changed)activateDetour(config);
  return config;
 }
+const automaticMotorwayKeys=new Set<string>();
 function prepareAutomaticDetours(){
  const timeline=activeEvents(),turnDelays=interchangeDelays(trafficJams(timeline),timeline);
- for(const option of automaticDiversions(timeline,spatialCorridors,exits,cellNetwork,rampConnections,turnDelays)){
+ const plans=automaticDiversions(timeline,spatialCorridors,exits,cellNetwork,rampConnections,turnDelays);
+ const available=new Set(plans.map(p=>p.key));
+ for(const key of automaticMotorwayKeys){
+  const old=activeDetours.get(key);
+  if(old&&!available.has(key))activeDetours.set(key,{...old,enabled:false,desiredPercent:0});
+ }
+ for(const option of plans){
+  if(option.journey?.kind==='protected'||option.journey?.kind==='evacuation'||option.journey?.kind==='via')
+   automaticMotorwayKeys.add(option.key);
   if(!suppressedDetours.has(option.key))prepareAutomaticDetour(option);
  }
 }
@@ -648,6 +661,7 @@ function renderTraffic(){
  const jams=trafficJams(timeline);
  const spillbacks=rampSpillbacks(jams,rampConnections,spatialCorridors);
  const view=trafficView(jams,cellNetwork,spatialCorridors,timeline,spillbacks,spatialState.minute);
+ mapTrafficSnapshot={timeline,list:jams,spillbacks,view};
  const result=view.reports[key];
  const bn=pathBottleneck(key,timeline);
  $('traffic-minute').textContent=`Minute ${spatialState.minute}`;
@@ -899,10 +913,12 @@ function plotRampBadges(width:number,height:number){
 const jamColors={slow:'#f59e0b',jam:'#dc2626',standstill:'#7f1d1d'} as const;
 function drawSpatialJams(){
  trafficLabelRects=[];
- const timeline=activeEvents();
- const list=trafficJams(timeline);
- const spillbacks=rampSpillbacks(list,rampConnections,spatialCorridors);
- const view=trafficView(list,cellNetwork,spatialCorridors,timeline,spillbacks,spatialState.minute);
+ if(!mapTrafficSnapshot){
+  const timeline=activeEvents(),list=trafficJams(timeline);
+  const spillbacks=rampSpillbacks(list,rampConnections,spatialCorridors);
+  mapTrafficSnapshot={timeline,list,spillbacks,view:trafficView(list,cellNetwork,spatialCorridors,timeline,spillbacks,spatialState.minute)};
+ }
+ const {timeline,list,spillbacks,view}=mapTrafficSnapshot;
  const widths=lineWidths(zoom);
  // A motorway ending at an AD split has no separate straight-ahead road.
  // Show a backed-up branch across the full approach stroke, matching the

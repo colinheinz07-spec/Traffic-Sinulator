@@ -1,13 +1,13 @@
-import { normalThroughLanes } from './lane-info.js?build=4bca424d0a51d349';
+import { normalThroughLanes } from './lane-info.js?build=b239226da131b094';
 /** Georeferenced, per-event queue model on the exact OSM motorway carriageway curves.
  * A first-pass conservation model (not a calibrated traffic forecast).
  * No vehicle sprites, hidden road connectors, A3/A48 transfers, or invented detours.
  */
-import { buildContinuousRoads } from './cartography.js?build=4bca424d0a51d349';
-import { exitPosition } from './core.js?build=4bca424d0a51d349';
-import { PATHS, baselineCapacity, eventCapacity, defaultDemand } from './traffic.js?build=4bca424d0a51d349';
-import { baseLaneCapacity, colorAtSpeed, queueFundamentalDiagram, freeSpeedKmh } from './traffic-physics.js?build=4bca424d0a51d349';
-import { physicalEvents, accessibleExits } from './road-controls.js?build=4bca424d0a51d349';
+import { buildContinuousRoads } from './cartography.js?build=b239226da131b094';
+import { exitPosition } from './core.js?build=b239226da131b094';
+import { PATHS, baselineCapacity, eventCapacity, defaultDemand } from './traffic.js?build=b239226da131b094';
+import { baseLaneCapacity, colorAtSpeed, queueFundamentalDiagram, freeSpeedKmh } from './traffic-physics.js?build=b239226da131b094';
+import { physicalEvents, accessibleExits } from './road-controls.js?build=b239226da131b094';
 const rad = Math.PI / 180;
 export function metres(a, b) {
     const dx = (b[1] - a[1]) * 111195 * Math.cos((a[0] + b[0]) / 2 * rad);
@@ -46,8 +46,20 @@ export function makeCorridors(roads, ramps) {
     }
     return Object.fromEntries(result);
 }
+// Directional OSM geometry is fixed for a corridor's lifetime. Reuse the
+// projection, including its offset, across tolerance checks and simulation ticks.
+// Bound each cache so moving map selections cannot retain unlimited points.
+const projectionCache = new WeakMap();
 /** Snap a selected point to a specific *directional* motorway centreline. */
 export function positionM(route, p, maxOffsetM = 80) {
+    let cache = projectionCache.get(route);
+    if (!cache) {
+        cache = new Map();
+        projectionCache.set(route, cache);
+    }
+    const cacheKey = p[0] + ',' + p[1], cached = cache.get(cacheKey);
+    if (cached)
+        return cached.offset <= maxOffsetM ? cached.where : null;
     let best = Infinity, where = 0;
     const xScale = 111195 * Math.cos(p[0] * rad), yScale = 111195;
     for (let i = 1; i < route.points.length; i++) {
@@ -61,6 +73,9 @@ export function positionM(route, p, maxOffsetM = 80) {
             where = route.metres[i - 1] + (route.metres[i] - route.metres[i - 1]) * t;
         }
     }
+    if (cache.size >= 2048)
+        cache.delete(cache.keys().next().value);
+    cache.set(cacheKey, { where, offset: best });
     return best <= maxOffsetM ? where : null;
 }
 /** Piece of actual OSM centreline, limited to [fromM,toM] along traffic direction. */
@@ -180,7 +195,13 @@ export function advanceSpatial(prev, events, demands, minutes, corridors, links 
                     });
                     // A48 arm closures include both A3 entry ramps. Stop new turn
                     // demand at the fork; traffic already on a ramp may drain forward.
-                    const closedAtFork = closedMerge && link.to === 'A48-koblenz';
+                    const sourceClosed = events.some(event => {
+                        const gate = closureGate(corridors[link.from], event, exits, events);
+                        // A restriction beyond the branch may keep that branch open. A closed
+                        // approach cannot supply a fresh, independent stream of turning cars.
+                        return gate && gate.eventM <= link.rampEntryM + 1 && gate.metre <= link.rampEntryM + 1 && gate.endM > link.rampEntryM - 1;
+                    });
+                    const closedAtFork = link.to === 'A48-koblenz' && (closedMerge || sourceClosed);
                     if (closedAtFork)
                         volume = 0;
                     if (closedMerge && !closedAtFork) {

@@ -39,3 +39,34 @@ test('an A3 closure cannot protect a turn into a simultaneously closed A48 arm',
  assert.ok(!plans.some(p=>p.journey?.kind==='protected'&&p.targetPath===path));
  assert.ok(plans.some(p=>p.journey?.kind==='closure-bypass'&&p.targetPath===path));
 });
+function section(path,fromRef,toRef,id){
+ const junctions=diversionJunctions(path,exits,routes[path]);
+ const from=junctions.find(j=>j.ref===fromRef),to=junctions.find(j=>j.ref===toRef);
+ assert.ok(from&&to&&from.metre<to.metre);
+ const start=from.metre+2,end=to.metre-2;
+ return {...closure,id,pathKey:path,point:routeSlice(routes[path],start,start+1)[0],
+  laneCount:path.startsWith('A3')?3:2,closedLanes:path.startsWith('A3')?[0,1,2]:[0,1],
+  settings:{...closure.settings,lengthM:end-start}};
+}
+test('21:00 transition: closed A3 approaches cannot supply either A48 ramp when the A48 closure moves to Höhr–Bendorf',()=>{
+ const night=[section('A3-koeln','41','38','night-a3-north'),section('A3-frankfurt','38','41','night-a3-south'),
+  section('A48-koblenz','12','11','night-a48-west'),section('A48-dernbach','11','12','night-a48-east')];
+ let state=advanceSpatial(emptySpatial(),[closure],demands,60,routes,links,[],exits);
+ // The application supplies the real CTM mainline queue to the ramp solver.
+ // It already reaches Dernbach when the scheduled closure changes at 21:00.
+ const anchor=diversionJunctions(path,exits,route).find(j=>j.ref==='12').metre;
+ const backflow={id:'ctm-night',pathKey:path,eventKind:'closure',point:routeSlice(route,anchor,anchor+1)[0],
+  anchorM:anchor,queueM:anchor+500,visibleQueueM:anchor,queueVehicles:1600,capacityVph:0,
+  speedKmh:0,color:'standstill',delayMin:null,released:false,outOfBoundsM:500};
+ for(let t=0;t<8;t++)state=advanceSpatial(state,night,demands,60,routes,links,[],exits,[backflow]);
+ for(const link of links.filter(l=>l.to===path))
+  assert.ok(!Object.values(state.queues).some(q=>q.pathKey===link.rampId),'no invented ramp traffic after 21:00: '+link.rampId);
+});
+test('an isolated A48 Höhr–Bendorf closure keeps the open A3 approach available',()=>{
+ const downstream=section('A48-koblenz','12','11','downstream');
+ const ramp=links.find(l=>l.rampId==='ramp-a3-to-a48-from-frankfurt');
+ const accident={...closure,id:'ramp-crash',kind:'accident',pathKey:ramp.rampId,
+  point:routes[ramp.rampId].points.at(-1),laneCount:1,closedLanes:[0]};
+ const state=advanceSpatial(emptySpatial(),[downstream,accident],demands,2,routes,links,[],exits);
+ assert.ok(state.queues[accident.id]?.vehicles>0,'an open approach still supplies the ramp');
+});

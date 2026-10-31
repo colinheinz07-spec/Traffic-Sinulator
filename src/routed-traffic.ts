@@ -136,7 +136,7 @@ export function advanceRoutedNetwork(previous:Partial<Record<PathKey,CellRouteSt
   const rampRoom=motorway?Math.max(0,Math.min(...rampSiblings.map(e=>detourStorage(e.config)))-
    rampSiblings.reduce((n,e)=>n+detourVehicles(e.state),0))/rampSiblings.length:Infinity;
   const capacity=Math.min(motorway?1500:Infinity,Math.min(rampRoom,Math.max(0,detourStorage(config)-detourVehicles(state)))*60,
-   motorway?roadLimit:Infinity);
+   motorway?entry.enabled===false?0:roadLimit:Infinity);
   if(journey?.kind==='protected'&&!localOffers.has(config.path))
    localOffers.set(config.path,normalJunctionTraffic(routes[config.path],exits,demands[config.path]));
   const sourceOffers=demands[config.path]+(localOffers.get(config.path)??[])
@@ -148,7 +148,7 @@ export function advanceRoutedNetwork(previous:Partial<Record<PathKey,CellRouteSt
   const untilM=Math.max(1,Math.min(sourceGrid.cells.length-1,Math.round(config.fromM/sourceGrid.cellM)))*sourceGrid.cellM;
   const classifyAt=journey?.kind==='via'?{metre:journey.decisionM,sharePercent:interest,vehicleClass:journey.token,untilM}:
    passage?{metre:0,sharePercent:passage.sharePercent,vehicleClass:passage.vehicleClass,untilM}:
-   journey?.kind==='evacuation'&&events.some(e=>e.id===journey.closureEventId&&e.kind==='closure')?
+   journey?.kind==='evacuation'&&entry.enabled!==false&&events.some(e=>e.id===journey.closureEventId&&e.kind==='closure')?
     {metre:Math.round(journey.gateM/sourceGrid.cellM)*sourceGrid.cellM,sharePercent:100,vehicleClass:journey.token,untilM,seedOnly:true}:undefined;
   const protectedExit=!config.movementId&&requiredDiversionGate(config,routes[config.path],events,exits)&&
    detours.some(e=>e.config.path===config.path&&e.config.journey?.kind==='protected'&&e.enabled!==false&&
@@ -166,8 +166,10 @@ export function advanceRoutedNetwork(previous:Partial<Record<PathKey,CellRouteSt
  const sourceStates={...previous};
  for(const entry of detours){
   const j=entry.config.journey;
-  if(j?.kind!=='via'||(intentions.get(entry.config.id)??0)>0||
-   j.forcedByEventId&&events.some(e=>e.id===j.forcedByEventId&&e.kind==='closure'))continue;
+  const disabledMotorway=entry.enabled===false&&(j?.kind==='via'||j?.kind==='protected'||j?.kind==='evacuation');
+  if(!disabledMotorway&&(j?.kind!=='via'||(intentions.get(entry.config.id)??0)>0||
+   j.forcedByEventId&&events.some(e=>e.id===j.forcedByEventId&&e.kind==='closure')))continue;
+  if(!j||!('token' in j))continue;
   const grid=sourceStates[entry.config.path];if(!grid)continue;
   const without=(tags:Record<string,number>|undefined)=>{
    if(!tags?.[j.token])return tags;

@@ -3,13 +3,13 @@
  * Legacy queues remain the simulation input for the separate ramp ledger;
  * their synthetic lengths never truncate a mainline display queue.
  */
-import { PATHS, baselineCapacity } from './traffic.js?build=4bca424d0a51d349';
-import { routeSlice } from './spatial.js?build=4bca424d0a51d349';
-import { cellSpeedBands, cellQueueSpans } from './traffic-cells.js?build=4bca424d0a51d349';
-import { physicalSpeedBands, stopAndGoBands, resolveSpeedBands, freeSpeedKmh, colorAtSpeed } from './traffic-physics.js?build=4bca424d0a51d349';
-import { speedDelayInCells, speedDelayInBands, queueTravelHeads } from './speed-delay.js?build=4bca424d0a51d349';
-import { routeReport } from './network-report.js?build=4bca424d0a51d349';
-import { positionM } from './spatial.js?build=4bca424d0a51d349';
+import { PATHS, baselineCapacity } from './traffic.js?build=b239226da131b094';
+import { routeSlice } from './spatial.js?build=b239226da131b094';
+import { cellSpeedBands, cellQueueSpans } from './traffic-cells.js?build=b239226da131b094';
+import { physicalSpeedBands, stopAndGoBands, resolveSpeedBands, freeSpeedKmh, colorAtSpeed } from './traffic-physics.js?build=b239226da131b094';
+import { speedDelayInCells, speedDelayInBands, queueTravelHeads } from './speed-delay.js?build=b239226da131b094';
+import { routeReport } from './network-report.js?build=b239226da131b094';
+import { positionM } from './spatial.js?build=b239226da131b094';
 function extents(bands) {
     const groups = [];
     for (const b of bands) {

@@ -52,8 +52,16 @@ export function makeCorridors(roads:readonly Road[],ramps:readonly Ramp[]):Recor
  }
  return Object.fromEntries(result) as Record<PathKey,Corridor>;
 }
+// Directional OSM geometry is fixed for a corridor's lifetime. Reuse the
+// projection, including its offset, across tolerance checks and simulation ticks.
+// Bound each cache so moving map selections cannot retain unlimited points.
+const projectionCache=new WeakMap<Corridor,Map<string,{where:number;offset:number}>>();
 /** Snap a selected point to a specific *directional* motorway centreline. */
 export function positionM(route:Corridor,p:Point,maxOffsetM=80):number|null{
+ let cache=projectionCache.get(route);
+ if(!cache){cache=new Map();projectionCache.set(route,cache);}
+ const cacheKey=p[0]+','+p[1],cached=cache.get(cacheKey);
+ if(cached)return cached.offset<=maxOffsetM?cached.where:null;
  let best=Infinity,where=0;
  const xScale=111195*Math.cos(p[0]*rad),yScale=111195;
  for(let i=1;i<route.points.length;i++){
@@ -64,6 +72,8 @@ export function positionM(route:Corridor,p:Point,maxOffsetM=80):number|null{
   const error=Math.hypot(ux-t*x,uy-t*y);
   if(error<best){best=error;where=route.metres[i-1]!+(route.metres[i]!-route.metres[i-1]!)*t;}
  }
+ if(cache.size>=2048)cache.delete(cache.keys().next().value!);
+ cache.set(cacheKey,{where,offset:best});
  return best<=maxOffsetM?where:null;
 }
 /** Piece of actual OSM centreline, limited to [fromM,toM] along traffic direction. */
@@ -161,7 +171,13 @@ export function advanceSpatial(prev:SpatialState,events:readonly SimEvent[],dema
     return gate&&link.downstreamMergeM>=gate.metre-1&&link.downstreamMergeM<gate.endM-1;});
    // A48 arm closures include both A3 entry ramps. Stop new turn
    // demand at the fork; traffic already on a ramp may drain forward.
-   const closedAtFork=closedMerge&&link.to==='A48-koblenz';
+   const sourceClosed=events.some(event=>{
+    const gate=closureGate(corridors[link.from],event,exits,events);
+    // A restriction beyond the branch may keep that branch open. A closed
+    // approach cannot supply a fresh, independent stream of turning cars.
+    return gate&&gate.eventM<=link.rampEntryM+1&&gate.metre<=link.rampEntryM+1&&gate.endM>link.rampEntryM-1;
+   });
+   const closedAtFork=link.to==='A48-koblenz'&&(closedMerge||sourceClosed);
    if(closedAtFork)volume=0;
    if(closedMerge&&!closedAtFork){
     nodes.push({id:'closed-merge:'+key,event:null,place:Math.max(0,route.lengthM-.5),
