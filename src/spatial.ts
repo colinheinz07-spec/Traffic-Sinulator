@@ -143,7 +143,7 @@ export function advanceSpatial(prev:SpatialState,events:readonly SimEvent[],dema
   const raw=links.length?jamsAt({minute:prev.minute+tick,queues:current},events,corridors):[];
   const existing=physicalMainline===undefined?raw:[...raw.filter(j=>j.pathKey.startsWith('ramp-')),...physicalMainline];
   for(const key of PATHS){
-  const volume=demands[key];if(!Number.isFinite(volume)||volume<0||volume>8000)throw Error('Ungültiger Zufluss');
+  let volume=demands[key];if(!Number.isFinite(volume)||volume<0||volume>8000)throw Error('Ungültiger Zufluss');
   const route=corridors[key];
   const nodes:{id:string;event:SimEvent|null;place:number;point:Point;limitVph?:number;
    leavingVpm?:number;joiningVpm?:number}[]=[];
@@ -159,13 +159,17 @@ export function advanceSpatial(prev:SpatialState,events:readonly SimEvent[],dema
   for(const link of links)if(link.rampId===key){
    const closedMerge=events.some(event=>{const gate=closureGate(corridors[link.to],event,exits,events);
     return gate&&link.downstreamMergeM>=gate.metre-1&&link.downstreamMergeM<gate.endM-1;});
-   if(closedMerge){
+   // A48 arm closures include both A3 entry ramps. Stop new turn
+   // demand at the fork; traffic already on a ramp may drain forward.
+   const closedAtFork=closedMerge&&link.to==='A48-koblenz';
+   if(closedAtFork)volume=0;
+   if(closedMerge&&!closedAtFork){
     nodes.push({id:'closed-merge:'+key,event:null,place:Math.max(0,route.lengthM-.5),
      point:route.points.at(-1)!,limitVph:0});
    }
    const blocked=existing.filter(j=>j.pathKey===link.to&&j.anchorM>link.downstreamMergeM+.1
     &&j.anchorM-j.queueM<link.downstreamMergeM-.1);
-   if(blocked.length){
+   if(blocked.length&&!closedAtFork){
     // A dark-red queue is not a closed merge: calculate actual downstream supply.
     const targetCapacity=Math.min(...blocked.map(j=>j.capacityVph));
     const cap=mergeSupplyVph(key,targetCapacity,demands[link.to],volume,current['merge:'+key]?.vehicles??0);

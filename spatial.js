@@ -1,13 +1,13 @@
-import { normalThroughLanes } from './lane-info.js?build=9296d788994cefba';
+import { normalThroughLanes } from './lane-info.js?build=4bca424d0a51d349';
 /** Georeferenced, per-event queue model on the exact OSM motorway carriageway curves.
  * A first-pass conservation model (not a calibrated traffic forecast).
  * No vehicle sprites, hidden road connectors, A3/A48 transfers, or invented detours.
  */
-import { buildContinuousRoads } from './cartography.js?build=9296d788994cefba';
-import { exitPosition } from './core.js?build=9296d788994cefba';
-import { PATHS, baselineCapacity, eventCapacity, defaultDemand } from './traffic.js?build=9296d788994cefba';
-import { baseLaneCapacity, colorAtSpeed, queueFundamentalDiagram, freeSpeedKmh } from './traffic-physics.js?build=9296d788994cefba';
-import { physicalEvents, accessibleExits } from './road-controls.js?build=9296d788994cefba';
+import { buildContinuousRoads } from './cartography.js?build=4bca424d0a51d349';
+import { exitPosition } from './core.js?build=4bca424d0a51d349';
+import { PATHS, baselineCapacity, eventCapacity, defaultDemand } from './traffic.js?build=4bca424d0a51d349';
+import { baseLaneCapacity, colorAtSpeed, queueFundamentalDiagram, freeSpeedKmh } from './traffic-physics.js?build=4bca424d0a51d349';
+import { physicalEvents, accessibleExits } from './road-controls.js?build=4bca424d0a51d349';
 const rad = Math.PI / 180;
 export function metres(a, b) {
     const dx = (b[1] - a[1]) * 111195 * Math.cos((a[0] + b[0]) / 2 * rad);
@@ -155,7 +155,7 @@ export function advanceSpatial(prev, events, demands, minutes, corridors, links 
         const raw = links.length ? jamsAt({ minute: prev.minute + tick, queues: current }, events, corridors) : [];
         const existing = physicalMainline === undefined ? raw : [...raw.filter(j => j.pathKey.startsWith('ramp-')), ...physicalMainline];
         for (const key of PATHS) {
-            const volume = demands[key];
+            let volume = demands[key];
             if (!Number.isFinite(volume) || volume < 0 || volume > 8000)
                 throw Error('Ungültiger Zufluss');
             const route = corridors[key];
@@ -178,13 +178,18 @@ export function advanceSpatial(prev, events, demands, minutes, corridors, links 
                         const gate = closureGate(corridors[link.to], event, exits, events);
                         return gate && link.downstreamMergeM >= gate.metre - 1 && link.downstreamMergeM < gate.endM - 1;
                     });
-                    if (closedMerge) {
+                    // A48 arm closures include both A3 entry ramps. Stop new turn
+                    // demand at the fork; traffic already on a ramp may drain forward.
+                    const closedAtFork = closedMerge && link.to === 'A48-koblenz';
+                    if (closedAtFork)
+                        volume = 0;
+                    if (closedMerge && !closedAtFork) {
                         nodes.push({ id: 'closed-merge:' + key, event: null, place: Math.max(0, route.lengthM - .5),
                             point: route.points.at(-1), limitVph: 0 });
                     }
                     const blocked = existing.filter(j => j.pathKey === link.to && j.anchorM > link.downstreamMergeM + .1
                         && j.anchorM - j.queueM < link.downstreamMergeM - .1);
-                    if (blocked.length) {
+                    if (blocked.length && !closedAtFork) {
                         // A dark-red queue is not a closed merge: calculate actual downstream supply.
                         const targetCapacity = Math.min(...blocked.map(j => j.capacityVph));
                         const cap = mergeSupplyVph(key, targetCapacity, demands[link.to], volume, current['merge:' + key]?.vehicles ?? 0);

@@ -142,7 +142,11 @@ export function interchangeJourneys(events:readonly SimEvent[],routes:Readonly<R
     const block=closureGate(route,e,exits,events),point=positionM(route,e.point);
     return block&&point!==null&&block.metre<c.rampEntryM&&point<=c.rampEntryM;
    });
-   if(approachClosed||rampCapacity(c.rampId,events,{},routes[c.rampId])<=0){
+   const targetClosed=events.some(e=>{
+    const block=closureGate(routes[c.to],e,exits,events);
+    return block&&c.downstreamMergeM>=block.metre-1&&c.downstreamMergeM<block.endM-1;
+   });
+   if(approachClosed||targetClosed||rampCapacity(c.rampId,events,{},routes[c.rampId])<=0){
     const from=diversionJunctions(path,exits,route).find(j=>j.ref===gate.exit!.ref)!;
     const to=bundledTargets(c.to,accessibleExits(routes[c.to],events,exits,'entry'),routes[c.to]).find(j=>j.metre>c.downstreamMergeM)!;
     const key='CLOSED-TURN-'+event.id+'-'+c.rampId;
