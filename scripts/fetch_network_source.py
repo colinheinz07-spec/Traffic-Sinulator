@@ -5,6 +5,8 @@ way["highway"~"^(motorway|motorway_link|construction)$"]["ref"~"^A ?(3|560)$"](5
 way["highway"="motorway_link"](50.24,7.03,50.96,8.34);
 way["highway"="construction"](50.76,7.19,50.82,7.28);
 way["construction"="motorway_link"](50.76,7.19,50.82,7.28);
+way["highway"~"^(trunk|trunk_link|primary|primary_link|secondary|secondary_link|tertiary|tertiary_link|unclassified|residential)$"](50.76,7.03,50.96,7.28);
+way["highway"~"^(trunk|trunk_link|primary|primary_link|secondary|secondary_link|tertiary|tertiary_link|unclassified|residential)$"](50.285,8.075,50.405,8.30);
 node["highway"="motorway_junction"](50.24,7.03,50.96,8.34);
 );out body geom;'''
 errors=[]
