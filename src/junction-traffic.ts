@@ -1,3 +1,4 @@
+import {localRoadAvailability} from './calendar-traffic.js';
 /** Ordinary local trips, independent of incidents and simulator detours.
  * The rates are explicit scenario assumptions, scaled with the selected
  * direction's demand profile; they are not traffic counts. AK/AD turn flows
@@ -33,7 +34,7 @@ export const DEFAULT_EXIT_TERMINAL_VPH=700,DEFAULT_EXIT_STORAGE_VEHICLES=40;
 export function exitRampVehicles(state:JunctionTrafficState):number{
  return (state.exitQueue?.normal??0)+Object.values(state.exitQueue?.detours??{}).reduce((n,v)=>n+v,0);
 }
-export function normalJunctionTraffic(route:Corridor,exits:readonly Exit[],demandVph:number):JunctionTrafficDemand[]{
+export function normalJunctionTraffic(route:Corridor,exits:readonly Exit[],demandVph:number,moment?:Date):JunctionTrafficDemand[]{
  if(route.key.startsWith('ramp-'))return [];
  return diversionJunctions(route.key as RoadId,exits,route).filter(j=>!j.isInterchange).map(j=>{
   // 4–8% local turnover per AS. Balanced ordinary entry/exit at the
@@ -42,6 +43,6 @@ export function normalJunctionTraffic(route:Corridor,exits:readonly Exit[],deman
   return {id:route.key+':local:'+j.ref,ref:j.ref,metre:j.metre,
    entryVph:Math.min(700,demandVph*share/100),exitPercent:share,
    entryCapacityVph:900,exitCapacityVph:1800,
-   exitTerminalVph:DEFAULT_EXIT_TERMINAL_VPH,exitStorageVehicles:DEFAULT_EXIT_STORAGE_VEHICLES};
+   exitTerminalVph:Math.min(1000,DEFAULT_EXIT_TERMINAL_VPH*localRoadAvailability(moment)),exitStorageVehicles:DEFAULT_EXIT_STORAGE_VEHICLES};
  });
 }

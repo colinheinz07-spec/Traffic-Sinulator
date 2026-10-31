@@ -1,3 +1,4 @@
+import {localRoadAvailability} from './calendar-traffic.js';
 /** Motorway cells and multiple local simulator routes share ONE vehicle budget.
  * Side-road admission is limited by cars reaching the real exit cell; cars
  * return only after their local journey and when the merge accepts them.
@@ -114,7 +115,7 @@ export function advanceRoutedPath(previous:CellRouteState,route:Corridor,
 export function advanceRoutedNetwork(previous:Partial<Record<PathKey,CellRouteState>>,
  routes:Readonly<Record<PathKey,Corridor>>,events:readonly SimEvent[],
  demands:Readonly<Record<PathKey,number>>,exits:readonly Exit[],detours:readonly RoutedDetour[],
- turnDelays:Readonly<Partial<Record<PathKey,number>>>={}){
+ turnDelays:Readonly<Partial<Record<PathKey,number>>>={},moment?:Date){
  const ports=new Map<PathKey,CellDetourPort[]>();
  const intentions=new Map<string,number>();
  const localOffers=new Map<PathKey,ReturnType<typeof normalJunctionTraffic>>();
@@ -161,10 +162,15 @@ export function advanceRoutedNetwork(previous:Partial<Record<PathKey,CellRouteSt
  }
  const cells:Partial<Record<PathKey,CellRouteState>>={};
  for(const key of Object.keys(previous) as PathKey[])
-  cells[key]=advanceCells(previous[key]!,routes[key],events,demands[key],exits,ports.get(key)??[]);
- const effective=detours.map(e=>({...e,config:{...e.config,geometry:{...e.config.geometry,
-  roadCapacityVph:journeyRampCapacity(e.config,events,demands),
-  sections:e.config.geometry.sections?.map(s=>({...s,capacityVph:Math.min(s.capacityVph,journeyRampCapacity(e.config,events,demands))}))}}}));
+  cells[key]=advanceCells(previous[key]!,routes[key],events,demands[key],exits,ports.get(key)??[],
+   normalJunctionTraffic(routes[key],exits,demands[key],moment));
+ const effective=detours.map(e=>{
+  const j=e.config.journey,motorway=j?.kind==='via'||j?.kind==='protected'||j?.kind==='evacuation';
+  const factor=motorway?1:localRoadAvailability(moment);
+  const capacity=motorway?journeyRampCapacity(e.config,events,demands):e.config.geometry.roadCapacityVph*factor;
+  return {...e,config:{...e.config,geometry:{...e.config.geometry,roadCapacityVph:capacity,
+   sections:e.config.geometry.sections?.map(s=>({...s,capacityVph:Math.min(s.capacityVph*factor,capacity)}))}}};
+ });
  const roadService=sharedRoadService(effective,new Map(detours.map(e=>[e.config.id,
   cells[e.config.path]!.lastTransfers!.find(t=>t.id===e.config.id)?.leaveVpm??0])));
  const transfers:SpatialTransfer[]=[];
@@ -172,7 +178,8 @@ export function advanceRoutedNetwork(previous:Partial<Record<PathKey,CellRouteSt
   const {config}=entry,target=config.targetPath??config.path,cross=target!==config.path;
   const left=cells[config.path]!.lastTransfers!.find(x=>x.id===config.id)?.leaveVpm??0;
   const joined=config.exitsNetwork?0:cells[target]!.lastTransfers!.find(x=>x.id===config.id)?.joinVpm??0;
-  const result=advanceDetour(entry.state,config,previous[config.path]!.minute,left*60,100,joined*60,roadService.get(config.id));
+  const serviceConfig=effective.find(e=>e.config.id===config.id)!.config;
+  const result=advanceDetour(entry.state,serviceConfig,previous[config.path]!.minute,left*60,100,joined*60,roadService.get(config.id));
   if(Math.abs(result.entered-left)>1e-6||Math.abs(result.rejoined-joined)>1e-6)
    throw Error('Vernetzte Umleitung hat Fahrzeuge dupliziert oder verloren');
   transfers.push({id:config.id,path:config.path,fromM:config.fromM,

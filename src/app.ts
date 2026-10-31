@@ -1,3 +1,4 @@
+import {announcedClosureDemands} from './calendar-traffic.js';
 import {bindMapGestures} from './map-gestures.js';
 import {PATHS,pathBottleneck,eventCapacity,baselineCapacity,defaultDemand,defaultDemands,demandAtMinute,demandAtClock,type DemandMode,type PathKey,type TrafficColor} from './traffic.js';
 import {networkData} from './geodata.js';
@@ -328,9 +329,8 @@ function trafficJams(timeline:readonly SimEvent[]=activeEvents()){
   ...journeyRampJams([...activeDetours.values()],spatialCorridors,timeline,currentDemands())];
 }
 function currentDemands():Record<PathKey,number>{
- return demandMode==='clock'
-  ?demandAtClock(trafficDemands,simulatedClock())
-  :demandAtMinute(trafficDemands,spatialState.minute,demandMode);
+ const base=demandMode==='clock'?demandAtClock(trafficDemands,simulatedClock()):demandAtMinute(trafficDemands,spatialState.minute,demandMode);
+ return announcedClosureDemands(base,events,simulatedClock());
 }
 let trafficTimer:ReturnType<typeof setInterval>|null=null;
 const trafficRouteLabel=(key:string)=>ramps.find(r=>r.id===key)?.name??(names[key as keyof typeof names]??key);
@@ -754,7 +754,7 @@ function stepTraffic(minutes:number){
    // Actual departures and returns share the A3/A48 cell inventory.
    for(const key of CELL_PATHS)cellNetwork[key]??=initialiseCells(spatialCorridors[key],active[key]);
    const next=advanceRoutedNetwork(cellNetwork,spatialCorridors,timeline,active,exits,[...activeDetours.values()],
-    interchangeDelays(jams,timeline));
+    interchangeDelays(jams,timeline),simulatedClock());
    cellNetwork=next.cells;
    for(const entry of next.detours)activeDetours.set(entry.config.id,entry);
    transfers.push(...next.transfers);

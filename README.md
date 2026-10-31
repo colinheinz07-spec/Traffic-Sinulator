@@ -1,6 +1,12 @@
-# A3/A48 Stausimulator – TRAFFIC 1.12.16
+# A3/A48 Stausimulator – TRAFFIC 1.12.17
 
 **Ein Repository, eine Startdatei:** `index.html` im Hauptverzeichnis direkt in SPCK öffnen. Keine Cloudflare-Konfiguration und keine externe Kartenbibliothek.
+
+## Kalenderabhängige Umleitungen und angekündigte Vollsperrungen (1.12.17)
+
+Im laufenden Kalenderbetrieb erhalten Nebenstraßen und Abfahrtsknoten abhängig von Wochentag und Uhrzeit mehr verfügbare Kapazität als im bisherigen Werktags-Spitzenmodell. Annahmen relativ zur bisherigen Kalibrierung: Werktagsspitze 1,0; übriger Werktag tagsüber 1,1/nachts 1,3; Wochenende tagsüber 1,2/nachts 1,4. Der Abfahrtsknoten bleibt auf maximal 1000 Fzg/h begrenzt. Diese Werte sind Szenarioannahmen, keine lokalen Verkehrszählungen. Gemeinsam genutzte Umleitungsabschnitte teilen weiterhin dieselbe Kapazität. Autobahn-Verbindungsrampen erhalten keinen pauschalen Wochenendbonus.
+
+Bei terminierten Vollsperrungen sinkt die neu angebotene Anfahrt in der betroffenen Richtung eine Stunde vorher schrittweise um bis zu 20 %. Wiederholungen und Sperrphasen werden berücksichtigt; nach Ende der Sperre entfällt die Reduktion. Unangekündigte Ereignisse erhalten diesen Effekt nicht. Bereits wartende oder fahrende Fahrzeuge werden niemals gelöscht. Die AS-Anzeige zeigt weiterhin den tatsächlich berechneten Abfluss und darf bei echter Blockade oder ohne Verkehr null anzeigen.
 
 ## Zeitverlust bei stillstehender Ausleitung (1.12.16)
 
