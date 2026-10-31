@@ -1,9 +1,9 @@
 /** Explicit scenario assumptions, not measured local road counts. */
-import { effectiveEventsAt } from './events.js?build=02a62fc57e67c41a';
-import { PATHS } from './traffic.js?build=02a62fc57e67c41a';
+import { effectiveEventsAt } from './events.js?build=16d9a4ffa3b7c57e';
+import { PATHS } from './traffic.js?build=16d9a4ffa3b7c57e';
 /** Availability relative to the existing busy-weekday calibration.
  * A quiet road cannot exceed its geometric/signal maximum: the ramp
- * terminal remains bounded at 1000 veh/h. No holiday assumptions. */
+ * terminal remains bounded by its junction-specific maximum. No holiday assumptions. */
 export function localRoadAvailability(moment) {
     if (!moment)
         return 1;

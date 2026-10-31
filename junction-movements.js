@@ -4,11 +4,11 @@
  * Every normal AS is covered; AK/AD are separate motorway nodes and cannot
  * be misrepresented as exits onto local roads.
  */
-import { names } from './core.js?build=02a62fc57e67c41a';
-import { positionM, closureGate } from './spatial.js?build=02a62fc57e67c41a';
-import { diversionJunctions } from './diversions.js?build=02a62fc57e67c41a';
-import { exitRampVehicles, DEFAULT_EXIT_TERMINAL_VPH, DEFAULT_EXIT_STORAGE_VEHICLES } from './junction-traffic.js?build=02a62fc57e67c41a';
-import { junctionAccess } from './road-controls.js?build=02a62fc57e67c41a';
+import { names } from './core.js?build=16d9a4ffa3b7c57e';
+import { positionM, closureGate } from './spatial.js?build=16d9a4ffa3b7c57e';
+import { diversionJunctions } from './diversions.js?build=16d9a4ffa3b7c57e';
+import { exitRampVehicles, DEFAULT_EXIT_TERMINAL_VPH, DEFAULT_EXIT_STORAGE_VEHICLES } from './junction-traffic.js?build=16d9a4ffa3b7c57e';
+import { junctionAccess } from './road-controls.js?build=16d9a4ffa3b7c57e';
 /** A formal closure forces departure only at the LAST usable normal exit.
  * Earlier exits are voluntary alternatives chosen by remaining time loss,
  * independently of the tail's distance from any junction.

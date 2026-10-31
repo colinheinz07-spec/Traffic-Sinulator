@@ -1,6 +1,22 @@
-# A3/A48 Stausimulator – TRAFFIC 1.12.17
+# A3/A48 Stausimulator – TRAFFIC 1.12.18
 
 **Ein Repository, eine Startdatei:** `index.html` im Hauptverzeichnis direkt in SPCK öffnen. Keine Cloudflare-Konfiguration und keine externe Kartenbibliothek.
+
+## Freigabe am AD und unterschiedliche Anschlussstellen (1.12.18)
+
+Eine vorher gewählte Frankfurt-Umleitung über die Köln-Rampe bindet Fahrzeuge auf der A48 nicht dauerhaft: Ist die Sperre weg und die Umleitung nicht mehr sinnvoll, wird die Routenbindung vor dem Abzweig gelöst. Fahrzeuge bereits auf der Köln-Rampe oder A3 Köln behalten ihr Frankfurt-Ziel und fahren über Ransbach zur Rückführung weiter. Regulärer Köln-Verkehr bleibt davon getrennt und muss nicht in Ransbach abfahren. Die Entscheidung über Höhr bleibt vom tatsächlich verbleibenden Reisezeitverlust abhängig.
+
+Explizite Kapazitätsannahmen für die aggregierte Anschlussstelle, keine vermessenen Verkehrszählungen oder Signalpläne:
+
+| AS | Knotenabfluss Fzg/h vor Tagesprofil | Rampenspeicher Fahrzeuge | Maximale Abfahrt Fzg/h |
+| --- | ---: | ---: | ---: |
+| A3 Montabaur 40 | 1500 | 120 | 3000 |
+| A3 Limburg-Nord 42 | 1500 | 120 | 2800 |
+| A48 Koblenz-Nord 10 | 1600 | 140 | 3000 |
+| A48 Bendorf/Neuwied 11 | 1500 | 120 | 2800 |
+| Übrige reguläre AS | 700 | 40 | 1800 |
+
+Alle Bewegungen teilen weiterhin den jeweiligen Abfahrtsknoten. Das Tagesprofil erhöht dessen verfügbaren Abfluss höchstens bis zur maximalen Abfahrt; die Aufnahmefähigkeit der folgenden Straße und die Rückauffahrt begrenzen zusätzlich. Es werden keine Fahrzeuge gelöscht oder doppelt abgezweigt.
 
 ## Kalenderabhängige Umleitungen und angekündigte Vollsperrungen (1.12.17)
 

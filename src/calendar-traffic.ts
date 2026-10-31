@@ -3,7 +3,7 @@ import {effectiveEventsAt,type SimEvent} from './events.js';
 import {PATHS,type PathKey} from './traffic.js';
 /** Availability relative to the existing busy-weekday calibration.
  * A quiet road cannot exceed its geometric/signal maximum: the ramp
- * terminal remains bounded at 1000 veh/h. No holiday assumptions. */
+ * terminal remains bounded by its junction-specific maximum. No holiday assumptions. */
 export function localRoadAvailability(moment?:Date):number{
  if(!moment)return 1;
  if(!Number.isFinite(moment.getTime()))throw Error('Ungültiges Verkehrsdatum');

@@ -272,3 +272,31 @@ test('closed Cologne arm keeps Koblenz traffic on the open AD turn and sends A48
   'normal ramp demand resumes when the committed closure journeys have cleared');
  assert.ok(before>=committed);
 });
+
+test('reopening Frankfurt releases upstream route commitments while preserving already diverted Frankfurt and normal Köln traffic',()=>{
+ const demands={...base,'A48-dernbach':1000,'A3-koeln':1200,'A3-frankfurt':1200};
+ let cells=grids(demands),entries=prepare(cells,[branchClosure('A3-frankfurt')]);
+ const via=entries.find(e=>e.config.journey?.kind==='via'),continuation=entries.find(e=>e.config.journey?.kind==='continuation');
+ const token=via.config.journey.token,source=cells['A48-dernbach'];
+ for(const c of source.cells.filter(c=>c.fromM<via.config.fromM&&c.toM>via.config.fromM-1200))c.routedVehicles={[token]:c.vehicles*.5};
+ source.backlog=5;source.routedBacklog={[token]:5};source.initialVehicles=cellInventory(source);
+ const cologne=cells['A3-koeln'],nearExit=cologne.cells.find(c=>c.toM<continuation.config.fromM&&c.toM>continuation.config.fromM-150);
+ nearExit.routedVehicles={[token]:nearExit.vehicles*.5};
+ const committed=nearExit.routedVehicles[token];
+ via.state={...via.state,waitingRoad:5,admittedTotal:5+committed,returnedTotal:committed};
+ const snapshot=structuredClone(cells),initial=Object.values(cells).reduce((n,g)=>n+cellInventory(g),0)+5;
+ let returned=0;
+ for(let minute=0;minute<20;minute++){
+  const next=advanceRoutedNetwork(cells,routes,[],demands,exits,entries);cells=next.cells;entries=next.detours;
+  assertBudget(cells,entries,initial);
+  const first=entries.find(e=>e.config.id===via.config.id),last=entries.find(e=>e.config.id===continuation.config.id);
+  assert.equal(first.state.lastDeparture,0,'new Frankfurt traffic must not keep entering the Köln ramp');
+  assert.ok(cells['A48-dernbach'].cells.every(c=>(c.routedVehicles?.[token]??0)<1e-8));
+  assert.equal(cells['A48-dernbach'].routedBacklog?.[token],undefined);
+  assert.equal(remainingInterchangeDemands(demands,entries,[])['ramp-a48-to-koeln'],demands['ramp-a48-to-koeln']);
+  returned=last.state.returnedTotal;
+ }
+ assert.ok(returned>committed,'cars already on the alternate ramp complete the geographic continuation');
+ assert.ok(cells['A3-koeln'].cells.at(-1).flowVph>100,'normal Köln traffic continues beyond Ransbach');
+ assert.ok(snapshot['A48-dernbach'].cells.some(c=>(c.routedVehicles?.[token]??0)>0),'fixture had queued Frankfurt commitments');
+});

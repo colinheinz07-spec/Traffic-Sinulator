@@ -160,9 +160,26 @@ export function advanceRoutedNetwork(previous:Partial<Record<PathKey,CellRouteSt
    returnClass:journey?.kind==='via'||journey?.kind==='protected'||journey?.kind==='evacuation'?journey.token:undefined,
    exitCapacityVph:0,returnVehicles:detourReadyToReturn(state,targetGrid.minute)});
  }
+ // Route intentions are revisable until the physical motorway fork.
+ // Release only the source-road tag, never cars already on the Köln ramp,
+ // A3 Köln, or the Ransbach–Montabaur continuation. Inventories are intact.
+ const sourceStates={...previous};
+ for(const entry of detours){
+  const j=entry.config.journey;
+  if(j?.kind!=='via'||(intentions.get(entry.config.id)??0)>0||
+   j.forcedByEventId&&events.some(e=>e.id===j.forcedByEventId&&e.kind==='closure'))continue;
+  const grid=sourceStates[entry.config.path];if(!grid)continue;
+  const without=(tags:Record<string,number>|undefined)=>{
+   if(!tags?.[j.token])return tags;
+   const copy={...tags};delete copy[j.token];return copy;
+  };
+  sourceStates[entry.config.path]={...grid,routedBacklog:without(grid.routedBacklog),
+   cells:grid.cells.map(c=>c.fromM<entry.config.fromM?{...c,routedVehicles:without(c.routedVehicles)}:c),
+   classifiedJourneys:grid.classifiedJourneys?.filter(token=>token!==j.token)};
+ }
  const cells:Partial<Record<PathKey,CellRouteState>>={};
  for(const key of Object.keys(previous) as PathKey[])
-  cells[key]=advanceCells(previous[key]!,routes[key],events,demands[key],exits,ports.get(key)??[],
+  cells[key]=advanceCells(sourceStates[key]!,routes[key],events,demands[key],exits,ports.get(key)??[],
    normalJunctionTraffic(routes[key],exits,demands[key],moment));
  const effective=detours.map(e=>{
   const j=e.config.journey,motorway=j?.kind==='via'||j?.kind==='protected'||j?.kind==='evacuation';

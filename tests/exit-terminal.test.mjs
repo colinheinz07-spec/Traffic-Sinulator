@@ -23,26 +23,28 @@ function scenario(path,ref,toRef,id='terminal'){
 }
 
 for(const [path,ref,to] of [['A3-frankfurt','40','41'],['A3-koeln','38','37'],['A48-dernbach','11','12'],['A48-koblenz','12','11']])
- test(`${path}: 3000/h exit demand fills 40 ramp spaces and spills back within minutes despite a long empty bypass`,()=>{
+ test(`${path}: 3000/h exit demand fills its finite ramp storage and spills back within minutes despite a long empty bypass`,()=>{
   const {route,from,event,entry}=scenario(path,ref,to);
+  const large=path==='A3-frankfurt'&&ref==='40'||path==='A48-dernbach'&&ref==='11';
+  const terminal=large?1500:700,storage=large?120:40;
   let grid=initialiseCells(route,3000),entries=[entry];const initial=cellInventory(grid);let spilledAt=null;
   for(let i=0;i<20;i++){
    const next=advanceRoutedPath(grid,route,[event],3000,exits,entries);grid=next.cells;entries=next.detours;
    const j=grid.junctions.find(j=>j.ref===ref),actual=(j.lastExited+entries[0].state.lastDeparture)*60;
-   assert.ok(actual<=700+1e-6&&actual>0,'all departures share terminal service, including normal destinations');
-   assert.ok(exitRampVehicles(j)<=40+1e-6&&exitRampVehicles(j)>=0);
+   assert.ok(actual<=terminal+1e-6&&actual>0,'all departures share terminal service, including normal destinations');
+   assert.ok(exitRampVehicles(j)<=storage+1e-6&&exitRampVehicles(j)>=0);
    assert.ok(entries[0].desiredPercent===100&&j.lastEntered===0);
    assert.ok(Math.abs(cellInventory(grid)+detourVehicles(entries[0].state)+grid.exitedTotal-initial-grid.offeredTotal)<1e-5);
-   assert.ok(detourVehicles(entries[0].state)<300,'the 1800-space bypass cannot hide the short ramp bottleneck');
+   assert.ok(detourVehicles(entries[0].state)<=terminal*(i+1)/60+1e-6,'side-road stock cannot exceed cumulative physical terminal service');
    if(grid.cells.some(c=>c.toM<from.metre-150&&c.fromM>from.metre-1500&&c.speedKmh<30))spilledAt??=i+1;
   }
-  assert.ok(spilledAt!==null&&spilledAt<=5,'spillback starts locally before the whole side road fills');
-  const j=grid.junctions.find(j=>j.ref===ref);assert.ok(exitRampVehicles(j)>39&&j.lastExitDemand*60>2000);
+  assert.ok(spilledAt!==null&&spilledAt<=Math.ceil(storage/(3000-terminal)*60)+5,'finite ramp storage must spill locally before the bypass fills; minute '+spilledAt);
+  const j=grid.junctions.find(j=>j.ref===ref);assert.ok(exitRampVehicles(j)>storage-1&&j.lastExitDemand*60>2000);
   const real=[{path,fromM:from.metre,toM:entry.config.toM,eventId:event.id,outVph:entries[0].state.lastDeparture*60,
    inVph:0,desiredPercent:100,vehiclesOnDetour:detourVehicles(entries[0].state),waitingAtReentry:0}];
   const row=junctionMovements(path,route,exits,[event],null,real,grid.junctions).find(r=>r.exit.ref===ref);
-  assert.ok(row.outVph<=700+1e-6&&row.exitDemandVph>row.outVph+1000);
-  assert.ok(row.exitRampVehicles>39&&row.exitRampStorageVehicles===40&&row.exitTerminalVph===700);
+  assert.ok(row.outVph<=terminal+1e-6&&row.exitDemandVph>row.outVph+1000);
+  assert.ok(row.exitRampVehicles>storage-1&&row.exitRampStorageVehicles===storage&&row.exitTerminalVph===terminal);
  });
 
 function localFixture(terminal=700,storage=40){
@@ -103,15 +105,16 @@ test('normal and two bypass destinations use one AS ramp, not one independent ca
   const next=advanceRoutedNetwork(grids,routes,events,demands,exits,entries);grids=next.cells;entries=next.detours;
   const grid=grids['A3-frankfurt'],j=grid.junctions.find(j=>j.ref==='40');
   const terminal=j.lastExited+entries.reduce((s,e)=>s+e.state.lastDeparture,0);
-  assert.ok(terminal*60<=700+1e-6&&exitRampVehicles(j)<=40+1e-6);
+  assert.ok(terminal*60<=1500+1e-6&&exitRampVehicles(j)<=120+1e-6);
   assert.ok(Math.abs(cellInventory(grid)+entries.reduce((s,e)=>s+detourVehicles(e.state),0)+grid.exitedTotal-initial-grid.offeredTotal)<1e-5);
  }
 });
-test('every ordinary A3/A48 exit has the short terminal model; AD/AK motorway branches do not',()=>{
+test('ordinary A3/A48 exits have individual finite terminal models; AD/AK motorway branches do not',()=>{
  let count=0;
  for(const path of ['A3-koeln','A3-frankfurt','A48-dernbach','A48-koblenz'])
   for(const j of normalJunctionTraffic(routes[path],exits,3000)){
-   assert.equal(j.exitTerminalVph,700);assert.equal(j.exitStorageVehicles,40);count++;
+   const large=path.startsWith('A3')?['40','42'].includes(j.ref):['10','11'].includes(j.ref);
+   if(large){assert.ok(j.exitTerminalVph>=1500&&j.exitStorageVehicles>=120)}else{assert.equal(j.exitTerminalVph,700);assert.equal(j.exitStorageVehicles,40)}count++;
   }
  assert.equal(count,26);
  for(const [terminal,storage] of [[-1,40],[NaN,40],[700,0],[700,NaN]]){

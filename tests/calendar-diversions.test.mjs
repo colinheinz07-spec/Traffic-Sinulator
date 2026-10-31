@@ -15,7 +15,7 @@ test('weekend/night reserves less background traffic; default calibration is ret
  assert.equal(localRoadAvailability(saturday),1.4);
  const week=normalJunctionTraffic(routes['A3-frankfurt'],exits,3000,monday);
  const end=normalJunctionTraffic(routes['A3-frankfurt'],exits,3000,saturday);
- assert.ok(end.every((j,i)=>j.exitTerminalVph>week[i].exitTerminalVph&&j.exitTerminalVph<=1000));
+ assert.ok(end.every((j,i)=>j.exitTerminalVph>week[i].exitTerminalVph&&j.exitTerminalVph<=j.exitCapacityVph));
  assert.equal(end[0].exitCapacityVph,week[0].exitCapacityVph);
 });
 test('announced closure affects only new offers in its direction and ends with the schedule',()=>{

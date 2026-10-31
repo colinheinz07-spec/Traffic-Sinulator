@@ -1,8 +1,8 @@
 /** Physical lane restrictions and directional AS access on actual road
  * intervals. Administrative closures keep their separate exit-gate rule. */
-import { exitPosition } from './core.js?build=02a62fc57e67c41a';
-import { suggestedSpeed } from './events.js?build=02a62fc57e67c41a';
-import { positionM } from './spatial.js?build=02a62fc57e67c41a';
+import { exitPosition } from './core.js?build=16d9a4ffa3b7c57e';
+import { suggestedSpeed } from './events.js?build=16d9a4ffa3b7c57e';
+import { positionM } from './spatial.js?build=16d9a4ffa3b7c57e';
 export function roadSections(route, events) {
     const located = events.filter(e => e.pathKey === route.key && e.kind !== 'closure').flatMap(event => {
         const fromM = positionM(route, event.point);

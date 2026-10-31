@@ -94,8 +94,9 @@ for(const [path,from,to] of [['A3-koeln','40','38'],['A3-frankfurt','38','40'],[
    assert.ok(Math.abs(cellInventory(state)+detourVehicles(detours[0].state)+state.exitedTotal-initial-state.offeredTotal)<1e-5);
    if(i>60){lateDemand=Math.max(lateDemand,local.lastExitDemand*60);lateActual=Math.max(lateActual,actual);}
   }
-  assert.ok(peak>650&&peak<=700+1e-6,'normal and diversion traffic share the 700/h terminal');
-  assert.ok(lateDemand>2500&&lateActual<=700+1e-6,'unserved exit demand stays visible');
+  const terminal=path==='A3-koeln'&&from==='40'?1500:700;
+  assert.ok(peak>650&&peak<=terminal+1e-6,'normal and diversion traffic share this junction terminal');
+  assert.ok(lateDemand>2500&&lateActual<=terminal+1e-6,'unserved exit demand stays visible');
   assert.ok(state.cells.some(c=>c.fromM<entry.config.fromM&&c.fromM>entry.config.fromM-3000&&c.speedKmh<20),
    'real vehicles must back up on the motorway rather than disappear into an unlimited side road');
   const ramp=state.junctions.find(j=>j.ref===from).exitQueue;

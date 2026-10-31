@@ -1,13 +1,13 @@
-import { localRoadAvailability } from './calendar-traffic.js?build=02a62fc57e67c41a';
+import { localRoadAvailability } from './calendar-traffic.js?build=16d9a4ffa3b7c57e';
 /** Motorway cells and multiple local simulator routes share ONE vehicle budget.
  * Side-road admission is limited by cars reaching the real exit cell; cars
  * return only after their local journey and when the merge accepts them.
  */
-import { advanceCells, cellInventory } from './traffic-cells.js?build=02a62fc57e67c41a';
-import { advanceDetour, detourVehicles, detourStorage } from './detour-flow.js?build=02a62fc57e67c41a';
-import { routedDiversionChoice, requiredDiversionGate } from './diversion-policy.js?build=02a62fc57e67c41a';
-import { journeyRampCapacity, journeyTrafficShare } from './interchange-journeys.js?build=02a62fc57e67c41a';
-import { normalJunctionTraffic } from './junction-traffic.js?build=02a62fc57e67c41a';
+import { advanceCells, cellInventory } from './traffic-cells.js?build=16d9a4ffa3b7c57e';
+import { advanceDetour, detourVehicles, detourStorage } from './detour-flow.js?build=16d9a4ffa3b7c57e';
+import { routedDiversionChoice, requiredDiversionGate } from './diversion-policy.js?build=16d9a4ffa3b7c57e';
+import { journeyRampCapacity, journeyTrafficShare } from './interchange-journeys.js?build=16d9a4ffa3b7c57e';
+import { normalJunctionTraffic } from './junction-traffic.js?build=16d9a4ffa3b7c57e';
 /** The remaining legacy turn solver must not offer a second copy of trips
  * that chose a side-road/alternate-ramp journey. Existing ramp inventories
  * remain in that solver and finish normally when their control permits it. */
@@ -166,9 +166,32 @@ export function advanceRoutedNetwork(previous, routes, events, demands, exits, d
                 returnClass: journey?.kind === 'via' || journey?.kind === 'protected' || journey?.kind === 'evacuation' ? journey.token : undefined,
                 exitCapacityVph: 0, returnVehicles: detourReadyToReturn(state, targetGrid.minute) });
     }
+    // Route intentions are revisable until the physical motorway fork.
+    // Release only the source-road tag, never cars already on the Köln ramp,
+    // A3 Köln, or the Ransbach–Montabaur continuation. Inventories are intact.
+    const sourceStates = { ...previous };
+    for (const entry of detours) {
+        const j = entry.config.journey;
+        if (j?.kind !== 'via' || (intentions.get(entry.config.id) ?? 0) > 0 ||
+            j.forcedByEventId && events.some(e => e.id === j.forcedByEventId && e.kind === 'closure'))
+            continue;
+        const grid = sourceStates[entry.config.path];
+        if (!grid)
+            continue;
+        const without = (tags) => {
+            if (!tags?.[j.token])
+                return tags;
+            const copy = { ...tags };
+            delete copy[j.token];
+            return copy;
+        };
+        sourceStates[entry.config.path] = { ...grid, routedBacklog: without(grid.routedBacklog),
+            cells: grid.cells.map(c => c.fromM < entry.config.fromM ? { ...c, routedVehicles: without(c.routedVehicles) } : c),
+            classifiedJourneys: grid.classifiedJourneys?.filter(token => token !== j.token) };
+    }
     const cells = {};
     for (const key of Object.keys(previous))
-        cells[key] = advanceCells(previous[key], routes[key], events, demands[key], exits, ports.get(key) ?? [], normalJunctionTraffic(routes[key], exits, demands[key], moment));
+        cells[key] = advanceCells(sourceStates[key], routes[key], events, demands[key], exits, ports.get(key) ?? [], normalJunctionTraffic(routes[key], exits, demands[key], moment));
     const effective = detours.map(e => {
         const j = e.config.journey, motorway = j?.kind === 'via' || j?.kind === 'protected' || j?.kind === 'evacuation';
         const factor = motorway ? 1 : localRoadAvailability(moment);
