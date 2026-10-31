@@ -1,6 +1,10 @@
-# A3/A48 Stausimulator – TRAFFIC 1.12.15
+# A3/A48 Stausimulator – TRAFFIC 1.12.16
 
 **Ein Repository, eine Startdatei:** `index.html` im Hauptverzeichnis direkt in SPCK öffnen. Keine Cloudflare-Konfiguration und keine externe Kartenbibliothek.
+
+## Zeitverlust bei stillstehender Ausleitung (1.12.16)
+
+Nahezu null gewordene Abflussmessungen dürfen keine Millionen-Minuten-Prognose erzeugen. Unter einem Fahrzeug pro Stunde liefert der Detektor keine belastbare Reisezeit; bei Ausleitung nennt die Anzeige die Anschlussstelle und den derzeit nicht berechenbaren Zeitverlust. Tatsächlicher Kriechverkehr unter 0,1 km/h wird als Stillstand behandelt. Sobald ein messbarer Abfluss zurückkehrt, wird der Zeitverlust wieder aus Strecke, Dichte und Durchfluss berechnet. Keine feste Obergrenze und keine Berechnung aus der bisherigen Sperrdauer.
 
 ## Stabile Kartenbedienung (1.12.15)
 

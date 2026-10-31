@@ -8,8 +8,8 @@
  * actual discharge yields the time loss to that exit, labelled explicitly.
  * This calculation depends on NO clock, event age or queue-created timestamp.
  */
-import { cellCriticalDensity, cellQueueSpans } from './traffic-cells.js?build=689b5e524f9e182c';
-import { freeSpeedKmh } from './traffic-physics.js?build=689b5e524f9e182c';
+import { cellCriticalDensity, cellQueueSpans } from './traffic-cells.js?build=15bbcf9815f8c0a3';
+import { freeSpeedKmh } from './traffic-physics.js?build=15bbcf9815f8c0a3';
 /** A new, empty worksite does not serve a released queue kilometres away.
  * Use an active cross-section only once it belongs to that queue's physical
  * approach. Until then, its former head can still measure the release flow.
@@ -88,11 +88,15 @@ export function speedDelayInCells(state, fromM = 0, toM = Infinity, detectorEndM
         const flow = forecast?.serviceVph ?? detector?.meanFlowVph ?? c.travelFlowVph;
         const observed = (congested || forecast) && flow !== undefined && c.densityVehKm > 0 ?
             Math.min(forecast ? 40 : c.limitKmh ?? free, flow / c.densityVehKm) : c.speedKmh;
+        // Below one vehicle/hour the detector has no usable service estimate.
+        // Exponentially decaying residual flow is numerical queue memory, not a
+        // prediction that cars will take years to reach the mandatory off-ramp.
+        const noService = (congested || forecast) && flow !== undefined && (!Number.isFinite(flow) || flow < 1);
         const local = Math.min(free, Math.max(0, observed));
         // A true standstill is not equivalent to driving at a fictional 1–5 km/h.
         // Exit-bound cars may still move in a cell whose through edge is closed.
         // Their off-ramp flow must not imply an available motorway passage.
-        if (local <= 1e-6 || c.blockedAtM !== undefined && end >= c.blockedAtM - .1 && !c.travelDetector?.diversionExitRef && !c.reopeningForecast) {
+        if (noService || !Number.isFinite(local) || local < .1 || c.blockedAtM !== undefined && end >= c.blockedAtM - .1 && !c.travelDetector?.diversionExitRef && !c.reopeningForecast) {
             stoppedKm += km;
             continue;
         }
@@ -109,7 +113,7 @@ export function speedDelayInBands(path, bands) {
     for (const b of bands) {
         const km = Math.max(0, b.toM - b.fromM) / 1000;
         const speed = Math.max(0, Math.min(free, b.speedKmh));
-        if (speed <= 1e-6) {
+        if (!Number.isFinite(speed) || speed < .1) {
             stoppedKm += km;
             continue;
         }
@@ -119,6 +123,10 @@ export function speedDelayInBands(path, bands) {
     return { delayMin, blocked: stoppedKm > .0001, assessedKm, stoppedKm };
 }
 export function speedDelayLabel(value, precision = 1, compact = false) {
+    if (value.blocked && value.diversionExitRef)
+        return 'Verzögerung bis Ausleitung AS ' + value.diversionExitRef + ' derzeit nicht berechenbar';
+    if (!Number.isFinite(value.delayMin) || value.delayMin < 0)
+        return 'Verzögerung derzeit nicht berechenbar';
     if (compact && value.blocked)
         return 'Durchfahrt blockiert';
     if (value.blocked)

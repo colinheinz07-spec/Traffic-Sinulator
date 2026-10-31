@@ -91,11 +91,15 @@ export function speedDelayInCells(state:CellRouteState,fromM=0,toM=Infinity,dete
   const flow=forecast?.serviceVph??detector?.meanFlowVph??c.travelFlowVph;
   const observed=(congested||forecast)&&flow!==undefined&&c.densityVehKm>0?
    Math.min(forecast?40:c.limitKmh??free,flow/c.densityVehKm):c.speedKmh;
+  // Below one vehicle/hour the detector has no usable service estimate.
+  // Exponentially decaying residual flow is numerical queue memory, not a
+  // prediction that cars will take years to reach the mandatory off-ramp.
+  const noService=(congested||forecast)&&flow!==undefined&&(!Number.isFinite(flow)||flow<1);
   const local=Math.min(free,Math.max(0,observed));
   // A true standstill is not equivalent to driving at a fictional 1–5 km/h.
   // Exit-bound cars may still move in a cell whose through edge is closed.
   // Their off-ramp flow must not imply an available motorway passage.
-  if(local<=1e-6||c.blockedAtM!==undefined&&end>=c.blockedAtM-.1&&!c.travelDetector?.diversionExitRef&&!c.reopeningForecast){stoppedKm+=km;continue;}
+  if(noService||!Number.isFinite(local)||local<.1||c.blockedAtM!==undefined&&end>=c.blockedAtM-.1&&!c.travelDetector?.diversionExitRef&&!c.reopeningForecast){stoppedKm+=km;continue;}
   assessedKm+=km;
   delayMin+=Math.max(0,60*km*(1/local-1/free));
  }
@@ -109,13 +113,15 @@ export function speedDelayInBands(path:PathKey,bands:readonly SpeedBand[]):Speed
  for(const b of bands){
   const km=Math.max(0,b.toM-b.fromM)/1000;
   const speed=Math.max(0,Math.min(free,b.speedKmh));
-  if(speed<=1e-6){stoppedKm+=km;continue;}
+  if(!Number.isFinite(speed)||speed<.1){stoppedKm+=km;continue;}
   assessedKm+=km;
   delayMin+=Math.max(0,60*km*(1/speed-1/free));
  }
  return {delayMin,blocked:stoppedKm>.0001,assessedKm,stoppedKm};
 }
 export function speedDelayLabel(value:SpeedDelay,precision=1,compact=false):string{
+ if(value.blocked&&value.diversionExitRef)return 'Verzögerung bis Ausleitung AS '+value.diversionExitRef+' derzeit nicht berechenbar';
+ if(!Number.isFinite(value.delayMin)||value.delayMin<0)return 'Verzögerung derzeit nicht berechenbar';
  if(compact&&value.blocked)return 'Durchfahrt blockiert';
  if(value.blocked)return 'Durchfahrt blockiert · Verzögerung nicht prognostizierbar';
  const n=value.delayMin.toLocaleString('de-DE',{minimumFractionDigits:precision,maximumFractionDigits:precision});

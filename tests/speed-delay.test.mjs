@@ -85,3 +85,30 @@ test('UI labels read physical speed field, never event age',()=>{
  assert.doesNotMatch(spatial,/firstQueuedMinute/);
  assert.doesNotMatch(app,/min\$\{jam\.elapsedWait/);
 });
+
+
+test('near-zero mandatory exit service cannot produce millions of minutes',()=>{
+ const state=synthetic([3,3,3],2.3);
+ for(const c of state.cells){c.densityVehKm=180;c.vehicles=414;c.criticalDensityVehKm=30;}
+ const head=state.cells.at(-1);
+ head.blockedAtM=head.toM;
+ head.travelDetector={control:'exit38',capacityVph:420,meanFlowVph:.007,active:true,samples:99,diversionExitRef:'38'};
+ const delay=speedDelayInCells(state);
+ assert.equal(delay.blocked,true);
+ assert.equal(delay.delayMin,0);
+ assert.equal(delay.diversionExitRef,'38');
+ assert.match(speedDelayLabel(delay,1,true),/Ausleitung AS 38.*nicht berechenbar/);
+ // A recovered real discharge restores a speed-derived finite estimate.
+ head.travelDetector.meanFlowVph=420;
+ const recovered=speedDelayInCells(state);
+ assert.equal(recovered.blocked,false);
+ assert.ok(recovered.delayMin>100&&recovered.delayMin<200);
+});
+test('near-zero creeping velocity is standstill rather than a years-long prediction',()=>{
+ const delay=speedDelayInCells(synthetic([.00004]));
+ assert.equal(delay.blocked,true);assert.equal(delay.delayMin,0);
+ assert.doesNotMatch(speedDelayLabel(delay),/\+\d/);
+});
+test('invalid delay cannot leak NaN or Infinity into UI',()=>{
+ for(const delayMin of [NaN,Infinity,-1])assert.match(speedDelayLabel({delayMin,blocked:false,assessedKm:1,stoppedKm:0}),/nicht berechenbar/);
+});
