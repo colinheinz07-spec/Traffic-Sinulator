@@ -1,13 +1,13 @@
-import { localRoadAvailability } from './calendar-traffic.js?build=9296d788994cefba';
+import { localRoadAvailability } from './calendar-traffic.js?build=b239226da131b094';
 /** Motorway cells and multiple local simulator routes share ONE vehicle budget.
  * Side-road admission is limited by cars reaching the real exit cell; cars
  * return only after their local journey and when the merge accepts them.
  */
-import { advanceCells, cellInventory } from './traffic-cells.js?build=9296d788994cefba';
-import { advanceDetour, detourVehicles, detourStorage } from './detour-flow.js?build=9296d788994cefba';
-import { routedDiversionChoice, requiredDiversionGate } from './diversion-policy.js?build=9296d788994cefba';
-import { journeyRampCapacity, journeyTrafficShare } from './interchange-journeys.js?build=9296d788994cefba';
-import { normalJunctionTraffic } from './junction-traffic.js?build=9296d788994cefba';
+import { advanceCells, cellInventory } from './traffic-cells.js?build=b239226da131b094';
+import { advanceDetour, detourVehicles, detourStorage } from './detour-flow.js?build=b239226da131b094';
+import { routedDiversionChoice, requiredDiversionGate } from './diversion-policy.js?build=b239226da131b094';
+import { journeyRampCapacity, journeyTrafficShare } from './interchange-journeys.js?build=b239226da131b094';
+import { normalJunctionTraffic } from './junction-traffic.js?build=b239226da131b094';
 /** The remaining legacy turn solver must not offer a second copy of trips
  * that chose a side-road/alternate-ramp journey. Existing ramp inventories
  * remain in that solver and finish normally when their control permits it. */
@@ -140,7 +140,7 @@ export function advanceRoutedNetwork(previous, routes, events, demands, exits, d
         }) : [];
         const rampRoom = motorway ? Math.max(0, Math.min(...rampSiblings.map(e => detourStorage(e.config))) -
             rampSiblings.reduce((n, e) => n + detourVehicles(e.state), 0)) / rampSiblings.length : Infinity;
-        const capacity = Math.min(motorway ? 1500 : Infinity, Math.min(rampRoom, Math.max(0, detourStorage(config) - detourVehicles(state))) * 60, motorway ? roadLimit : Infinity);
+        const capacity = Math.min(motorway ? 1500 : Infinity, Math.min(rampRoom, Math.max(0, detourStorage(config) - detourVehicles(state))) * 60, motorway ? entry.enabled === false ? 0 : roadLimit : Infinity);
         if (journey?.kind === 'protected' && !localOffers.has(config.path))
             localOffers.set(config.path, normalJunctionTraffic(routes[config.path], exits, demands[config.path]));
         const sourceOffers = demands[config.path] + (localOffers.get(config.path) ?? [])
@@ -153,7 +153,7 @@ export function advanceRoutedNetwork(previous, routes, events, demands, exits, d
         const untilM = Math.max(1, Math.min(sourceGrid.cells.length - 1, Math.round(config.fromM / sourceGrid.cellM))) * sourceGrid.cellM;
         const classifyAt = journey?.kind === 'via' ? { metre: journey.decisionM, sharePercent: interest, vehicleClass: journey.token, untilM } :
             passage ? { metre: 0, sharePercent: passage.sharePercent, vehicleClass: passage.vehicleClass, untilM } :
-                journey?.kind === 'evacuation' && events.some(e => e.id === journey.closureEventId && e.kind === 'closure') ?
+                journey?.kind === 'evacuation' && entry.enabled !== false && events.some(e => e.id === journey.closureEventId && e.kind === 'closure') ?
                     { metre: Math.round(journey.gateM / sourceGrid.cellM) * sourceGrid.cellM, sharePercent: 100, vehicleClass: journey.token, untilM, seedOnly: true } : undefined;
         const protectedExit = !config.movementId && requiredDiversionGate(config, routes[config.path], events, exits) &&
             detours.some(e => e.config.path === config.path && e.config.journey?.kind === 'protected' && e.enabled !== false &&
@@ -172,8 +172,11 @@ export function advanceRoutedNetwork(previous, routes, events, demands, exits, d
     const sourceStates = { ...previous };
     for (const entry of detours) {
         const j = entry.config.journey;
-        if (j?.kind !== 'via' || (intentions.get(entry.config.id) ?? 0) > 0 ||
-            j.forcedByEventId && events.some(e => e.id === j.forcedByEventId && e.kind === 'closure'))
+        const disabledMotorway = entry.enabled === false && (j?.kind === 'via' || j?.kind === 'protected' || j?.kind === 'evacuation');
+        if (!disabledMotorway && (j?.kind !== 'via' || (intentions.get(entry.config.id) ?? 0) > 0 ||
+            j.forcedByEventId && events.some(e => e.id === j.forcedByEventId && e.kind === 'closure')))
+            continue;
+        if (!j || !('token' in j))
             continue;
         const grid = sourceStates[entry.config.path];
         if (!grid)

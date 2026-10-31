@@ -1,12 +1,12 @@
-import { INTERCHANGE_DIVERSION_START_MIN, interchangeTrafficShare } from './interchange.js?build=9296d788994cefba';
-import { baselineCapacity, eventCapacity, defaultDemand } from './traffic.js?build=9296d788994cefba';
-import { positionM, closureGate, metres } from './spatial.js?build=9296d788994cefba';
-import { cellQueueSpans } from './traffic-cells.js?build=9296d788994cefba';
-import { diversionJunctions } from './diversions.js?build=9296d788994cefba';
-import { bundledTargets, bundledDetourGeometry, isNetworkDestination } from './bundled-detours.js?build=9296d788994cefba';
-import { accessibleExits, physicalEvents } from './road-controls.js?build=9296d788994cefba';
-import { speedDelayInCells } from './speed-delay.js?build=9296d788994cefba';
-import { queueFundamentalDiagram, colorAtSpeed } from './traffic-physics.js?build=9296d788994cefba';
+import { INTERCHANGE_DIVERSION_START_MIN, interchangeTrafficShare } from './interchange.js?build=b239226da131b094';
+import { baselineCapacity, eventCapacity, defaultDemand } from './traffic.js?build=b239226da131b094';
+import { positionM, closureGate, metres } from './spatial.js?build=b239226da131b094';
+import { cellQueueSpans } from './traffic-cells.js?build=b239226da131b094';
+import { diversionJunctions } from './diversions.js?build=b239226da131b094';
+import { bundledTargets, bundledDetourGeometry, isNetworkDestination } from './bundled-detours.js?build=b239226da131b094';
+import { accessibleExits, physicalEvents } from './road-controls.js?build=b239226da131b094';
+import { speedDelayInCells } from './speed-delay.js?build=b239226da131b094';
+import { queueFundamentalDiagram, colorAtSpeed } from './traffic-physics.js?build=b239226da131b094';
 /** A detour of one configured turn cannot acquire the entire A48's
  * destination mix when its mainline reference volume is larger. */
 export function journeyTrafficShare(config, demands) {
@@ -137,7 +137,11 @@ export function interchangeJourneys(events, routes, exits, cells, connections, t
                 const block = closureGate(route, e, exits, events), point = positionM(route, e.point);
                 return block && point !== null && block.metre < c.rampEntryM && point <= c.rampEntryM;
             });
-            if (approachClosed || rampCapacity(c.rampId, events, {}, routes[c.rampId]) <= 0) {
+            const targetClosed = events.some(e => {
+                const block = closureGate(routes[c.to], e, exits, events);
+                return block && c.downstreamMergeM >= block.metre - 1 && c.downstreamMergeM < block.endM - 1;
+            });
+            if (approachClosed || targetClosed || rampCapacity(c.rampId, events, {}, routes[c.rampId]) <= 0) {
                 const from = diversionJunctions(path, exits, route).find(j => j.ref === gate.exit.ref);
                 const to = bundledTargets(c.to, accessibleExits(routes[c.to], events, exits, 'entry'), routes[c.to]).find(j => j.metre > c.downstreamMergeM);
                 const key = 'CLOSED-TURN-' + event.id + '-' + c.rampId;

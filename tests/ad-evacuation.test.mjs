@@ -93,3 +93,26 @@ for(const path of ['A3-frankfurt','A3-koeln'])test(`${path}: closure before the 
  const local=entries.find(e=>e.config.path===path&&e.config.targetPath==='A48-koblenz'&&e.config.journey?.kind==='closure-bypass');
  assert.ok(local);assert.equal(local.config.geometry.targetExitRef,'12');
 });
+
+test('retired protected motorway journeys admit no new cars and drain their existing ramp stock',()=>{
+ let cells=grids(),events=[closure('A3-koeln')];
+ let detours=prepare(cells,events);
+ const index=detours.findIndex(e=>e.config.journey?.kind==='protected');
+ assert.ok(index>=0);
+ const config=detours[index].config,token=config.journey.token;
+ detours=detours.map(e=>({...e,enabled:false}));
+ detours[index].state.waitingRoad=30;
+ detours[index].state.admittedTotal=30;
+ cells[config.path].cells[0].routedVehicles={[token]:cells[config.path].cells[0].vehicles};
+ const before=balance(cells,detours);
+ let departures=0;
+ for(let t=0;t<12;t++){
+  const next=advanceRoutedNetwork(cells,routes,[],demands,exits,detours);
+  cells=next.cells;detours=next.detours;
+  departures+=detours[index].state.lastDeparture;
+ }
+ assert.equal(departures,0,'a retained journey cannot keep taking source-road traffic');
+ assert.ok(detourVehicles(detours[index].state)<.01,'old ramp inventory still exits');
+ assert.equal(tagged(cells[config.path],token),0,'obsolete source intentions are released');
+ assert.ok(Math.abs(balance(cells,detours)-before)<1e-5,'vehicles are conserved');
+});
