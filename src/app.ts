@@ -833,7 +833,9 @@ function initializeTraffic(){
   updateMapClock();
  };
  $('traffic-reset').onclick=()=>{stopTraffic();spatialState=emptySpatial();cellNetwork={};resetDetourFlow();renderTraffic();};
- document.addEventListener('visibilitychange',()=>{if(document.hidden)stopTraffic();});
+ // Embedded previews can report transient visibility changes while updating.
+ // Keep the user's playback choice; the browser may throttle background ticks.
+ // Only Pause, Reset, a changed start time, or a calculation error stops it.
 }
 
 const imageCache=new Map<string,{image:HTMLImageElement;ready:boolean;failed:boolean}>();
