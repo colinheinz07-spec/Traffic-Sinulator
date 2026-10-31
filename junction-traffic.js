@@ -1,5 +1,6 @@
-import { localRoadAvailability } from './calendar-traffic.js?build=16d9a4ffa3b7c57e';
-import { diversionJunctions } from './diversions.js?build=16d9a4ffa3b7c57e';
+import { junctionAccess } from './road-controls.js?build=9296d788994cefba';
+import { localRoadAvailability } from './calendar-traffic.js?build=9296d788994cefba';
+import { diversionJunctions } from './diversions.js?build=9296d788994cefba';
 // No surveyed AS signal plans or local off-ramp lengths are bundled. These
 // are explicit defaults: roughly one 300 m queue lane, and ~39% effective
 // green at 1800 veh/h/lane. They are not measured AS-specific capacities.
@@ -25,9 +26,10 @@ export function normalJunctionTraffic(route, exits, demandVph, moment) {
     return diversionJunctions(route.key, exits, route).filter(j => !j.isInterchange).map(j => {
         // 4–8% local turnover per AS. Balanced ordinary entry/exit at the
         // reference free flow avoids artificially growing demand at every node.
-        const share = 4 + Number(j.ref) % 5, profile = junctionCapacityProfile(route.key.startsWith('A3') ? 'A3' : 'A48', j.ref);
+        const share = 4 + Number.parseInt(j.ref, 10) % 5, profile = junctionCapacityProfile(route.key.startsWith('A3') ? 'A3' : 'A48', j.ref);
+        const access = junctionAccess(route, [], j.metre, j.ref);
         return { id: route.key + ':local:' + j.ref, ref: j.ref, metre: j.metre,
-            entryVph: Math.min(700, demandVph * share / 100), exitPercent: share,
+            entryVph: access.entry ? Math.min(700, demandVph * share / 100) : 0, exitPercent: access.exit ? share : 0,
             entryCapacityVph: profile.entry, exitCapacityVph: profile.exit,
             exitTerminalVph: Math.min(profile.exit, profile.terminal * localRoadAvailability(moment)), exitStorageVehicles: profile.storage };
     });

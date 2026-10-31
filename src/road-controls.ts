@@ -1,3 +1,4 @@
+import {networkData} from './geodata.js';
 /** Physical lane restrictions and directional AS access on actual road
  * intervals. Administrative closures keep their separate exit-gate rule. */
 import {exitPosition,type Exit,type RoadId} from './core.js';
@@ -36,7 +37,8 @@ export function physicalEvents(route:Corridor,events:readonly SimEvent[],section
  });
 }
 export function junctionAccess(route:Corridor,events:readonly SimEvent[],metre:number,ref:string):{entry:boolean;exit:boolean}{
- let entry=true,exit=true;
+ const base=networkData.exits.find(e=>e.road===(route.key.startsWith('A3')?'A3':'A48')&&e.ref===ref)?.access?.[route.key as RoadId];
+ let entry=base?.entry??true,exit=base?.exit??true;
  for(const e of events){
   if(e.pathKey!==route.key||e.kind!=='roadworks')continue;
   const mode=e.settings.junctionClosures?.[ref];if(!mode)continue;
@@ -47,7 +49,7 @@ export function junctionAccess(route:Corridor,events:readonly SimEvent[],metre:n
  return {entry,exit};
 }
 export function accessibleExits(route:Corridor,events:readonly SimEvent[],exits:readonly Exit[],access:'entry'|'exit'):Exit[]{
- if(!events.some(e=>e.pathKey===route.key&&e.kind==='roadworks'&&Object.keys(e.settings.junctionClosures??{}).length))return [...exits];
+
  const road=route.key.startsWith('A3')?'A3':'A48';
  return exits.filter(e=>{
   if(e.road!==road)return true;

@@ -10,8 +10,7 @@ ROOT=Path(__file__).resolve().parents[2]
 spec=importlib.util.spec_from_file_location('north',ROOT/'scripts/extend_a3_north.py')
 north=importlib.util.module_from_spec(spec)
 spec.loader.exec_module(north)
-current=json.loads(re.search(r'networkData:\s*MapData\s*=\s*(\{.*\});?\s*$',
-    north.DATA_PATH.read_text(),re.S)[1])
+current=json.loads((ROOT/'data/a3-regional-baseline.json').read_text())
 source=json.loads(north.SOURCE_PATH.read_text())
 imported=set(current['audit']['northExtension']['wayIds'])
 baseline=copy.deepcopy(current)

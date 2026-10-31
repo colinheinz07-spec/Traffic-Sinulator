@@ -28,8 +28,14 @@ export function queueTravelHeads(state:CellRouteState,detectorEndM=Infinity):Map
  for(const cell of state.cells){
   if(cell.speedKmh>65)continue;
   const span=spans.find(s=>s.fromM<cell.toM-.1&&s.toM>cell.fromM+.1);
-  const end=(span?.toM??cell.toM)+state.cellM;
+  const ownEnd=span?.toM??cell.toM;
   const ahead=detectors.filter(d=>d.toM>=cell.toM-.1);
+  // The detector is at the END of its cell. Crossing one temporarily
+  // clear cell needs two cell widths to reach that end. A one-width gate
+  // dropped an entire long queue's observed service for a single tick.
+  // An existing head inside this span prevents borrowing a separate head.
+  const ownHead=ahead.some(d=>d.travelDetector!.active&&d.toM<=ownEnd+.1);
+  const end=ownEnd+(ownHead?0:2*state.cellM);
   const nextActive=ahead.find(d=>d.travelDetector!.active);
   // Connected incidents share the governing service. In particular, a
   // downstream complete block supplies its reopening forecast through an

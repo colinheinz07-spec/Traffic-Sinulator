@@ -6,8 +6,8 @@
  * This module produces ROUTE PLANNING PREVIEWS only. It must never silently
  * subtract or teleport vehicles from the conserved A3/A48 motorway queues.
  */
-import { exitPosition } from './core.js?build=16d9a4ffa3b7c57e';
-import { positionM, closureGate } from './spatial.js?build=16d9a4ffa3b7c57e';
+import { exitPosition } from './core.js?build=9296d788994cefba';
+import { positionM, closureGate } from './spatial.js?build=9296d788994cefba';
 const r = (code, path, fromRef, toRef, evidence = 'named-endpoints') => ({
     id: path + '-' + code, code, path, fromRoad: path.startsWith('A3') ? 'A3' : 'A48', fromRef,
     toRoad: toRef ? (path.startsWith('A3') ? 'A3' : 'A48') : null, toRef, evidence,
@@ -55,7 +55,7 @@ export function diversionJunctions(path, exits, corridor) {
     if (path !== corridor.key)
         throw Error('Fahrtrichtung und Geometrie passen nicht zusammen');
     const road = path.startsWith('A3') ? 'A3' : 'A48';
-    return exits.filter(e => e.road === road).map(e => ({
+    return exits.filter(e => e.road === road && (!e.directional || !!e.directional[path])).map(e => ({
         ...e, position: exitPosition(e, path), metre: positionM(corridor, exitPosition(e, path), 900),
         isInterchange: e.name.startsWith('AD ') || e.name.startsWith('AK ')
     })).filter((e) => e.metre !== null)

@@ -32,17 +32,18 @@ function prepare(event){return automaticDiversions([event],routes,exits,{}).map(
  return {config,state:emptyDetour(config)};
 });}
 
-test('all 26 regular directional off-ramps match audited OSM nodes on their own carriageway',()=>{
+test('all 34 regular directional off-ramps match audited OSM nodes on their own carriageway',()=>{
  const audit=JSON.parse(readFileSync('data/junction-audit.json','utf8'));let count=0;
  for(const exit of exits.filter(e=>!e.name.startsWith('AD ')&&!e.name.startsWith('AK '))){
   for(const [path,node] of Object.entries(exit.directional)){
+   if(exit.access?.[path]?.exit===false)continue;
    count++;const raw=audit.junctions.find(n=>n.id===node.nodeId);
    assert.ok(raw&&raw.paths.includes(path));assert.equal(raw.tags.ref,exit.ref);
    assert.deepEqual(node.position,[raw.lat,raw.lon]);
    assert.notEqual(positionM(routes[path],node.position,2),null,path+' / AS '+exit.ref);
   }
  }
- assert.equal(count,26);
+ assert.equal(count,34);
 });
 
 test('Limburg uses the actual OSM off-ramp node on each carriageway',()=>{

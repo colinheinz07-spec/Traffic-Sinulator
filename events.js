@@ -1,4 +1,4 @@
-import { validDailyRecurrence, dailyRecurrenceBounds, dailyOccurrenceAt } from './recurring-events.js?build=16d9a4ffa3b7c57e';
+import { validDailyRecurrence, dailyRecurrenceBounds, dailyOccurrenceAt } from './recurring-events.js?build=9296d788994cefba';
 export const EVENT_KINDS = ['roadworks', 'accident', 'breakdown', 'closure'];
 export const eventNames = { roadworks: 'Baustelle', accident: 'Unfall', breakdown: 'Lkw-Panne', closure: 'Vollsperrung' };
 export const eventSymbols = { roadworks: '🚧', accident: '💥', breakdown: '🚛', closure: '⛔' };
@@ -10,7 +10,7 @@ const knownRampIds = new Set(['ramp-a3-to-a48-from-frankfurt', 'ramp-a3-to-a48-f
 export function isKnownPath(key) { return directions.has(key) || knownRampIds.has(key); }
 export function isEventKind(v) { return typeof v === 'string' && EVENT_KINDS.includes(v); }
 const isShoulder = (x) => x === 'normal' || x === 'open' || x === 'blocked';
-function isPoint(p) { return Array.isArray(p) && p.length === 2 && p.every(n => typeof n === 'number' && Number.isFinite(n)) && p[0] >= 50.32 && p[0] <= 50.73 && p[1] >= 7.27 && p[1] <= 8.16; }
+function isPoint(p) { return Array.isArray(p) && p.length === 2 && p.every(n => typeof n === 'number' && Number.isFinite(n)) && p[0] >= 50.24 && p[0] <= 50.96 && p[1] >= 7.03 && p[1] <= 8.34; }
 export function maxLengthM(kind) { return kind === 'accident' || kind === 'breakdown' ? 200 : kind === 'closure' ? 100000 : 20000; }
 export function defaultLengthM(kind) { return kind === 'roadworks' ? 500 : kind === 'closure' ? 200 : kind === 'accident' ? 100 : 50; }
 /** These are adjustable *simulation assumptions*, not German traffic-law speed limits. */

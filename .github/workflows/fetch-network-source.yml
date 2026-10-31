@@ -1,0 +1,21 @@
+name: Fetch verified Heumar Bad Camberg OSM source
+on:
+  push:
+    branches: [feature/map-source-heumar-camberg]
+    paths: [scripts/fetch_network_source.py, .github/workflows/fetch-network-source.yml]
+permissions:
+  contents: write
+jobs:
+  source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - run: python scripts/fetch_network_source.py
+      - name: Retain source snapshot on working branch
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add data/a3-heumar-camberg-osm.json
+          git commit -m 'Retain raw OSM network for Heumar Bad Camberg and Bonn Siegburg'
+          git push

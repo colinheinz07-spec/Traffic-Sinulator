@@ -1,3 +1,4 @@
+import {junctionAccess} from '../dist/road-controls.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {networkData} from '../dist/geodata.js';
@@ -31,7 +32,8 @@ function queue(path,tail,head,delay){
 for(const path of DIRECTIONS)for(const {from,to} of bundledExitRoutes(path,exits,routes[path])){
  for(const kind of ['accident','roadworks','breakdown',null]){
   test(`${path} AS ${from.ref} ${kind??'natural congestion'}: only the nearest exit before this jam diverts`,()=>{
-   const route=routes[path],head=from.metre+(to.metre-from.metre)*.7;
+   const route=routes[path],nextExit=diversionJunctions(path,exits,route).find(j=>j.metre>from.metre+1&&junctionAccess(route,[],j.metre,j.ref).exit);
+   const end=Math.min(to.metre,nextExit?.metre??to.metre),head=from.metre+(end-from.metre)*.7;
    const tail=from.metre+(head-from.metre)*.5,laneCount=path.startsWith('A48')?2:3;
    const event=kind?{id:'any-'+path+'-'+from.ref,kind,pathKey:path,point:routeSlice(route,head,head+1)[0],
     laneCount,closedLanes:Array.from({length:laneCount-1},(_,i)=>i),createdAt:'2026-10-25T09:00:00Z',

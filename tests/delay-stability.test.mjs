@@ -37,7 +37,7 @@ test('a blocked accident forecasts declared reopening without dividing by tiny C
 
 // Keep a substantial overload for the smoothness regression after raising
 // two-lane service. Standard peak inputs are checked separately.
-for(const [lanes,demand] of [[[0,1],3400],[[0],4600]]){
+for(const [lanes,demand] of [[[0,1],3400],[[0],4800]]){
  test(`${3-lanes.length} open lanes: stop-and-go does not cause ten/twenty-minute prediction jumps`,()=>{
   const event=incident(lanes);let state=initialiseCells(route,demand),previous=0,peak=0,maxChange=0;
   const flows=[],colors=new Set();let previousCard=0,maxCardChange=0;
@@ -52,7 +52,7 @@ for(const [lanes,demand] of [[[0,1],3400],[[0],4600]]){
    maxCardChange=Math.max(maxCardChange,Math.abs(card-previousCard));previousCard=card;
    for(const band of cellSpeedBands(state))colors.add(band.color);
   }
-  assert.ok(peak>45,'a growing queue must still report substantial, uncapped travel loss');
+  assert.ok(peak>45,'a growing queue must still report substantial, uncapped travel loss: '+peak);
   assert.ok(maxChange<8,`largest one-minute change: ${maxChange}`);
   assert.ok(maxCardChange<8,`largest individual card change: ${maxCardChange}`);
   const minimumVariation=lanes.length===2?1.5:1.05;

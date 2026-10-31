@@ -89,13 +89,11 @@ export interface Rectangle {x:number;y:number;w:number;h:number}
 export function overlaps(a:Rectangle,b:Rectangle,margin=3){return a.x<b.x+b.w+margin&&a.x+a.w+margin>b.x&&a.y<b.y+b.h+margin&&a.y+a.h+margin>b.y;}
 
 export interface JunctionLabel {exit:Exit;point:[number,number];text:string;box:Rectangle|null}
-/** Show every in-view junction even in the whole-network view. Long names
- * may fall back to compact AS/AD/AK numbers, never to a hidden junction.
- * Label leaders retain the exact geographic anchor in dense interchanges.
- */
+/** Junction names appear only in the detailed view; overview prioritises events. */
 export function layoutJunctionLabels(exits:readonly Exit[],project:(point:Point)=>[number,number],
  viewport:{width:number;height:number},zoom:number,measure:(text:string)=>number,
  obstacles:readonly Rectangle[]=[]):JunctionLabel[]{
+ if(zoom<12.2)return [];
  const result:JunctionLabel[]=[];
  const inView=exits.map(exit=>({exit,point:project(exit.position)})).filter(({point:[x,y]})=>
   x>=0&&x<=viewport.width&&y>=0&&y<=viewport.height).sort((a,b)=>

@@ -65,7 +65,7 @@ export type JunctionAnchor=Exit & {metre:number;isInterchange:boolean};
 export function diversionJunctions(path:RoadId,exits:readonly Exit[],corridor:Corridor):JunctionAnchor[]{
  if(path!==corridor.key)throw Error('Fahrtrichtung und Geometrie passen nicht zusammen');
  const road=path.startsWith('A3')?'A3':'A48';
- return exits.filter(e=>e.road===road).map(e=>({
+ return exits.filter(e=>e.road===road&&(!e.directional||!!e.directional[path])).map(e=>({
   ...e,position:exitPosition(e,path),metre:positionM(corridor,exitPosition(e,path),900),
   isInterchange:e.name.startsWith('AD ')||e.name.startsWith('AK ')
  })).filter((e):e is JunctionAnchor=>e.metre!==null)

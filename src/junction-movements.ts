@@ -105,5 +105,5 @@ export function junctionMovements(path:RoadId,route:Corridor,exits:readonly Exit
 export function junctionMovementHint(row:JunctionMovement):{title:string;flow:string}{
  const count=(value:number)=>value.toLocaleString('de-DE',{maximumFractionDigits:0});
  return {title:'AS '+row.exit.ref+' · '+names[row.path].replace(' Richtung ',' → '),
-  flow:'Abfahrt '+count(row.outVph)+'/h'+(row.exitClosed?' ⛔':'')+' · Auffahrt '+count(row.inVph)+'/h'+(row.entryClosed?' ⛔':'')};
+  flow:'Abfahrt '+(row.exit.access?.[row.path]?.exit===false?'nicht vorhanden':count(row.outVph)+'/h'+(row.exitClosed?' ⛔':''))+' · Auffahrt '+(row.exit.access?.[row.path]?.entry===false?'nicht vorhanden':count(row.inVph)+'/h'+(row.entryClosed?' ⛔':''))};
 }

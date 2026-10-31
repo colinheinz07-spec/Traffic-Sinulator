@@ -4,7 +4,7 @@ import {readFileSync} from 'node:fs';
 import {networkData} from '../dist/geodata.js';
 import {makeCorridors,routeSlice} from '../dist/spatial.js';
 import {initialiseCells,advanceCells} from '../dist/traffic-cells.js';
-import {speedDelayInCells,speedDelayLabel} from '../dist/speed-delay.js';
+import {speedDelayInCells,speedDelayLabel,queueTravelHeads} from '../dist/speed-delay.js';
 import {freeSpeedKmh} from '../dist/traffic-physics.js';
 
 const routes=makeCorridors(networkData.roads,networkData.ramps),free=freeSpeedKmh('A3-koeln');
@@ -111,4 +111,16 @@ test('near-zero creeping velocity is standstill rather than a years-long predict
 });
 test('invalid delay cannot leak NaN or Infinity into UI',()=>{
  for(const delayMin of [NaN,Infinity,-1])assert.match(speedDelayLabel({delayMin,blocked:false,assessedKm:1,stoppedKm:0}),/nicht berechenbar/);
+});
+
+
+test('one temporarily free cell before a detector cannot detach the whole upstream queue from its service',()=>{
+ const state=synthetic(Array(20).fill(8),.1);
+ for(const c of state.cells){c.vehicles=15;c.densityVehKm=150;c.criticalDensityVehKm=30;c.travelFlowVph=2400;}
+ const head=state.cells.at(-1);head.travelDetector={control:'steady',active:true,capacityVph:1200,meanFlowVph:1200,samples:20};
+ const before=speedDelayInCells(state);
+ Object.assign(state.cells[18],{vehicles:1,densityVehKm:10,speedKmh:130});
+ assert.equal(queueTravelHeads(state).get(state.cells[0].toM),head);
+ const after=speedDelayInCells(state);
+ assert.ok(Math.abs(after.delayMin-before.delayMin)<1,'only the cleared 100m cell changes travel loss');
 });

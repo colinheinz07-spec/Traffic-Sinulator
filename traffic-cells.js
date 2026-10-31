@@ -1,9 +1,10 @@
-import { positionM, closureGate } from './spatial.js?build=16d9a4ffa3b7c57e';
-import { baselineCapacity, eventCapacity } from './traffic.js?build=16d9a4ffa3b7c57e';
-import { flowPolicy, DEFAULT_CLEARANCE_MIN } from './events.js?build=16d9a4ffa3b7c57e';
-import { colorAtSpeed, freeSpeedKmh, QUEUE_JAM_DENSITY_PER_LANE, CONGESTION_WAVE_KMH } from './traffic-physics.js?build=16d9a4ffa3b7c57e';
-import { normalJunctionTraffic, exitRampVehicles, DEFAULT_EXIT_TERMINAL_VPH, DEFAULT_EXIT_STORAGE_VEHICLES } from './junction-traffic.js?build=16d9a4ffa3b7c57e';
-import { roadSections, physicalEvents, junctionAccess } from './road-controls.js?build=16d9a4ffa3b7c57e';
+import { baseLaneCapacity } from './traffic-physics.js?build=9296d788994cefba';
+import { positionM, closureGate } from './spatial.js?build=9296d788994cefba';
+import { baselineCapacity, eventCapacity } from './traffic.js?build=9296d788994cefba';
+import { flowPolicy, DEFAULT_CLEARANCE_MIN } from './events.js?build=9296d788994cefba';
+import { colorAtSpeed, freeSpeedKmh, QUEUE_JAM_DENSITY_PER_LANE, CONGESTION_WAVE_KMH } from './traffic-physics.js?build=9296d788994cefba';
+import { normalJunctionTraffic, exitRampVehicles, DEFAULT_EXIT_TERMINAL_VPH, DEFAULT_EXIT_STORAGE_VEHICLES } from './junction-traffic.js?build=9296d788994cefba';
+import { roadSections, physicalEvents, junctionAccess } from './road-controls.js?build=9296d788994cefba';
 const TARGET_CELL_M = 100, WAVE_KMH = CONGESTION_WAVE_KMH, JAM_PER_LANE = QUEUE_JAM_DENSITY_PER_LANE;
 // One observation per MODEL minute; repainting/pause never advances this.
 const TRAVEL_ALPHA = 1 - Math.exp(-1 / 6);
@@ -67,8 +68,15 @@ function localControls(route, events, demandVph, count, cellM, exits = []) {
     const closureGates = [];
     const forecasts = new Map(), unknownBlocks = new Set();
     const sections = roadSections(route, events);
-    const openLanes = Array.from({ length: count }, () => Array.from({ length: laneCount }, (_, i) => i));
-    const shoulders = Array(count).fill(false), storageLanes = Array(count).fill(laneCount);
+    const baselineLanes = Array(count).fill(Infinity);
+    for (const section of route.normalLanes ?? [])
+        for (let i = Math.max(0, Math.floor(section.fromM / cellM)); i < Math.min(count, Math.ceil(section.toM / cellM)); i++)
+            baselineLanes[i] = Math.min(baselineLanes[i], section.lanes);
+    for (let i = 0; i < count; i++)
+        if (!Number.isFinite(baselineLanes[i]))
+            baselineLanes[i] = laneCount;
+    const openLanes = baselineLanes.map(n => Array.from({ length: n }, (_, i) => i));
+    const shoulders = Array(count).fill(false), storageLanes = [...baselineLanes];
     const weaving = new Map();
     const otherPhysical = events.filter(e => e.pathKey === route.key && e.kind !== 'roadworks' && e.kind !== 'closure').flatMap(e => {
         const at = positionM(route, e.point);
@@ -151,8 +159,8 @@ function localControls(route, events, demandVph, count, cellM, exits = []) {
     // stores cars only on its usable lanes. The local backward branch remains
     // below 30 km/h, inside the free-speed CFL step already used by the solver.
     const capacity = speeds.map((v, i) => {
-        const restricted = storageLanes[i] < laneCount, w = restricted ? 30 : WAVE_KMH;
-        return Math.min(baselineCapacity(route.key), restricted ? 2250 * (openLanes[i].length + (shoulders[i] ? .65 : 0) || storageLanes[i]) : Infinity, v * w * jam[i] / (v + w));
+        const restricted = storageLanes[i] < baselineLanes[i], w = restricted ? 30 : WAVE_KMH;
+        return Math.min(baseLaneCapacity(route.key) * baselineLanes[i], restricted ? 2250 * (openLanes[i].length + (shoulders[i] ? .65 : 0) || storageLanes[i]) : Infinity, v * w * jam[i] / (v + w));
     });
     for (const face of unknownBlocks)
         forecasts.delete(face);

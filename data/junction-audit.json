@@ -1026,6 +1026,207 @@
       "paths": [
         "A3-frankfurt"
       ]
+    },
+    {
+      "type": "node",
+      "id": 2638357302,
+      "lat": 50.9197751,
+      "lon": 7.0738139,
+      "tags": {
+        "TMC:cid_58:tabcd_1:Class": "Point",
+        "TMC:cid_58:tabcd_1:Direction": "positive",
+        "TMC:cid_58:tabcd_1:LCLversion": "9.00",
+        "TMC:cid_58:tabcd_1:LocationCode": "10908",
+        "TMC:cid_58:tabcd_1:NextLocationCode": "10909",
+        "TMC:cid_58:tabcd_1:PrevLocationCode": "10907",
+        "highway": "motorway_junction",
+        "name": "Dreieck Köln-Heumar",
+        "ref": "28"
+      },
+      "paths": [
+        "A3-koeln"
+      ]
+    },
+    {
+      "type": "node",
+      "id": 8245479643,
+      "lat": 50.9290575,
+      "lon": 7.0547139,
+      "tags": {
+        "TMC:cid_58:tabcd_1:Class": "Point",
+        "TMC:cid_58:tabcd_1:Direction": "negative",
+        "TMC:cid_58:tabcd_1:LCLversion": "9.00",
+        "TMC:cid_58:tabcd_1:LocationCode": "10908",
+        "TMC:cid_58:tabcd_1:NextLocationCode": "10909",
+        "TMC:cid_58:tabcd_1:PrevLocationCode": "10907",
+        "highway": "motorway_junction",
+        "name": "Dreieck Köln-Heumar",
+        "ref": "28"
+      },
+      "paths": [
+        "A3-frankfurt"
+      ]
+    },
+    {
+      "type": "node",
+      "id": 406047,
+      "lat": 50.9147827,
+      "lon": 7.1060799,
+      "tags": {
+        "TMC:cid_58:tabcd_1:Class": "Point",
+        "TMC:cid_58:tabcd_1:Direction": "positive",
+        "TMC:cid_58:tabcd_1:LCLversion": "9.00",
+        "TMC:cid_58:tabcd_1:LocationCode": "10907",
+        "TMC:cid_58:tabcd_1:NextLocationCode": "10908",
+        "TMC:cid_58:tabcd_1:PrevLocationCode": "10906",
+        "highway": "motorway_junction",
+        "layer": "1",
+        "name": "Königsforst",
+        "ref": "29"
+      },
+      "paths": [
+        "A3-koeln"
+      ]
+    },
+    {
+      "type": "node",
+      "id": 28095070,
+      "lat": 50.9162895,
+      "lon": 7.1002776,
+      "tags": {
+        "TMC:cid_58:tabcd_1:Class": "Point",
+        "TMC:cid_58:tabcd_1:Direction": "negative",
+        "TMC:cid_58:tabcd_1:LCLversion": "9.00",
+        "TMC:cid_58:tabcd_1:LocationCode": "10907",
+        "TMC:cid_58:tabcd_1:NextLocationCode": "10908",
+        "TMC:cid_58:tabcd_1:PrevLocationCode": "10906",
+        "highway": "motorway_junction",
+        "name": "Königsforst",
+        "ref": "29"
+      },
+      "paths": [
+        "A3-frankfurt"
+      ]
+    },
+    {
+      "type": "node",
+      "id": 321591253,
+      "lat": 50.8857624,
+      "lon": 7.1795931,
+      "tags": {
+        "TMC:cid_58:tabcd_1:Class": "Point",
+        "TMC:cid_58:tabcd_1:Direction": "negative",
+        "TMC:cid_58:tabcd_1:LCLversion": "9.00",
+        "TMC:cid_58:tabcd_1:LocationCode": "10905",
+        "TMC:cid_58:tabcd_1:NextLocationCode": "10906",
+        "TMC:cid_58:tabcd_1:PrevLocationCode": "39380",
+        "highway": "motorway_junction",
+        "name": "Rösrath",
+        "ref": "30a"
+      },
+      "paths": [
+        "A3-frankfurt"
+      ]
+    },
+    {
+      "type": "node",
+      "id": 405799,
+      "lat": 50.8492091,
+      "lon": 7.213431,
+      "tags": {
+        "TMC:cid_58:tabcd_1:Class": "Point",
+        "TMC:cid_58:tabcd_1:Direction": "positive",
+        "TMC:cid_58:tabcd_1:LCLversion": "9.00",
+        "TMC:cid_58:tabcd_1:LocationCode": "39380",
+        "TMC:cid_58:tabcd_1:NextLocationCode": "10905",
+        "TMC:cid_58:tabcd_1:PrevLocationCode": "10904",
+        "highway": "motorway_junction",
+        "name": "Lohmar-Nord",
+        "ref": "30b"
+      },
+      "paths": [
+        "A3-koeln"
+      ]
+    },
+    {
+      "type": "node",
+      "id": 266313640,
+      "lat": 50.820914,
+      "lon": 7.2075032,
+      "tags": {
+        "TMC:cid_58:tabcd_1:Class": "Point",
+        "TMC:cid_58:tabcd_1:Direction": "positive",
+        "TMC:cid_58:tabcd_1:LCLversion": "9.00",
+        "TMC:cid_58:tabcd_1:LocationCode": "10904",
+        "TMC:cid_58:tabcd_1:NextLocationCode": "39380",
+        "TMC:cid_58:tabcd_1:PrevLocationCode": "10903",
+        "highway": "motorway_junction",
+        "name": "Lohmar",
+        "ref": "31"
+      },
+      "paths": [
+        "A3-koeln"
+      ]
+    },
+    {
+      "type": "node",
+      "id": 405652,
+      "lat": 50.8251863,
+      "lon": 7.2034342,
+      "tags": {
+        "TMC:cid_58:tabcd_1:Class": "Point",
+        "TMC:cid_58:tabcd_1:Direction": "negative",
+        "TMC:cid_58:tabcd_1:LCLversion": "9.00",
+        "TMC:cid_58:tabcd_1:LocationCode": "10904",
+        "TMC:cid_58:tabcd_1:NextLocationCode": "39380",
+        "TMC:cid_58:tabcd_1:PrevLocationCode": "10903",
+        "highway": "motorway_junction",
+        "name": "Lohmar",
+        "ref": "31"
+      },
+      "paths": [
+        "A3-frankfurt"
+      ]
+    },
+    {
+      "type": "node",
+      "id": 266101668,
+      "lat": 50.2978445,
+      "lon": 8.2374002,
+      "tags": {
+        "TMC:cid_58:tabcd_1:Class": "Point",
+        "TMC:cid_58:tabcd_1:Direction": "positive",
+        "TMC:cid_58:tabcd_1:LCLversion": "9.00",
+        "TMC:cid_58:tabcd_1:LocationCode": "10880",
+        "TMC:cid_58:tabcd_1:NextLocationCode": "10881",
+        "TMC:cid_58:tabcd_1:PrevLocationCode": "10879",
+        "highway": "motorway_junction",
+        "name": "Bad Camberg",
+        "ref": "44"
+      },
+      "paths": [
+        "A3-koeln"
+      ]
+    },
+    {
+      "type": "node",
+      "id": 21179329,
+      "lat": 50.3030151,
+      "lon": 8.2345145,
+      "tags": {
+        "TMC:cid_58:tabcd_1:Class": "Point",
+        "TMC:cid_58:tabcd_1:Direction": "negative",
+        "TMC:cid_58:tabcd_1:LCLversion": "9.00",
+        "TMC:cid_58:tabcd_1:LocationCode": "10880",
+        "TMC:cid_58:tabcd_1:NextLocationCode": "10881",
+        "TMC:cid_58:tabcd_1:PrevLocationCode": "10879",
+        "highway": "motorway_junction",
+        "name": "Bad Camberg",
+        "ref": "44"
+      },
+      "paths": [
+        "A3-frankfurt"
+      ]
     }
   ],
   "checkedAt": "2026-10-23T23:03:41.973414+00:00",

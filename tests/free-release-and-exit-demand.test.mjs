@@ -10,7 +10,7 @@ import {advanceDetour,emptyDetour,detourVehicles} from '../dist/detour-flow.js';
 import {junctionMovements} from '../dist/junction-movements.js';
 
 const routes=makeCorridors(networkData.roads,networkData.ramps),{exits}=networkData;
-function block(path,at){const lanes=path.startsWith('A3')?3:2;
+function block(path,at){const lanes=routes[path].normalLanes?.find(s=>s.fromM<=at&&s.toM>at)?.lanes??(path.startsWith('A3')?3:2);
  return {id:'release-demand',kind:'accident',pathKey:path,point:routeSlice(routes[path],at,at+1)[0],laneCount:lanes,
   closedLanes:Array.from({length:lanes},(_,i)=>i),createdAt:'2026-10-26T12:00:00Z',
   settings:{lengthM:100,speedKmh:0,shoulder:'normal'}};}
@@ -27,11 +27,11 @@ for(const path of ['A3-koeln','A3-frankfurt','A48-dernbach','A48-koblenz'])
    state=advanceCells(state,route,[],after,exits);assertCellConservation(state);
    const bands=cellSpeedBands(state);peakOrange=Math.max(peakOrange,bandsKm(state,'slow'));
    fullFlow=Math.max(fullFlow,state.cells[headCell].flowVph);
-   if(i===20)retreat=bands.length?head-bands.at(-1).toM:head;
+   if(i===39)retreat=bands.length?head-bands.at(-1).toM:head;
    if(!bands.length&&clearAt===null)clearAt=i+1;
    if(clearAt!==null)assert.equal(bands.length,0,'cleared underloaded traffic stays green');
   }
-  assert.ok(retreat>1000,'the released head must move away from the old incident');
+  assert.ok(retreat>1000,'after 40 minutes, including real downstream lane transitions, the released head must retreat: '+retreat+' m, clearAt '+clearAt);
   assert.ok(peakOrange<initialKm*.55+.3,'queued local entrants may make a short merge wave, not a full orange plateau');
   assert.ok(fullFlow>after*1.5,'real discharge, not just colors, clears the queue');
   assert.ok(clearAt!==null&&clearAt<100);assert.ok(cellInventory(state)<before-500);

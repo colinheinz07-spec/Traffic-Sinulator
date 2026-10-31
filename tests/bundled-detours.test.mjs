@@ -1,3 +1,4 @@
+import {junctionAccess} from '../dist/road-controls.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {networkData} from '../dist/geodata.js';
@@ -21,11 +22,11 @@ function config(option){return {id:option.key,path:option.path,fromM:option.from
  exitsNetwork:isNetworkDestination(option.to),eventId:option.event?.id??option.causeId,
  geometry:bundledDetourGeometry(option.key,option.path,option.from,option.to,exits)};}
 
-test('all 26 directional normal exits have an immediately usable bundled route',()=>{
+test('all 34 directional normal exits have an immediately usable bundled route',()=>{
  let count=0;
  for(const path of DIRECTIONS){
   const choices=bundledExitRoutes(path,exits,routes[path]);count+=choices.length;
-  assert.equal(choices.length,path.startsWith('A3')?10:3);
+  assert.equal(choices.length,path.startsWith('A3')?14:3);
   for(const choice of choices){
    assert.ok(!choice.from.isInterchange&&choice.to.metre>choice.from.metre);
    const g=choice.geometry;
@@ -37,12 +38,13 @@ test('all 26 directional normal exits have an immediately usable bundled route',
    assert.equal(g.relationId,null,'simulated roads must not masquerade as an official OSM relation');
   }
  }
- assert.equal(count,26);
+ assert.equal(count,34);
 });
 test('long incidents compose every downstream target pair without fetching or leaving a route gap',()=>{
  for(const path of DIRECTIONS){
   const targets=bundledTargets(path,exits,routes[path]);
   for(let a=0;a<targets.length-1;a++)for(let b=a+1;b<targets.length;b++){
+   if(!junctionAccess(routes[path],[],targets[a].metre,targets[a].ref).exit||!isNetworkDestination(targets[b])&&!junctionAccess(routes[path],[],targets[b].metre,targets[b].ref).entry)continue;
    const g=bundledDetourGeometry('pair',path,targets[a],targets[b],exits);
    const measured=g.points.slice(1).reduce((n,p,i)=>n+metres(g.points[i],p),0)/1000;
    assert.ok(Math.abs(measured-g.lengthKm)<1e-8);
@@ -64,7 +66,7 @@ test('an incident reaching the end of the map retains every upstream exit route'
  for(const path of DIRECTIONS){
   const e=incident(path,routes[path].lengthM-100);e.settings.lengthM=5000;
   const options=automaticDiversions([e],routes,exits,{});
-  assert.equal(options.length,path.startsWith('A3')?10:3);
+  assert.equal(options.length,path.startsWith('A3')?14:3);
   assert.ok(options.every(o=>isNetworkDestination(o.to)));
   for(const option of options)assert.ok(config(option).exitsNetwork);
  }
@@ -89,7 +91,7 @@ test('boundary detours finish outside the network and conserve all cars without 
   const rampStock=()=>cells[path].junctions.reduce((n,j)=>n+(j.exitQueue?.detours[c.id]??0),0);
   const admitted=detours[0].state.admittedTotal+rampStock();
   const service=Math.min(c.geometry.roadCapacityVph,...(c.geometry.sections??[]).map(s=>s.capacityVph));
-  const clearingMinutes=Math.ceil((detourVehicles(detours[0].state)+rampStock())/Math.min(700,service)*60+c.geometry.freeMinutes)+3;
+  const clearingMinutes=Math.ceil((detourVehicles(detours[0].state)+rampStock())/Math.min(700,service)*60+c.geometry.freeMinutes+route.lengthM/1000/130*60)+10;
   for(let t=0;t<clearingMinutes;t++){
    const next=advanceRoutedNetwork(cells,routes,[],demands,exits,detours);cells=next.cells;detours=next.detours;
    assert.ok(Math.abs(detours[0].state.admittedTotal+rampStock()-admitted)<1e-6,

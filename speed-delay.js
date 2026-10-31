@@ -8,8 +8,8 @@
  * actual discharge yields the time loss to that exit, labelled explicitly.
  * This calculation depends on NO clock, event age or queue-created timestamp.
  */
-import { cellCriticalDensity, cellQueueSpans } from './traffic-cells.js?build=16d9a4ffa3b7c57e';
-import { freeSpeedKmh } from './traffic-physics.js?build=16d9a4ffa3b7c57e';
+import { cellCriticalDensity, cellQueueSpans } from './traffic-cells.js?build=9296d788994cefba';
+import { freeSpeedKmh } from './traffic-physics.js?build=9296d788994cefba';
 /** A new, empty worksite does not serve a released queue kilometres away.
  * Use an active cross-section only once it belongs to that queue's physical
  * approach. Until then, its former head can still measure the release flow.
@@ -21,8 +21,14 @@ export function queueTravelHeads(state, detectorEndM = Infinity) {
         if (cell.speedKmh > 65)
             continue;
         const span = spans.find(s => s.fromM < cell.toM - .1 && s.toM > cell.fromM + .1);
-        const end = (span?.toM ?? cell.toM) + state.cellM;
+        const ownEnd = span?.toM ?? cell.toM;
         const ahead = detectors.filter(d => d.toM >= cell.toM - .1);
+        // The detector is at the END of its cell. Crossing one temporarily
+        // clear cell needs two cell widths to reach that end. A one-width gate
+        // dropped an entire long queue's observed service for a single tick.
+        // An existing head inside this span prevents borrowing a separate head.
+        const ownHead = ahead.some(d => d.travelDetector.active && d.toM <= ownEnd + .1);
+        const end = ownEnd + (ownHead ? 0 : 2 * state.cellM);
         const nextActive = ahead.find(d => d.travelDetector.active);
         // Connected incidents share the governing service. In particular, a
         // downstream complete block supplies its reopening forecast through an

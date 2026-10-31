@@ -1,6 +1,18 @@
-# A3/A48 Stausimulator – TRAFFIC 1.12.18
+# A3/A48 Stausimulator – TRAFFIC 1.13.0
 
 **Ein Repository, eine Startdatei:** `index.html` im Hauptverzeichnis direkt in SPCK öffnen. Keine Cloudflare-Konfiguration und keine externe Kartenbibliothek.
+
+## Regionaler Kartenausbau und reguläre Fahrstreifen (1.13.0)
+
+Die A3 umfasst jetzt Bad Camberg bis Dreieck Köln-Heumar in beiden Richtungen, mit 23 AS/Knoten im A3/A48-Netz. Am AK Bonn/Siegburg sind beide A560-Fahrbahnen und alle acht Verbindungen als eigene graue Kartengeometrie enthalten. Die A560 und diese acht Verbindungen sind kartografischer Kontext, noch keine eigenständigen Simulationsfahrwege; die bestehende A3/A48-Simulation samt Dernbach bleibt aktiv.
+
+Die A3 verwendet regulär drei durchgehende Spuren. OSM-Zusatzangaben für Einfädeln, Ausfädeln und aktuelle Baustellen werden nicht als vierte/fünfte Hauptfahrspur angeboten. Auf der A48 entfernt ein aus den erhaltenen OSM-Spurtags abgeleitetes Profil explizite Merge-/Abbiegespuren; tatsächlich verbleibende durchgehende Streifen gehen in das örtliche Zellmodell ein. Alte gespeicherte Hauptfahrbahn-Ereignisse werden auf das korrigierte Normalprofil angepasst. Baustellen bleiben separat gesetzte Simulator-Ereignisse.
+
+Rösrath 30a und Lohmar-Nord 30b sind Teilanschlüsse. Verifizierte Ausfahrts- und Einfahrtsrichtungen werden getrennt geführt, statt eine fehlende Gegenrichtungs-Ausfahrt zu erfinden. Hauptfahrbahnen, Kreuzverbindungen und zusätzliche lokale Verbindungen stammen aus exakten OSM-Knotenketten; bestehende angenäherte Nebenstraßenabschnitte bleiben ausdrücklich Modellannahmen.
+
+Unter Zoom 12,2 entfallen AS-Punkte und AS-Nummern als App-Overlay. Ereignismarker bleiben sichtbar. Darüber erscheinen Anschlussstellen mit Namen. Originale Beschriftungen in den externen OSM-Hintergrundkacheln gehören nicht zu diesem Overlay.
+
+Quellen Normalzustand A3: Autobahn GmbH, Bauabschnitte III/IV Köln-Heumar–Bad Honnef (drei reguläre Spuren je Richtung); Bauprogramm West 2024 Idstein–Limburg-Süd (drei Spuren wie Normalzustand). Rohquellen und reproduzierbare Importskripte liegen unter data/ und scripts/. Kein Online-Routenabruf beim Öffnen der App.
 
 ## Freigabe am AD und unterschiedliche Anschlussstellen (1.12.18)
 

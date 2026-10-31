@@ -1,8 +1,9 @@
+import { networkData } from './geodata.js?build=9296d788994cefba';
 /** Physical lane restrictions and directional AS access on actual road
  * intervals. Administrative closures keep their separate exit-gate rule. */
-import { exitPosition } from './core.js?build=16d9a4ffa3b7c57e';
-import { suggestedSpeed } from './events.js?build=16d9a4ffa3b7c57e';
-import { positionM } from './spatial.js?build=16d9a4ffa3b7c57e';
+import { exitPosition } from './core.js?build=9296d788994cefba';
+import { suggestedSpeed } from './events.js?build=9296d788994cefba';
+import { positionM } from './spatial.js?build=9296d788994cefba';
 export function roadSections(route, events) {
     const located = events.filter(e => e.pathKey === route.key && e.kind !== 'closure').flatMap(event => {
         const fromM = positionM(route, event.point);
@@ -38,7 +39,8 @@ export function physicalEvents(route, events, sections = roadSections(route, eve
     });
 }
 export function junctionAccess(route, events, metre, ref) {
-    let entry = true, exit = true;
+    const base = networkData.exits.find(e => e.road === (route.key.startsWith('A3') ? 'A3' : 'A48') && e.ref === ref)?.access?.[route.key];
+    let entry = base?.entry ?? true, exit = base?.exit ?? true;
     for (const e of events) {
         if (e.pathKey !== route.key || e.kind !== 'roadworks')
             continue;
@@ -56,8 +58,6 @@ export function junctionAccess(route, events, metre, ref) {
     return { entry, exit };
 }
 export function accessibleExits(route, events, exits, access) {
-    if (!events.some(e => e.pathKey === route.key && e.kind === 'roadworks' && Object.keys(e.settings.junctionClosures ?? {}).length))
-        return [...exits];
     const road = route.key.startsWith('A3') ? 'A3' : 'A48';
     return exits.filter(e => {
         if (e.road !== road)

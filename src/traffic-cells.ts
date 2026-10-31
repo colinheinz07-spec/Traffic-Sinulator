@@ -1,3 +1,4 @@
+import {baseLaneCapacity} from './traffic-physics.js';
 /** Experimental cell-transmission traffic on real OSM carriageways.
  * Mainline cells and simulator detours share mass-conserving transfers. Their
  * local speeds determine map shading, queue lengths and travel-time loss.
@@ -133,8 +134,12 @@ function localControls(route:Corridor,events:readonly SimEvent[],demandVph:numbe
  const closureGates:Omit<CellClosure,'diverting'>[]=[];
  const forecasts=new Map<number,{waitMin:number;serviceVph:number}>(),unknownBlocks=new Set<number>();
  const sections=roadSections(route,events);
- const openLanes=Array.from({length:count},()=>Array.from({length:laneCount},(_,i)=>i));
- const shoulders=Array(count).fill(false) as boolean[],storageLanes=Array(count).fill(laneCount) as number[];
+ const baselineLanes=Array(count).fill(Infinity) as number[];
+ for(const section of route.normalLanes??[])for(let i=Math.max(0,Math.floor(section.fromM/cellM));i<Math.min(count,Math.ceil(section.toM/cellM));i++)
+  baselineLanes[i]=Math.min(baselineLanes[i]!,section.lanes);
+ for(let i=0;i<count;i++)if(!Number.isFinite(baselineLanes[i]))baselineLanes[i]=laneCount;
+ const openLanes=baselineLanes.map(n=>Array.from({length:n},(_,i)=>i));
+ const shoulders=Array(count).fill(false) as boolean[],storageLanes=[...baselineLanes];
  const weaving=new Map<number,{id:string;mix:number}>();
  const otherPhysical=events.filter(e=>e.pathKey===route.key&&e.kind!=='roadworks'&&e.kind!=='closure').flatMap(e=>{
   const at=positionM(route,e.point);return at===null?[]:[{fromM:at,toM:at+e.settings.lengthM}];
@@ -208,8 +213,8 @@ function localControls(route:Corridor,events:readonly SimEvent[],demandVph:numbe
  // stores cars only on its usable lanes. The local backward branch remains
  // below 30 km/h, inside the free-speed CFL step already used by the solver.
  const capacity=speeds.map((v,i)=>{
-  const restricted=storageLanes[i]!<laneCount,w=restricted?30:WAVE_KMH;
-  return Math.min(baselineCapacity(route.key),restricted?2250*(openLanes[i]!.length+(shoulders[i]?.65:0)||storageLanes[i]!):Infinity,
+  const restricted=storageLanes[i]!<baselineLanes[i]!,w=restricted?30:WAVE_KMH;
+  return Math.min(baseLaneCapacity(route.key)*baselineLanes[i]!,restricted?2250*(openLanes[i]!.length+(shoulders[i]?.65:0)||storageLanes[i]!):Infinity,
    v*w*jam[i]!/(v+w));
  });
  for(const face of unknownBlocks)forecasts.delete(face);

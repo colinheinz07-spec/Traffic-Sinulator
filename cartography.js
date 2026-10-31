@@ -98,11 +98,10 @@ export function rampBadges(ramps, project, size) {
     return chosen;
 }
 export function overlaps(a, b, margin = 3) { return a.x < b.x + b.w + margin && a.x + a.w + margin > b.x && a.y < b.y + b.h + margin && a.y + a.h + margin > b.y; }
-/** Show every in-view junction even in the whole-network view. Long names
- * may fall back to compact AS/AD/AK numbers, never to a hidden junction.
- * Label leaders retain the exact geographic anchor in dense interchanges.
- */
+/** Junction names appear only in the detailed view; overview prioritises events. */
 export function layoutJunctionLabels(exits, project, viewport, zoom, measure, obstacles = []) {
+    if (zoom < 12.2)
+        return [];
     const result = [];
     const inView = exits.map(exit => ({ exit, point: project(exit.position) })).filter(({ point: [x, y] }) => x >= 0 && x <= viewport.width && y >= 0 && y <= viewport.height).sort((a, b) => a.point[1] - b.point[1] || a.exit.road.localeCompare(b.exit.road) || a.exit.ref.localeCompare(b.exit.ref));
     const used = [...obstacles, ...inView.map(({ point: [x, y] }) => ({ x: x - 5, y: y - 5, w: 10, h: 10 }))];

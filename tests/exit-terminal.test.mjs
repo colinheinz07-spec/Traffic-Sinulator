@@ -116,7 +116,7 @@ test('ordinary A3/A48 exits have individual finite terminal models; AD/AK motorw
    const large=path.startsWith('A3')?['40','42'].includes(j.ref):['10','11'].includes(j.ref);
    if(large){assert.ok(j.exitTerminalVph>=1500&&j.exitStorageVehicles>=120)}else{assert.equal(j.exitTerminalVph,700);assert.equal(j.exitStorageVehicles,40)}count++;
   }
- assert.equal(count,26);
+ assert.equal(count,36);
  for(const [terminal,storage] of [[-1,40],[NaN,40],[700,0],[700,NaN]]){
   const {route,j}=localFixture(terminal,storage);
   assert.throws(()=>advanceCells(initialiseCells(route,0),route,[],0,exits,[],[j]),/Anschlussstellenzufluss/);

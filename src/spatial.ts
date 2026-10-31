@@ -1,3 +1,4 @@
+import {normalThroughLanes} from './lane-info.js';
 /** Georeferenced, per-event queue model on the exact OSM motorway carriageway curves.
  * A first-pass conservation model (not a calibrated traffic forecast).
  * No vehicle sprites, hidden road connectors, A3/A48 transfers, or invented detours.
@@ -10,7 +11,7 @@ import {PATHS,baselineCapacity,eventCapacity,defaultDemand,type PathKey,type Tra
 import {baseLaneCapacity,colorAtSpeed,queueFundamentalDiagram,freeSpeedKmh} from './traffic-physics.js';
 import {physicalEvents,accessibleExits} from './road-controls.js';
 
-export interface Corridor {key:PathKey;points:Point[];metres:number[];lengthM:number}
+export interface Corridor {key:PathKey;points:Point[];metres:number[];lengthM:number;normalLanes?:{fromM:number;toM:number;lanes:number}[]}
 export interface SpeedHistorySample {minute:number;speedKmh:number}
 export interface QueuedAt {pathKey:PathKey;point:Point;vehicles:number;lanes:number;capacityVph?:number;active?:boolean;densityVehPerKm?:number;color?:TrafficColor;pendingColor?:TrafficColor;pendingTicks?:number;speedHistory?:SpeedHistorySample[];recoveryTick?:number}
 export interface SpatialState {minute:number;queues:Record<string,QueuedAt>}
@@ -39,7 +40,15 @@ export function makeCorridors(roads:readonly Road[],ramps:readonly Ramp[]):Recor
    const headingEast=key==='A3-frankfurt'||key==='A48-dernbach';
    if((points.at(-1)![1]>points[0]![1])!==headingEast)points.reverse();
   }
-  result.set(key,corridor(key,points));
+  const route=corridor(key,points);
+  if(!key.startsWith('ramp-')){
+   const positions=new Map(route.points.map((p,i)=>[p.join(','),route.metres[i]!]));
+   route.normalLanes=roads.filter(r=>r.road===key).map(r=>{
+    const a=positions.get(r.points[0]!.join(','))!,b=positions.get(r.points.at(-1)!.join(','))!;
+    return {fromM:Math.min(a,b),toM:Math.max(a,b),lanes:normalThroughLanes(r)};
+   }).sort((a,b)=>a.fromM-b.fromM);
+  }
+  result.set(key,route);
  }
  return Object.fromEntries(result) as Record<PathKey,Corridor>;
 }
@@ -87,7 +96,7 @@ export function closureGate(route:Corridor,event:SimEvent,exits:readonly Exit[],
  const at=positionM(route,event.point);
  if(at===null)return null;
  const road=route.key.startsWith('A3')?'A3':'A48';
- const junctions=exits.filter(x=>x.road===road)
+ const junctions=exits.filter(x=>x.road===road&&(!x.directional||!!x.directional[route.key as RoadId]))
   .map(exit=>{const position=exitPosition(exit,route.key as RoadId);
    return {exit:{...exit,position},metre:positionM(route,position,900)};})
   .filter((x):x is {exit:Exit;metre:number}=>x.metre!==null).sort((a,b)=>a.metre-b.metre);

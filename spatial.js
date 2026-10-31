@@ -1,12 +1,13 @@
+import { normalThroughLanes } from './lane-info.js?build=9296d788994cefba';
 /** Georeferenced, per-event queue model on the exact OSM motorway carriageway curves.
  * A first-pass conservation model (not a calibrated traffic forecast).
  * No vehicle sprites, hidden road connectors, A3/A48 transfers, or invented detours.
  */
-import { buildContinuousRoads } from './cartography.js?build=16d9a4ffa3b7c57e';
-import { exitPosition } from './core.js?build=16d9a4ffa3b7c57e';
-import { PATHS, baselineCapacity, eventCapacity, defaultDemand } from './traffic.js?build=16d9a4ffa3b7c57e';
-import { baseLaneCapacity, colorAtSpeed, queueFundamentalDiagram, freeSpeedKmh } from './traffic-physics.js?build=16d9a4ffa3b7c57e';
-import { physicalEvents, accessibleExits } from './road-controls.js?build=16d9a4ffa3b7c57e';
+import { buildContinuousRoads } from './cartography.js?build=9296d788994cefba';
+import { exitPosition } from './core.js?build=9296d788994cefba';
+import { PATHS, baselineCapacity, eventCapacity, defaultDemand } from './traffic.js?build=9296d788994cefba';
+import { baseLaneCapacity, colorAtSpeed, queueFundamentalDiagram, freeSpeedKmh } from './traffic-physics.js?build=9296d788994cefba';
+import { physicalEvents, accessibleExits } from './road-controls.js?build=9296d788994cefba';
 const rad = Math.PI / 180;
 export function metres(a, b) {
     const dx = (b[1] - a[1]) * 111195 * Math.cos((a[0] + b[0]) / 2 * rad);
@@ -33,7 +34,15 @@ export function makeCorridors(roads, ramps) {
             if ((points.at(-1)[1] > points[0][1]) !== headingEast)
                 points.reverse();
         }
-        result.set(key, corridor(key, points));
+        const route = corridor(key, points);
+        if (!key.startsWith('ramp-')) {
+            const positions = new Map(route.points.map((p, i) => [p.join(','), route.metres[i]]));
+            route.normalLanes = roads.filter(r => r.road === key).map(r => {
+                const a = positions.get(r.points[0].join(',')), b = positions.get(r.points.at(-1).join(','));
+                return { fromM: Math.min(a, b), toM: Math.max(a, b), lanes: normalThroughLanes(r) };
+            }).sort((a, b) => a.fromM - b.fromM);
+        }
+        result.set(key, route);
     }
     return Object.fromEntries(result);
 }
@@ -95,7 +104,7 @@ export function closureGate(route, event, exits, events = []) {
     if (at === null)
         return null;
     const road = route.key.startsWith('A3') ? 'A3' : 'A48';
-    const junctions = exits.filter(x => x.road === road)
+    const junctions = exits.filter(x => x.road === road && (!x.directional || !!x.directional[route.key]))
         .map(exit => {
         const position = exitPosition(exit, route.key);
         return { exit: { ...exit, position }, metre: positionM(route, position, 900) };

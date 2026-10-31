@@ -34,25 +34,25 @@ function checkLocal(state){
  assertCellConservation(state);
 }
 
-test('all 26 directional ordinary AS have demand and actual local entry/exit; AK and AD have no fictitious local ramps',()=>{
+test('all 36 directional ordinary AS have demand and actual local entry/exit; AK and AD have no fictitious local ramps',()=>{
  let count=0;
  for(const path of paths){
   const demand=path.startsWith('A48')?1800:2600,configs=normalJunctionTraffic(routes[path],exits,demand);
-  count+=configs.length;assert.equal(configs.length,path.startsWith('A48')?3:10);
+  count+=configs.length;assert.equal(configs.length,path.startsWith('A48')?3:15);
   let state=initialiseCells(routes[path],demand);
   for(let t=0;t<60;t++){state=advanceCells(state,routes[path],[],demand,exits);checkLocal(state);}
   assert.equal(state.junctions.length,configs.length);
-  assert.ok(state.junctions.every(j=>j.lastEntered>0&&j.lastExited>0&&j.waiting<.001));
+  assert.ok(state.junctions.every(j=>(j.entryVph===0||j.lastEntered>0)&&(j.exitPercent===0||j.lastExited>0)&&j.waiting<.001));
   assert.equal(cellSpeedBands(state).length,0,'balanced local trips must not fabricate a free-flow queue');
   assert.ok(Math.abs(state.cells.at(-1).flowVph-demand)<.01);
   const localOffered=state.junctions.reduce((n,j)=>n+j.offeredTotal,0);
   assert.ok(Math.abs(state.offeredTotal-demand-localOffered)<1e-6,'60 boundary minutes plus all ordinary AS arrivals');
   assert.equal(state.divertedTotal,0);assert.equal(state.rejoinedTotal,0,'ordinary entries are not detour returners');
   const rows=junctionMovements(path,routes[path],exits,[],0,[],state.junctions);
-  assert.ok(rows.filter(r=>!r.exit.isInterchange).every(r=>r.outVph>0&&r.inVph>0&&r.diversionOutVph===0&&r.returningInVph===0));
+  assert.ok(rows.filter(r=>!r.exit.isInterchange).every(r=>(r.exitClosed||r.outVph>0)&&(r.entryClosed||r.inVph>0)&&r.diversionOutVph===0&&r.returningInVph===0));
   assert.ok(rows.filter(r=>r.exit.isInterchange).every(r=>r.outVph===0&&r.inVph===0));
  }
- assert.equal(count,26);
+ assert.equal(count,36);
  for(const key of Object.keys(routes).filter(k=>k.startsWith('ramp-')))assert.deepEqual(normalJunctionTraffic(routes[key],exits,1500),[]);
 });
 test('changing the demand profile changes local arrivals too, and zero demand creates no vehicles',()=>{

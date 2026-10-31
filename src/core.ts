@@ -3,13 +3,14 @@ export type RoadId = 'A3-koeln'|'A3-frankfurt'|'A48-dernbach'|'A48-koblenz';
 export type Road = {id:string;wayId:number;road:RoadId;lanes:number;km:number;posKm:number;points:Point[];tags?:Record<string,string>};
 export type Ramp = {id:string;name:string;from:RoadId;to:RoadId;lanes:number;wayIds:number[];points:Point[]};
 export type Exit = {road:'A3'|'A48';ref:string;name:string;position:Point;source:string;
+ access?:Partial<Record<RoadId,{entry:boolean;exit:boolean}>>;
  directional?:Partial<Record<RoadId,{position:Point;nodeId:number}>>};
 /** A junction may have different off-ramp nodes in each direction. */
 export function exitPosition(exit:Exit,path:RoadId):Point{return exit.directional?.[path]?.position??exit.position;}
-export type MapData={version:number;source:string;created:string;roads:Road[];ramps:Ramp[];exits:Exit[];coverage:Record<RoadId,number>;audit:{complete:boolean;notes:string[];ways:number;extension?:string;extensionWays?:number;extensionLengthsKm?:Partial<Record<RoadId,number>>;originalCoverageOnly?:boolean;northExtension?:{sourceTimestamp:string;ways:number;wayIds:number[];lengthsKm:Partial<Record<RoadId,number>>;endpoints:Partial<Record<RoadId,Point>>;method:string};gapRepair?:{verifiedWays:number;terminalAudit:Record<string,{danglingBefore:number;danglingAfter:number;waysAdded:number}>;method:string}}};
+export type MapData={version:number;source:string;created:string;roads:Road[];ramps:Ramp[];exits:Exit[];coverage:Record<RoadId,number>;audit:{regionalExtension?:{sourceTimestamp:string;wayIds:number[];method:string};complete:boolean;notes:string[];ways:number;extension?:string;extensionWays?:number;extensionLengthsKm?:Partial<Record<RoadId,number>>;originalCoverageOnly?:boolean;northExtension?:{sourceTimestamp:string;ways:number;wayIds:number[];lengthsKm:Partial<Record<RoadId,number>>;endpoints:Partial<Record<RoadId,Point>>;method:string};gapRepair?:{verifiedWays:number;terminalAudit:Record<string,{danglingBefore:number;danglingAfter:number;waysAdded:number}>;method:string}}};
 export const DIRECTIONS:RoadId[]=['A3-koeln','A3-frankfurt','A48-dernbach','A48-koblenz'];
 export const names:Record<RoadId,string>={'A3-koeln':'A3 Richtung Köln','A3-frankfurt':'A3 Richtung Frankfurt','A48-dernbach':'A48 Richtung Dernbach','A48-koblenz':'A48 Richtung Koblenz'};
-export const exitRefs={A3:['32','33','34','35','36','37','38','39','40','41','42','43'],A48:['9','10','11','12','13']};
+export const exitRefs={A3:['28','29','30a','30b','31','44','32','33','34','35','36','37','38','39','40','41','42','43'],A48:['9','10','11','12','13']};
 export function validateMap(data:MapData):{valid:boolean;errors:string[]}{
  const errors:string[]=[];
  if(data.version!==2||!data.audit?.complete)errors.push('Datensatz nicht freigegeben');

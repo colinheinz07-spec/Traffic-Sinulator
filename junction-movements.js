@@ -4,11 +4,11 @@
  * Every normal AS is covered; AK/AD are separate motorway nodes and cannot
  * be misrepresented as exits onto local roads.
  */
-import { names } from './core.js?build=16d9a4ffa3b7c57e';
-import { positionM, closureGate } from './spatial.js?build=16d9a4ffa3b7c57e';
-import { diversionJunctions } from './diversions.js?build=16d9a4ffa3b7c57e';
-import { exitRampVehicles, DEFAULT_EXIT_TERMINAL_VPH, DEFAULT_EXIT_STORAGE_VEHICLES } from './junction-traffic.js?build=16d9a4ffa3b7c57e';
-import { junctionAccess } from './road-controls.js?build=16d9a4ffa3b7c57e';
+import { names } from './core.js?build=9296d788994cefba';
+import { positionM, closureGate } from './spatial.js?build=9296d788994cefba';
+import { diversionJunctions } from './diversions.js?build=9296d788994cefba';
+import { exitRampVehicles, DEFAULT_EXIT_TERMINAL_VPH, DEFAULT_EXIT_STORAGE_VEHICLES } from './junction-traffic.js?build=9296d788994cefba';
+import { junctionAccess } from './road-controls.js?build=9296d788994cefba';
 /** A formal closure forces departure only at the LAST usable normal exit.
  * Earlier exits are voluntary alternatives chosen by remaining time loss,
  * independently of the tail's distance from any junction.
@@ -93,5 +93,5 @@ export function junctionMovements(path, route, exits, events, _delayMin, real = 
 export function junctionMovementHint(row) {
     const count = (value) => value.toLocaleString('de-DE', { maximumFractionDigits: 0 });
     return { title: 'AS ' + row.exit.ref + ' · ' + names[row.path].replace(' Richtung ', ' → '),
-        flow: 'Abfahrt ' + count(row.outVph) + '/h' + (row.exitClosed ? ' ⛔' : '') + ' · Auffahrt ' + count(row.inVph) + '/h' + (row.entryClosed ? ' ⛔' : '') };
+        flow: 'Abfahrt ' + (row.exit.access?.[row.path]?.exit === false ? 'nicht vorhanden' : count(row.outVph) + '/h' + (row.exitClosed ? ' ⛔' : '')) + ' · Auffahrt ' + (row.exit.access?.[row.path]?.entry === false ? 'nicht vorhanden' : count(row.inVph) + '/h' + (row.entryClosed ? ' ⛔' : '')) };
 }

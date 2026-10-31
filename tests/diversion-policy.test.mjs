@@ -66,7 +66,7 @@ test('a new incident between Limburg-Nord and Süd does not recruit remote AS, w
    for(let t=0;t<4;t++){
     const next=advanceRoutedNetwork(cells,routes,[event],defaultDemands(),exits,entries);cells=next.cells;entries=next.detours;
     assert.ok(entries.every(d=>d.desiredPercent===0&&d.state.admittedTotal===0),path+' '+kind+' '+t);
-    assert.ok(cells[path].junctions.every(j=>j.lastEntered>0&&j.lastExited>0));
+    assert.ok(cells[path].junctions.every(j=>(j.entryVph===0||j.lastEntered>0)&&(j.exitPercent===0||j.lastExited>0)));
    }
   }
  }

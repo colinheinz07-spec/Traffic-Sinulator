@@ -1,3 +1,4 @@
+import {junctionAccess} from '../dist/road-controls.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {networkData} from '../dist/geodata.js';
@@ -101,7 +102,7 @@ test('extreme delay reaches 100 percent willingness and all feasible upstream ex
  assert.equal(potentialDiversionPercent(500,false),100);
  const a=junction(path,'41'),b=junction(path,'42'),e=event((a.metre+b.metre)/2,'closure',[0,1,2],0);
  const choices=automaticDiversions([e],routes,exits,{});
- const expected=diversionJunctions(path,exits,route).filter(j=>!j.isInterchange&&j.metre<(a.metre+b.metre)/2-50);
+ const expected=diversionJunctions(path,exits,route).filter(j=>!j.isInterchange&&junctionAccess(route,[],j.metre,j.ref).exit&&j.metre<(a.metre+b.metre)/2-50);
  assert.equal(choices.length,expected.length);assert.ok(choices.length>3);
  assert.ok(choices.every(c=>c.to.metre>c.from.metre&&!c.from.isInterchange&&!c.to.isInterchange));
  assert.ok(choices.some(c=>c.link.code==='SIM'),'missing official U-routes still need a real-route request');

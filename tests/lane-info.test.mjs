@@ -1,3 +1,4 @@
+import {normalLaneOverrides} from '../dist/normal-lanes.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {networkData} from '../dist/geodata.js';
@@ -31,5 +32,11 @@ test('outdated way IDs are flagged instead of being mislabeled as OSM-confirmed'
   assert.equal(roadLaneInfo(road).source,'stale');
  }
  const verified=networkData.roads.find(r=>!unverifiedRoadWays.includes(r.wayId));
- assert.equal(roadLaneInfo(verified).source,'osm');
+ assert.equal(roadLaneInfo(verified).source,'normal');
+});
+
+test('A3 regular through lanes exclude ramps and temporary works across the whole expanded network',()=>{
+ for(const road of networkData.roads.filter(r=>r.road.startsWith('A3')))assert.equal(roadLaneInfo(road).count,3);
+ const auxiliary=networkData.roads.find(r=>r.road.startsWith('A48')&&normalLaneOverrides[r.wayId]===2&&r.lanes>2);
+ assert.ok(auxiliary);assert.equal(roadLaneInfo(auxiliary).count,2);
 });

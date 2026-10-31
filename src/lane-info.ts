@@ -1,11 +1,23 @@
+import {normalLaneOverrides} from './normal-lanes.js';
 import {nearestPolyline,type Point,type Road,type Ramp} from './core.js';
 import {rampLaneWays,unverifiedRoadWays} from './lane-profiles.js';
 
-export interface LaneInfo {count:number;label:string;source:'osm'|'stale'|'unknown';wayId:number|null}
+export interface LaneInfo {count:number;label:string;source:'osm'|'normal'|'stale'|'unknown';wayId:number|null}
 
+/** OSM lanes includes acceleration/diverging lanes and sometimes temporary
+ * construction layouts. A3's verified normal corridor has three through
+ * lanes. A48 auxiliary turn/merge-only lanes are excluded explicitly. */
+export function normalThroughLanes(road:Road):number{
+ if(road.road.startsWith('A3'))return 3;
+ if(normalLaneOverrides[road.wayId]!==undefined)return normalLaneOverrides[road.wayId]!;
+ const turns=road.tags?.['turn:lanes']?.split('|');
+ const through=turns?.filter(t=>!t.includes('merge_to_')&&!/^(slight_right|slight_left|right|left)$/.test(t)).length;
+ return Math.max(1,Math.min(road.lanes,3,through&&through>=2?through:road.lanes));
+}
 export function roadLaneInfo(road:Road):LaneInfo{
- if(unverifiedRoadWays.includes(road.wayId))return {count:road.lanes,label:`${road.lanes} (gespeicherte Altangabe – aktueller OSM-Weg nicht bestätigt)`,source:'stale',wayId:road.wayId};
- return {count:road.lanes,label:`${road.lanes} (aktuelle OSM-Fahrstreifenangabe)`,source:'osm',wayId:road.wayId};
+ const count=normalThroughLanes(road);
+ if(unverifiedRoadWays.includes(road.wayId))return {count,label:`${count} reguläre durchgehende Fahrstreifen · Geometrie aus Altbestand`,source:'stale',wayId:road.wayId};
+ return {count,label:`${count} reguläre durchgehende Fahrstreifen · ohne Ein-/Ausfädelstreifen und Baustellen`,source:'normal',wayId:road.wayId};
 }
 export function rampLaneInfo(ramp:Ramp,position:Point):LaneInfo{
  const ways=rampLaneWays[ramp.id]||[];

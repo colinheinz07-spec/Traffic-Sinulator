@@ -42,28 +42,11 @@ test('all four motorway directions form one continuous real-OSM chain',()=>{
  }
 });
 
-test('whole-network mobile map retains all 17 junction markers and readable numbers below zoom 11',()=>{
- const points=networkData.roads.flatMap(r=>r.points),lat=points.map(p=>p[0]),lon=points.map(p=>p[1]);
- const low=[Math.min(...lat),Math.min(...lon)],high=[Math.max(...lat),Math.max(...lon)];
- const center=[(low[0]+high[0])/2,(low[1]+high[1])/2];
- for(const width of [320,370,410,760]){
-  const height=557;let zoom=8;
-  for(let z=13;z>=8;z-=.08){const a=mercator(low,z),b=mercator(high,z);
-   if(Math.abs(a[0]-b[0])<width*.86&&Math.abs(a[1]-b[1])<height*.79){zoom=z;break;}}
-  const middle=mercator(center,zoom),project=p=>{const q=mercator(p,zoom);return [width/2+q[0]-middle[0],height/2+q[1]-middle[1]]};
-  const obstacles=[{x:10,y:10,w:width-90,h:33},{x:width-55,y:10,w:45,h:95},{x:0,y:height-100,w:width,h:100}];
-  const labels=layoutJunctionLabels(networkData.exits,project,{width,height},zoom,t=>t.length*6,obstacles);
-  assert.equal(labels.length,17,`missing marker at width ${width}`);
-  assert.ok(labels.every(l=>l.box),`missing junction number at width ${width}: ${labels.filter(l=>!l.box).map(l=>l.exit.name)}`);
-  for(const label of labels){
-   assert.deepEqual(label.point,project(label.exit.position),'the anchor must stay at its real location');
-   assert.ok(label.text.includes(label.exit.ref));
-   assert.ok(obstacles.every(obstacle=>!overlaps(label.box,obstacle,3)));
-   assert.ok(labels.every(other=>!overlaps(label.box,{x:other.point[0]-5,y:other.point[1]-5,w:10,h:10},3)),
-    'a label must not cover another junction marker');
-  }
-  for(let i=0;i<labels.length;i++)for(let j=i+1;j<labels.length;j++)assert.ok(!overlaps(labels[i].box,labels[j].box,3));
- }
+test('overview hides all AS numbers and markers; detailed view restores them',()=>{
+ const exit=networkData.exits.find(e=>e.ref==='38'&&e.road==='A3');
+ for(const zoom of [8,9,10,11,12,12.19])assert.deepEqual(layoutJunctionLabels([exit],()=>[150,150],{width:380,height:450},zoom,t=>t.length*6),[]);
+ const detailed=layoutJunctionLabels([exit],()=>[150,150],{width:380,height:450},12.2,t=>t.length*6);
+ assert.equal(detailed.length,1);assert.ok(detailed[0].text.includes('38'));
 });
 test('detailed junction labels use names, and a lack of label room never erases the geographic marker',()=>{
  const exit=networkData.exits.find(e=>e.ref==='38'&&e.road==='A3');
