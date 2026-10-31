@@ -104,7 +104,7 @@ test('a new formal closure diverts ONLY the last AS, in both A3 and A48 directio
   assert.deepEqual(displayed.filter(r=>r.desiredPercent>0).map(r=>r.exit.ref),[from]);
  }
 });
-test('waiting at a mandatory exit recruits only the nearest AS before its actual approach queue',()=>{
+test('waiting at a mandatory exit recruits nearby earlier AS under severe combined delay',()=>{
  const path='A3-koeln',event=incident(path,'38','37'),entries=prepare(event),gate=closureGate(routes[path],event,exits);
  const mandatory=entries.find(d=>Math.abs(d.config.fromM-gate.metre)<25);
  mandatory.state.waitingRoad=2000;
@@ -113,7 +113,10 @@ test('waiting at a mandatory exit recruits only the nearest AS before its actual
   const choices=wanted(entries,cells,event);
   assert.equal(choices.find(c=>c.ref==='38').percent,100);
   assert.ok(choices.find(c=>c.ref===ref).percent>0);
-  assert.ok(choices.filter(c=>anchor(path,c.ref).metre<anchor(path,ref).metre-25).every(c=>c.percent===0));
+  const upstream=choices.filter(c=>c.percent>0&&anchor(path,c.ref).metre<anchor(path,ref).metre-25);
+  assert.ok(upstream.length<=2);
+  assert.ok(upstream.every(c=>c.percent<=5&&anchor(path,ref).metre-anchor(path,c.ref).metre<=35000),
+   'severe combined wait allows only nearby gradual alternatives');
  }
  const free=initialiseCells(routes[path],2000);free.minute=10000;
  assert.ok(wanted(entries,{[path]:free},event).filter(c=>c.ref!=='38').every(c=>c.percent===0));

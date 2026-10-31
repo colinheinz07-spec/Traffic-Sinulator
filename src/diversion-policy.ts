@@ -138,7 +138,7 @@ function interchangeChoice(entry:ChoiceRoute,cells:Readonly<Partial<Record<PathK
  }
  return {percent:Math.min(desired,(state.choicePercent??0)+5),mandatory:false,delayMin,upstreamRank:0,savingMin:delayMin-extra};
 }
-export function routedDiversionChoice(entry:ChoiceRoute,entries:readonly ChoiceRoute[],
+function baseDiversionChoice(entry:ChoiceRoute,entries:readonly ChoiceRoute[],
  cells:Readonly<Partial<Record<PathKey,CellRouteState>>>,routes:Readonly<Partial<Record<PathKey,Corridor>>>,
  events:readonly SimEvent[],exits:readonly Exit[],demands:Readonly<Partial<Record<PathKey,number>>>,
  turnDelays:Readonly<Partial<Record<PathKey,number>>>={}):DiversionChoice{
@@ -253,9 +253,15 @@ export function routedDiversionChoice(entry:ChoiceRoute,entries:readonly ChoiceR
  const extra=Math.max(0,config.geometry.freeMinutes-motorwayFree)+
   (state.waitingRoad+state.waitingMerge)/service*60+exitTerminalWait(source,config.fromM);
  const spans=cellQueueSpans(source);
- const eligible=(tail:number,end:number)=>{
+ const eligible=(tail:number,end:number,loss=0)=>{
   const nearest=nearestExitBeforeQueue(path,route,accessibleExits(route,events,exits,'exit'),tail,approachEnd);
-  return config.fromM>=(nearest?.metre??tail)-25&&config.fromM<=end+25;
+  if(config.fromM>=(nearest?.metre??tail)-25&&config.fromM<=end+25)return true;
+  if(cross||!nearest||nearest.metre-config.fromM>35000)return false;
+  const earlier=diversionJunctions(path as RoadId,accessibleExits(route,events,exits,'exit'),route)
+   .filter(j=>!j.isInterchange&&j.metre>config.fromM+25&&j.metre<=nearest.metre+25).length;
+  // The first choice stays local. Only extreme remaining waits justify
+  // leaving one or two junctions earlier on an otherwise free approach.
+  return earlier>=1&&earlier<=2&&loss>=150+(earlier-1)*90;
  };
  const measuredLoss=(grid:CellRouteState,start:number,end:number,rate=service)=>{
   const loss=speedDelayInCells(grid,start,end,end+grid.cellM);
@@ -269,12 +275,12 @@ export function routedDiversionChoice(entry:ChoiceRoute,entries:readonly ChoiceR
  for(const span of spans){
   const end=Math.min(span.toM,gate?gate.metre+source.cellM:sourceEnd);
   const start=Math.max(span.fromM,config.fromM);
-  if(start>=end||!eligible(span.fromM,end)||!cross&&!gate&&config.toM<span.toM-1)continue;
+  if(start>=end||!cross&&!gate&&config.toM<span.toM-1)continue;
   let loss=measuredLoss(source,start,end,gate?gateService:service);
   if(gate&&span.toM>=gate.metre-source.cellM){
    loss+=(normal?normal.state.waitingRoad+normal.state.waitingMerge:0)/gateService*60;
   }
-  consider(loss);
+  if(eligible(span.fromM,end,loss))consider(loss);
  }
  if(cross){
   // Each approaching motorway has its own nearest exit. A queue on A3
@@ -292,4 +298,42 @@ export function routedDiversionChoice(entry:ChoiceRoute,entries:readonly ChoiceR
  // only when advancing a model minute; redraw/pause cannot raise it.
  const percent=Math.min(desired,(state.choicePercent??0)+5);
  return {percent,mandatory:false,delayMin,upstreamRank};
+}
+
+/** A single diversion decision is distributed over later return junctions.
+ * Compare complete trips to a common downstream point. Keep the actual
+ * shared side-road resources and each junction's storage in the flow solver.
+ */
+export function routedDiversionChoice(entry:ChoiceRoute,entries:readonly ChoiceRoute[],
+ cells:Readonly<Partial<Record<PathKey,CellRouteState>>>,routes:Readonly<Partial<Record<PathKey,Corridor>>>,
+ events:readonly SimEvent[],exits:readonly Exit[],demands:Readonly<Partial<Record<PathKey,number>>>,
+ turnDelays:Readonly<Partial<Record<PathKey,number>>>={}):DiversionChoice{
+ const group=entry.config.alternativeGroup;
+ if(!group)return baseDiversionChoice(entry,entries,cells,routes,events,exits,demands,turnDelays);
+ const family=entries.filter(e=>{
+  if(e.config.alternativeGroup!==group||e.enabled===false)return false;
+  const target=e.config.targetPath??e.config.path,route=routes[target];
+  return !!route&&!events.some(event=>{const gate=closureGate(route,event,exits,events);
+   return gate&&e.config.toM>=gate.metre-25&&e.config.toM<gate.endM-1;});
+ });
+ if(!family.length||entry.enabled===false)return {percent:0,mandatory:false,delayMin:0,upstreamRank:0};
+ const choices=family.map(e=>baseDiversionChoice({...e,state:{...e.state,choicePercent:100}},entries,cells,routes,events,exits,demands,turnDelays));
+ const wanted=Math.max(0,...choices.map(c=>c.percent));
+ const mandatory=choices.some(c=>c.mandatory);
+ const total=mandatory?wanted:Math.min(wanted,family.reduce((n,e)=>n+(e.state.choicePercent??0),0)+5);
+ const horizon=Math.max(...family.map(e=>e.config.toM));
+ const costs=family.map(e=>{
+  const config=e.config,target=config.targetPath??config.path,grid=cells[target];
+  const service=Math.max(1,config.geometry.roadCapacityVph);
+  const onward=grid&&config.toM<horizon?speedDelayInCells(grid,config.toM,horizon,horizon):null;
+  const freeOnward=(horizon-config.toM)/1000/freeSpeedKmh(target)*60;
+  const terminal=cells[config.path]?exitTerminalWait(cells[config.path]!,config.fromM):0;
+  return config.geometry.freeMinutes+freeOnward+(onward?.delayMin??0)+terminal+
+   (e.state.waitingRoad+e.state.waitingMerge)/service*60;
+ });
+ const best=Math.min(...costs);
+ const weights=costs.map(cost=>Math.exp(-Math.min(60,Math.max(0,cost-best))/15));
+ const sum=weights.reduce((n,v)=>n+v,0),index=family.findIndex(e=>e.config.id===entry.config.id);
+ const own=choices[Math.max(0,index)]!;
+ return {percent:index<0?0:total*weights[index]!/sum,mandatory,delayMin:Math.max(...choices.map(c=>c.delayMin)),upstreamRank:own.upstreamRank};
 }

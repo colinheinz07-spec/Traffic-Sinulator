@@ -1,11 +1,11 @@
-import { positionM, closureGate } from './spatial.js?build=8a0e0515db091459';
-import { DIVERSION_LINKS, diversionJunctions, nearestExitBeforeQueue } from './diversions.js?build=8a0e0515db091459';
-import { speedDelayInCells } from './speed-delay.js?build=8a0e0515db091459';
-import { cellQueueSpans } from './traffic-cells.js?build=8a0e0515db091459';
-import { bundledTargets, isNetworkDestination } from './bundled-detours.js?build=8a0e0515db091459';
-import { junctionAccess, accessibleExits } from './road-controls.js?build=8a0e0515db091459';
-import { interchangeJourneys } from './interchange-journeys.js?build=8a0e0515db091459';
-import { INTERCHANGE_DIVERSION_START_MIN } from './interchange.js?build=8a0e0515db091459';
+import { positionM, closureGate } from './spatial.js?build=19433adb960dd212';
+import { DIVERSION_LINKS, diversionJunctions, nearestExitBeforeQueue } from './diversions.js?build=19433adb960dd212';
+import { speedDelayInCells } from './speed-delay.js?build=19433adb960dd212';
+import { cellQueueSpans } from './traffic-cells.js?build=19433adb960dd212';
+import { bundledTargets, isNetworkDestination } from './bundled-detours.js?build=19433adb960dd212';
+import { junctionAccess, accessibleExits } from './road-controls.js?build=19433adb960dd212';
+import { interchangeJourneys } from './interchange-journeys.js?build=19433adb960dd212';
+import { INTERCHANGE_DIVERSION_START_MIN } from './interchange.js?build=19433adb960dd212';
 export function automaticDiversions(events, corridors, exits, cells, connections = [], turnDelays = {}) {
     const plans = new Map();
     const available = (path, access) => accessibleExits(corridors[path], events, exits, access);
@@ -171,7 +171,39 @@ export function automaticDiversions(events, corridors, exits, cells, connections
                 targetEntryM: connection.downstreamMergeM, delayMin: null });
         }
     }
+    // At severe delay offer later return junctions as well. These are
+    // alternatives for ONE exit, not additional independent diversion demand.
+    const expanded = [];
+    for (const option of plans.values()) {
+        const grid = cells[option.path], route = corridors[option.path];
+        if (!grid || option.movementId || option.journey || option.targetPath && option.targetPath !== option.path || isNetworkDestination(option.to)) {
+            expanded.push(option);
+            continue;
+        }
+        const event = option.event, gate = event ? closureGate(route, event, exits, events) : null;
+        const head = gate?.metre ?? (event ? positionM(route, event.point) ?? option.to.metre : option.to.metre);
+        const severe = head - option.from.metre <= 35000 && cellQueueSpans(grid).some(span => span.toM > option.from.metre - grid.cellM && span.fromM < head + grid.cellM &&
+            speedDelayInCells(grid, span.fromM, Math.min(span.toM, head + grid.cellM)).delayMin >= 150);
+        if (!severe) {
+            expanded.push(option);
+            continue;
+        }
+        const later = bundledTargets(option.path, available(option.path, 'entry'), route)
+            .filter(t => t.metre > option.to.metre + 25 && (isNetworkDestination(t) || junctionAccess(route, events, t.metre, t.ref).entry))
+            .filter(t => !events.some(e => { const block = closureGate(route, e, exits, events); return block && t.metre >= block.metre - 25 && t.metre < block.endM - 1; }))
+            .slice(0, 2);
+        if (!later.length) {
+            expanded.push(option);
+            continue;
+        }
+        const group = 'returns:' + option.path + ':' + option.from.ref + ':' + (event?.id ?? option.causeId ?? 'queue');
+        expanded.push({ ...option, alternativeGroup: group });
+        for (const to of later) {
+            const key = option.link.id + ':' + to.ref;
+            expanded.push({ ...option, key, to, link: { ...option.link, toRef: to.ref, toRoad: to.road }, geometry: undefined, alternativeGroup: group });
+        }
+    }
     // Preparing alternatives is not permission for remote exits to divert.
-    return [...plans.values(), ...interchangeJourneys(events, corridors, exits, cells, connections, turnDelays)]
+    return [...expanded, ...interchangeJourneys(events, corridors, exits, cells, connections, turnDelays)]
         .sort((a, b) => a.path.localeCompare(b.path) || b.from.metre - a.from.metre);
 }

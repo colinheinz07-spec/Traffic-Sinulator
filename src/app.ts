@@ -16,7 +16,7 @@ import {buildRampConnections,rampSpillbacks,interchangeDelays,interchangeTraffic
 import {journeyRampCapacity,journeyRampJams,rampCapacity} from './interchange-journeys.js';
 import {diversionJunctions,planDiversion,type DiversionLink} from './diversions.js';
 import {junctionMovements,junctionMovementHint,type RealDetourFlow,type JunctionMovement} from './junction-movements.js';
-import {bundledDetourGeometry,bundledExitRoutes,bundledTargets,isNetworkDestination} from './bundled-detours.js';
+import {bundledDetourGeometry,bundledExitRoutes,bundledTargets,isNetworkDestination,BUNDLED_NETWORK_SERVICE_VPH} from './bundled-detours.js';
 import {emptyDetour,detourVehicles,type DetourConfig} from './detour-flow.js';
 import {decodeEvents,eventFromHit,updatedEvent,eventNames,eventSymbols,eventSummary,flowPolicy,defaultLengthM,defaultSettings,maxLengthM,suggestedSpeed,DEFAULT_CLEARANCE_MIN,STORAGE_KEY,isEventKind,validEvent,effectiveEventsAt,eventScheduleStatus,type EventKind,type ShoulderMode,type SimEvent} from './events.js';
 import {roadLaneInfo,rampLaneInfo} from './lane-info.js';
@@ -371,7 +371,8 @@ function findDetourTarget(path:typeof DIRECTIONS[number],event:SimEvent,
 function activateDetour(config:DetourConfig){
  for(const [id,other] of activeDetours){
   if(id!==config.id&&other.config.path===config.path&&Math.abs(other.config.fromM-config.fromM)<25&&
-   other.config.movementId===config.movementId)
+   other.config.movementId===config.movementId&&
+   !(config.alternativeGroup&&other.config.alternativeGroup===config.alternativeGroup))
    activeDetours.set(id,{...other,enabled:false});
  }
  const old=activeDetours.get(config.id);
@@ -381,12 +382,13 @@ function activateDetour(config:DetourConfig){
  * A failed or missing online service cannot block an off-ramp. */
 function prepareAutomaticDetour(option:AutomaticDiversion,enable=true){
  const k=option.key,cached=mappedDetours.get(k);
- const geometry=option.geometry??(cached&&cached.geometry.source!=='simulated-bundled'?cached.geometry:
+ const geometry=option.geometry??(cached&&(cached.geometry.source!=='simulated-bundled'||
+  cached.geometry.roadCapacityVph>=BUNDLED_NETWORK_SERVICE_VPH)?cached.geometry:
   bundledDetourGeometry(k,option.path,option.from,option.to,exits));
  const config:DetourConfig={id:k,path:option.path,fromM:option.from.metre,
   toM:isNetworkDestination(option.to)?option.to.metre:positionM(spatialCorridors[option.targetPath??option.path],geometry.points.at(-1)!,35)??option.to.metre,eventId:option.event?.id??option.causeId??k,geometry,
   targetPath:option.targetPath,sourceEndM:option.sourceEndM,targetEntryM:option.targetEntryM,
-  movementId:option.movementId,
+  movementId:option.movementId,alternativeGroup:option.alternativeGroup,
   journey:option.journey,
   exitsNetwork:isNetworkDestination(option.to)};
  mappedDetours.set(k,config);
@@ -400,7 +402,7 @@ function prepareAutomaticDetour(option:AutomaticDiversion,enable=true){
    spatialCorridors,timeline,exits,currentDemands()).mandatory;
  const changed=!running||running.config.eventId!==config.eventId||running.config.fromM!==config.fromM||
   running.config.toM!==config.toM||running.config.targetPath!==config.targetPath||
-  running.config.movementId!==config.movementId||
+  running.config.movementId!==config.movementId||running.config.alternativeGroup!==config.alternativeGroup||
   JSON.stringify(running.config.journey)!==JSON.stringify(config.journey)||
   running.config.exitsNetwork!==config.exitsNetwork;
  if(enable&&required){
@@ -419,7 +421,7 @@ function prepareAutomaticDetours(){
   if(old&&!available.has(key))activeDetours.set(key,{...old,enabled:false,desiredPercent:0});
  }
  for(const option of plans){
-  if(option.journey?.kind==='protected'||option.journey?.kind==='evacuation'||option.journey?.kind==='via')
+  if(option.alternativeGroup||option.journey?.kind==='protected'||option.journey?.kind==='evacuation'||option.journey?.kind==='via')
    automaticMotorwayKeys.add(option.key);
   if(!suppressedDetours.has(option.key))prepareAutomaticDetour(option);
  }

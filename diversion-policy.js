@@ -1,12 +1,12 @@
-import { cellQueueSpans } from './traffic-cells.js?build=8a0e0515db091459';
-import { closureGate } from './spatial.js?build=8a0e0515db091459';
-import { diversionJunctions, nearestExitBeforeQueue, potentialDiversionPercent } from './diversions.js?build=8a0e0515db091459';
-import { speedDelayInCells } from './speed-delay.js?build=8a0e0515db091459';
-import { freeSpeedKmh } from './traffic-physics.js?build=8a0e0515db091459';
-import { INTERCHANGE_DIVERSION_START_MIN, interchangeTrafficShare } from './interchange.js?build=8a0e0515db091459';
-import { closedMovementEvent, viaJourneyUsable, journeyRampCapacity, journeyTrafficShare } from './interchange-journeys.js?build=8a0e0515db091459';
-import { accessibleExits, junctionAccess } from './road-controls.js?build=8a0e0515db091459';
-import { exitRampVehicles, DEFAULT_EXIT_TERMINAL_VPH } from './junction-traffic.js?build=8a0e0515db091459';
+import { cellQueueSpans } from './traffic-cells.js?build=19433adb960dd212';
+import { closureGate } from './spatial.js?build=19433adb960dd212';
+import { diversionJunctions, nearestExitBeforeQueue, potentialDiversionPercent } from './diversions.js?build=19433adb960dd212';
+import { speedDelayInCells } from './speed-delay.js?build=19433adb960dd212';
+import { freeSpeedKmh } from './traffic-physics.js?build=19433adb960dd212';
+import { INTERCHANGE_DIVERSION_START_MIN, interchangeTrafficShare } from './interchange.js?build=19433adb960dd212';
+import { closedMovementEvent, viaJourneyUsable, journeyRampCapacity, journeyTrafficShare } from './interchange-journeys.js?build=19433adb960dd212';
+import { accessibleExits, junctionAccess } from './road-controls.js?build=19433adb960dd212';
+import { exitRampVehicles, DEFAULT_EXIT_TERMINAL_VPH } from './junction-traffic.js?build=19433adb960dd212';
 function exitTerminalWait(source, metre) {
     const ramp = source.junctions?.find(j => Math.abs(j.metre - metre) < 25);
     return ramp ? exitRampVehicles(ramp) / Math.max(1, ramp.exitTerminalVph ?? DEFAULT_EXIT_TERMINAL_VPH) * 60 : 0;
@@ -135,7 +135,7 @@ function interchangeChoice(entry, cells, routes, events, exits, demands, turnDel
     }
     return { percent: Math.min(desired, (state.choicePercent ?? 0) + 5), mandatory: false, delayMin, upstreamRank: 0, savingMin: delayMin - extra };
 }
-export function routedDiversionChoice(entry, entries, cells, routes, events, exits, demands, turnDelays = {}) {
+function baseDiversionChoice(entry, entries, cells, routes, events, exits, demands, turnDelays = {}) {
     const { config, state } = entry, path = config.path, target = config.targetPath ?? path;
     const source = cells[path], destination = cells[target], route = routes[path];
     if (!source || !destination || !route)
@@ -250,9 +250,17 @@ export function routedDiversionChoice(entry, entries, cells, routes, events, exi
     const extra = Math.max(0, config.geometry.freeMinutes - motorwayFree) +
         (state.waitingRoad + state.waitingMerge) / service * 60 + exitTerminalWait(source, config.fromM);
     const spans = cellQueueSpans(source);
-    const eligible = (tail, end) => {
+    const eligible = (tail, end, loss = 0) => {
         const nearest = nearestExitBeforeQueue(path, route, accessibleExits(route, events, exits, 'exit'), tail, approachEnd);
-        return config.fromM >= (nearest?.metre ?? tail) - 25 && config.fromM <= end + 25;
+        if (config.fromM >= (nearest?.metre ?? tail) - 25 && config.fromM <= end + 25)
+            return true;
+        if (cross || !nearest || nearest.metre - config.fromM > 35000)
+            return false;
+        const earlier = diversionJunctions(path, accessibleExits(route, events, exits, 'exit'), route)
+            .filter(j => !j.isInterchange && j.metre > config.fromM + 25 && j.metre <= nearest.metre + 25).length;
+        // The first choice stays local. Only extreme remaining waits justify
+        // leaving one or two junctions earlier on an otherwise free approach.
+        return earlier >= 1 && earlier <= 2 && loss >= 150 + (earlier - 1) * 90;
     };
     const measuredLoss = (grid, start, end, rate = service) => {
         const loss = speedDelayInCells(grid, start, end, end + grid.cellM);
@@ -269,13 +277,14 @@ export function routedDiversionChoice(entry, entries, cells, routes, events, exi
     for (const span of spans) {
         const end = Math.min(span.toM, gate ? gate.metre + source.cellM : sourceEnd);
         const start = Math.max(span.fromM, config.fromM);
-        if (start >= end || !eligible(span.fromM, end) || !cross && !gate && config.toM < span.toM - 1)
+        if (start >= end || !cross && !gate && config.toM < span.toM - 1)
             continue;
         let loss = measuredLoss(source, start, end, gate ? gateService : service);
         if (gate && span.toM >= gate.metre - source.cellM) {
             loss += (normal ? normal.state.waitingRoad + normal.state.waitingMerge : 0) / gateService * 60;
         }
-        consider(loss);
+        if (eligible(span.fromM, end, loss))
+            consider(loss);
     }
     if (cross) {
         // Each approaching motorway has its own nearest exit. A queue on A3
@@ -295,4 +304,43 @@ export function routedDiversionChoice(entry, entries, cells, routes, events, exi
     // only when advancing a model minute; redraw/pause cannot raise it.
     const percent = Math.min(desired, (state.choicePercent ?? 0) + 5);
     return { percent, mandatory: false, delayMin, upstreamRank };
+}
+/** A single diversion decision is distributed over later return junctions.
+ * Compare complete trips to a common downstream point. Keep the actual
+ * shared side-road resources and each junction's storage in the flow solver.
+ */
+export function routedDiversionChoice(entry, entries, cells, routes, events, exits, demands, turnDelays = {}) {
+    const group = entry.config.alternativeGroup;
+    if (!group)
+        return baseDiversionChoice(entry, entries, cells, routes, events, exits, demands, turnDelays);
+    const family = entries.filter(e => {
+        if (e.config.alternativeGroup !== group || e.enabled === false)
+            return false;
+        const target = e.config.targetPath ?? e.config.path, route = routes[target];
+        return !!route && !events.some(event => {
+            const gate = closureGate(route, event, exits, events);
+            return gate && e.config.toM >= gate.metre - 25 && e.config.toM < gate.endM - 1;
+        });
+    });
+    if (!family.length || entry.enabled === false)
+        return { percent: 0, mandatory: false, delayMin: 0, upstreamRank: 0 };
+    const choices = family.map(e => baseDiversionChoice({ ...e, state: { ...e.state, choicePercent: 100 } }, entries, cells, routes, events, exits, demands, turnDelays));
+    const wanted = Math.max(0, ...choices.map(c => c.percent));
+    const mandatory = choices.some(c => c.mandatory);
+    const total = mandatory ? wanted : Math.min(wanted, family.reduce((n, e) => n + (e.state.choicePercent ?? 0), 0) + 5);
+    const horizon = Math.max(...family.map(e => e.config.toM));
+    const costs = family.map(e => {
+        const config = e.config, target = config.targetPath ?? config.path, grid = cells[target];
+        const service = Math.max(1, config.geometry.roadCapacityVph);
+        const onward = grid && config.toM < horizon ? speedDelayInCells(grid, config.toM, horizon, horizon) : null;
+        const freeOnward = (horizon - config.toM) / 1000 / freeSpeedKmh(target) * 60;
+        const terminal = cells[config.path] ? exitTerminalWait(cells[config.path], config.fromM) : 0;
+        return config.geometry.freeMinutes + freeOnward + (onward?.delayMin ?? 0) + terminal +
+            (e.state.waitingRoad + e.state.waitingMerge) / service * 60;
+    });
+    const best = Math.min(...costs);
+    const weights = costs.map(cost => Math.exp(-Math.min(60, Math.max(0, cost - best)) / 15));
+    const sum = weights.reduce((n, v) => n + v, 0), index = family.findIndex(e => e.config.id === entry.config.id);
+    const own = choices[Math.max(0, index)];
+    return { percent: index < 0 ? 0 : total * weights[index] / sum, mandatory, delayMin: Math.max(...choices.map(c => c.delayMin)), upstreamRank: own.upstreamRank };
 }

@@ -1,14 +1,14 @@
-import { regionalDetours } from './regional-detours.js?build=8a0e0515db091459';
-import { junctionAccess } from './road-controls.js?build=8a0e0515db091459';
-import { networkData } from './geodata.js?build=8a0e0515db091459';
+import { regionalDetours } from './regional-detours.js?build=19433adb960dd212';
+import { junctionAccess } from './road-controls.js?build=19433adb960dd212';
+import { networkData } from './geodata.js?build=19433adb960dd212';
 /** Offline simulator side-road network. These hand-authored corridors are
  * approximate, NOT surveyed OSM ways, official U-routes or navigation advice.
  * Every normal AS has a route in both directions, including network exits.
  * Longer bypasses concatenate the same sections; no routing server is used.
  */
-import { DIRECTIONS, names, exitPosition } from './core.js?build=8a0e0515db091459';
-import { diversionJunctions } from './diversions.js?build=8a0e0515db091459';
-import { metres, positionM } from './spatial.js?build=8a0e0515db091459';
+import { DIRECTIONS, names, exitPosition } from './core.js?build=19433adb960dd212';
+import { diversionJunctions } from './diversions.js?build=19433adb960dd212';
+import { metres, positionM } from './spatial.js?build=19433adb960dd212';
 export const BUNDLED_SECTIONS = [
     { from: 'A3:33', to: 'A3:34', capacity: 820, via: [[50.6840, 7.2697], [50.6760, 7.2745], [50.6679, 7.2812], [50.6597, 7.2930], [50.6550, 7.3070], [50.6509, 7.3215]] },
     { from: 'A3:34', to: 'A3:35', capacity: 820, via: [[50.6450, 7.3414], [50.6379, 7.3547], [50.6268, 7.3675], [50.6212, 7.3900], [50.6087, 7.4115], [50.5986, 7.4184]] },
@@ -52,6 +52,11 @@ export function bundledTargets(path, exits, route) {
             source: 'simulation-boundary', metre: route.lengthM, isInterchange: false }];
 }
 /** Pure synchronous lookup/composition: deliberately has no fetch argument. */
+// Scenario capacity of the bundled receiving street NETWORK. Exit ramps
+// and their terminals keep their separate, lower service limits. The old
+// 650–850/h value duplicated the ramp bottleneck along every local leg.
+// Shared directional sections still receive only one copy of this budget.
+export const BUNDLED_NETWORK_SERVICE_VPH = 2000;
 export function bundledDetourGeometry(id, path, from, to, exits) {
     const graph = new Map(), coordinates = new Map(exits.map(e => [e.road + ':' + e.ref, exitPosition(e, path)]));
     const start = from.road + ':' + from.ref, finish = isNetworkDestination(to) ? to.ref : to.road + ':' + to.ref;
@@ -118,9 +123,9 @@ export function bundledDetourGeometry(id, path, from, to, exits) {
     const junctionCount = sections.reduce((n, s) => n + Math.max(1, Math.round(s.lengthM / 2300)), 0);
     return { id, path, sourceExitRef: from.ref, targetExitRef: to.ref, points,
         lengthKm, freeMinutes: Math.max(2, lengthKm / 46 * 60 + junctionCount * .4),
-        roadCapacityVph: Math.min(...sections.map(s => s.capacity)), junctionCount, trafficLightCount: 0,
+        roadCapacityVph: Math.max(BUNDLED_NETWORK_SERVICE_VPH, Math.min(...sections.map(s => s.capacity))), junctionCount, trafficLightCount: 0,
         source: 'simulated-bundled', relationId: null, label: 'Simulierte Umleitung · angenäherter Verlauf',
-        sections: sections.map(s => ({ id: s.sectionId, capacityVph: s.capacity })) };
+        sections: sections.map(s => ({ id: s.sectionId, capacityVph: Math.max(BUNDLED_NETWORK_SERVICE_VPH, s.capacity) })) };
 }
 /** One ready default per directional AS; incident bypasses can span more AS. */
 export function bundledExitRoutes(path, exits, route) {

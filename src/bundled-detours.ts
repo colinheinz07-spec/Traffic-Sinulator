@@ -52,6 +52,11 @@ export function bundledTargets(path:RoadId,exits:readonly Exit[],route:Corridor)
 }
 interface Edge {to:string;points:Point[];lengthM:number;capacity:number;sectionId:string}
 /** Pure synchronous lookup/composition: deliberately has no fetch argument. */
+// Scenario capacity of the bundled receiving street NETWORK. Exit ramps
+// and their terminals keep their separate, lower service limits. The old
+// 650–850/h value duplicated the ramp bottleneck along every local leg.
+// Shared directional sections still receive only one copy of this budget.
+export const BUNDLED_NETWORK_SERVICE_VPH=2000;
 export function bundledDetourGeometry(id:string,path:RoadId,from:Exit,to:Exit,
  exits:readonly Exit[]):DetourGeometry{
  const graph=new Map<string,Edge[]>(),coordinates=new Map(exits.map(e=>[e.road+':'+e.ref,exitPosition(e,path)]));
@@ -100,9 +105,9 @@ export function bundledDetourGeometry(id:string,path:RoadId,from:Exit,to:Exit,
  const junctionCount=sections.reduce((n,s)=>n+Math.max(1,Math.round(s.lengthM/2300)),0);
  return {id,path,sourceExitRef:from.ref,targetExitRef:to.ref,points,
   lengthKm,freeMinutes:Math.max(2,lengthKm/46*60+junctionCount*.4),
-  roadCapacityVph:Math.min(...sections.map(s=>s.capacity)),junctionCount,trafficLightCount:0,
+  roadCapacityVph:Math.max(BUNDLED_NETWORK_SERVICE_VPH,Math.min(...sections.map(s=>s.capacity))),junctionCount,trafficLightCount:0,
   source:'simulated-bundled',relationId:null,label:'Simulierte Umleitung · angenäherter Verlauf',
-  sections:sections.map(s=>({id:s.sectionId,capacityVph:s.capacity}))};
+  sections:sections.map(s=>({id:s.sectionId,capacityVph:Math.max(BUNDLED_NETWORK_SERVICE_VPH,s.capacity)}))};
 }
 /** One ready default per directional AS; incident bypasses can span more AS. */
 export function bundledExitRoutes(path:RoadId,exits:readonly Exit[],route:Corridor){

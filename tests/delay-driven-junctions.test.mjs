@@ -29,7 +29,7 @@ function queue(route,tail,head,delay){
 for(const [path,earlierRef,nearRef] of [['A3-koeln','40','38'],['A3-frankfurt','41','42'],
  ['A48-dernbach','11','12'],['A48-koblenz','12','11']]){
  for(const kind of ['accident','roadworks','breakdown']){
-  test(`${path} ${kind}: delay controls uptake at the nearest exit, and crossing an AS changes it gradually`,()=>{
+  test(`${path} ${kind}: ordinary waits stay local; extreme waits also recruit the preceding exit gradually`,()=>{
    const route=routes[path],earlier=junction(path,earlierRef),near=junction(path,nearRef),at=near.metre+1000;
    const laneCount=path.startsWith('A48')?2:3;
    const event={id:'delay-nearest-'+path,kind,pathKey:path,point:routeSlice(route,at,at+1)[0],laneCount,
@@ -46,8 +46,12 @@ for(const [path,earlierRef,nearRef] of [['A3-koeln','40','38'],['A3-frankfurt','
     if(delay<45)assert.equal(choice.percent,0);
     else assert.ok(choice.percent>0&&choice.percent<=5,'even a new exit at extreme delay starts with a limited share');
     assert.equal(choice.mandatory,false);
-    if(offset>0)assert.equal(routedDiversionChoice(entries.find(e=>e.config.geometry.sourceExitRef===earlierRef),
-     entries,{[path]:grid},routes,[event],exits,{[path]:2000}).percent,0,'the free earlier AS is not the nearest exit');
+    if(offset>0){
+     const early=routedDiversionChoice(entries.find(e=>e.config.geometry.sourceExitRef===earlierRef),
+      entries,{[path]:grid},routes,[event],exits,{[path]:2000});
+     if(delay<150)assert.equal(early.percent,0,'ordinary waits still use the nearest exit');
+     else assert.ok(early.percent>0&&early.percent<=5,'extreme onward wait permits a gradual earlier departure');
+    }
     const next=advanceRoutedPath(grid,route,[event],2000,exits,entries);
     const actual=next.detours.find(e=>e.config.id===selected.config.id);
     const local=next.cells.junctions.find(j=>j.ref===selectedRef);

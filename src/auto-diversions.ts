@@ -21,7 +21,7 @@ export interface AutomaticDiversion {
  delayMin:number|null;
  targetPath?:RoadId;sourceEndM?:number;targetEntryM?:number;
  movementId?:PathKey;
- geometry?:DetourGeometry;journey?:InterchangeJourney;
+ geometry?:DetourGeometry;journey?:InterchangeJourney;alternativeGroup?:string;
 }
 export function automaticDiversions(events:readonly SimEvent[],corridors:Readonly<Record<PathKey,Corridor>>,
  exits:readonly Exit[],cells:Partial<Record<PathKey,CellRouteState>>,connections:readonly RampConnection[]=[],
@@ -170,7 +170,31 @@ export function automaticDiversions(events:readonly SimEvent[],corridors:Readonl
     targetEntryM:connection.downstreamMergeM,delayMin:null});
   }
  }
+ // At severe delay offer later return junctions as well. These are
+ // alternatives for ONE exit, not additional independent diversion demand.
+ const expanded:AutomaticDiversion[]=[];
+ for(const option of plans.values()){
+  const grid=cells[option.path],route=corridors[option.path];
+  if(!grid||option.movementId||option.journey||option.targetPath&&option.targetPath!==option.path||isNetworkDestination(option.to)){
+   expanded.push(option);continue;
+  }
+  const event=option.event,gate=event?closureGate(route,event,exits,events):null;
+  const head=gate?.metre??(event?positionM(route,event.point)??option.to.metre:option.to.metre);
+  const severe=head-option.from.metre<=35000&&cellQueueSpans(grid).some(span=>span.toM>option.from.metre-grid.cellM&&span.fromM<head+grid.cellM&&
+   speedDelayInCells(grid,span.fromM,Math.min(span.toM,head+grid.cellM)).delayMin>=150);
+  if(!severe){expanded.push(option);continue;}
+  const later=bundledTargets(option.path,available(option.path,'entry'),route)
+   .filter(t=>t.metre>option.to.metre+25&&(isNetworkDestination(t)||junctionAccess(route,events,t.metre,t.ref).entry))
+   .filter(t=>!events.some(e=>{const block=closureGate(route,e,exits,events);return block&&t.metre>=block.metre-25&&t.metre<block.endM-1;}))
+   .slice(0,2);
+  if(!later.length){expanded.push(option);continue;}
+  const group='returns:'+option.path+':'+option.from.ref+':'+(event?.id??option.causeId??'queue');
+  expanded.push({...option,alternativeGroup:group});
+  for(const to of later){const key=option.link.id+':'+to.ref;
+   expanded.push({...option,key,to,link:{...option.link,toRef:to.ref,toRoad:to.road},geometry:undefined,alternativeGroup:group});
+  }
+ }
  // Preparing alternatives is not permission for remote exits to divert.
- return [...plans.values(),...interchangeJourneys(events,corridors,exits,cells,connections,turnDelays)]
+ return [...expanded,...interchangeJourneys(events,corridors,exits,cells,connections,turnDelays)]
   .sort((a,b)=>a.path.localeCompare(b.path)||b.from.metre-a.from.metre);
 }

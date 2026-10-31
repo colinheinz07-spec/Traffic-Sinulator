@@ -20,6 +20,8 @@ export interface DetourConfig {
  /** The normal AD turn being bypassed; its configured traffic determines
   * the destination share, rather than sending all through traffic away. */
  movementId?:PathKey;
+ /** Related return choices share one decision budget at the same exit. */
+ alternativeGroup?:string;
  journey?:InterchangeJourney;
  exitsNetwork?:boolean;
 }
