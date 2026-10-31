@@ -1,31 +1,31 @@
-import { siegburgContext } from './siegburg-context.js?build=a97d8766aaece3b5';
-import { announcedClosureDemands } from './calendar-traffic.js?build=a97d8766aaece3b5';
-import { bindMapGestures } from './map-gestures.js?build=a97d8766aaece3b5';
-import { PATHS, pathBottleneck, defaultDemands, demandAtMinute, demandAtClock } from './traffic.js?build=a97d8766aaece3b5';
-import { networkData } from './geodata.js?build=a97d8766aaece3b5';
-import { routeReport } from './network-report.js?build=a97d8766aaece3b5';
-import { makeCorridors, routeSlice, positionM, closureGate, advanceSpatial, emptySpatial, jamsAt } from './spatial.js?build=a97d8766aaece3b5';
-import { initialiseCells } from './traffic-cells.js?build=a97d8766aaece3b5';
-import { speedDelayLabel } from './speed-delay.js?build=a97d8766aaece3b5';
-import { trafficView } from './traffic-view.js?build=a97d8766aaece3b5';
-import { resolveSpeedBands } from './traffic-physics.js?build=a97d8766aaece3b5';
-import { advanceRoutedNetwork, remainingInterchangeDemands } from './routed-traffic.js?build=a97d8766aaece3b5';
-import { routedDiversionChoice, requiredDiversionGate } from './diversion-policy.js?build=a97d8766aaece3b5';
-import { automaticDiversions } from './auto-diversions.js?build=a97d8766aaece3b5';
-import { buildRampConnections, rampSpillbacks, interchangeDelays, interchangeTrafficShare } from './interchange.js?build=a97d8766aaece3b5';
-import { journeyRampCapacity, journeyRampJams, rampCapacity } from './interchange-journeys.js?build=a97d8766aaece3b5';
-import { diversionJunctions, planDiversion } from './diversions.js?build=a97d8766aaece3b5';
-import { junctionMovements, junctionMovementHint } from './junction-movements.js?build=a97d8766aaece3b5';
-import { bundledDetourGeometry, bundledExitRoutes, bundledTargets, isNetworkDestination } from './bundled-detours.js?build=a97d8766aaece3b5';
-import { emptyDetour, detourVehicles } from './detour-flow.js?build=a97d8766aaece3b5';
-import { decodeEvents, eventFromHit, updatedEvent, eventNames, eventSymbols, eventSummary, flowPolicy, defaultLengthM, maxLengthM, suggestedSpeed, DEFAULT_CLEARANCE_MIN, STORAGE_KEY, isEventKind, validEvent, effectiveEventsAt, eventScheduleStatus } from './events.js?build=a97d8766aaece3b5';
-import { roadLaneInfo, rampLaneInfo } from './lane-info.js?build=a97d8766aaece3b5';
-import { mapCandidates, chooseMapHits, closestJunction, lanePositions, hitLabel } from './selection.js?build=a97d8766aaece3b5';
-import { buildContinuousRoads, lineWidths, rampBadges, layoutJunctionLabels } from './cartography.js?build=a97d8766aaece3b5';
-import { placeJamCallout } from './map-callouts.js?build=a97d8766aaece3b5';
-import { installScheduleForm } from './schedule-form.js?build=a97d8766aaece3b5';
-import { roadSections, physicalEvents } from './road-controls.js?build=a97d8766aaece3b5';
-import { DIRECTIONS, validateMap, names, mercator, inverse, nearestPolyline, exitPosition } from './core.js?build=a97d8766aaece3b5';
+import { siegburgContext } from './siegburg-context.js?build=8a0e0515db091459';
+import { announcedClosureDemands } from './calendar-traffic.js?build=8a0e0515db091459';
+import { bindMapGestures } from './map-gestures.js?build=8a0e0515db091459';
+import { PATHS, pathBottleneck, defaultDemands, demandAtMinute, demandAtClock } from './traffic.js?build=8a0e0515db091459';
+import { networkData } from './geodata.js?build=8a0e0515db091459';
+import { routeReport } from './network-report.js?build=8a0e0515db091459';
+import { makeCorridors, routeSlice, positionM, closureGate, advanceSpatial, emptySpatial, jamsAt } from './spatial.js?build=8a0e0515db091459';
+import { initialiseCells } from './traffic-cells.js?build=8a0e0515db091459';
+import { speedDelayLabel } from './speed-delay.js?build=8a0e0515db091459';
+import { trafficView } from './traffic-view.js?build=8a0e0515db091459';
+import { resolveSpeedBands } from './traffic-physics.js?build=8a0e0515db091459';
+import { advanceRoutedNetwork, remainingInterchangeDemands } from './routed-traffic.js?build=8a0e0515db091459';
+import { routedDiversionChoice, requiredDiversionGate } from './diversion-policy.js?build=8a0e0515db091459';
+import { automaticDiversions } from './auto-diversions.js?build=8a0e0515db091459';
+import { buildRampConnections, rampSpillbacks, interchangeDelays, interchangeTrafficShare } from './interchange.js?build=8a0e0515db091459';
+import { journeyRampCapacity, journeyRampJams, rampCapacity } from './interchange-journeys.js?build=8a0e0515db091459';
+import { diversionJunctions, planDiversion } from './diversions.js?build=8a0e0515db091459';
+import { junctionMovements, junctionMovementHint } from './junction-movements.js?build=8a0e0515db091459';
+import { bundledDetourGeometry, bundledExitRoutes, bundledTargets, isNetworkDestination } from './bundled-detours.js?build=8a0e0515db091459';
+import { emptyDetour, detourVehicles } from './detour-flow.js?build=8a0e0515db091459';
+import { decodeEvents, eventFromHit, updatedEvent, eventNames, eventSymbols, eventSummary, flowPolicy, defaultLengthM, maxLengthM, suggestedSpeed, DEFAULT_CLEARANCE_MIN, STORAGE_KEY, isEventKind, validEvent, effectiveEventsAt, eventScheduleStatus } from './events.js?build=8a0e0515db091459';
+import { roadLaneInfo, rampLaneInfo } from './lane-info.js?build=8a0e0515db091459';
+import { mapCandidates, chooseMapHits, closestJunction, lanePositions, hitLabel } from './selection.js?build=8a0e0515db091459';
+import { buildContinuousRoads, lineWidths, rampBadges, layoutJunctionLabels } from './cartography.js?build=8a0e0515db091459';
+import { placeJamCallout } from './map-callouts.js?build=8a0e0515db091459';
+import { installScheduleForm } from './schedule-form.js?build=8a0e0515db091459';
+import { roadSections, physicalEvents } from './road-controls.js?build=8a0e0515db091459';
+import { DIRECTIONS, validateMap, names, mercator, inverse, nearestPolyline, exitPosition } from './core.js?build=8a0e0515db091459';
 const $ = (id) => { const element = document.getElementById(id); if (!element)
     throw Error(`Element fehlt: ${id}`); return element; };
 const canvas = $('map'), wrapper = canvas.parentElement;
@@ -835,16 +835,9 @@ function updateMapClock() {
     state.className = 'map-clock-status' + (running ? ' running' : '');
 }
 function renderTraffic() {
-    prepareAutomaticDetours();
+    // Viewing another carriageway is read-only. Only a simulation tick may
+    // prepare routes and update diversion intentions.
     const timeline = activeEvents();
-    const choices = [...activeDetours.values()], demands = currentDemands();
-    const turnDelays = interchangeDelays(trafficJams(timeline), timeline);
-    for (const entry of choices) {
-        const target = entry.config.targetPath ?? entry.config.path;
-        const percent = cellNetwork[entry.config.path] && cellNetwork[target] ?
-            routedDiversionChoice(entry, choices, cellNetwork, spatialCorridors, timeline, exits, demands, turnDelays).percent : 0;
-        activeDetours.set(entry.config.id, { ...entry, desiredPercent: percent });
-    }
     const selector = $('traffic-route');
     const key = selector.value;
     if (!PATHS.includes(key))
@@ -990,7 +983,20 @@ function selectTrafficRoute(path) {
     const key = path;
     $('traffic-route').value = key;
     $('traffic-inflow').value = String(trafficDemands[key]);
-    renderTraffic();
+    renderTrafficSafely();
+}
+function renderTrafficSafely() {
+    try {
+        renderTraffic();
+    }
+    catch (error) {
+        // A panel failure must not turn a successful model step into a pause.
+        updateMapClock();
+        $('traffic-minute').textContent = `Minute ${spatialState.minute}`;
+        $('traffic-issue').textContent = 'Anzeige konnte nicht vollständig aktualisiert werden: ' +
+            (error instanceof Error ? error.message : 'Unbekannter Anzeigefehler');
+        console.error(error);
+    }
 }
 function stopTraffic() { if (trafficTimer !== null) {
     clearInterval(trafficTimer);
@@ -1018,12 +1024,13 @@ function stepTraffic(minutes) {
             const legacyActive = remainingInterchangeDemands(active, [...activeDetours.values()], timeline);
             spatialState = advanceSpatial(spatialState, timeline, legacyActive, 1, spatialCorridors, rampConnections, transfers, exits, physicalMainline);
         }
-        renderTraffic();
     }
     catch (e) {
         stopTraffic();
         $('traffic-issue').textContent = e instanceof Error ? e.message : 'Simulationsfehler';
+        return;
     }
+    renderTrafficSafely();
 }
 function initializeTraffic() {
     const select = $('traffic-route');
@@ -1082,7 +1089,16 @@ function initializeTraffic() {
         trafficDemands[key] = val;
         renderTraffic();
     });
-    $('traffic-play').onclick = () => {
+    // An emulated click after a map tap must not toggle playback merely
+    // because the direction dialog moved underneath the finger.
+    let playbackPointerStartedHere = false;
+    document.addEventListener('pointerdown', event => {
+        playbackPointerStartedHere = event.target instanceof Node && $('traffic-play').contains(event.target);
+    }, true);
+    $('traffic-play').onclick = event => {
+        if (event.detail > 0 && !playbackPointerStartedHere)
+            return;
+        playbackPointerStartedHere = false;
         if (trafficTimer !== null) {
             stopTraffic();
             return;

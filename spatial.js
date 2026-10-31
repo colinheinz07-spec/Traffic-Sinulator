@@ -1,13 +1,13 @@
-import { normalThroughLanes } from './lane-info.js?build=a97d8766aaece3b5';
+import { normalThroughLanes } from './lane-info.js?build=8a0e0515db091459';
 /** Georeferenced, per-event queue model on the exact OSM motorway carriageway curves.
  * A first-pass conservation model (not a calibrated traffic forecast).
  * No vehicle sprites, hidden road connectors, A3/A48 transfers, or invented detours.
  */
-import { buildContinuousRoads } from './cartography.js?build=a97d8766aaece3b5';
-import { exitPosition } from './core.js?build=a97d8766aaece3b5';
-import { PATHS, baselineCapacity, eventCapacity, defaultDemand } from './traffic.js?build=a97d8766aaece3b5';
-import { baseLaneCapacity, colorAtSpeed, queueFundamentalDiagram, freeSpeedKmh } from './traffic-physics.js?build=a97d8766aaece3b5';
-import { physicalEvents, accessibleExits } from './road-controls.js?build=a97d8766aaece3b5';
+import { buildContinuousRoads } from './cartography.js?build=8a0e0515db091459';
+import { exitPosition } from './core.js?build=8a0e0515db091459';
+import { PATHS, baselineCapacity, eventCapacity, defaultDemand } from './traffic.js?build=8a0e0515db091459';
+import { baseLaneCapacity, colorAtSpeed, queueFundamentalDiagram, freeSpeedKmh } from './traffic-physics.js?build=8a0e0515db091459';
+import { physicalEvents, accessibleExits } from './road-controls.js?build=8a0e0515db091459';
 const rad = Math.PI / 180;
 export function metres(a, b) {
     const dx = (b[1] - a[1]) * 111195 * Math.cos((a[0] + b[0]) / 2 * rad);

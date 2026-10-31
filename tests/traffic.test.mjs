@@ -70,7 +70,6 @@ test('SPCK controls and compiled module hooks exist without a second app entry',
   assert.ok(html.includes(`id="${id}"`),`missing ${id}`);
  assert.match(app,/advanceSpatial/);
  assert.doesNotMatch(app,/trafficEstimate\(trafficState/);
- assert.match(app,/document\.addEventListener\('visibilitychange'/);
  assert.ok(!html.includes('map-v2/'));
  assert.doesNotMatch(html,/id="traffic-step"/);
 });

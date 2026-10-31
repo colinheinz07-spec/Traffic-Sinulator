@@ -646,16 +646,9 @@ function updateMapClock(){
  state.className='map-clock-status'+(running?' running':'');
 }
 function renderTraffic(){
- prepareAutomaticDetours();
+ // Viewing another carriageway is read-only. Only a simulation tick may
+ // prepare routes and update diversion intentions.
  const timeline=activeEvents();
- const choices=[...activeDetours.values()],demands=currentDemands();
- const turnDelays=interchangeDelays(trafficJams(timeline),timeline);
- for(const entry of choices){
-  const target=entry.config.targetPath??entry.config.path;
-  const percent=cellNetwork[entry.config.path]&&cellNetwork[target]?
-   routedDiversionChoice(entry,choices,cellNetwork,spatialCorridors,timeline,exits,demands,turnDelays).percent:0;
-  activeDetours.set(entry.config.id,{...entry,desiredPercent:percent});
- }
  const selector=$<HTMLSelectElement>('traffic-route');const key=selector.value as PathKey;
  if(!PATHS.includes(key))return;
  const jams=trafficJams(timeline);
@@ -764,7 +757,18 @@ function selectTrafficRoute(path:string){
  const key=path as PathKey;
  $<HTMLSelectElement>('traffic-route').value=key;
  $<HTMLInputElement>('traffic-inflow').value=String(trafficDemands[key]);
- renderTraffic();
+ renderTrafficSafely();
+}
+function renderTrafficSafely(){
+ try{renderTraffic();}
+ catch(error){
+  // A panel failure must not turn a successful model step into a pause.
+  updateMapClock();
+  $('traffic-minute').textContent=`Minute ${spatialState.minute}`;
+  $('traffic-issue').textContent='Anzeige konnte nicht vollständig aktualisiert werden: '+
+   (error instanceof Error?error.message:'Unbekannter Anzeigefehler');
+  console.error(error);
+ }
 }
 function stopTraffic(){if(trafficTimer!==null){clearInterval(trafficTimer);trafficTimer=null;}$('traffic-play').textContent='▶ Start';$('traffic-play').setAttribute('aria-pressed','false');updateMapClock();}
 function stepTraffic(minutes:number){
@@ -788,9 +792,9 @@ function stepTraffic(minutes:number){
    const legacyActive=remainingInterchangeDemands(active,[...activeDetours.values()],timeline);
    spatialState=advanceSpatial(spatialState,timeline,legacyActive,1,spatialCorridors,rampConnections,transfers,exits,physicalMainline);
   }
-  renderTraffic();
  }
- catch(e){stopTraffic();$('traffic-issue').textContent=e instanceof Error?e.message:'Simulationsfehler';}
+ catch(e){stopTraffic();$('traffic-issue').textContent=e instanceof Error?e.message:'Simulationsfehler';return;}
+ renderTrafficSafely();
 }
 function initializeTraffic(){
  const select=$<HTMLSelectElement>('traffic-route');select.replaceChildren();
@@ -825,7 +829,15 @@ function initializeTraffic(){
   if(!Number.isInteger(val)||val<0||val>8000){$('traffic-issue').textContent='Zufluss: nur ganze Zahlen zwischen 0 und 8.000 Fahrzeugen/h.';input.value=String(trafficDemands[key]);return;}
   $('traffic-issue').textContent='';trafficDemands[key]=val;renderTraffic();
  });
- $('traffic-play').onclick=()=>{
+ // An emulated click after a map tap must not toggle playback merely
+ // because the direction dialog moved underneath the finger.
+ let playbackPointerStartedHere=false;
+ document.addEventListener('pointerdown',event=>{
+  playbackPointerStartedHere=event.target instanceof Node&&$('traffic-play').contains(event.target);
+ },true);
+ $('traffic-play').onclick=event=>{
+  if(event.detail>0&&!playbackPointerStartedHere)return;
+  playbackPointerStartedHere=false;
   if(trafficTimer!==null){stopTraffic();return;}
   $('traffic-play').textContent='⏸ Pause';
   $('traffic-play').setAttribute('aria-pressed','true');
