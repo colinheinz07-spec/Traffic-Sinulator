@@ -2,7 +2,9 @@
 import json,pathlib,urllib.request,urllib.parse,time
 query='''[out:json][timeout:150];(
 way["highway"~"^(motorway|motorway_link|construction)$"]["ref"~"^A ?(3|560)$"](50.24,7.03,50.96,8.34);
-way["highway"="motorway_link"](50.76,7.19,50.82,7.28);
+way["highway"="motorway_link"](50.24,7.03,50.96,8.34);
+way["highway"="construction"](50.76,7.19,50.82,7.28);
+way["construction"="motorway_link"](50.76,7.19,50.82,7.28);
 node["highway"="motorway_junction"](50.24,7.03,50.96,8.34);
 );out body geom;'''
 errors=[]
