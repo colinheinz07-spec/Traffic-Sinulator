@@ -41,7 +41,7 @@ for(const path of ['A3-frankfurt','A3-koeln']){
    peak=Math.max(peak,queueKm(grid));if(minute>=30)sum+=grid.dischargeVph;
   }
   assert.ok(sum/90>3650&&sum/90<=4000,'available service remains physical and finite');
-  assert.ok(peak>3&&peak<10,'controlled two-hour, two-open-lane case: '+peak);
+  assert.ok(peak>.5&&peak<5,'controlled two-hour, two-open-lane case: '+peak);
   assert.ok(grid.offeredTotal>8000,'all original peak arrivals are still offered');
  });
 

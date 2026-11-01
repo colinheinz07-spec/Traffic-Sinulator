@@ -231,7 +231,7 @@ function localControls(route:Corridor,events:readonly SimEvent[],demandVph:numbe
  * near the sustained capacity; short braking phases and larger releases
  * create density waves that propagate through the conserved cell fluxes.
  */
-interface DischargeEpisode {start:number;stop:number;rise:number;flow:number;fall:number;low:number;high:number}
+interface DischargeEpisode {start:number;stop:number;rise:number;flow:number;fall:number;low:number;high:number;releaseSkew:number}
 const dischargeHistories=new Map<string,{seed:number;end:number;episodes:DischargeEpisode[]}>();
 function dischargeSeed(id:string):number{
  let seed=2166136261;for(const c of id)seed=Math.imul(seed^c.charCodeAt(0),16777619);
@@ -294,7 +294,7 @@ export function platoonServiceFactor(id:string,minute:number,ceiling=Infinity):n
   // Mean requested service is sustained capacity, with physical free-lane
   // capacity still limiting the actual transfer at each substep.
   const high=(total-low*lowWeight)/(total-lowWeight);
-  history.episodes.push({start:history.end,stop,rise,flow,fall,low,high});history.end+=total;
+  history.episodes.push({start:history.end,stop,rise,flow,fall,low,high,releaseSkew:(r(5)-.5)*.3});history.end+=total;
  }
  let lo=0,hi=history.episodes.length-1;
  while(lo<hi){const mid=Math.ceil((lo+hi)/2);if(history.episodes[mid]!.start<=minute)lo=mid;else hi=mid-1;}
@@ -302,7 +302,11 @@ export function platoonServiceFactor(id:string,minute:number,ceiling=Infinity):n
  const high=e.high,low=e.low;
  if(t<e.stop)return low;
  if(t<e.stop+e.rise)return low+(high-low)*(t-e.stop)/e.rise;
- if(t<e.stop+e.rise+e.flow)return high;
+ if(t<e.stop+e.rise+e.flow){
+  const phase=(t-e.stop-e.rise)/e.flow;
+  // Zero-area release variation: conserved mean service, no flat repeated plateau.
+  return high*(1+e.releaseSkew*4*phase*(1-phase)*(2*phase-1));
+ }
  return high-(high-low)*(t-e.stop-e.rise-e.flow)/e.fall;
 }
 /** Advance exactly one model minute, including stable updates of at most 2s.

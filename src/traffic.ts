@@ -104,7 +104,7 @@ export function eventCapacity(e:SimEvent,
  // Two usable lanes can sustain orderly parallel discharge. The per-lane
  // reference already represents a sustained flow; avoid stacking the full
  // single-lane speed/merging penalty onto both available lanes again.
- const baseMerge=e.closedLanes.length===0?1:parallel?(e.kind==='roadworks'?.995:.985):e.kind==='roadworks'?.92:.87;
+ const baseMerge=e.closedLanes.length===0?1:parallel?(e.kind==='roadworks'?.999:.997):e.kind==='roadworks'?.92:.87;
  const shares=laneDemandShares(e.laneCount,heavyFraction);
  const hgvDistribution=laneDemandShares(e.laneCount,1);
  const affectedShare=e.closedLanes.reduce((sum,i)=>sum+shares[i]!,0);
@@ -115,7 +115,7 @@ export function eventCapacity(e:SimEvent,
  const constrained=remaining<=1?.45:1;
  const loading=Math.min(1,volumeVph/Math.max(1,laneCapacity));
  const extraMergeLoss=e.closedLanes.length===0?0:
-  constrained*loading*(parallel?(.03*affectedShare+.04*divertedHeavyShare):(.10*affectedShare+.14*divertedHeavyShare));
+  constrained*loading*(parallel?(.008*affectedShare+.012*divertedHeavyShare):(.10*affectedShare+.14*divertedHeavyShare));
  const mergeFactor=baseMerge*Math.max(.72,1-extraMergeLoss);
  return Math.max(0,Math.round(laneCapacity*speedFactor*mergeFactor));
 }

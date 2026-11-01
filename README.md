@@ -1,4 +1,14 @@
-# A3/A4/A48/A59/A559/A560 Stausimulator – TRAFFIC 1.18.0
+# A3/A4/A48/A59/A559/A560 Stausimulator – TRAFFIC 1.18.1
+
+
+## Rampensperren und kompaktere Staus (1.18.1)
+
+- Administrative Rampensperren verhindern neue Zufahrten am Abzweig; vorhandene Rampenbestände laufen aus. Physische Unfälle bleiben Hindernisse.
+- Bonn/Siegburg: Ein Umweg darf vor einer gesperrten Verbindungsrampe auf die offene Zielautobahn zurückführen. Bei einer gesperrten Zielautobahn bleibt die Rückführung hinter dem Sperrabschnitt erforderlich.
+- Ein gemeinsamer Fahrbahnstatus ersetzt schmale rote Rückstaulinien im grünen Balken. Abbieger- und Durchgangsverzögerung bleiben in den Detailwerten getrennt.
+- Zwei nutzbare Fahrstreifen erhalten einen geringeren zusätzlichen Einfädelverlust; eine einzelne freie Spur bleibt deutlich empfindlicher. Keine künstliche Begrenzung der Staulänge oder Löschung wartender Fahrzeuge.
+- A48 am Wochenende ruhiger; Dienstag, Donnerstag und Freitag unterscheiden sich zusätzlich vom Referenzwerktag. Montabaur erhält als lokaler Verteiler mehr Zu-/Abfluss als Dierdorf. Das sind explizite Modellannahmen, keine neu erhobenen Anschlussstellenzählungen.
+- Anfahrphasen verändern sich auch innerhalb einer Fahrzeuggruppe; die mittlere angebotene Kapazität bleibt erhalten.
 
 **Ein Repository, eine Startdatei:** `index.html` im Hauptverzeichnis direkt in SPCK öffnen. Keine Cloudflare-Konfiguration und keine externe Kartenbibliothek.
 

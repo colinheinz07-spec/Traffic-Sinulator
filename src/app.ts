@@ -1029,11 +1029,9 @@ function drawSpatialJams(){
  }
  const {timeline,list,spillbacks,view}=mapTrafficSnapshot;
  const widths=lineWidths(zoom);
- // A motorway ending at an AD split has no separate straight-ahead road.
- // Show a backed-up branch across the full approach stroke, matching the
- // worst-lane route status. Keep destination flows and delays independent.
- const terminalFeeders=new Set<PathKey>(spillbacks.filter(s=>
-  Math.abs(s.sourceAnchorM-spatialCorridors[s.source].lengthM)<1).map(s=>s.source));
+ // Resolve mainline and ramp spillback into a single road-status stroke.
+ // Detailed turning delay remains in the card; never put a narrow red line
+ // through an otherwise green status bar.
  for(const [key,bands] of view.bands){
   const route=spatialCorridors[key],narrow=key.startsWith('ramp-')||extensionRoute(key)?.kind==='ramp';
   const count=extensionRoute(key)?.lanes??(key.startsWith('A48')?2:3);
@@ -1047,8 +1045,7 @@ function drawSpatialJams(){
    const line=routeSlice(route,section.fromM,section.toM);stroke(line,widths.motorway+.65,'#667582');
    drawOpen(line,section,'#26bb7c');
   }
-  const shown=terminalFeeders.has(key)
-   ?resolveSpeedBands([...bands,...(view.spillBands.get(key)??[])]):bands;
+  const shown=resolveSpeedBands([...bands,...(view.spillBands.get(key)??[])]);
   for(const band of shown){
    if(band.color==='free')continue;
    const visibility=visibleRanges(key,route.points);
@@ -1059,18 +1056,6 @@ function drawSpatialJams(){
     if(section&&(section.openLanes.length||section.shoulderOpen))drawOpen(line,section,jamColors[band.color]);
     else{const width=narrow?widths.ramp:widths.motorway;stroke(line,width+1.5,'#112537');stroke(line,width+.65,jamColors[band.color]);}
    }
-  }
- }
- // A branch off a continuing motorway keeps its separate narrow exit lane.
- // Terminal approaches were already resolved at full width above; drawing
- // them again could paint a faster ramp band over a slower mainline queue.
- for(const [key,bands] of view.spillBands){
-  if(terminalFeeders.has(key))continue;
-  const route=spatialCorridors[key];
-  for(const band of bands){
-   if(band.color==='free')continue;
-   const line=routeSlice(route,band.fromM,band.toM);
-   if(line.length>1)stroke(line,Math.max(1,widths.motorway*.46),jamColors[band.color]);
   }
  }
   if(zoom<11.4)return;

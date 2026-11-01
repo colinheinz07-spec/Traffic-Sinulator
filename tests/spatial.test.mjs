@@ -13,7 +13,7 @@ function eventAt(key,fraction,kind='roadworks',closed=[0,1],speed=40,id='e'){
  const road=networkData.roads.find(x=>x.road===key),ramp=networkData.ramps.find(x=>x.id===key);
  const hit=road?{kind:'road',road,point:pt,key, distance:0,fraction}: {kind:'ramp',ramp,point:pt,key,distance:0,fraction};
  const laneCount=key.startsWith('ramp-')?2:3;
- return eventFromHit(hit,kind,laneCount,closed,id,date,{lengthM:kind==='closure'?200:500,speedKmh:speed,shoulder:kind==='closure'?'blocked':'normal'});
+ return eventFromHit(hit,kind,laneCount,closed,id,date,{lengthM:kind==='accident'?100:kind==='closure'?200:500,speedKmh:speed,shoulder:kind==='closure'?'blocked':'normal'});
 }
 test('core and extension OSM corridors are registered without route jumps or opposing carriageway conflation',()=>{
  assert.deepEqual(Object.keys(corridors).sort(),[...NETWORK_PATHS].sort());
@@ -73,7 +73,7 @@ test('after removing a worksite queued vehicles drain, with no residual blockade
  assert.equal(cleared.queues.works,undefined);assert.deepEqual(jamsAt(cleared,[],corridors),[]);
 });
 test('ramp queue remains on its own directional branch, never flows onto A48 in 4b',()=>{
- const e=eventAt('ramp-a48-to-koeln',.6,'closure',[0,1],0,'ramp');
+ const e=eventAt('ramp-a48-to-koeln',.6,'accident',[0,1],0,'ramp');
  const state=advanceSpatial(emptySpatial(),[e],demands,12,corridors);
  const jams=jamsAt(state,[e],corridors);
  assert.equal(jams.length,1);assert.equal(jams[0].pathKey,e.pathKey);

@@ -1,8 +1,8 @@
-import { regionalFlowAt, regionalJunctionDemands } from './regional-traffic.js?build=87985509f9b942f5';
-import { networkRoad } from './network-road.js?build=87985509f9b942f5';
-import { junctionAccess } from './road-controls.js?build=87985509f9b942f5';
-import { localRoadAvailability } from './calendar-traffic.js?build=87985509f9b942f5';
-import { diversionJunctions } from './diversions.js?build=87985509f9b942f5';
+import { regionalFlowAt, regionalJunctionDemands } from './regional-traffic.js?build=f9b1a07464ae5574';
+import { networkRoad } from './network-road.js?build=f9b1a07464ae5574';
+import { junctionAccess } from './road-controls.js?build=f9b1a07464ae5574';
+import { localRoadAvailability } from './calendar-traffic.js?build=f9b1a07464ae5574';
+import { diversionJunctions } from './diversions.js?build=f9b1a07464ae5574';
 // No surveyed AS signal plans or local off-ramp lengths are bundled. These
 // are explicit defaults: roughly one 300 m queue lane, and ~39% effective
 // green at 1800 veh/h/lane. They are not measured AS-specific capacities.
@@ -26,9 +26,13 @@ export function normalJunctionTraffic(route, exits, demandVph, moment, regional 
     if (!networkRoad(route.key))
         return [];
     const ordinary = diversionJunctions(route.key, exits, route).filter(j => !j.isInterchange).map(j => {
-        // 4–8% local turnover per AS. Balanced ordinary entry/exit at the
+        // Junction-specific local turnover. Balanced ordinary entry/exit at the
         // reference free flow avoids artificially growing demand at every node.
-        const share = 4 + Number.parseInt(j.ref, 10) % 5, profile = junctionCapacityProfile(networkRoad(route.key), j.ref);
+        const road = networkRoad(route.key);
+        // Explicit local catchment assumptions, independent of AS numbering.
+        // Montabaur is a stronger distributor than rural Dierdorf.
+        const localShares = { 'A3:40': 12, 'A3:43': 7, 'A3:37': 5, 'A3:36': 7, 'A3:38': 8, 'A48:12': 10, 'A48:11': 11, 'A48:10': 12 };
+        const share = localShares[road + ':' + j.ref] ?? (road === 'A559' || road === 'A59' ? 9 : 6), profile = junctionCapacityProfile(road, j.ref);
         const access = junctionAccess(route, [], j.metre, j.ref);
         return { id: route.key + ':local:' + j.ref, ref: j.ref, metre: j.metre,
             entryVph: access.entry ? Math.min(700, (regional && moment ? regionalFlowAt(route, exits, demandVph, j.metre + .1, moment) : demandVph) * share / 100) : 0, exitPercent: access.exit ? share : 0,

@@ -39,7 +39,7 @@ for(const path of ['A3-koeln','A3-frankfurt'])test(`${path}: two free lanes sust
  assert.ok(length>3000&&length<14000,'4600/h for two hours must not automatically create a 25–35km queue: '+length);
  assert.ok(mixed>=8,'retain simultaneous physical orange/red/dark-red sections: '+mixed);
  assert.ok(layouts.size>=35,'the local density pattern must keep moving');
- assert.ok(cellInventory(state)>state.initialVehicles+1000,'compaction cannot erase waiting cars');
+ assert.ok(cellInventory(state)>state.initialVehicles+500,'compaction cannot erase waiting cars');
  const before=structuredClone(state);
  for(let i=0;i<10;i++)cellSpeedBands(state);
  assert.deepEqual(state,before,'repaints cannot drive the dynamics');

@@ -1,15 +1,15 @@
-import { networkRoad } from './network-road.js?build=87985509f9b942f5';
-import { extensionRoutes, extensionRoute } from './network-extensions.js?build=87985509f9b942f5';
-import { normalThroughLanes } from './lane-info.js?build=87985509f9b942f5';
+import { networkRoad } from './network-road.js?build=f9b1a07464ae5574';
+import { extensionRoutes, extensionRoute } from './network-extensions.js?build=f9b1a07464ae5574';
+import { normalThroughLanes } from './lane-info.js?build=f9b1a07464ae5574';
 /** Georeferenced, per-event queue model on the exact OSM motorway carriageway curves.
  * A first-pass conservation model (not a calibrated traffic forecast).
  * No vehicle sprites, hidden road connectors, A3/A48 transfers, or invented detours.
  */
-import { buildContinuousRoads } from './cartography.js?build=87985509f9b942f5';
-import { exitPosition } from './core.js?build=87985509f9b942f5';
-import { PATHS, baselineCapacity, eventCapacity, defaultDemand } from './traffic.js?build=87985509f9b942f5';
-import { baseLaneCapacity, colorAtSpeed, queueFundamentalDiagram, freeSpeedKmh } from './traffic-physics.js?build=87985509f9b942f5';
-import { physicalEvents, accessibleExits } from './road-controls.js?build=87985509f9b942f5';
+import { buildContinuousRoads } from './cartography.js?build=f9b1a07464ae5574';
+import { exitPosition } from './core.js?build=f9b1a07464ae5574';
+import { PATHS, baselineCapacity, eventCapacity, defaultDemand } from './traffic.js?build=f9b1a07464ae5574';
+import { baseLaneCapacity, colorAtSpeed, queueFundamentalDiagram, freeSpeedKmh } from './traffic-physics.js?build=f9b1a07464ae5574';
+import { physicalEvents, accessibleExits } from './road-controls.js?build=f9b1a07464ae5574';
 const rad = Math.PI / 180;
 export function metres(a, b) {
     const dx = (b[1] - a[1]) * 111195 * Math.cos((a[0] + b[0]) / 2 * rad);
@@ -194,9 +194,14 @@ export function advanceSpatial(prev, events, demands, minutes, corridors, links 
             if (!Number.isFinite(volume) || volume < 0 || volume > 8000)
                 throw Error('Ungültiger Zufluss');
             const route = corridors[key];
+            const isRamp = key.startsWith('ramp-') || extensionRoute(key)?.kind === 'ramp';
+            // Administrative ramp closure is enforced at the fork. Existing stock
+            // evacuates forward; an accident remains a physical obstruction.
+            if (isRamp && events.some(e => e.pathKey === key && e.kind === 'closure'))
+                volume = 0;
             const nodes = [];
             for (const e of physicalEvents(route, events))
-                if (e.pathKey === key) {
+                if (e.pathKey === key && !(isRamp && e.kind === 'closure')) {
                     const place = positionM(route, e.point);
                     if (place === null)
                         continue;

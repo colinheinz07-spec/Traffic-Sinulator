@@ -26,7 +26,7 @@ test('near-Dernbach one-lane A3 construction gives ramp a physically related del
  const point=routeSlice(target,at,at+3)[0];
  assert.ok(positionM(target,point)!==null);
  const hit={kind:'road',road:networkData.roads.find(r=>r.road===link.to),key:link.to,point,distance:0,fraction:.5};
- const event=eventFromHit(hit,'roadworks',3,[0],'work','2026-10-20T10:00:00Z',{lengthM:500,speedKmh:80,shoulder:'normal'});
+ const event=eventFromHit(hit,'roadworks',3,[0,1],'work','2026-10-20T10:00:00Z',{lengthM:500,speedKmh:80,shoulder:'normal'});
  assert.ok(eventCapacity(event)>0);
  let state=emptySpatial();
  for(let i=0;i<80;i++)state=advanceSpatial(state,[event],demands,1,routes,links);

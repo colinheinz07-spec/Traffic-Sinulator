@@ -1,11 +1,11 @@
-import { extensionRoute } from './network-extensions.js?build=87985509f9b942f5';
-import { baseLaneCapacity } from './traffic-physics.js?build=87985509f9b942f5';
-import { positionM, closureGate } from './spatial.js?build=87985509f9b942f5';
-import { baselineCapacity, eventCapacity } from './traffic.js?build=87985509f9b942f5';
-import { flowPolicy, DEFAULT_CLEARANCE_MIN } from './events.js?build=87985509f9b942f5';
-import { colorAtSpeed, freeSpeedKmh, QUEUE_JAM_DENSITY_PER_LANE, CONGESTION_WAVE_KMH } from './traffic-physics.js?build=87985509f9b942f5';
-import { normalJunctionTraffic, exitRampVehicles, DEFAULT_EXIT_TERMINAL_VPH, DEFAULT_EXIT_STORAGE_VEHICLES } from './junction-traffic.js?build=87985509f9b942f5';
-import { roadSections, physicalEvents, junctionAccess } from './road-controls.js?build=87985509f9b942f5';
+import { extensionRoute } from './network-extensions.js?build=f9b1a07464ae5574';
+import { baseLaneCapacity } from './traffic-physics.js?build=f9b1a07464ae5574';
+import { positionM, closureGate } from './spatial.js?build=f9b1a07464ae5574';
+import { baselineCapacity, eventCapacity } from './traffic.js?build=f9b1a07464ae5574';
+import { flowPolicy, DEFAULT_CLEARANCE_MIN } from './events.js?build=f9b1a07464ae5574';
+import { colorAtSpeed, freeSpeedKmh, QUEUE_JAM_DENSITY_PER_LANE, CONGESTION_WAVE_KMH } from './traffic-physics.js?build=f9b1a07464ae5574';
+import { normalJunctionTraffic, exitRampVehicles, DEFAULT_EXIT_TERMINAL_VPH, DEFAULT_EXIT_STORAGE_VEHICLES } from './junction-traffic.js?build=f9b1a07464ae5574';
+import { roadSections, physicalEvents, junctionAccess } from './road-controls.js?build=f9b1a07464ae5574';
 const TARGET_CELL_M = 100, WAVE_KMH = CONGESTION_WAVE_KMH, JAM_PER_LANE = QUEUE_JAM_DENSITY_PER_LANE;
 // One observation per MODEL minute; repainting/pause never advances this.
 const TRAVEL_ALPHA = 1 - Math.exp(-1 / 6);
@@ -261,7 +261,7 @@ export function platoonServiceFactor(id, minute, ceiling = Infinity) {
         // Mean requested service is sustained capacity, with physical free-lane
         // capacity still limiting the actual transfer at each substep.
         const high = (total - low * lowWeight) / (total - lowWeight);
-        history.episodes.push({ start: history.end, stop, rise, flow, fall, low, high });
+        history.episodes.push({ start: history.end, stop, rise, flow, fall, low, high, releaseSkew: (r(5) - .5) * .3 });
         history.end += total;
     }
     let lo = 0, hi = history.episodes.length - 1;
@@ -278,8 +278,11 @@ export function platoonServiceFactor(id, minute, ceiling = Infinity) {
         return low;
     if (t < e.stop + e.rise)
         return low + (high - low) * (t - e.stop) / e.rise;
-    if (t < e.stop + e.rise + e.flow)
-        return high;
+    if (t < e.stop + e.rise + e.flow) {
+        const phase = (t - e.stop - e.rise) / e.flow;
+        // Zero-area release variation: conserved mean service, no flat repeated plateau.
+        return high * (1 + e.releaseSkew * 4 * phase * (1 - phase) * (2 * phase - 1));
+    }
     return high - (high - low) * (t - e.stop - e.rise - e.flow) / e.fall;
 }
 /** Advance exactly one model minute, including stable updates of at most 2s.

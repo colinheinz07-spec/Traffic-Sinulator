@@ -53,9 +53,13 @@ export function exitRampVehicles(state:JunctionTrafficState):number{
 export function normalJunctionTraffic(route:Corridor,exits:readonly Exit[],demandVph:number,moment?:Date,regional=false,events:readonly SimEvent[]=[]):JunctionTrafficDemand[]{
  if(!networkRoad(route.key))return [];
  const ordinary=diversionJunctions(route.key as RoadId,exits,route).filter(j=>!j.isInterchange).map(j=>{
-  // 4–8% local turnover per AS. Balanced ordinary entry/exit at the
+  // Junction-specific local turnover. Balanced ordinary entry/exit at the
   // reference free flow avoids artificially growing demand at every node.
-  const share=4+Number.parseInt(j.ref,10)%5,profile=junctionCapacityProfile(networkRoad(route.key)!,j.ref);
+  const road=networkRoad(route.key)!;
+  // Explicit local catchment assumptions, independent of AS numbering.
+  // Montabaur is a stronger distributor than rural Dierdorf.
+  const localShares:Record<string,number>={'A3:40':12,'A3:43':7,'A3:37':5,'A3:36':7,'A3:38':8,'A48:12':10,'A48:11':11,'A48:10':12};
+  const share=localShares[road+':'+j.ref]??(road==='A559'||road==='A59'?9:6),profile=junctionCapacityProfile(road,j.ref);
   const access=junctionAccess(route,[],j.metre,j.ref);
   return {id:route.key+':local:'+j.ref,ref:j.ref,metre:j.metre,
    entryVph:access.entry?Math.min(700,(regional&&moment?regionalFlowAt(route,exits,demandVph,j.metre+.1,moment):demandVph)*share/100):0,exitPercent:access.exit?share:0,

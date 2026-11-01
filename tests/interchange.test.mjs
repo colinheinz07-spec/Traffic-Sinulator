@@ -12,7 +12,7 @@ const d=defaultDemands(),ramp=(key)=>networkData.ramps.find(r=>r.id===key);
 function event(key,anchorFraction,id='blocked'){
  const rm=ramp(key),rt=routes[key],p=rt.points[Math.floor((rt.points.length-1)*anchorFraction)];
  const hit={kind:'ramp',ramp:rm,point:p,key,distance:0,fraction:anchorFraction};
- return eventFromHit(hit,'closure',2,[] ,id,'2026-10-19T08:20:00Z',{lengthM:100,speedKmh:0,shoulder:'blocked'});
+ return eventFromHit(hit,'accident',2,[0,1] ,id,'2026-10-19T08:20:00Z',{lengthM:100,speedKmh:0,shoulder:'normal'});
 }
 function simulate(key,minutes,anchor=.5){const e=event(key,anchor);const state=advanceSpatial(emptySpatial(),[e],d,minutes,routes);return {e,state,jams:jamsAt(state,[e],routes)};}
 test('all four Dernbach ramps snap to exact motorway nodes, never wrong direction',()=>{
@@ -45,7 +45,7 @@ test('correct spillback parent for all four directed movements',()=>{
   assert.ok(spill,link.rampId+' no overflow');assert.equal(spill.source,link.from);assert.ok(spill.toM>=spill.fromM);
  }
 });
-test('lifting a ramp closure clears its spillback progressively, not instantly',()=>{
+test('removing a ramp accident clears its spillback progressively, not instantly',()=>{
  const key='ramp-a48-to-koeln',e=event(key,.5);
  const packed=advanceSpatial(emptySpatial(),[e],d,35,routes);
  const initial=rampSpillbacks(jamsAt(packed,[e],routes),links,routes)[0];assert.ok(initial);

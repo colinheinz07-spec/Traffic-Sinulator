@@ -168,9 +168,13 @@ export function advanceSpatial(prev:SpatialState,events:readonly SimEvent[],dema
   for(const key of paths){
   let volume=demands[key];if(!Number.isFinite(volume)||volume<0||volume>8000)throw Error('Ungültiger Zufluss');
   const route=corridors[key];
+  const isRamp=key.startsWith('ramp-')||extensionRoute(key)?.kind==='ramp';
+  // Administrative ramp closure is enforced at the fork. Existing stock
+  // evacuates forward; an accident remains a physical obstruction.
+  if(isRamp&&events.some(e=>e.pathKey===key&&e.kind==='closure'))volume=0;
   const nodes:{id:string;event:SimEvent|null;place:number;point:Point;limitVph?:number;
    leavingVpm?:number;joiningVpm?:number}[]=[];
-  for(const e of physicalEvents(route,events))if(e.pathKey===key){
+  for(const e of physicalEvents(route,events))if(e.pathKey===key&&!(isRamp&&e.kind==='closure')){
    const place=positionM(route,e.point);if(place===null)continue;
    const gate=exits.length?closureGate(route,e,exits,events):null;
    const nodeM=gate?gate.metre:place;

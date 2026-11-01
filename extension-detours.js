@@ -1,11 +1,11 @@
-import { ringDetours } from './ring-detours-data.js?build=87985509f9b942f5';
-import { extensionDetours as baseDetours } from './extension-detours-data.js?build=87985509f9b942f5';
-import { eventCapacity } from './traffic.js?build=87985509f9b942f5';
-import { closureGate, positionM } from './spatial.js?build=87985509f9b942f5';
-import { cellQueueSpans } from './traffic-cells.js?build=87985509f9b942f5';
-import { diversionJunctions } from './diversions.js?build=87985509f9b942f5';
-import { junctionAccess } from './road-controls.js?build=87985509f9b942f5';
-import { speedDelayInCells } from './speed-delay.js?build=87985509f9b942f5';
+import { ringDetours } from './ring-detours-data.js?build=f9b1a07464ae5574';
+import { extensionDetours as baseDetours } from './extension-detours-data.js?build=f9b1a07464ae5574';
+import { eventCapacity } from './traffic.js?build=f9b1a07464ae5574';
+import { closureGate, positionM } from './spatial.js?build=f9b1a07464ae5574';
+import { cellQueueSpans } from './traffic-cells.js?build=f9b1a07464ae5574';
+import { diversionJunctions } from './diversions.js?build=f9b1a07464ae5574';
+import { junctionAccess } from './road-controls.js?build=f9b1a07464ae5574';
+import { speedDelayInCells } from './speed-delay.js?build=f9b1a07464ae5574';
 const extensionDetours = [...baseDetours, ...ringDetours];
 const sectionCache = new WeakMap();
 const indexed = new Map(extensionDetours.map(r => [r.id, r]));
@@ -103,7 +103,10 @@ export function planExtensionDetours(events, routes, exits, cells, connections) 
             plans.set(config.id, config);
         }
         else {
-            const movement = connections.find(c => c.from === path && c.to === target && c.downstreamMergeM <= config.toM);
+            // A blocked connector can be bypassed by rejoining its destination
+            // upstream as well: the destination carriageway itself remains open.
+            const movement = connections.find(c => c.from === path && c.to === target && (c.downstreamMergeM <= config.toM ||
+                events.some(e => e.pathKey === c.rampId && eventCapacity(e) === 0)));
             if (!movement)
                 continue;
             const cause = events.find(e => e.pathKey === movement.rampId && eventCapacity(e) === 0 || e.pathKey === target && (() => {
@@ -112,6 +115,11 @@ export function planExtensionDetours(events, routes, exits, cells, connections) 
             })());
             if (!cause)
                 continue;
+            if (cause.pathKey === target) {
+                const gate = closureGate(routes[target], cause, exits, events);
+                if (gate && config.toM < gate.endM - 1)
+                    continue;
+            }
             config.eventId = cause.id;
             config.movementId = movement.rampId;
             config.sourceEndM = Math.max(movement.rampEntryM, config.fromM);

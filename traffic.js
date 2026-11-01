@@ -1,12 +1,12 @@
-import { REFERENCE_PEAKS, profileFactor, profileIdentity } from './traffic-profiles.js?build=87985509f9b942f5';
-import { EXTENSION_IDS, extensionRoutes, extensionRoute } from './network-extensions.js?build=87985509f9b942f5';
+import { REFERENCE_PEAKS, profileFactor, profileIdentity } from './traffic-profiles.js?build=f9b1a07464ae5574';
+import { EXTENSION_IDS, extensionRoutes, extensionRoute } from './network-extensions.js?build=f9b1a07464ae5574';
 /** Deliberately isolated, macroscopic first-pass traffic-flow simulation.
  * Traffic volumes, capacities, and queue density are modelling assumptions,
  * NOT measured flows, road regulations, official diversion routes, or observed jams.
  * One controlling bottleneck per directional path; no A3/A48 ramp transfer yet.
  */
-import { flowPolicy } from './events.js?build=87985509f9b942f5';
-import { baseLaneCapacity, QUEUE_JAM_DENSITY_PER_LANE } from './traffic-physics.js?build=87985509f9b942f5';
+import { flowPolicy } from './events.js?build=f9b1a07464ae5574';
+import { baseLaneCapacity, QUEUE_JAM_DENSITY_PER_LANE } from './traffic-physics.js?build=f9b1a07464ae5574';
 export const PATHS = [
     'A3-koeln', 'A3-frankfurt', 'A48-dernbach', 'A48-koblenz',
     'ramp-a3-to-a48-from-frankfurt', 'ramp-a48-to-koeln',
@@ -87,7 +87,7 @@ export function eventCapacity(e, volumeVph = defaultDemand(e.pathKey), heavyFrac
     // Two usable lanes can sustain orderly parallel discharge. The per-lane
     // reference already represents a sustained flow; avoid stacking the full
     // single-lane speed/merging penalty onto both available lanes again.
-    const baseMerge = e.closedLanes.length === 0 ? 1 : parallel ? (e.kind === 'roadworks' ? .995 : .985) : e.kind === 'roadworks' ? .92 : .87;
+    const baseMerge = e.closedLanes.length === 0 ? 1 : parallel ? (e.kind === 'roadworks' ? .999 : .997) : e.kind === 'roadworks' ? .92 : .87;
     const shares = laneDemandShares(e.laneCount, heavyFraction);
     const hgvDistribution = laneDemandShares(e.laneCount, 1);
     const affectedShare = e.closedLanes.reduce((sum, i) => sum + shares[i], 0);
@@ -98,7 +98,7 @@ export function eventCapacity(e, volumeVph = defaultDemand(e.pathKey), heavyFrac
     const constrained = remaining <= 1 ? .45 : 1;
     const loading = Math.min(1, volumeVph / Math.max(1, laneCapacity));
     const extraMergeLoss = e.closedLanes.length === 0 ? 0 :
-        constrained * loading * (parallel ? (.03 * affectedShare + .04 * divertedHeavyShare) : (.10 * affectedShare + .14 * divertedHeavyShare));
+        constrained * loading * (parallel ? (.008 * affectedShare + .012 * divertedHeavyShare) : (.10 * affectedShare + .14 * divertedHeavyShare));
     const mergeFactor = baseMerge * Math.max(.72, 1 - extraMergeLoss);
     return Math.max(0, Math.round(laneCapacity * speedFactor * mergeFactor));
 }

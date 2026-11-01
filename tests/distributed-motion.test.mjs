@@ -20,7 +20,7 @@ test('a physical platoon peak bound retains the requested mean service instead o
 
 for(const path of ['A3-frankfurt','A3-koeln'])for(const recovery of [false,true])
  test(`${path}: ${recovery?'a reopened queue clears':'a two-lane queue moves'} with genuine release phases deep inside it`,()=>{
-  const route=routes[path],at=positionM(route,controlHeads[path],1),demand=recovery?3000:4100;
+  const route=routes[path],at=positionM(route,controlHeads[path],1),demand=recovery?3000:4400;
   const event={id:'distributed-'+path,kind:'accident',pathKey:path,laneCount:3,closedLanes:[0],
    point:routeSlice(route,at,at+1)[0],createdAt:'2026-10-29T08:00:00Z',
    settings:{lengthM:100,speedKmh:60,shoulder:'normal'}};

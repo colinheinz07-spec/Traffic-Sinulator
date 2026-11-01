@@ -53,8 +53,13 @@ export function profileFactor(key:string,moment:Date,family=profileFamily(key)):
   // Airport and ring retain more non-commuting traffic; commuter feeders
   // have a distinctly quieter weekend. All families meet at midnight.
   if(family==='urban'||family==='siegtal')raw*=1-.18*Math.sin(Math.PI*hour/24)**2;
+  if(family==='koblenz')raw*=1-.24*Math.sin(Math.PI*hour/24)**2;
   if(family==='airport')raw+=.08*Math.sin(Math.PI*hour/24)**2;
- }else raw=interpolate(weekday[family],hour);
+ }else{
+  raw=interpolate(weekday[family],hour);
+  const dayScale=day===2?.98:day===4?1.02:day===5?(family==='transit'?1.06:.94):1;
+  raw*=1+(dayScale-1)*Math.sin(Math.PI*hour/24)**2;
+ }
  let direction=1;
  if(day!==0&&day!==6){
   const morning=Math.max(0,1-Math.abs(hour-(family==='transit'?7.75:7.4))/2.5);

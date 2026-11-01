@@ -77,13 +77,20 @@ export function planExtensionDetours(events:readonly SimEvent[],routes:Record<Pa
    if(cause){config.eventId=cause.id;const gate=closureGate(route,cause,exits,events);if(record.toRef==='end'&&gate?.endExit)continue;}else if(record.toRef==='end')continue;
    plans.set(config.id,config);
   }else{
-   const movement=connections.find(c=>c.from===path&&c.to===target&&c.downstreamMergeM<=config.toM);
+   // A blocked connector can be bypassed by rejoining its destination
+   // upstream as well: the destination carriageway itself remains open.
+   const movement=connections.find(c=>c.from===path&&c.to===target&&(c.downstreamMergeM<=config.toM||
+    events.some(e=>e.pathKey===c.rampId&&eventCapacity(e)===0)));
    if(!movement)continue;
    const cause=events.find(e=>e.pathKey===movement.rampId&&eventCapacity(e)===0||e.pathKey===target&&(()=>{
     const gate=closureGate(routes[target],e,exits,events);
     return !!gate&&gate.metre<=movement.downstreamMergeM+1&&gate.endM>movement.downstreamMergeM;
    })());
    if(!cause)continue;
+   if(cause.pathKey===target){
+    const gate=closureGate(routes[target],cause,exits,events);
+    if(gate&&config.toM<gate.endM-1)continue;
+   }
    config.eventId=cause.id;config.movementId=movement.rampId;
    config.sourceEndM=Math.max(movement.rampEntryM,config.fromM);config.targetEntryM=movement.downstreamMergeM;
    config.alternativeGroup='EXT-turn:'+movement.rampId+':'+record.fromRef;

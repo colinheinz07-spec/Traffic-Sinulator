@@ -75,3 +75,14 @@ test('zero new demand keeps regional destination fractions for vehicles already 
  const when=date(7,30),nodes=normalJunctionTraffic(routes['A3-frankfurt'],exits,0,when,true),city=nodes.find(j=>j.id.includes(':regional:'));
  assert.ok(city.exitPercent>0);assert.equal(city.entryVph,0);
 });
+
+test('weekday demand varies by day and the A48 weekend remains quieter than transit',()=>{
+ const monday=new Date(2026,10,2,16),tuesday=new Date(2026,10,3,16),thursday=new Date(2026,10,5,16),friday=new Date(2026,10,6,16),sunday=new Date(2026,10,8,16);
+ assert.ok(ref('A48-koblenz',tuesday)<ref('A48-koblenz',monday));
+ assert.ok(ref('A48-koblenz',thursday)>ref('A48-koblenz',monday));
+ assert.ok(ref('A48-koblenz',friday)<ref('A48-koblenz',monday));
+ assert.ok(ref('A3-koeln',friday)>ref('A3-koeln',monday));
+ assert.ok(ref('A48-koblenz',sunday)/base['A48-koblenz']<ref('A3-koeln',sunday)/base['A3-koeln']);
+ const local=normalJunctionTraffic(routes['A3-koeln'],exits,2000);
+ assert.ok(local.find(j=>j.ref==='40').entryVph>local.find(j=>j.ref==='37').entryVph*2);
+});
