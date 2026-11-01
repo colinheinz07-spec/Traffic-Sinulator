@@ -803,8 +803,9 @@ export function cellSpeedBands(state:CellRouteState):CellSpeedBand[]{
   // Low-density worksite traffic can genuinely travel at 40-60 km/h.
   // No coloured status without actual vehicles at this location.
   const movingRestriction=c.limitKmh!==undefined&&c.limitKmh<=65;
-  if(c.vehicles<.1||c.speedKmh>65||
-   (!movingRestriction&&c.densityVehKm<(c.criticalDensityVehKm??critical)*1.10&&c.approachLimitKmh===undefined))continue;
+  const physicallyStopped=c.speedKmh<=10&&c.vehicles>=1;
+  if(c.vehicles<1||c.speedKmh>65||
+   (!movingRestriction&&!physicallyStopped&&c.densityVehKm<(c.criticalDensityVehKm??critical)*1.10&&c.approachLimitKmh===undefined))continue;
   const color=colorAtSpeed(c.speedKmh);
   if(color==='free')continue;
   const last=bands.at(-1);
