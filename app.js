@@ -1491,6 +1491,9 @@ function drawSpatialJams() {
         ...timeline.map(e => { const [x, y] = toScreen(e.point); return { x: x - 25, y: y - 25, width: 50, height: 50 }; })
     ];
     for (const jam of view.jams) {
+        // Congestion colours remain on the ramp; omit its delay/queue callout on the map.
+        if (jam.pathKey.startsWith('ramp-') || extensionRoute(jam.pathKey)?.kind === 'ramp')
+            continue;
         // Never place a big overlay directly on the motorway/ramp junction:
         // choose a small detached callout or omit it entirely when map is crowded.
         const road = spatialCorridors[jam.pathKey];
