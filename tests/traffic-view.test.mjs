@@ -130,7 +130,7 @@ test('a speed restriction by itself is not invented queue length',()=>{
   laneCount:3,closedLanes:[],createdAt:'2026-10-22T10:00:00Z',
   settings:{lengthM:500,speedKmh:40,shoulder:'normal'}};
  const result=view(state,[],[event]);
- assert.ok(result.bands.get(path).some(b=>b.source==='restriction'));
+ assert.deepEqual(result.bands.get(path),[], 'the free vehicles still follow observed speed, not the event sign');
  assert.equal(result.reports[path].queueKm,0);
  assert.equal(result.jams.length,0);
 });
