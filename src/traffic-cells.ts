@@ -737,11 +737,10 @@ export function advanceCells(previous:CellRouteState,route:Corridor,events:reado
   const outflowVph=(face[i+1]!+leaving[i]!)*60/dtMin;
   // Density/flow give local velocity. The physically clear free-flow state
   // remains green when the cell has no vehicles or is initially settling.
-  // A one-minute observed speed avoids accidental colours from the final
-  // two-second discharge pulse. An occupied, completely blocked face stays at 0.
+  // The latest accepted substep is the actual local movement:
+  // no delayed averaging that would hide a real stop-and-go release.
   const speedKmh=densityVehKm<.05?freeSpeedKmh(route.key):
-   faceCapacity[i+1]===0?0:
-   Math.min(speeds[i]!,minuteFlowVph/Math.max(.05,densityVehKm));
+   Math.min(speeds[i]!,outflowVph/Math.max(.05,densityVehKm));
   const travelFlowVph=(c.travelFlowVph??c.flowVph)*(1-TRAVEL_ALPHA)+minuteFlowVph*TRAVEL_ALPHA;
   const active=Number.isFinite(faceCapacity[i+1]),oldDetector=c.travelDetector;
   const exit=closures.find(g=>g.face===i+1&&g.diverting);
@@ -800,12 +799,12 @@ export function cellSpeedBands(state:CellRouteState):CellSpeedBand[]{
  const critical=cellCriticalDensity(state.pathKey);
  const bands:CellSpeedBand[]=[];
  for(const c of state.cells){
-  // Low-density worksite traffic can genuinely travel at 40-60 km/h.
-  // No coloured status without actual vehicles at this location.
-  const movingRestriction=c.limitKmh!==undefined&&c.limitKmh<=65;
-  const physicallyStopped=c.speedKmh<=10&&c.vehicles>=1;
-  if(c.vehicles<1||c.speedKmh>65||
-   (!movingRestriction&&!physicallyStopped&&c.densityVehKm<(c.criticalDensityVehKm??critical)*1.10&&c.approachLimitKmh===undefined))continue;
+  // Only actual dense queues or an occupied, physically blocked face
+  // belong to the JAM layer. An uncongested 40-km/h worksite belongs to
+  // the separate measured-speed restriction layer, not the queue length.
+  const physicallyBlocked=c.blockedAtM!==undefined&&c.vehicles>=1;
+  if(c.speedKmh>65||
+   (!physicallyBlocked&&c.densityVehKm<(c.criticalDensityVehKm??critical)*1.10&&c.approachLimitKmh===undefined))continue;
   const color=colorAtSpeed(c.speedKmh);
   if(color==='free')continue;
   const last=bands.at(-1);
