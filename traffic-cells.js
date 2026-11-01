@@ -1,11 +1,11 @@
-import { extensionRoute } from './network-extensions.js?build=580eed8acabcbe14';
-import { baseLaneCapacity } from './traffic-physics.js?build=580eed8acabcbe14';
-import { positionM, closureGate } from './spatial.js?build=580eed8acabcbe14';
-import { baselineCapacity, eventCapacity } from './traffic.js?build=580eed8acabcbe14';
-import { flowPolicy, DEFAULT_CLEARANCE_MIN } from './events.js?build=580eed8acabcbe14';
-import { colorAtSpeed, freeSpeedKmh, QUEUE_JAM_DENSITY_PER_LANE, CONGESTION_WAVE_KMH } from './traffic-physics.js?build=580eed8acabcbe14';
-import { normalJunctionTraffic, exitRampVehicles, DEFAULT_EXIT_TERMINAL_VPH, DEFAULT_EXIT_STORAGE_VEHICLES } from './junction-traffic.js?build=580eed8acabcbe14';
-import { roadSections, physicalEvents, junctionAccess } from './road-controls.js?build=580eed8acabcbe14';
+import { extensionRoute } from './network-extensions.js?build=074d3e0293fe0399';
+import { baseLaneCapacity } from './traffic-physics.js?build=074d3e0293fe0399';
+import { positionM, closureGate } from './spatial.js?build=074d3e0293fe0399';
+import { baselineCapacity, eventCapacity } from './traffic.js?build=074d3e0293fe0399';
+import { flowPolicy, DEFAULT_CLEARANCE_MIN } from './events.js?build=074d3e0293fe0399';
+import { colorAtSpeed, freeSpeedKmh, QUEUE_JAM_DENSITY_PER_LANE, CONGESTION_WAVE_KMH } from './traffic-physics.js?build=074d3e0293fe0399';
+import { normalJunctionTraffic, exitRampVehicles, DEFAULT_EXIT_TERMINAL_VPH, DEFAULT_EXIT_STORAGE_VEHICLES } from './junction-traffic.js?build=074d3e0293fe0399';
+import { roadSections, physicalEvents, junctionAccess } from './road-controls.js?build=074d3e0293fe0399';
 const TARGET_CELL_M = 100, WAVE_KMH = CONGESTION_WAVE_KMH, JAM_PER_LANE = QUEUE_JAM_DENSITY_PER_LANE;
 // One observation per MODEL minute; repainting/pause never advances this.
 const TRAVEL_ALPHA = 1 - Math.exp(-1 / 6);
@@ -769,6 +769,8 @@ export function advanceCells(previous, route, events, demandVph, exits = [], por
         const outflowVph = (face[i + 1] + leaving[i]) * 60 / dtMin;
         // Density/flow give local velocity. The physically clear free-flow state
         // remains green when the cell has no vehicles or is initially settling.
+        // The latest accepted substep is the actual local movement:
+        // no delayed averaging that would hide a real stop-and-go release.
         const speedKmh = densityVehKm < .05 ? freeSpeedKmh(route.key) :
             Math.min(speeds[i], outflowVph / Math.max(.05, densityVehKm));
         const travelFlowVph = (c.travelFlowVph ?? c.flowVph) * (1 - TRAVEL_ALPHA) + minuteFlowVph * TRAVEL_ALPHA;
@@ -833,7 +835,12 @@ export function cellSpeedBands(state) {
     const critical = cellCriticalDensity(state.pathKey);
     const bands = [];
     for (const c of state.cells) {
-        if ((c.densityVehKm < (c.criticalDensityVehKm ?? critical) * 1.10 && c.approachLimitKmh === undefined) || c.speedKmh > 65)
+        // Only actual dense queues or an occupied, physically blocked face
+        // belong to the JAM layer. An uncongested 40-km/h worksite belongs to
+        // the separate measured-speed restriction layer, not the queue length.
+        const physicallyBlocked = c.blockedAtM !== undefined && c.vehicles >= 1;
+        if (c.speedKmh > 65 ||
+            (!physicallyBlocked && c.densityVehKm < (c.criticalDensityVehKm ?? critical) * 1.10 && c.approachLimitKmh === undefined))
             continue;
         const color = colorAtSpeed(c.speedKmh);
         if (color === 'free')
