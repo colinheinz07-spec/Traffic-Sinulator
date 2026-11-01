@@ -70,7 +70,8 @@ export function hitLabel(hit:MapHit):string{
  if(hit.kind==='extension')return hit.feature.name;
  if(hit.kind==='ramp')return hit.ramp.name;
  const titles:Record<RoadId,string>={'A3-koeln':'A3 → Köln','A3-frankfurt':'A3 → Frankfurt','A48-dernbach':'A48 → Dernbach','A48-koblenz':'A48 → Koblenz'};
- return titles[hit.road.road];
+ const title=titles[hit.road.road];
+ return hit.road.road.startsWith('A3')&&hit.road.tags?.ref?.split(';').map(r=>r.replaceAll(' ','')).includes('A4')?title.replace('A3 →','A3 / A4 →'):title;
 }
 
 export function extensionCandidates(tap:[number,number],project:(p:Point)=>[number,number],tolerance=18):MapHit[]{

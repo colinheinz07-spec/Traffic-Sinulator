@@ -1,10 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {networkData} from '../dist/geodata.js';
-import {makeCorridors,routeSlice} from '../dist/spatial.js';
+import {makeCorridors,routeSlice,positionM} from '../dist/spatial.js';
 import {initialiseCells,advanceCells,cellInventory,cellSpeedBands,platoonServiceFactor} from '../dist/traffic-cells.js';
 
 const routes=makeCorridors(networkData.roads,networkData.ramps);
+// Geographic control heads stay fixed when the motorway map is extended.
+const controlHeads={'A3-koeln':[50.67649729025091,7.290582620507732],'A3-frankfurt':[50.44598280463745,7.838054473466205]};
 test('a physical platoon peak bound retains the requested mean service instead of cutting every release',()=>{
  for(const ceiling of [1.05,1.10,1.17,1.30]){
   let sum=0,count=0;
@@ -18,7 +20,7 @@ test('a physical platoon peak bound retains the requested mean service instead o
 
 for(const path of ['A3-frankfurt','A3-koeln'])for(const recovery of [false,true])
  test(`${path}: ${recovery?'a reopened queue clears':'a two-lane queue moves'} with genuine release phases deep inside it`,()=>{
-  const route=routes[path],at=route.lengthM*.7,demand=recovery?3000:4100;
+  const route=routes[path],at=positionM(route,controlHeads[path],1),demand=recovery?3000:4100;
   const event={id:'distributed-'+path,kind:'accident',pathKey:path,laneCount:3,closedLanes:[0],
    point:routeSlice(route,at,at+1)[0],createdAt:'2026-10-29T08:00:00Z',
    settings:{lengthM:100,speedKmh:60,shoulder:'normal'}};

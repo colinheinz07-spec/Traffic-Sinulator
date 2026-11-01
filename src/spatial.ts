@@ -117,7 +117,7 @@ export function closureGate(route:Corridor,event:SimEvent,exits:readonly Exit[],
  // A marker on or immediately after an off-ramp belongs to that AS.
  // The former 50m exclusion incorrectly moved the gate to the previous AS.
  const allowed=new Set(accessibleExits(route,events,exits,'exit').map(e=>e.road+':'+e.ref));
- const closest=junctions.filter(j=>!/^(AD |AK )/.test(j.exit.name)&&allowed.has(j.exit.road+':'+j.exit.ref)&&j.metre<=at+1).at(-1);
+ const closest=junctions.filter(j=>!/^(AD |AK )/.test(j.exit.name)&&allowed.has(j.exit.road+':'+j.exit.ref)&&j.metre<=at+1).at(-1)??(networkRoad(route.key)==='A4'?junctions.filter(j=>/^(AD |AK )/.test(j.exit.name)&&j.metre<=at+1).at(-1):undefined);
  const physicalEnd=Math.min(route.lengthM,at+event.settings.lengthM);
  const end=junctions.find(j=>j.metre>at+1&&j.metre>=physicalEnd-1);
  return {metre:closest?.metre??0,exit:closest?.exit??null,eventM:at,

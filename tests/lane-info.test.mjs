@@ -36,7 +36,7 @@ test('outdated way IDs are flagged instead of being mislabeled as OSM-confirmed'
 });
 
 test('A3 regular through lanes exclude ramps and temporary works across the whole expanded network',()=>{
- for(const road of networkData.roads.filter(r=>r.road.startsWith('A3')))assert.equal(roadLaneInfo(road).count,3);
+ for(const road of networkData.roads.filter(r=>r.road.startsWith('A3')))assert.equal(roadLaneInfo(road).count,road.normalLaneCount??3);
  const auxiliary=networkData.roads.find(r=>r.road.startsWith('A48')&&normalLaneOverrides[r.wayId]===2&&r.lanes>2);
  assert.ok(auxiliary);assert.equal(roadLaneInfo(auxiliary).count,2);
 });

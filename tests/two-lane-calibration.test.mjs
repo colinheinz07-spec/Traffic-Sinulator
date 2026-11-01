@@ -1,14 +1,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {networkData} from '../dist/geodata.js';
-import {makeCorridors,routeSlice} from '../dist/spatial.js';
+import {makeCorridors,routeSlice,positionM} from '../dist/spatial.js';
 import {initialiseCells,advanceCells,assertCellConservation,cellSpeedBands} from '../dist/traffic-cells.js';
 import {defaultDemands,demandAtClock,demandAtMinute,eventCapacity} from '../dist/traffic.js';
 import {trafficView} from '../dist/traffic-view.js';
 
 const routes=makeCorridors(networkData.roads,networkData.ramps);
+// Geographic control heads stay fixed when the motorway map is extended.
+const controlHeads={'A3-koeln':[50.67649729025091,7.290582620507732],'A3-frankfurt':[50.44598280463745,7.838054473466205]};
 const eventFor=path=>({id:'realistic-two-open',kind:'accident',pathKey:path,laneCount:3,closedLanes:[0],
- point:routeSlice(routes[path],routes[path].lengthM*.7,routes[path].lengthM*.7+1)[0],
+ point:controlHeads[path],
  createdAt:'2026-10-29T08:00:00Z',settings:{lengthM:100,speedKmh:60,shoulder:'normal'}});
 const queueKm=grid=>cellSpeedBands(grid).reduce((n,b)=>n+b.toM-b.fromM,0)/1000;
 

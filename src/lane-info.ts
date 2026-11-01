@@ -8,6 +8,7 @@ export interface LaneInfo {count:number;label:string;source:'osm'|'normal'|'stal
  * construction layouts. A3's verified normal corridor has three through
  * lanes. A48 auxiliary turn/merge-only lanes are excluded explicitly. */
 export function normalThroughLanes(road:Road):number{
+ if(road.normalLaneCount!==undefined)return road.normalLaneCount;
  if(road.road.startsWith('A3'))return 3;
  if(normalLaneOverrides[road.wayId]!==undefined)return normalLaneOverrides[road.wayId]!;
  const turns=road.tags?.['turn:lanes']?.split('|');

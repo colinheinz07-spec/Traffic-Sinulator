@@ -1,10 +1,10 @@
-import { extensionDetours } from './extension-detours-data.js?build=b3e6b3734c4462e8';
-import { eventCapacity } from './traffic.js?build=b3e6b3734c4462e8';
-import { closureGate, positionM } from './spatial.js?build=b3e6b3734c4462e8';
-import { cellQueueSpans } from './traffic-cells.js?build=b3e6b3734c4462e8';
-import { diversionJunctions } from './diversions.js?build=b3e6b3734c4462e8';
-import { junctionAccess } from './road-controls.js?build=b3e6b3734c4462e8';
-import { speedDelayInCells } from './speed-delay.js?build=b3e6b3734c4462e8';
+import { extensionDetours } from './extension-detours-data.js?build=b8c6f2049b46157b';
+import { eventCapacity } from './traffic.js?build=b8c6f2049b46157b';
+import { closureGate, positionM } from './spatial.js?build=b8c6f2049b46157b';
+import { cellQueueSpans } from './traffic-cells.js?build=b8c6f2049b46157b';
+import { diversionJunctions } from './diversions.js?build=b8c6f2049b46157b';
+import { junctionAccess } from './road-controls.js?build=b8c6f2049b46157b';
+import { speedDelayInCells } from './speed-delay.js?build=b8c6f2049b46157b';
 const sectionCache = new WeakMap();
 const indexed = new Map(extensionDetours.map(r => [r.id, r]));
 /** Real directed geometry; route selection and capacities are simulator assumptions. */

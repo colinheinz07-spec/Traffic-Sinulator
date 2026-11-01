@@ -1,8 +1,8 @@
-import { extensionRoutes } from './network-extensions.js?build=b3e6b3734c4462e8';
+import { extensionRoutes } from './network-extensions.js?build=b8c6f2049b46157b';
 /** Map hit-testing remains separate from rendering and transport logic.
  * All snapped positions are interpolated ONLY on verified OSM road geometries.
  */
-import { nearestPolyline, exitPosition } from './core.js?build=b3e6b3734c4462e8';
+import { nearestPolyline, exitPosition } from './core.js?build=b8c6f2049b46157b';
 /** Reduce hundreds of OSM ways to one candidate for each motorway direction and each ramp. */
 export function mapCandidates(roads, ramps, tap, project, tolerance = 18) {
     const hits = new Map();
@@ -74,7 +74,8 @@ export function hitLabel(hit) {
     if (hit.kind === 'ramp')
         return hit.ramp.name;
     const titles = { 'A3-koeln': 'A3 → Köln', 'A3-frankfurt': 'A3 → Frankfurt', 'A48-dernbach': 'A48 → Dernbach', 'A48-koblenz': 'A48 → Koblenz' };
-    return titles[hit.road.road];
+    const title = titles[hit.road.road];
+    return hit.road.road.startsWith('A3') && hit.road.tags?.ref?.split(';').map(r => r.replaceAll(' ', '')).includes('A4') ? title.replace('A3 →', 'A3 / A4 →') : title;
 }
 export function extensionCandidates(tap, project, tolerance = 18) {
     return extensionRoutes.flatMap(feature => {

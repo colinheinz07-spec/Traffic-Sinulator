@@ -1,10 +1,12 @@
-import { normalLaneOverrides } from './normal-lanes.js?build=b3e6b3734c4462e8';
-import { nearestPolyline } from './core.js?build=b3e6b3734c4462e8';
-import { rampLaneWays, unverifiedRoadWays } from './lane-profiles.js?build=b3e6b3734c4462e8';
+import { normalLaneOverrides } from './normal-lanes.js?build=b8c6f2049b46157b';
+import { nearestPolyline } from './core.js?build=b8c6f2049b46157b';
+import { rampLaneWays, unverifiedRoadWays } from './lane-profiles.js?build=b8c6f2049b46157b';
 /** OSM lanes includes acceleration/diverging lanes and sometimes temporary
  * construction layouts. A3's verified normal corridor has three through
  * lanes. A48 auxiliary turn/merge-only lanes are excluded explicitly. */
 export function normalThroughLanes(road) {
+    if (road.normalLaneCount !== undefined)
+        return road.normalLaneCount;
     if (road.road.startsWith('A3'))
         return 3;
     if (normalLaneOverrides[road.wayId] !== undefined)

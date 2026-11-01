@@ -479,7 +479,7 @@ function renderJunctionMovements(path:PathKey){
  const host=$('junction-movements');host.replaceChildren();
  if(path.startsWith('ramp-')||extensionRoute(path)?.kind==='ramp'){
   const p=document.createElement('p');p.className='junction-note';
-  p.textContent='Die Überleitungsrampe ist keine eigene Ortsanschlussstelle. Wähle eine Fahrtrichtung der A3, A48, A59 oder A560.';
+  p.textContent='Die Überleitungsrampe ist keine eigene Ortsanschlussstelle. Wähle eine Fahrtrichtung der A3, A4, A48, A59, A559 oder A560.';
   host.append(p);return;
  }
  for(const row of junctionRows(path)){
@@ -986,7 +986,7 @@ function plotLabels(width:number,height:number){
  }
  context!.font='600 10px system-ui';
  const key=$<HTMLSelectElement>('traffic-route').value as RoadId;
- const mapExits=exits.map(e=>({...e,position:e.road===networkRoad(key)?exitPosition(e,key):e.position}));
+ const mapExits=exits.map(e=>({...e,position:(e.road===networkRoad(key)||e.sharedRoad===networkRoad(key))?exitPosition(e,key):e.position}));
  junctionLabels=layoutJunctionLabels(mapExits,toScreen,{width,height},zoom,text=>context!.measureText(text).width,obstacles);
  for(const {point:[x,y],text,box} of junctionLabels){
   context!.beginPath();context!.arc(x,y,3.4,0,2*Math.PI);context!.fillStyle='#09283d';context!.fill();context!.strokeStyle='#f3f8fc';context!.lineWidth=1.3;context!.stroke();
@@ -1186,7 +1186,7 @@ function openJunction(exit:Exit){
  const path=junctionRoute(exit,$<HTMLSelectElement>('traffic-route').value);
  if(path)selectTrafficRoute(path);
  focusOn(path?exitPosition(exit,path):exit.position,13.8);
- hint.textContent=`${exit.road} AS/Knoten ${exit.ref} – ${exit.name}. ${path?trafficRouteLabel(path)+'. ':''}Tippe auf die zugehörige Fahrbahn, um ein Ereignis zu setzen.`;
+ hint.textContent=`${exit.road} AS/Knoten ${exit.ref} – ${exit.name}. ${exit.sharedRoad?'Gemeinsame A3/A4-Fahrbahn. ':''}${path?trafficRouteLabel(path)+'. ':''}Tippe auf die zugehörige Fahrbahn, um ein Ereignis zu setzen.`;
 }
 function makeExitButtons(){const parent=$('junctions');parent.replaceChildren();
  const toolbar=document.querySelector<HTMLElement>('.toolbar')!;
@@ -1249,7 +1249,7 @@ function bind(){
  window.addEventListener('resize',refresh);
 }
 function start(){if(!mapReady.valid){status.classList.add('error');status.textContent='Geodatenprüfung fehlgeschlagen';hint.textContent=mapReady.errors.join(' · ');return;}
- fillMetrics();makeExitButtons();bind();initializeTraffic();redrawEventList();fit();status.textContent=`✓ ${exits.length} AS/Knoten · ${allRoads.length} OSM-Fahrbahnstücke · ${extensionRoutes.length} Zusatzfahrwege · A3 · A48 · A59 · A560`;
+ fillMetrics();makeExitButtons();bind();initializeTraffic();redrawEventList();fit();status.textContent=`✓ ${exits.length} AS/Knoten · ${allRoads.length} OSM-Fahrbahnstücke · ${extensionRoutes.length} Zusatzfahrwege · A3 · A4 · A48 · A59 · A559 · A560`;
  refresh();
 }
 start();

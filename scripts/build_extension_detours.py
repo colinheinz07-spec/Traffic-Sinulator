@@ -5,8 +5,8 @@ import json,collections,heapq,math
 from extend_heumar_camberg import ROOT,read_data,pt,dist
 bundle=json.loads((ROOT/'data/extension-junctions.json').read_text());core=read_data()
 features=bundle['routes'];junctions=core['exits']+bundle['junctions']
-sources=[json.loads((ROOT/p).read_text())['elements'] for p in ['data/a3-heumar-camberg-osm.json','data/a59-a560-osm.json']]
-ways=list({e['id']:e for source in sources for e in source if e['type']=='way' and e.get('geometry') and any(50.65<p['lat']<50.95 and 6.98<p['lon']<7.4 for p in e['geometry'])}.values())
+sources=[json.loads((ROOT/p).read_text())['elements'] for p in ['data/a3-heumar-camberg-osm.json','data/a59-a560-osm.json','data/cologne-triangle-osm.json']]
+ways=list({e['id']:e for source in sources for e in source if e['type']=='way' and e.get('geometry') and any(50.65<p['lat']<50.97 and 6.98<p['lon']<7.4 for p in e['geometry'])}.values())
 # Build core directional chains by exact endpoint topology.
 trunks={f['id']:list(map(tuple,f['points'])) for f in features if f['kind']=='motorway'}
 for key in ['A3-koeln','A3-frankfurt']:
@@ -39,24 +39,25 @@ for key in trunks:
    if h not in speed or t.get('access') in ['private','no','agricultural','forestry'] or t.get('motor_vehicle') in ['private','no'] or t.get('motorcar') in ['private','no']:continue
    ps=list(map(pt,w['geometry']))
    retained=any(any(p in positions[k] for p in ps) for k in trunks) if h=='motorway' else False
-   if h=='motorway' and ((mode=='local' and retained) or any(p in own for p in ps)):continue
+   if h=='motorway' and mode=='local' and retained:continue
    # Only the retained connected motorway network belongs in an alternative.
    if h=='motorway' and not retained and ref.startswith('A'):continue
    if t.get('oneway')=='-1':ps.reverse()
    directed=h in ['motorway','motorway_link'] or t.get('oneway') in ['yes','1','-1'] or t.get('junction')=='roundabout'
    for a,b in zip(ps,ps[1:]):
+    if h=='motorway' and a in own and b in own:continue
     length=dist(a,b);cost=length/speed[h]*(1.6 if h=='residential' else 1)
     g[a].append((b,w,length,cost))
     if not directed:g[b].append((a,w,length,cost))
   graphs[key,mode]=g
 anchors={}
 for key,ps in trunks.items():
- road='A3' if key.startswith('A3') else 'A59' if 'a59' in key else 'A560';anchors[key]=[]
+ road=next(road for prefix,road in [('A3-','A3'),('extra-a4-','A4'),('extra-a559-','A559'),('extra-a59-','A59'),('extra-a560-','A560')] if key.startswith(prefix));anchors[key]=[]
  for j in junctions:
   if j['road']!=road or key not in j.get('directional',{}):continue
   p=tuple(j['directional'][key]['position'])
   if p not in positions[key]:continue
-  if road=='A3' and j['ref'] not in ['28','29','30a','30b','31','32','33']:continue
+  if road=='A3' and j['ref'] not in ['27','28','29','30a','30b','31','32','33']:continue
   anchors[key].append((positions[key][p],j,p))
  anchors[key].sort(key=lambda x:x[0])
 def shortest(g,start,goals):
@@ -91,6 +92,7 @@ for key,items in anchors.items():
      goals={p for p in positions[target] if p in incoming and dist(p,nominal)<1600 and any(a not in positions[target] for a in incoming[p])}
      goals={p for p in goals if positions[target][p]>=ti}
      if goals:goals={min(goals,key=lambda p:positions[target][p])}
+     if tj['name'].startswith(('AD ','AK ')):goals.add(nominal)
      if not goals:continue
      edges,finish=shortest(graphs[key,mode],start,goals)
      if not edges:continue
