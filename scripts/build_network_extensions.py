@@ -101,7 +101,11 @@ for source,vertices in trunks.items():
 links=[]
 for w in ways:
  if w.get('tags',{}).get('highway')!='motorway_link' or w['tags'].get('access') in ['no','private'] or w['tags'].get('motor_vehicle') in ['no','private']:continue
- if not any(50.775<=p['lat']<=50.936 and 7.03<=p['lon']<=7.315 for p in w['geometry']):continue
+ # Include every retained A3/A48 AS, rather than clipping ramp geometry
+ # to the previous A59/A560 region. Exact connectivity filters below
+ # exclude ramps belonging only to other motorways.
+ if any(w['id'] in ramp['wayIds'] for ramp in core['ramps']):continue
+ if not any(50.775<=p['lat']<=50.936 and 7.03<=p['lon']<=7.315 for p in w['geometry']) and not any(dist(pt(p),j['position'])<2200 for p in w['geometry'] for j in core['exits']):continue
  if any(w['id'] in f['wayIds'] for f in features if f['kind']=='ramp'):continue
  if w['id'] in {i for r in json.loads((ROOT/'data/siegburg-connections.json').read_text())['connections'] for i in r['wayIds']}:continue
  if any(w['id'] in f['wayIds'] for f in features if f['id'].startswith('extra-a59-')):continue
@@ -181,7 +185,14 @@ for f in features:
  near=min(core['exits']+junctions,key=lambda j:min(dist(p,j['position']) for p in [f['points'][0],f['points'][-1]]))
  label=near['name'] if near['name'].startswith(('AD ','AK ')) else near['road']+' AS '+near['ref']+' '+near['name']
  f['zone']=label
- if f['id'].startswith('extra-heumar-'):f['name']=label+' · Rampe '+str(f['wayIds'][0])
+ if f['id'].startswith('extra-heumar-'):
+  motorwayVertices={key:{tuple(p) for r in core['roads'] if r['road']==key for p in r['points']} for key in ['A3-koeln','A3-frankfurt','A48-koblenz','A48-dernbach']}
+  motorwayVertices.update({r['id']:set(map(tuple,r['points'])) for r in features if r['kind']=='motorway'})
+  origin=next((key for key,vs in motorwayVertices.items() if tuple(f['points'][0]) in vs),None)
+  target=next((key for key,vs in motorwayVertices.items() if tuple(f['points'][-1]) in vs),None)
+  names={'A3-koeln':'A3 → Köln','A3-frankfurt':'A3 → Frankfurt','A48-koblenz':'A48 → Koblenz','A48-dernbach':'A48 → Dernbach'}
+  names.update({r['id']:r['name'] for r in features if r['kind']=='motorway'})
+  f['name']=label+(' · Abfahrt von '+names[origin] if origin else ' · Auffahrt auf '+names[target] if target else ' · Rampenzweig')
 ids=[f['id'] for f in features]
 text="import type {Point,Exit} from './core.js';\nexport const EXTENSION_IDS="+json.dumps(ids)+" as const;\nexport type ExtensionId=typeof EXTENSION_IDS[number];\nexport interface ExtensionRoute {id:ExtensionId;name:string;zone:string;kind:'motorway'|'ramp';lanes:number;laneSegments:{fromM:number;toM:number;lanes:number}[];points:Point[];wayIds:number[];demandVph:number;freeKmh:number}\nexport const extensionRoutes:ExtensionRoute[]="+json.dumps(features,separators=(',',':'))+";\nexport const extensionJunctions:Exit[]="+json.dumps(junctions,separators=(',',':'))+";\nconst byId=new Map<string,ExtensionRoute>(extensionRoutes.map(r=>[r.id,r]));\nexport const extensionRoute=(id:string)=>byId.get(id);\n"
 (ROOT/'src/network-extensions.ts').write_text(text)
