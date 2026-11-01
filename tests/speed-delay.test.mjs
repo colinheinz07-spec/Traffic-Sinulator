@@ -11,6 +11,7 @@ const routes=makeCorridors(networkData.roads,networkData.ramps),free=freeSpeedKm
 function synthetic(speeds,km=1){
  const route=routes['A3-koeln'];
  const state=initialiseCells(route,2000);
+ state.cellM=km*1000;
  state.cells=speeds.map((speed,i)=>({
   fromM:i*km*1000,toM:(i+1)*km*1000,
   speedKmh:speed,vehicles:35,flowVph:speed*35,densityVehKm:35

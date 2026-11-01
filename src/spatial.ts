@@ -117,11 +117,20 @@ export function closureGate(route:Corridor,event:SimEvent,exits:readonly Exit[],
  // A marker on or immediately after an off-ramp belongs to that AS.
  // The former 50m exclusion incorrectly moved the gate to the previous AS.
  const allowed=new Set(accessibleExits(route,events,exits,'exit').map(e=>e.road+':'+e.ref));
- const closest=junctions.filter(j=>!/^(AD |AK )/.test(j.exit.name)&&allowed.has(j.exit.road+':'+j.exit.ref)&&j.metre<=at+1).at(-1)??(networkRoad(route.key)==='A4'?junctions.filter(j=>/^(AD |AK )/.test(j.exit.name)&&j.metre<=at+1).at(-1):undefined);
+ const urban=route.key.startsWith('extra-a59-')||route.key.startsWith('extra-a4-')||route.key.startsWith('extra-a559-');
+ const closest=junctions.filter(j=>(urban||!/^(AD |AK )/.test(j.exit.name))&&allowed.has(j.exit.road+':'+j.exit.ref)&&j.metre<=at+1).at(-1);
  const physicalEnd=Math.min(route.lengthM,at+event.settings.lengthM);
  const end=junctions.find(j=>j.metre>at+1&&j.metre>=physicalEnd-1);
- return {metre:closest?.metre??0,exit:closest?.exit??null,eventM:at,
-  endM:end?.metre??route.lengthM,endExit:end?.exit??null};
+ let metre=closest?.metre??0,endM=end?.metre??route.lengthM;
+ // The retained A59 corridors include a short shared Heumar approach.
+ // An A59 arm closure must leave the A4 continuation outside that arm open.
+ if(route.key==='extra-a59-bonn'&&(!closest||closest.exit.ref==='31')){
+  const fork=extensionRoute('extra-a4-aachen')?.points[0],forkM=fork?positionM(route,fork,1):null;if(forkM!==null&&forkM<=at)metre=Math.max(metre,forkM);
+ }
+ if(route.key==='extra-a59-bonn'&&end?.exit.ref==='33'){
+  const join=extensionRoute('extra-a559-porz')?.points.at(-1),joinM=join?positionM(route,join,1):null;if(joinM!==null&&joinM>=physicalEnd)endM=Math.min(endM,joinM);
+ }
+ return {metre,exit:closest?.exit??null,eventM:at,endM,endExit:end?.exit??null};
 }
 
 /** Color is based ONLY on calculated km/h; density comes from the same

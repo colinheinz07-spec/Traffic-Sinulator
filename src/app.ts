@@ -1,3 +1,5 @@
+import {visibleRanges,canonicalPhysicalEvent} from './physical-paths.js';
+import {mainlineMerges,downstreamReceiving} from './network-receiving.js';
 import {profileDescription} from './traffic-profiles.js';
 import {regionalFlowAt,regionalBoundaryFlow,regionalDescription} from './regional-traffic.js';
 import {MOTORWAY_PATHS,MOTORWAY_GROUPS,junctionDirectory,junctionRoute,trafficOverviewPaths} from './network-presentation.js';
@@ -46,6 +48,7 @@ const drawnRoads=buildContinuousRoads(allRoads);
 const spatialCorridors=makeCorridors(allRoads,ramps);
 const rampConnections=buildRampConnections(ramps,spatialCorridors);
 const networkConnections=[...rampConnections,...buildExtensionConnections(spatialCorridors)];
+const directMerges=mainlineMerges(spatialCorridors);
 let badges:RampBadge[]=[];
 let junctionLabels:JunctionLabel[]=[];
 let trafficLabelRects:LabelRect[]=[];
@@ -57,7 +60,7 @@ let activeEventId:string|null=null;
 let editingEventId:string|null=null;
 let speedManuallyChanged=false;
 let storageWarning='';
-function readStoredEvents():SimEvent[]{try{return decodeEvents(window.localStorage.getItem(STORAGE_KEY)).map(event=>{
+function readStoredEvents():SimEvent[]{try{return decodeEvents(window.localStorage.getItem(STORAGE_KEY)).map(raw=>{const event=canonicalPhysicalEvent(raw);
  if(event.pathKey.startsWith('ramp-')||extensionRoute(event.pathKey))return event;
  const project=(p:Point):[number,number]=>[p[1]*111195*Math.cos(event.point[0]*Math.PI/180),p[0]*111195];
  const road=allRoads.filter(r=>r.road===event.pathKey).map(road=>({road,hit:nearestPolyline(road.points,project(event.point),project)}))
@@ -593,6 +596,9 @@ function renderDiversionPlanner(key:PathKey,jams:ReturnType<typeof jamsAt>,spill
   }
  }
  catalog.append(extensionCatalog);
+ for(const entry of activeDetours.values())if(entry.config.path===key&&entry.config.motorwayBypass){
+  const row=document.createElement('p');row.className='junction-note';row.textContent=`Autobahnumfahrung ${entry.enabled!==false?'aktiv':'wartet'} · ${trafficNumber(entry.state.lastDeparture*60)} Fzg/h abgezweigt · ${trafficNumber(detourVehicles(entry.state))} Fahrzeuge unterwegs/wartend · ${trafficNumber(entry.state.lastRejoined*60)} Fzg/h zurück`;parent.append(row);
+ }
  if(extensionRoute(key)){const p=document.createElement('p');p.textContent=extensionRoute(key)?.kind==='ramp'?
   'Überleitung mit eigener Kapazität. Bei Sperrungen werden erreichbare Ortsausfahrten auf der Zufahrt geprüft.':
   'Umfahrungen werden bei Sperrungen und ausreichendem Zeitverlust automatisch genutzt. Abfahrtsrampe, Ortsnetz und Wiedereinfahrt teilen eine Fahrzeugbilanz.';parent.append(p);return;}
@@ -846,13 +852,14 @@ function stepTraffic(minutes:number){
    // Actual departures and returns share the A3/A48 cell inventory.
    for(const key of CELL_PATHS)cellNetwork[key]??=initialiseCells(spatialCorridors[key],active[key],demandMode==='clock'?metre=>regionalFlowAt(spatialCorridors[key],exits,active[key],metre,simulatedClock()):undefined);
    const next=advanceRoutedNetwork(cellNetwork,spatialCorridors,timeline,active,exits,[...activeDetours.values()],
-    interchangeDelays(jams,timeline),simulatedClock(),demandMode==='clock');
+    interchangeDelays(jams,timeline),simulatedClock(),demandMode==='clock',downstreamReceiving(cellNetwork,directMerges));
    cellNetwork=next.cells;
    for(const entry of next.detours)activeDetours.set(entry.config.id,entry);
    transfers.push(...next.transfers);
    const physicalMainline=trafficView(jams,cellNetwork,spatialCorridors,timeline,spillbacks,spatialState.minute+1)
     .physicalJams.filter(j=>!j.pathKey.startsWith('ramp-')&&extensionRoute(j.pathKey)?.kind!=='ramp');
    const legacyActive=remainingInterchangeDemands(active,[...activeDetours.values()],timeline);
+   for(const feature of extensionRoutes)if(!visibleRanges(feature.id,feature.points).length)legacyActive[feature.id]=0;
    spatialState=advanceSpatial(spatialState,timeline,legacyActive,1,spatialCorridors,networkConnections,transfers,exits,physicalMainline,PATHS);
   }
  }
@@ -861,7 +868,7 @@ function stepTraffic(minutes:number){
 }
 function initializeTraffic(){
  const select=$<HTMLSelectElement>('traffic-route');select.replaceChildren();
- for(const group of [...MOTORWAY_GROUPS,{road:'Überleitungen / Rampen',paths:PATHS.filter(key=>!MOTORWAY_PATHS.includes(key))}]){
+ for(const group of [...MOTORWAY_GROUPS,{road:'Überleitungen / Rampen',paths:PATHS.filter(key=>!MOTORWAY_PATHS.includes(key)&&visibleRanges(key,spatialCorridors[key].points).length)}]){
   const host=document.createElement('optgroup');host.label=group.road;
   for(const key of group.paths){const option=document.createElement('option');option.value=key;option.textContent=trafficRouteLabel(key);host.append(option)}
   select.append(host);
@@ -1044,9 +1051,10 @@ function drawSpatialJams(){
    ?resolveSpeedBands([...bands,...(view.spillBands.get(key)??[])]):bands;
   for(const band of shown){
    if(band.color==='free')continue;
-   const cuts=[band.fromM,...restricted.flatMap(s=>[s.fromM,s.toM]).filter(m=>m>band.fromM&&m<band.toM),band.toM].sort((a,b)=>a-b);
+   const visibility=visibleRanges(key,route.points);
+   const cuts=[band.fromM,...restricted.flatMap(s=>[s.fromM,s.toM]),...visibility.flatMap(s=>[s.fromM,s.toM])].filter(m=>m>=band.fromM&&m<band.toM).concat(band.toM).sort((a,b)=>a-b);
    for(let i=1;i<cuts.length;i++){
-    const from=cuts[i-1]!,to=cuts[i]!,line=routeSlice(route,from,to);if(line.length<2)continue;
+    const from=cuts[i-1]!,to=cuts[i]!;if(!visibility.some(s=>(from+to)/2>=s.fromM&&(from+to)/2<=s.toM))continue;const line=routeSlice(route,from,to);if(line.length<2)continue;
     const section=restricted.find(s=>s.fromM<(from+to)/2&&s.toM>(from+to)/2);
     if(section&&(section.openLanes.length||section.shoulderOpen))drawOpen(line,section,jamColors[band.color]);
     else{const width=narrow?widths.ramp:widths.motorway;stroke(line,width+1.5,'#112537');stroke(line,width+.65,jamColors[band.color]);}
@@ -1113,7 +1121,7 @@ function draw(){
  // Zoom-adaptive outlines keep both carriageways visually distinct on narrow screens.
  const lines=lineWidths(zoom);
  for(const road of drawnRoads)stroke(road.points,lines.motorwayCasing,'#083348');
- for(const feature of extensionRoutes){stroke(feature.points,feature.kind==='ramp'?lines.rampCasing:lines.motorwayCasing,'#061927');stroke(feature.points,feature.kind==='ramp'?lines.ramp:lines.motorway,'#26bb7c');}
+ for(const feature of extensionRoutes)for(const range of visibleRanges(feature.id,feature.points)){stroke(range.points,feature.kind==='ramp'?lines.rampCasing:lines.motorwayCasing,'#061927');stroke(range.points,feature.kind==='ramp'?lines.ramp:lines.motorway,'#26bb7c');}
  for(const road of drawnRoads)stroke(road.points,lines.motorway,roadColors[road.road]);
  for(const ramp of ramps)stroke(ramp.points,lines.rampCasing,'#273b4c');
  for(const ramp of ramps)stroke(ramp.points,lines.ramp,'#26bb7c');

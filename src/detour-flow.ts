@@ -25,6 +25,7 @@ export interface DetourConfig {
  journey?:InterchangeJourney;
  exitsNetwork?:boolean;
  exitIsInterchange?:boolean;
+ motorwayBypass?:boolean;
 }
 export interface InTransit {minute:number;vehicles:number}
 export interface DetourState {

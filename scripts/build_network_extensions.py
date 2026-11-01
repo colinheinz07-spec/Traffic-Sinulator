@@ -5,7 +5,7 @@ from extend_heumar_camberg import pt,dist,walk
 ROOT=Path(__file__).resolve().parents[1]
 x=json.loads((ROOT/'data/a3-heumar-camberg-osm.json').read_text())
 extra=json.loads((ROOT/'data/a59-a560-osm.json').read_text())
-elements=list({(e['type'],e['id']):e for e in x['elements']+extra['elements']+json.loads((ROOT/'data/cologne-triangle-osm.json').read_text())['elements']}.values())
+elements=list({(e['type'],e['id']):e for e in x['elements']+json.loads((ROOT/'data/a3-wiesbaden-osm.json').read_text())['elements']+extra['elements']+json.loads((ROOT/'data/cologne-triangle-osm.json').read_text())['elements']}.values())
 ways=[w for w in elements if w['type']=='way' and w.get('geometry')]
 from extend_heumar_camberg import read_data
 core=read_data()

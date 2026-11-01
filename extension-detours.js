@@ -1,10 +1,12 @@
-import { extensionDetours } from './extension-detours-data.js?build=44f71684add0e0c7';
-import { eventCapacity } from './traffic.js?build=44f71684add0e0c7';
-import { closureGate, positionM } from './spatial.js?build=44f71684add0e0c7';
-import { cellQueueSpans } from './traffic-cells.js?build=44f71684add0e0c7';
-import { diversionJunctions } from './diversions.js?build=44f71684add0e0c7';
-import { junctionAccess } from './road-controls.js?build=44f71684add0e0c7';
-import { speedDelayInCells } from './speed-delay.js?build=44f71684add0e0c7';
+import { ringDetours } from './ring-detours-data.js?build=87985509f9b942f5';
+import { extensionDetours as baseDetours } from './extension-detours-data.js?build=87985509f9b942f5';
+import { eventCapacity } from './traffic.js?build=87985509f9b942f5';
+import { closureGate, positionM } from './spatial.js?build=87985509f9b942f5';
+import { cellQueueSpans } from './traffic-cells.js?build=87985509f9b942f5';
+import { diversionJunctions } from './diversions.js?build=87985509f9b942f5';
+import { junctionAccess } from './road-controls.js?build=87985509f9b942f5';
+import { speedDelayInCells } from './speed-delay.js?build=87985509f9b942f5';
+const extensionDetours = [...baseDetours, ...ringDetours];
 const sectionCache = new WeakMap();
 const indexed = new Map(extensionDetours.map(r => [r.id, r]));
 /** Real directed geometry; route selection and capacities are simulator assumptions. */
@@ -15,7 +17,8 @@ export function extensionDetourConfig(record, eventId, routes, events, exits, ce
     const fromM = positionM(route, record.fromPoint, 1), toM = record.toRef === 'end' ? destination.lengthM : positionM(destination, record.toPoint, 1);
     if (fromM === null || toM === null || path === target && toM <= fromM)
         return null;
-    let capacity = 2000, extraMinutes = 0;
+    const normalCapacity = record.capacityVph ?? 2000;
+    let capacity = normalCapacity, extraMinutes = 0;
     for (const leg of record.legs) {
         const key = leg.path, r = routes[key];
         if (!r)
@@ -38,16 +41,16 @@ export function extensionDetourConfig(record, eventId, routes, events, exits, ce
         capacity = 0;
     let sections = sectionCache.get(record);
     if (!sections) {
-        sections = record.wayIds.map(id => ({ id: 'osm-way:' + id, capacityVph: 2000 }));
+        sections = record.wayIds.map(id => ({ id: 'osm-way:' + id, capacityVph: normalCapacity }));
         sectionCache.set(record, sections);
     }
     return { id: record.id, path, targetPath: target, fromM, toM, eventId, exitsNetwork: record.toRef === 'end',
-        exitIsInterchange: record.exitIsInterchange, alternativeGroup: 'EXT-choice:' + path + ':' + record.fromRef,
+        ...(record.motorwayBypass && target !== path ? { sourceEndM: route.lengthM } : {}), motorwayBypass: record.motorwayBypass, exitIsInterchange: record.exitIsInterchange, alternativeGroup: 'EXT-choice:' + path + ':' + record.fromRef,
         geometry: { id: record.id, path, sourceExitRef: record.fromRef, targetExitRef: record.toRef, points: record.points,
             lengthKm: record.lengthKm, freeMinutes: record.freeMinutes + extraMinutes, roadCapacityVph: capacity,
             junctionCount: 2, trafficLightCount: 0, source: 'simulated-bundled', relationId: null,
             label: record.motorway ? 'Simulierte OSM-Umfahrung über Nachbarautobahnen' : 'Simulierte OSM-Ortsumleitung',
-            sections: capacity === 2000 ? sections : sections.map(s => ({ ...s, capacityVph: capacity })) } };
+            sections: capacity === normalCapacity ? sections : sections.map(s => ({ ...s, capacityVph: capacity })) } };
 }
 export function refreshExtensionDetour(config, routes, events, exits, cells) {
     const record = indexed.get(config.id);
@@ -70,12 +73,12 @@ export function planExtensionDetours(events, routes, exits, cells, connections) 
             continue;
         if (path === target && !events.some(e => e.pathKey === path) && !queued.get(path)?.length)
             continue;
-        if (path !== target && !connections.some(c => c.from === path && c.to === target && events.some(e => e.pathKey === c.rampId || e.pathKey === target)))
+        if (path !== target && !record.motorwayBypass && !connections.some(c => c.from === path && c.to === target && events.some(e => e.pathKey === c.rampId || e.pathKey === target)))
             continue;
         const config = extensionDetourConfig(record, 'queue:' + path, routes, events, exits, cells);
         if (!config)
             continue;
-        if (path === target) {
+        if (path === target || record.motorwayBypass) {
             const cause = events.find(e => {
                 if (e.pathKey !== path)
                     return false;
@@ -83,7 +86,7 @@ export function planExtensionDetours(events, routes, exits, cells, connections) 
                 if (at === null || config.fromM > at + 1)
                     return false;
                 const gate = closureGate(route, e, exits, events);
-                return gate ? config.fromM <= gate.metre + 1 && config.toM >= gate.endM - 1 :
+                return gate ? config.fromM <= gate.metre + 1 && (record.motorwayBypass && path !== target ? route.lengthM : config.toM) >= gate.endM - 1 :
                     config.toM >= Math.min(route.lengthM, at + e.settings.lengthM) - 1;
             });
             const queue = queued.get(path)?.some(s => config.fromM <= s.toM && config.toM >= s.toM);

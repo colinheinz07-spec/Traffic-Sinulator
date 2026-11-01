@@ -1,4 +1,5 @@
-import {extensionDetours,type ExtensionDetour} from './extension-detours-data.js';
+import {ringDetours} from './ring-detours-data.js';
+import {extensionDetours as baseDetours,type ExtensionDetour} from './extension-detours-data.js';
 
 import type {Exit} from './core.js';
 import type {SimEvent} from './events.js';
@@ -11,6 +12,7 @@ import {diversionJunctions} from './diversions.js';
 import {junctionAccess} from './road-controls.js';
 import {speedDelayInCells} from './speed-delay.js';
 
+const extensionDetours=[...baseDetours,...ringDetours];
 const sectionCache=new WeakMap<ExtensionDetour,{id:string;capacityVph:number}[]>();
 const indexed=new Map(extensionDetours.map(r=>[r.id,r]));
 /** Real directed geometry; route selection and capacities are simulator assumptions. */
@@ -20,7 +22,7 @@ export function extensionDetourConfig(record:ExtensionDetour,eventId:string,rout
  if(!route||!destination)return null;
  const fromM=positionM(route,record.fromPoint,1),toM=record.toRef==='end'?destination.lengthM:positionM(destination,record.toPoint,1);
  if(fromM===null||toM===null||path===target&&toM<=fromM)return null;
- let capacity=2000,extraMinutes=0;
+ const normalCapacity=record.capacityVph??2000;let capacity=normalCapacity,extraMinutes=0;
  for(const leg of record.legs){
   const key=leg.path as PathKey,r=routes[key];if(!r)continue;
   const a=positionM(r,leg.fromPoint,1),b=positionM(r,leg.toPoint,1);if(a===null||b===null)continue;
@@ -34,14 +36,14 @@ export function extensionDetourConfig(record:ExtensionDetour,eventId:string,rout
  const enabled=junctionAccess(route,events,fromM,record.fromRef).exit&&
   (record.toRef==='end'||junctionAccess(destination,events,toM,record.toRef).entry);
  if(!enabled)capacity=0;
- let sections=sectionCache.get(record);if(!sections){sections=record.wayIds.map(id=>({id:'osm-way:'+id,capacityVph:2000}));sectionCache.set(record,sections);}
+ let sections=sectionCache.get(record);if(!sections){sections=record.wayIds.map(id=>({id:'osm-way:'+id,capacityVph:normalCapacity}));sectionCache.set(record,sections);}
  return {id:record.id,path,targetPath:target,fromM,toM,eventId,exitsNetwork:record.toRef==='end',
-  exitIsInterchange:record.exitIsInterchange,alternativeGroup:'EXT-choice:'+path+':'+record.fromRef,
+  ...(record.motorwayBypass&&target!==path?{sourceEndM:route.lengthM}:{}),motorwayBypass:record.motorwayBypass,exitIsInterchange:record.exitIsInterchange,alternativeGroup:'EXT-choice:'+path+':'+record.fromRef,
   geometry:{id:record.id,path,sourceExitRef:record.fromRef,targetExitRef:record.toRef,points:record.points,
    lengthKm:record.lengthKm,freeMinutes:record.freeMinutes+extraMinutes,roadCapacityVph:capacity,
    junctionCount:2,trafficLightCount:0,source:'simulated-bundled',relationId:null,
    label:record.motorway?'Simulierte OSM-Umfahrung über Nachbarautobahnen':'Simulierte OSM-Ortsumleitung',
-   sections:capacity===2000?sections:sections.map(s=>({...s,capacityVph:capacity}))}};
+   sections:capacity===normalCapacity?sections:sections.map(s=>({...s,capacityVph:capacity}))}};
 }
 export function refreshExtensionDetour(config:DetourConfig,routes:Record<PathKey,Corridor>,events:readonly SimEvent[],
  exits:readonly Exit[],cells:Partial<Record<PathKey,CellRouteState>>):DetourConfig{
@@ -60,14 +62,14 @@ export function planExtensionDetours(events:readonly SimEvent[],routes:Record<Pa
   if(path.startsWith('A3')&&path===target&&!record.motorway)continue;
   const route=routes[path];if(!route)continue;
   if(path===target&&!events.some(e=>e.pathKey===path)&&!queued.get(path)?.length)continue;
-  if(path!==target&&!connections.some(c=>c.from===path&&c.to===target&&events.some(e=>e.pathKey===c.rampId||e.pathKey===target)))continue;
+  if(path!==target&&!record.motorwayBypass&&!connections.some(c=>c.from===path&&c.to===target&&events.some(e=>e.pathKey===c.rampId||e.pathKey===target)))continue;
   const config=extensionDetourConfig(record,'queue:'+path,routes,events,exits,cells);if(!config)continue;
-  if(path===target){
+  if(path===target||record.motorwayBypass){
    const cause=events.find(e=>{
     if(e.pathKey!==path)return false;
     const at=positionM(route,e.point);if(at===null||config.fromM>at+1)return false;
     const gate=closureGate(route,e,exits,events);
-    return gate?config.fromM<=gate.metre+1&&config.toM>=gate.endM-1:
+    return gate?config.fromM<=gate.metre+1&&(record.motorwayBypass&&path!==target?route.lengthM:config.toM)>=gate.endM-1:
      config.toM>=Math.min(route.lengthM,at+e.settings.lengthM)-1;
    });
    const queue=queued.get(path)?.some(s=>config.fromM<=s.toM&&config.toM>=s.toM);

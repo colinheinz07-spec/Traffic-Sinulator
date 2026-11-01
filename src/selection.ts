@@ -1,3 +1,4 @@
+import {physicalOwnerAt} from './physical-paths.js';
 import {extensionRoutes,type ExtensionRoute,type ExtensionId} from './network-extensions.js';
 /** Map hit-testing remains separate from rendering and transport logic.
  * All snapped positions are interpolated ONLY on verified OSM road geometries.
@@ -76,6 +77,6 @@ export function hitLabel(hit:MapHit):string{
 
 export function extensionCandidates(tap:[number,number],project:(p:Point)=>[number,number],tolerance=18):MapHit[]{
  return extensionRoutes.flatMap(feature=>{const hit=nearestPolyline(feature.points,tap,project);
-  return hit.distance>tolerance?[]:[{kind:'extension' as const,feature,point:hit.point,distance:hit.distance,fraction:hit.fraction,key:feature.id}];
+  return hit.distance>tolerance||physicalOwnerAt(feature.id,hit.point)?[]:[{kind:'extension' as const,feature,point:hit.point,distance:hit.distance,fraction:hit.fraction,key:feature.id}];
  });
 }

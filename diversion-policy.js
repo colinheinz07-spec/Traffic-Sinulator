@@ -1,14 +1,14 @@
-import { networkRoad } from './network-road.js?build=44f71684add0e0c7';
-import { cellQueueSpans } from './traffic-cells.js?build=44f71684add0e0c7';
-import { closureGate } from './spatial.js?build=44f71684add0e0c7';
-import { diversionJunctions, nearestExitBeforeQueue, potentialDiversionPercent } from './diversions.js?build=44f71684add0e0c7';
-import { speedDelayInCells } from './speed-delay.js?build=44f71684add0e0c7';
-import { eventCapacity, defaultDemand } from './traffic.js?build=44f71684add0e0c7';
-import { freeSpeedKmh } from './traffic-physics.js?build=44f71684add0e0c7';
-import { INTERCHANGE_DIVERSION_START_MIN, interchangeTrafficShare } from './interchange.js?build=44f71684add0e0c7';
-import { closedMovementEvent, viaJourneyUsable, journeyRampCapacity, journeyTrafficShare } from './interchange-journeys.js?build=44f71684add0e0c7';
-import { accessibleExits, junctionAccess } from './road-controls.js?build=44f71684add0e0c7';
-import { exitRampVehicles, DEFAULT_EXIT_TERMINAL_VPH } from './junction-traffic.js?build=44f71684add0e0c7';
+import { networkRoad } from './network-road.js?build=87985509f9b942f5';
+import { cellQueueSpans } from './traffic-cells.js?build=87985509f9b942f5';
+import { closureGate } from './spatial.js?build=87985509f9b942f5';
+import { diversionJunctions, nearestExitBeforeQueue, potentialDiversionPercent } from './diversions.js?build=87985509f9b942f5';
+import { speedDelayInCells } from './speed-delay.js?build=87985509f9b942f5';
+import { eventCapacity, defaultDemand } from './traffic.js?build=87985509f9b942f5';
+import { freeSpeedKmh } from './traffic-physics.js?build=87985509f9b942f5';
+import { INTERCHANGE_DIVERSION_START_MIN, interchangeTrafficShare } from './interchange.js?build=87985509f9b942f5';
+import { closedMovementEvent, viaJourneyUsable, journeyRampCapacity, journeyTrafficShare } from './interchange-journeys.js?build=87985509f9b942f5';
+import { accessibleExits, junctionAccess } from './road-controls.js?build=87985509f9b942f5';
+import { exitRampVehicles, DEFAULT_EXIT_TERMINAL_VPH } from './junction-traffic.js?build=87985509f9b942f5';
 function exitTerminalWait(source, metre) {
     const ramp = source.junctions?.find(j => Math.abs(j.metre - metre) < 25);
     return ramp ? exitRampVehicles(ramp) / Math.max(1, ramp.exitTerminalVph ?? DEFAULT_EXIT_TERMINAL_VPH) * 60 : 0;
@@ -139,6 +139,21 @@ function interchangeChoice(entry, cells, routes, events, exits, demands, turnDel
 }
 function baseDiversionChoice(entry, entries, cells, routes, events, exits, demands, turnDelays = {}) {
     const { config, state } = entry, path = config.path, target = config.targetPath ?? path;
+    if (config.motorwayBypass) {
+        const empty = { percent: 0, mandatory: false, delayMin: 0, upstreamRank: 0 };
+        if (entry.enabled === false || config.geometry.roadCapacityVph <= 0)
+            return empty;
+        const cause = events.find(e => e.id === config.eventId), grid = cells[path], route = routes[path];
+        if (!grid || !route)
+            return empty;
+        const closure = cause?.kind === 'closure' ? closureGate(route, cause, exits, events) : null;
+        if (closure && config.fromM <= closure.metre + 1 && (config.sourceEndM ?? config.toM) >= closure.endM - 1)
+            return { ...empty, percent: 100, mandatory: true };
+        const loss = speedDelayInCells(grid, config.fromM, config.sourceEndM ?? config.toM, config.sourceEndM ?? config.toM), delayMin = loss.delayMin;
+        const extra = Math.max(0, config.geometry.freeMinutes - ((config.sourceEndM ?? config.toM) - config.fromM) / 1000 / freeSpeedKmh(path) * 60) +
+            (state.waitingRoad + state.waitingMerge) / Math.max(1, config.geometry.roadCapacityVph) * 60;
+        return { percent: Math.min((state.choicePercent ?? 0) + 5, voluntaryDiversionPercent(delayMin, extra)), mandatory: false, delayMin, upstreamRank: 0 };
+    }
     if (config.id.startsWith('EXT-') && target !== path) {
         const empty = { percent: 0, mandatory: false, delayMin: 0, upstreamRank: 0 };
         if (entry.enabled === false || config.geometry.roadCapacityVph <= 0)

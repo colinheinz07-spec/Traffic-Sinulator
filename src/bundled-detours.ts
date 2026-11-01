@@ -40,7 +40,7 @@ if(networkData.exits.some(e=>e.road==='A3'&&e.ref==='28')){
  const point=(path:RoadId,north:boolean)=>networkData.roads.filter(r=>r.road===path).flatMap(r=>r.points)
   .reduce((a,b)=>(north?b[0]>a[0]:b[0]<a[0])?b:a);
  ends['A3-koeln']={from:'A3:29',point:point('A3-koeln',true),via:[]};
- ends['A3-frankfurt']={from:'A3:44',point:point('A3-frankfurt',false),via:[]};
+ ends['A3-frankfurt']={from:networkData.exits.some(e=>e.road==='A3'&&e.ref==='46')?'A3:46':'A3:44',point:point('A3-frankfurt',false),via:[]};
  for(const path of ['A3-koeln','A3-frankfurt'] as const){const end=regionalDetours.find(r=>r.path===path&&r.to==='end-'+path&&'A3:'+r.from===ends[path].from);if(end)ends[path].point=end.points.at(-1)!;}
 }
 export function isNetworkDestination(exit:Exit):boolean{return exit.source==='simulation-boundary';}

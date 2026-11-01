@@ -49,7 +49,7 @@ for(const path of ['A3-frankfurt','A3-koeln'])for(const recovery of [false,true]
   assert.ok(distinctSnapshots>20,'map observations must not collapse back to whole-minute averages');
   assert.ok(peak<13000,'one reopened head must not manufacture a long train of brake queues');
   if(recovery){
-   assert.ok(cellInventory(state)<before-1000,'clearing means discharging the original inventory');
+   assert.ok(state.cells.filter(c=>c.fromM<at&&c.speedKmh<=65).reduce((n,c)=>n+c.vehicles,0)<100,'the original upstream jam stock must drain, independently of the longer downstream free-flow inventory');
    assert.equal(cellSpeedBands(state).length,0,'no lingering orange band after the queue has drained');
   }
  });

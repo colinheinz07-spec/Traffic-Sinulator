@@ -145,6 +145,17 @@ function baseDiversionChoice(entry:ChoiceRoute,entries:readonly ChoiceRoute[],
  events:readonly SimEvent[],exits:readonly Exit[],demands:Readonly<Partial<Record<PathKey,number>>>,
  turnDelays:Readonly<Partial<Record<PathKey,number>>>={}):DiversionChoice{
  const {config,state}=entry,path=config.path,target=config.targetPath??path;
+ if(config.motorwayBypass){
+  const empty={percent:0,mandatory:false,delayMin:0,upstreamRank:0};
+  if(entry.enabled===false||config.geometry.roadCapacityVph<=0)return empty;
+  const cause=events.find(e=>e.id===config.eventId),grid=cells[path],route=routes[path];if(!grid||!route)return empty;
+  const closure=cause?.kind==='closure'?closureGate(route,cause,exits,events):null;
+  if(closure&&config.fromM<=closure.metre+1&&(config.sourceEndM??config.toM)>=closure.endM-1)return {...empty,percent:100,mandatory:true};
+  const loss=speedDelayInCells(grid,config.fromM,config.sourceEndM??config.toM,config.sourceEndM??config.toM),delayMin=loss.delayMin;
+  const extra=Math.max(0,config.geometry.freeMinutes-((config.sourceEndM??config.toM)-config.fromM)/1000/freeSpeedKmh(path)*60)+
+   (state.waitingRoad+state.waitingMerge)/Math.max(1,config.geometry.roadCapacityVph)*60;
+  return {percent:Math.min((state.choicePercent??0)+5,voluntaryDiversionPercent(delayMin,extra)),mandatory:false,delayMin,upstreamRank:0};
+ }
  if(config.id.startsWith('EXT-')&&target!==path){
   const empty={percent:0,mandatory:false,delayMin:0,upstreamRank:0};
   if(entry.enabled===false||config.geometry.roadCapacityVph<=0)return empty;

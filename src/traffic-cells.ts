@@ -311,13 +311,15 @@ export function platoonServiceFactor(id:string,minute:number,ceiling=Infinity):n
  */
 export function advanceCells(previous:CellRouteState,route:Corridor,events:readonly SimEvent[],
  demandVph:number,exits:readonly Exit[]=[],ports:readonly CellDetourPort[]=[],
- junctionDemand:readonly JunctionTrafficDemand[]=normalJunctionTraffic(route,exits,demandVph)):CellRouteState{
+ junctionDemand:readonly JunctionTrafficDemand[]=normalJunctionTraffic(route,exits,demandVph),downstreamCapacityVph=Infinity):CellRouteState{
  if(previous.pathKey!==route.key||!Number.isFinite(demandVph)||demandVph<0||demandVph>16000)
   throw Error('Zellmodell: Richtung oder Zufluss ungültig');
  const n=previous.cells.length,dx=previous.cellM/1000;
  const substeps=Math.max(30,Math.ceil(freeSpeedKmh(route.key)*1000/(60*previous.cellM))),dtMin=1/substeps;
  const controls=localControls(route,events,demandVph,n,previous.cellM,exits);
  const {speeds,capacity,faceCapacity,faceControls,jam,releases,closedEntries}=controls;
+ if(Number.isNaN(downstreamCapacityVph)||downstreamCapacityVph<0)throw Error('Ungültige nachgelagerte Aufnahmefähigkeit');
+ faceCapacity[n]=Math.min(faceCapacity[n]!,downstreamCapacityVph);
  // Join free flow to the congested branch at ONE capacity density. The
  // former clipped linear receiver admitted capacity at much higher density
  // too, leaving kilometres of stationary orange traffic after reopening.

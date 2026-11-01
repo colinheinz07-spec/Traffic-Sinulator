@@ -9,6 +9,7 @@ import {eventFromHit,decodeEvents} from '../dist/events.js';
 import {buildExtensionConnections} from '../dist/extension-connections.js';
 import {trafficView} from '../dist/traffic-view.js';
 import {worldGeometry} from '../dist/map-geometry.js';
+import {physicalOwnerAt} from '../dist/physical-paths.js';
 const routes=makeCorridors(networkData.roads,networkData.ramps);
 test('both A560 directions, all eight Siegburg turns and Heumar paths have unique selectable exact geometry',()=>{
  assert.equal(EXTENSION_IDS.length,new Set(EXTENSION_IDS).size);
@@ -19,6 +20,7 @@ test('both A560 directions, all eight Siegburg turns and Heumar paths have uniqu
   const point=feature.points[Math.floor(feature.points.length/2)],scale=100000;
   const hits=extensionCandidates([point[1]*scale,point[0]*scale],p=>[p[1]*scale,p[0]*scale],1);
   const hit=hits.find(h=>h.key===feature.id);
+  const owner=physicalOwnerAt(feature.id,point);if(owner){assert.ok(!hit,feature.id+' legacy alias must defer to '+owner.key);continue;}
   assert.ok(hit,feature.id);assert.equal(hitLabel(hit),feature.name);
   const event=eventFromHit(hit,'accident',feature.lanes,Array.from({length:feature.lanes},(_,i)=>i),feature.id,'2026-11-01T08:00:00Z');
   assert.deepEqual(decodeEvents(JSON.stringify([event]))[0],event);

@@ -1,15 +1,15 @@
-import { networkRoad } from './network-road.js?build=44f71684add0e0c7';
-import { extensionRoutes, extensionRoute } from './network-extensions.js?build=44f71684add0e0c7';
-import { normalThroughLanes } from './lane-info.js?build=44f71684add0e0c7';
+import { networkRoad } from './network-road.js?build=87985509f9b942f5';
+import { extensionRoutes, extensionRoute } from './network-extensions.js?build=87985509f9b942f5';
+import { normalThroughLanes } from './lane-info.js?build=87985509f9b942f5';
 /** Georeferenced, per-event queue model on the exact OSM motorway carriageway curves.
  * A first-pass conservation model (not a calibrated traffic forecast).
  * No vehicle sprites, hidden road connectors, A3/A48 transfers, or invented detours.
  */
-import { buildContinuousRoads } from './cartography.js?build=44f71684add0e0c7';
-import { exitPosition } from './core.js?build=44f71684add0e0c7';
-import { PATHS, baselineCapacity, eventCapacity, defaultDemand } from './traffic.js?build=44f71684add0e0c7';
-import { baseLaneCapacity, colorAtSpeed, queueFundamentalDiagram, freeSpeedKmh } from './traffic-physics.js?build=44f71684add0e0c7';
-import { physicalEvents, accessibleExits } from './road-controls.js?build=44f71684add0e0c7';
+import { buildContinuousRoads } from './cartography.js?build=87985509f9b942f5';
+import { exitPosition } from './core.js?build=87985509f9b942f5';
+import { PATHS, baselineCapacity, eventCapacity, defaultDemand } from './traffic.js?build=87985509f9b942f5';
+import { baseLaneCapacity, colorAtSpeed, queueFundamentalDiagram, freeSpeedKmh } from './traffic-physics.js?build=87985509f9b942f5';
+import { physicalEvents, accessibleExits } from './road-controls.js?build=87985509f9b942f5';
 const rad = Math.PI / 180;
 export function metres(a, b) {
     const dx = (b[1] - a[1]) * 111195 * Math.cos((a[0] + b[0]) / 2 * rad);
@@ -135,11 +135,24 @@ export function closureGate(route, event, exits, events = []) {
     // A marker on or immediately after an off-ramp belongs to that AS.
     // The former 50m exclusion incorrectly moved the gate to the previous AS.
     const allowed = new Set(accessibleExits(route, events, exits, 'exit').map(e => e.road + ':' + e.ref));
-    const closest = junctions.filter(j => !/^(AD |AK )/.test(j.exit.name) && allowed.has(j.exit.road + ':' + j.exit.ref) && j.metre <= at + 1).at(-1) ?? (networkRoad(route.key) === 'A4' ? junctions.filter(j => /^(AD |AK )/.test(j.exit.name) && j.metre <= at + 1).at(-1) : undefined);
+    const urban = route.key.startsWith('extra-a59-') || route.key.startsWith('extra-a4-') || route.key.startsWith('extra-a559-');
+    const closest = junctions.filter(j => (urban || !/^(AD |AK )/.test(j.exit.name)) && allowed.has(j.exit.road + ':' + j.exit.ref) && j.metre <= at + 1).at(-1);
     const physicalEnd = Math.min(route.lengthM, at + event.settings.lengthM);
     const end = junctions.find(j => j.metre > at + 1 && j.metre >= physicalEnd - 1);
-    return { metre: closest?.metre ?? 0, exit: closest?.exit ?? null, eventM: at,
-        endM: end?.metre ?? route.lengthM, endExit: end?.exit ?? null };
+    let metre = closest?.metre ?? 0, endM = end?.metre ?? route.lengthM;
+    // The retained A59 corridors include a short shared Heumar approach.
+    // An A59 arm closure must leave the A4 continuation outside that arm open.
+    if (route.key === 'extra-a59-bonn' && (!closest || closest.exit.ref === '31')) {
+        const fork = extensionRoute('extra-a4-aachen')?.points[0], forkM = fork ? positionM(route, fork, 1) : null;
+        if (forkM !== null && forkM <= at)
+            metre = Math.max(metre, forkM);
+    }
+    if (route.key === 'extra-a59-bonn' && end?.exit.ref === '33') {
+        const join = extensionRoute('extra-a559-porz')?.points.at(-1), joinM = join ? positionM(route, join, 1) : null;
+        if (joinM !== null && joinM >= physicalEnd)
+            endM = Math.min(endM, joinM);
+    }
+    return { metre, exit: closest?.exit ?? null, eventM: at, endM, endExit: end?.exit ?? null };
 }
 /** Color is based ONLY on calculated km/h; density comes from the same
  * triangular-flow approximation used for the physical queue footprint.

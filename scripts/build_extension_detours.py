@@ -131,7 +131,7 @@ for r in records:
   ids.append(indices[point])
  assert len(pool)<65536
  r['vertexIds']=base64.b64encode(struct.pack('<'+'H'*len(ids),*ids)).decode()
-header="import type {Point} from './core.js';\nexport interface ExtensionDetour {id:string;path:string;targetPath:string;fromRef:string;toRef:string;fromPoint:Point;toPoint:Point;points:Point[];wayIds:number[];lengthKm:number;freeMinutes:number;motorway:boolean;exitIsInterchange:boolean;legs:{path:string;fromPoint:Point;toPoint:Point}[]}\n"
+header="import type {Point} from './core.js';\nexport interface ExtensionDetour {id:string;path:string;targetPath:string;fromRef:string;toRef:string;fromPoint:Point;toPoint:Point;points:Point[];wayIds:number[];lengthKm:number;freeMinutes:number;motorway:boolean;exitIsInterchange:boolean;motorwayBypass?:boolean;capacityVph?:number;legs:{path:string;fromPoint:Point;toPoint:Point}[]}\n"
 text=header+'const vertices:Point[]='+json.dumps(pool,separators=(',',':'))+';\nconst packed='+json.dumps(records,separators=(',',':'))+";\nexport const extensionDetours:ExtensionDetour[]=packed.map(({vertexIds,...record})=>{const bytes=atob(vertexIds);return {...record,fromPoint:record.fromPoint as Point,toPoint:record.toPoint as Point,legs:record.legs.map(l=>({...l,fromPoint:l.fromPoint as Point,toPoint:l.toPoint as Point})),points:Array.from({length:bytes.length/2},(_,i)=>vertices[bytes.charCodeAt(i*2)+256*bytes.charCodeAt(i*2+1)]!)};});\n"
 (ROOT/'src/extension-detours-data.ts').write_text(text)
 print('Vertices',len(pool),'module bytes',len(text),flush=True)

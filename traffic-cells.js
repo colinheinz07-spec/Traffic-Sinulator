@@ -1,11 +1,11 @@
-import { extensionRoute } from './network-extensions.js?build=44f71684add0e0c7';
-import { baseLaneCapacity } from './traffic-physics.js?build=44f71684add0e0c7';
-import { positionM, closureGate } from './spatial.js?build=44f71684add0e0c7';
-import { baselineCapacity, eventCapacity } from './traffic.js?build=44f71684add0e0c7';
-import { flowPolicy, DEFAULT_CLEARANCE_MIN } from './events.js?build=44f71684add0e0c7';
-import { colorAtSpeed, freeSpeedKmh, QUEUE_JAM_DENSITY_PER_LANE, CONGESTION_WAVE_KMH } from './traffic-physics.js?build=44f71684add0e0c7';
-import { normalJunctionTraffic, exitRampVehicles, DEFAULT_EXIT_TERMINAL_VPH, DEFAULT_EXIT_STORAGE_VEHICLES } from './junction-traffic.js?build=44f71684add0e0c7';
-import { roadSections, physicalEvents, junctionAccess } from './road-controls.js?build=44f71684add0e0c7';
+import { extensionRoute } from './network-extensions.js?build=87985509f9b942f5';
+import { baseLaneCapacity } from './traffic-physics.js?build=87985509f9b942f5';
+import { positionM, closureGate } from './spatial.js?build=87985509f9b942f5';
+import { baselineCapacity, eventCapacity } from './traffic.js?build=87985509f9b942f5';
+import { flowPolicy, DEFAULT_CLEARANCE_MIN } from './events.js?build=87985509f9b942f5';
+import { colorAtSpeed, freeSpeedKmh, QUEUE_JAM_DENSITY_PER_LANE, CONGESTION_WAVE_KMH } from './traffic-physics.js?build=87985509f9b942f5';
+import { normalJunctionTraffic, exitRampVehicles, DEFAULT_EXIT_TERMINAL_VPH, DEFAULT_EXIT_STORAGE_VEHICLES } from './junction-traffic.js?build=87985509f9b942f5';
+import { roadSections, physicalEvents, junctionAccess } from './road-controls.js?build=87985509f9b942f5';
 const TARGET_CELL_M = 100, WAVE_KMH = CONGESTION_WAVE_KMH, JAM_PER_LANE = QUEUE_JAM_DENSITY_PER_LANE;
 // One observation per MODEL minute; repainting/pause never advances this.
 const TRAVEL_ALPHA = 1 - Math.exp(-1 / 6);
@@ -286,13 +286,16 @@ export function platoonServiceFactor(id, minute, ceiling = Infinity) {
  * Domain demand not admitted at the map entry is retained in backlog.
  * Outflow is discharged at the far end. No arbitrary time-loss surcharges.
  */
-export function advanceCells(previous, route, events, demandVph, exits = [], ports = [], junctionDemand = normalJunctionTraffic(route, exits, demandVph)) {
+export function advanceCells(previous, route, events, demandVph, exits = [], ports = [], junctionDemand = normalJunctionTraffic(route, exits, demandVph), downstreamCapacityVph = Infinity) {
     if (previous.pathKey !== route.key || !Number.isFinite(demandVph) || demandVph < 0 || demandVph > 16000)
         throw Error('Zellmodell: Richtung oder Zufluss ungültig');
     const n = previous.cells.length, dx = previous.cellM / 1000;
     const substeps = Math.max(30, Math.ceil(freeSpeedKmh(route.key) * 1000 / (60 * previous.cellM))), dtMin = 1 / substeps;
     const controls = localControls(route, events, demandVph, n, previous.cellM, exits);
     const { speeds, capacity, faceCapacity, faceControls, jam, releases, closedEntries } = controls;
+    if (Number.isNaN(downstreamCapacityVph) || downstreamCapacityVph < 0)
+        throw Error('Ungültige nachgelagerte Aufnahmefähigkeit');
+    faceCapacity[n] = Math.min(faceCapacity[n], downstreamCapacityVph);
     // Join free flow to the congested branch at ONE capacity density. The
     // former clipped linear receiver admitted capacity at much higher density
     // too, leaving kilometres of stationary orange traffic after reopening.

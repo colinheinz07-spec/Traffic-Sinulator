@@ -1,6 +1,15 @@
-# A3/A48 Stausimulator – TRAFFIC 1.13.0
+# A3/A4/A48/A59/A559/A560 Stausimulator – TRAFFIC 1.18.0
 
 **Ein Repository, eine Startdatei:** `index.html` im Hauptverzeichnis direkt in SPCK öffnen. Keine Cloudflare-Konfiguration und keine externe Kartenbibliothek.
+
+
+## Heumar, Autobahnumfahrungen und Wiesbadener Kreuz (1.18.0)
+
+Ein über alle Spuren gesperrter A3-Abschnitt kann jetzt bis in die A59 und die A4 zurückstauen: Sobald die Warteschlange die tatsächliche Einmündung erreicht, begrenzt deren Aufnahmefähigkeit den Abfluss der zuführenden Fahrbahn. Nach der Freigabe löst sich diese Begrenzung wieder. Die Hauptfahrbahnzuflüsse bleiben unabhängig kalibrierte Aggregate; dies ist kein vollständiges Fahrzeug-Zielmodell für sämtliche Knoten.
+
+Für eine A59-Sperrung zwischen Porz und Heumar stehen beidseitig durchgehend gerichtete OSM-Autobahnumfahrungen über A559 und A4 bereit. Norden fährt am A4-Ende auf die A3, Süden am Dreieck Porz zurück auf die A59. Die Verbindungsrampen begrenzen den Durchsatz. Fahrzeit, Warteschlangen, Rückkehr und zusätzliche Sperren auf der Alternative gehen in das Modell ein. Das ist ein simuliertes Angebot auf dem enthaltenen Kölner Netz; keine pauschale Routenabdeckung des gesamten Ruhrgebiets und keine amtliche Umleitungsempfehlung.
+
+Historische Rampen-Aliase dürfen auf gemeinsam genutzten Hauptfahrbahn-Kanten keine eigenen farbigen Staulinien überzeichnen. Gespeicherte Ereignisse auf diesen Kanten werden zur physischen Hauptfahrbahn migriert. Die A3 reicht in beiden Richtungen bis über das Wiesbadener Kreuz, einschließlich Idstein (45), Wiesbaden/Niedernhausen (46), Kreuz (47), farbigen Zu-/Abfahrten sowie lokalen Ausweichverbindungen für die regulären AS. Diese lokalen Verläufe sind aus gespeicherten OSM-Straßen berechnet; ihre Auswahl und Kapazität bleiben Modellannahmen.
 
 ## Regionaler Kartenausbau und reguläre Fahrstreifen (1.13.0)
 

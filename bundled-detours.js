@@ -1,14 +1,14 @@
-import { regionalDetours } from './regional-detours.js?build=44f71684add0e0c7';
-import { junctionAccess } from './road-controls.js?build=44f71684add0e0c7';
-import { networkData } from './geodata.js?build=44f71684add0e0c7';
+import { regionalDetours } from './regional-detours.js?build=87985509f9b942f5';
+import { junctionAccess } from './road-controls.js?build=87985509f9b942f5';
+import { networkData } from './geodata.js?build=87985509f9b942f5';
 /** Offline simulator side-road network. These hand-authored corridors are
  * approximate, NOT surveyed OSM ways, official U-routes or navigation advice.
  * Every normal AS has a route in both directions, including network exits.
  * Longer bypasses concatenate the same sections; no routing server is used.
  */
-import { DIRECTIONS, names, exitPosition } from './core.js?build=44f71684add0e0c7';
-import { diversionJunctions } from './diversions.js?build=44f71684add0e0c7';
-import { metres, positionM } from './spatial.js?build=44f71684add0e0c7';
+import { DIRECTIONS, names, exitPosition } from './core.js?build=87985509f9b942f5';
+import { diversionJunctions } from './diversions.js?build=87985509f9b942f5';
+import { metres, positionM } from './spatial.js?build=87985509f9b942f5';
 export const BUNDLED_SECTIONS = [
     { from: 'A3:33', to: 'A3:34', capacity: 820, via: [[50.6840, 7.2697], [50.6760, 7.2745], [50.6679, 7.2812], [50.6597, 7.2930], [50.6550, 7.3070], [50.6509, 7.3215]] },
     { from: 'A3:34', to: 'A3:35', capacity: 820, via: [[50.6450, 7.3414], [50.6379, 7.3547], [50.6268, 7.3675], [50.6212, 7.3900], [50.6087, 7.4115], [50.5986, 7.4184]] },
@@ -37,7 +37,7 @@ if (networkData.exits.some(e => e.road === 'A3' && e.ref === '28')) {
     const point = (path, north) => networkData.roads.filter(r => r.road === path).flatMap(r => r.points)
         .reduce((a, b) => (north ? b[0] > a[0] : b[0] < a[0]) ? b : a);
     ends['A3-koeln'] = { from: 'A3:29', point: point('A3-koeln', true), via: [] };
-    ends['A3-frankfurt'] = { from: 'A3:44', point: point('A3-frankfurt', false), via: [] };
+    ends['A3-frankfurt'] = { from: networkData.exits.some(e => e.road === 'A3' && e.ref === '46') ? 'A3:46' : 'A3:44', point: point('A3-frankfurt', false), via: [] };
     for (const path of ['A3-koeln', 'A3-frankfurt']) {
         const end = regionalDetours.find(r => r.path === path && r.to === 'end-' + path && 'A3:' + r.from === ends[path].from);
         if (end)

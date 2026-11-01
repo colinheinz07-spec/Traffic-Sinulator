@@ -1,8 +1,9 @@
-import { extensionRoutes } from './network-extensions.js?build=44f71684add0e0c7';
+import { physicalOwnerAt } from './physical-paths.js?build=87985509f9b942f5';
+import { extensionRoutes } from './network-extensions.js?build=87985509f9b942f5';
 /** Map hit-testing remains separate from rendering and transport logic.
  * All snapped positions are interpolated ONLY on verified OSM road geometries.
  */
-import { nearestPolyline, exitPosition } from './core.js?build=44f71684add0e0c7';
+import { nearestPolyline, exitPosition } from './core.js?build=87985509f9b942f5';
 /** Reduce hundreds of OSM ways to one candidate for each motorway direction and each ramp. */
 export function mapCandidates(roads, ramps, tap, project, tolerance = 18) {
     const hits = new Map();
@@ -80,6 +81,6 @@ export function hitLabel(hit) {
 export function extensionCandidates(tap, project, tolerance = 18) {
     return extensionRoutes.flatMap(feature => {
         const hit = nearestPolyline(feature.points, tap, project);
-        return hit.distance > tolerance ? [] : [{ kind: 'extension', feature, point: hit.point, distance: hit.distance, fraction: hit.fraction, key: feature.id }];
+        return hit.distance > tolerance || physicalOwnerAt(feature.id, hit.point) ? [] : [{ kind: 'extension', feature, point: hit.point, distance: hit.distance, fraction: hit.fraction, key: feature.id }];
     });
 }

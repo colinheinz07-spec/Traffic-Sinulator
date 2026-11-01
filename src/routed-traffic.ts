@@ -117,7 +117,7 @@ export function advanceRoutedPath(previous:CellRouteState,route:Corridor,
 export function advanceRoutedNetwork(previous:Partial<Record<PathKey,CellRouteState>>,
  routes:Readonly<Record<PathKey,Corridor>>,events:readonly SimEvent[],
  demands:Readonly<Record<PathKey,number>>,exits:readonly Exit[],detours:readonly RoutedDetour[],
- turnDelays:Readonly<Partial<Record<PathKey,number>>>={},moment?:Date,regional=false){
+ turnDelays:Readonly<Partial<Record<PathKey,number>>>={},moment?:Date,regional=false,receiving:Readonly<Partial<Record<PathKey,number>>>={}){
  const ports=new Map<PathKey,CellDetourPort[]>();
  const intentions=new Map<string,number>();
  const localOffers=new Map<PathKey,ReturnType<typeof normalJunctionTraffic>>();
@@ -137,7 +137,7 @@ export function advanceRoutedNetwork(previous:Partial<Record<PathKey,CellRouteSt
   }):[];
   const rampRoom=rampSiblings.length?Math.max(0,Math.min(...rampSiblings.map(e=>detourStorage(e.config)))-
    rampSiblings.reduce((n,e)=>n+detourVehicles(e.state),0))/rampSiblings.length:Infinity;
-  const capacity=Math.min(motorway?1500:Infinity,Math.min(rampRoom,Math.max(0,detourStorage(config)-detourVehicles(state)))*60,
+  const capacity=Math.min(motorway?config.motorwayBypass?config.geometry.roadCapacityVph:1500:Infinity,Math.min(rampRoom,Math.max(0,detourStorage(config)-detourVehicles(state)))*60,
    motorway?entry.enabled===false?0:roadLimit:Infinity);
   if(journey?.kind==='protected'&&!localOffers.has(config.path))
    localOffers.set(config.path,normalJunctionTraffic(routes[config.path],exits,demands[config.path],moment,regional,events));
@@ -184,7 +184,7 @@ export function advanceRoutedNetwork(previous:Partial<Record<PathKey,CellRouteSt
  const cells:Partial<Record<PathKey,CellRouteState>>={};
  for(const key of Object.keys(previous) as PathKey[])
   cells[key]=advanceCells(sourceStates[key]!,routes[key],events,regional&&moment?regionalBoundaryFlow(routes[key],exits,demands[key],moment):demands[key],exits,ports.get(key)??[],
-   normalJunctionTraffic(routes[key],exits,demands[key],moment,regional,events));
+   normalJunctionTraffic(routes[key],exits,demands[key],moment,regional,events),receiving[key]??Infinity);
  const effective=detours.map(e=>{
   const j=e.config.journey,motorway=j?.kind==='via'||j?.kind==='protected'||j?.kind==='evacuation'||e.config.exitIsInterchange===true;
   const factor=motorway?1:localRoadAvailability(moment);

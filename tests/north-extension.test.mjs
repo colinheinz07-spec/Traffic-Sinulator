@@ -14,7 +14,7 @@ import {emptyDetour,detourVehicles} from '../dist/detour-flow.js';
 const routes=makeCorridors(networkData.roads,networkData.ramps),{exits}=networkData;
 for(const path of ['A3-koeln','A3-frankfurt'])test(`${path}: exact OSM carriageway reaches past Bonn/Siegburg and includes both new directional exits`,()=>{
  const route=routes[path],audit=networkData.audit.northExtension;
- assert.ok(route.lengthM>120000&&route.lengthM<140000);
+ assert.ok(route.lengthM>150000&&route.lengthM<175000);
  assert.ok(audit.lengthsKm[path]>16000/1000&&audit.lengthsKm[path]<17);
  const nodes=diversionJunctions(path,exits,route);
  for(const ref of ['32','33']){
@@ -22,7 +22,7 @@ for(const path of ['A3-koeln','A3-frankfurt'])test(`${path}: exact OSM carriagew
   assert.ok(j&&raw.directional[path].nodeId>0);
   assert.notEqual(positionM(route,exitPosition(raw,path),.2),null);
  }
- const refs=nodes.map(x=>x.ref).filter(ref=>!['27','28','29','30a','30b','31','44'].includes(ref));
+ const refs=nodes.map(x=>x.ref).filter(ref=>!['27','28','29','30a','30b','31','44','45','46','47'].includes(ref));
  assert.deepEqual(refs,path==='A3-koeln'?
   ['43','42','41','40','39','38','37','36','35','34','33','32']:
   ['32','33','34','35','36','37','38','39','40','41','42','43']);
@@ -58,7 +58,7 @@ for(const path of ['A3-koeln','A3-frankfurt'])test(`${path}: a full closure in t
 test('SPCK contains the northern map data and both navigation targets without an online routing dependency',()=>{
  const html=readFileSync('index.html','utf8');
  for(const id of ['siebengebirge','bonn-siegburg'])assert.ok(html.includes('id="'+id+'"'));
- assert.ok(html.includes('34 sofort verfügbare Abfahrtsmöglichkeiten'));
+ assert.ok(html.includes('38 sofort verfügbare Abfahrtsmöglichkeiten'));
  const source=JSON.parse(readFileSync('data/a3-north-osm.json','utf8'));
  assert.ok(source.elements.some(e=>e.type==='node'&&e.tags?.ref==='33'));
  assert.ok(source.elements.some(e=>e.type==='node'&&e.tags?.ref==='32'));

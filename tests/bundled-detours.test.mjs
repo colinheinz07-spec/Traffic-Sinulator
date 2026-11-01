@@ -22,11 +22,11 @@ function config(option){return {id:option.key,path:option.path,fromM:option.from
  exitsNetwork:isNetworkDestination(option.to),eventId:option.event?.id??option.causeId,
  geometry:bundledDetourGeometry(option.key,option.path,option.from,option.to,exits)};}
 
-test('all 34 directional normal exits have an immediately usable bundled route',()=>{
+test('all 38 directional normal exits have an immediately usable bundled route',()=>{
  let count=0;
  for(const path of DIRECTIONS){
   const choices=bundledExitRoutes(path,exits,routes[path]);count+=choices.length;
-  assert.equal(choices.length,path.startsWith('A3')?14:3);
+  assert.equal(choices.length,path.startsWith('A3')?16:3);
   for(const choice of choices){
    assert.ok(!choice.from.isInterchange&&choice.to.metre>choice.from.metre);
    const g=choice.geometry;
@@ -38,7 +38,7 @@ test('all 34 directional normal exits have an immediately usable bundled route',
    assert.equal(g.relationId,null,'simulated roads must not masquerade as an official OSM relation');
   }
  }
- assert.equal(count,34);
+ assert.equal(count,38);
 });
 test('long incidents compose every downstream target pair without fetching or leaving a route gap',()=>{
  for(const path of DIRECTIONS){
@@ -66,7 +66,7 @@ test('an incident reaching the end of the map retains every upstream exit route'
  for(const path of DIRECTIONS){
   const e=incident(path,routes[path].lengthM-100);e.settings.lengthM=5000;
   const options=automaticDiversions([e],routes,exits,{});
-  assert.equal(options.length,path.startsWith('A3')?14:3);
+  assert.equal(options.length,path.startsWith('A3')?16:3);
   assert.ok(options.every(o=>isNetworkDestination(o.to)));
   for(const option of options)assert.ok(config(option).exitsNetwork);
  }

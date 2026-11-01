@@ -20,7 +20,7 @@ test('partial junctions have their real entry/exit direction without phantom off
  }
 });
 test('all eight A3/A560 interchange movements and both A560 carriageways use only original OSM vertices',()=>{
- const source=JSON.parse(readFileSync('data/a3-heumar-camberg-osm.json','utf8'));
+ const source={elements:['a3-heumar-camberg-osm.json','a3-wiesbaden-osm.json'].flatMap(f=>JSON.parse(readFileSync('data/'+f,'utf8')).elements)};
  const points=new Set(source.elements.filter(e=>e.type==='way').flatMap(w=>(w.geometry??[]).map(p=>p.lat+','+p.lon)));
  const connections=JSON.parse(readFileSync('data/siegburg-connections.json','utf8')).connections;
  assert.equal(connections.length,8);assert.equal(new Set(connections.map(c=>c.from+'>'+c.to)).size,8);
