@@ -16,8 +16,8 @@ const routes=makeCorridors(networkData.roads,networkData.ramps),exits=[...networ
 const mainKeys=['A3-koeln','A3-frankfurt','A48-dernbach','A48-koblenz',...extensionRoutes.filter(r=>r.kind==='motorway').map(r=>r.id)];
 const initialise=()=>Object.fromEntries(mainKeys.map(k=>[k,initialiseCells(routes[k],demands[k])]));
 function closure(key,metre,length=1500){const count=extensionRoutes.find(r=>r.id===key)?.lanes??3;return {id:'closure-'+key,pathKey:key,kind:'closure',point:routeSlice(routes[key],metre,metre+2)[0],laneCount:count,closedLanes:Array.from({length:count},(_,i)=>i),settings:{lengthM:length,speedKmh:0,shoulder:'blocked'},createdAt:'2026-11-01T08:00:00Z'};}
-test('A59 31–39 and A560 1–7 have actual directional anchors including entry-only Rath',()=>{
- for(const [road,refs] of [['A59',['31','32','33','34','35','36','37','38','39']],['A560',['1','2','3','4','5','6','7']]]){
+test('A59 31–43 and A560 1–7 have actual directional anchors including entry-only Rath',()=>{
+ for(const [road,refs] of [['A59',['31','32','33','34','35','36','37','38','39','40','41','42','43']],['A560',['1','2','3','4','5','6','7']]]){
   assert.deepEqual(extensionJunctions.filter(j=>j.road===road).map(j=>j.ref).sort(),refs.sort());
   for(const j of extensionJunctions.filter(j=>j.road===road))for(const [key,d] of Object.entries(j.directional))assert.notEqual(positionM(routes[key],d.position,1),null,j.name+' '+key);
  }
@@ -33,7 +33,7 @@ test('all regular A59/A560 exits have a connected local departure and all altern
  for(const key of mainKeys.filter(k=>k.startsWith('extra-'))){
   for(const j of diversionJunctions(key,exits,routes[key]).filter(j=>!j.isInterchange&&j.access?.[key]?.exit!==false))assert.ok(extensionDetours.some(r=>r.path===key&&r.fromRef===j.ref),key+' exit '+j.ref);
  }
- const sources=['a3-heumar-camberg-osm.json','a59-a560-osm.json','cologne-triangle-osm.json'].flatMap(f=>JSON.parse(readFileSync(new URL('../data/'+f,import.meta.url))).elements);
+ const sources=['a3-heumar-camberg-osm.json','a59-a560-osm.json','cologne-triangle-osm.json','bonn-a59-a562-osm.json'].flatMap(f=>JSON.parse(readFileSync(new URL('../data/'+f,import.meta.url))).elements);
  const ways=new Map(sources.filter(e=>e.type==='way').map(w=>[w.id,w])),edge=new Set();
  const point=p=>[p.lat,p.lon].map(v=>Number(v.toFixed(7))).join(',');
  for(const w of ways.values()){

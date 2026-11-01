@@ -19,7 +19,8 @@ export const REFERENCE_PEAKS:Readonly<Record<string,number>>={
  'extra-a59-koeln':3600,'extra-a59-bonn':3600,
  'extra-a4-aachen':4200,'extra-a4-olpe':4300,
  'extra-a559-gremberg':3100,'extra-a559-porz':3000,
- 'extra-a560-hennef':2900,'extra-a560-bonn':3200
+ 'extra-a560-hennef':2900,'extra-a560-bonn':3200,
+ 'extra-a562-bonn':2800,'extra-a562-bonn-ost':2700
 };
 const cache=new Map<string,ProfileFamily>();
 export function profileFamily(key:string):ProfileFamily{
@@ -29,7 +30,7 @@ export function profileFamily(key:string):ProfileFamily{
  else if(key.startsWith('A48-')||key.startsWith('ramp-'))family='koblenz';
  else if(key.startsWith('extra-a59-'))family='airport';
  else if(key.startsWith('extra-a4-'))family='ring';
- else if(key.startsWith('extra-a559-'))family='urban';
+ else if(key.startsWith('extra-a559-')||key.startsWith('extra-a562-'))family='urban';
  else if(key.startsWith('extra-a560-'))family='siegtal';
  else{const feature=extensionRoute(key);family=feature&&feature.points.some(p=>p[0]>50.78&&p[1]<7.17)?'ring':feature?.zone.startsWith('A48')?'koblenz':'transit';}
  cache.set(key,family);return family;
@@ -41,8 +42,8 @@ function interpolate(points:Curve,hour:number):number{
  }
  return points.at(-1)![1];
 }
-function preferredMorning(key:string):boolean{return ['A3-frankfurt','A48-dernbach','ramp-a48-to-frankfurt','extra-a59-koeln','extra-a559-gremberg','extra-a560-bonn','extra-a4-olpe'].includes(key);}
-function preferredEvening(key:string):boolean{return ['A3-koeln','A48-koblenz','ramp-a48-to-koeln','extra-a59-bonn','extra-a559-porz','extra-a560-hennef','extra-a4-aachen'].includes(key);}
+function preferredMorning(key:string):boolean{return ['A3-frankfurt','A48-dernbach','ramp-a48-to-frankfurt','extra-a59-koeln','extra-a559-gremberg','extra-a560-bonn','extra-a4-olpe','extra-a562-bonn'].includes(key);}
+function preferredEvening(key:string):boolean{return ['A3-koeln','A48-koblenz','ramp-a48-to-koeln','extra-a59-bonn','extra-a559-porz','extra-a560-hennef','extra-a4-aachen','extra-a562-bonn-ost'].includes(key);}
 export function profileFactor(key:string,moment:Date,family=profileFamily(key)):number{
  if(!Number.isFinite(moment.getTime()))throw Error('Ungültiges Simulationsdatum');
  const day=moment.getDay(),hour=moment.getHours()+moment.getMinutes()/60;

@@ -1,8 +1,9 @@
-import { regionalFlowAt, regionalJunctionDemands } from './regional-traffic.js?build=f9b1a07464ae5574';
-import { networkRoad } from './network-road.js?build=f9b1a07464ae5574';
-import { junctionAccess } from './road-controls.js?build=f9b1a07464ae5574';
-import { localRoadAvailability } from './calendar-traffic.js?build=f9b1a07464ae5574';
-import { diversionJunctions } from './diversions.js?build=f9b1a07464ae5574';
+import { regionalFlowAt, regionalJunctionDemands } from './regional-traffic.js?build=843cafdd159e0564';
+import { networkRoad } from './network-road.js?build=843cafdd159e0564';
+import { junctionAccess } from './road-controls.js?build=843cafdd159e0564';
+import { localRoadAvailability } from './calendar-traffic.js?build=843cafdd159e0564';
+import { applyJunctionRampLimits } from './junction-ramp-bindings.js?build=843cafdd159e0564';
+import { diversionJunctions } from './diversions.js?build=843cafdd159e0564';
 // No surveyed AS signal plans or local off-ramp lengths are bundled. These
 // are explicit defaults: roughly one 300 m queue lane, and ~39% effective
 // green at 1800 veh/h/lane. They are not measured AS-specific capacities.
@@ -39,5 +40,6 @@ export function normalJunctionTraffic(route, exits, demandVph, moment, regional 
             entryCapacityVph: profile.entry, exitCapacityVph: profile.exit,
             exitTerminalVph: Math.min(profile.exit, profile.terminal * localRoadAvailability(moment)), exitStorageVehicles: profile.storage };
     });
-    return regional && moment ? regionalJunctionDemands(route, exits, demandVph, moment, ordinary, events) : ordinary;
+    const demands = regional && moment ? regionalJunctionDemands(route, exits, demandVph, moment, ordinary, events) : ordinary;
+    return applyJunctionRampLimits(route, exits, events, demands);
 }

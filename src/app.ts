@@ -1,4 +1,5 @@
 import {visibleRanges,canonicalPhysicalEvent} from './physical-paths.js';
+import {junctionRampBindings,junctionRampJams,junctionRampFlows} from './junction-ramp-bindings.js';
 import {mainlineMerges,downstreamReceiving} from './network-receiving.js';
 import {profileDescription} from './traffic-profiles.js';
 import {regionalFlowAt,regionalBoundaryFlow,regionalDescription} from './regional-traffic.js';
@@ -48,6 +49,8 @@ const drawnRoads=buildContinuousRoads(allRoads);
 const spatialCorridors=makeCorridors(allRoads,ramps);
 const rampConnections=buildRampConnections(ramps,spatialCorridors);
 const networkConnections=[...rampConnections,...buildExtensionConnections(spatialCorridors)];
+const localRampPaths=new Set(MOTORWAY_PATHS.flatMap(key=>junctionRampBindings(spatialCorridors[key],exits)
+ .flatMap(binding=>binding.segments.map(segment=>segment.ramp.id))));
 const directMerges=mainlineMerges(spatialCorridors);
 let badges:RampBadge[]=[];
 let junctionLabels:JunctionLabel[]=[];
@@ -361,7 +364,8 @@ function simulatedClock():Date{return new Date(simulationStartMs+spatialState.mi
 let mapTrafficSnapshot:{timeline:SimEvent[];list:ReturnType<typeof trafficJams>;
  spillbacks:ReturnType<typeof rampSpillbacks>;view:ReturnType<typeof trafficView>}|undefined;
 function trafficJams(timeline:readonly SimEvent[]=activeEvents()){
- return [...jamsAt(spatialState,timeline,spatialCorridors),
+ return [...jamsAt(spatialState,timeline,spatialCorridors).filter(j=>!localRampPaths.has(j.pathKey as typeof extensionRoutes[number]['id'])),
+  ...junctionRampJams(cellNetwork,spatialCorridors,exits,timeline,[...activeDetours.values()]),
   ...journeyRampJams([...activeDetours.values()],spatialCorridors,timeline,currentDemands())];
 }
 function currentDemands():Record<PathKey,number>{
@@ -484,7 +488,7 @@ function renderJunctionMovements(path:PathKey){
  const host=$('junction-movements');host.replaceChildren();
  if(path.startsWith('ramp-')||extensionRoute(path)?.kind==='ramp'){
   const p=document.createElement('p');p.className='junction-note';
-  p.textContent='Die Überleitungsrampe ist keine eigene Ortsanschlussstelle. Wähle eine Fahrtrichtung der A3, A4, A48, A59, A559 oder A560.';
+  p.textContent='Die Überleitungsrampe ist keine eigene Ortsanschlussstelle. Wähle eine Fahrtrichtung der A3, A4, A48, A59, A559, A560 oder A562.';
   host.append(p);return;
  }
  for(const row of junctionRows(path)){
@@ -728,6 +732,8 @@ function renderTraffic(){
  $('traffic-minute').textContent=`Minute ${spatialState.minute}`;
  updateMapClock();
  const activeDemands=remainingInterchangeDemands(currentDemands(),[...activeDetours.values()],timeline);
+ const localRampFlow=junctionRampFlows(cellNetwork,spatialCorridors,exits).get(key);
+ if(localRampPaths.has(key as typeof extensionRoutes[number]['id']))activeDemands[key]=localRampFlow?.offeredVph??0;
  const extraRampFlow=new Map<PathKey,{enter:number;leave:number}>();
  for(const entry of activeDetours.values()){
   const j=entry.config.journey;if(j?.kind!=='via'&&j?.kind!=='protected'&&j?.kind!=='evacuation')continue;
@@ -742,6 +748,7 @@ function renderTraffic(){
   :'Testmodus: Konstanter Zufluss unabhängig von Datum und Uhrzeit.';
  let shownCapacity=result.capacityVph;
  let normalOut=result.dischargeVph??Math.min(result.capacityVph,activeDemands[key]+result.ownVehicles*60);
+ if(localRampPaths.has(key as typeof extensionRoutes[number]['id']))normalOut=localRampFlow?.dischargedVph??0;
  if(key.startsWith('ramp-')){
   const legacy=routeReport(key,jams.filter(j=>!j.id.startsWith('journey-ramp:')),spillbacks,timeline);
   const link=rampConnections.find(c=>c.rampId===key);
@@ -859,6 +866,7 @@ function stepTraffic(minutes:number){
    const physicalMainline=trafficView(jams,cellNetwork,spatialCorridors,timeline,spillbacks,spatialState.minute+1)
     .physicalJams.filter(j=>!j.pathKey.startsWith('ramp-')&&extensionRoute(j.pathKey)?.kind!=='ramp');
    const legacyActive=remainingInterchangeDemands(active,[...activeDetours.values()],timeline);
+   for(const key of localRampPaths)legacyActive[key]=0;
    for(const feature of extensionRoutes)if(!visibleRanges(feature.id,feature.points).length)legacyActive[feature.id]=0;
    spatialState=advanceSpatial(spatialState,timeline,legacyActive,1,spatialCorridors,networkConnections,transfers,exits,physicalMainline,PATHS);
   }
@@ -1249,7 +1257,7 @@ function bind(){
  window.addEventListener('resize',refresh);
 }
 function start(){if(!mapReady.valid){status.classList.add('error');status.textContent='Geodatenprüfung fehlgeschlagen';hint.textContent=mapReady.errors.join(' · ');return;}
- fillMetrics();makeExitButtons();bind();initializeTraffic();redrawEventList();fit();status.textContent=`✓ ${exits.length} AS/Knoten · ${allRoads.length} OSM-Fahrbahnstücke · ${extensionRoutes.length} Zusatzfahrwege · A3 · A4 · A48 · A59 · A559 · A560`;
+ fillMetrics();makeExitButtons();bind();initializeTraffic();redrawEventList();fit();status.textContent=`✓ ${exits.length} AS/Knoten · ${allRoads.length} OSM-Fahrbahnstücke · ${extensionRoutes.length} Zusatzfahrwege · A3 · A4 · A48 · A59 · A559 · A560 · A562`;
  refresh();
 }
 start();

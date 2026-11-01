@@ -1,6 +1,7 @@
 import {extensionJunctions} from './network-extensions.js';
 import {networkRoad} from './network-road.js';
 import {networkData} from './geodata.js';
+import {junctionRampAccess} from './junction-ramp-bindings.js';
 /** Physical lane restrictions and directional AS access on actual road
  * intervals. Administrative closures keep their separate exit-gate rule. */
 import {exitPosition,type Exit,type RoadId} from './core.js';
@@ -41,7 +42,8 @@ export function physicalEvents(route:Corridor,events:readonly SimEvent[],section
 const junctionDefinitions=new Map([...networkData.exits,...extensionJunctions].map(e=>[e.road+':'+e.ref,e]));
 export function junctionAccess(route:Corridor,events:readonly SimEvent[],metre:number,ref:string):{entry:boolean;exit:boolean}{
  const base=junctionDefinitions.get(networkRoad(route.key)+':'+ref)?.access?.[route.key as RoadId];
- let entry=base?.entry??true,exit=base?.exit??true;
+ const rampAccess=junctionRampAccess(route,[...junctionDefinitions.values()],ref,events);
+ let entry=(base?.entry??true)&&rampAccess.entry,exit=(base?.exit??true)&&rampAccess.exit;
  for(const e of events){
   if(e.pathKey!==route.key||e.kind!=='roadworks')continue;
   const mode=e.settings.junctionClosures?.[ref];if(!mode)continue;

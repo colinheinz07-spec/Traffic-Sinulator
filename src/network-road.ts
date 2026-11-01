@@ -1,2 +1,2 @@
 import type {Exit} from './core.js';
-export function networkRoad(key:string):Exit['road']|null {return key.startsWith('A3-')?'A3':key.startsWith('A48-')?'A48':key.startsWith('extra-a4-')?'A4':key.startsWith('extra-a559-')?'A559':key.startsWith('extra-a59-')?'A59':key.startsWith('extra-a560-')?'A560':null;}
+export function networkRoad(key:string):Exit['road']|null {return key.startsWith('A3-')?'A3':key.startsWith('A48-')?'A48':key.startsWith('extra-a4-')?'A4':key.startsWith('extra-a559-')?'A559':key.startsWith('extra-a59-')?'A59':key.startsWith('extra-a560-')?'A560':key.startsWith('extra-a562-')?'A562':null;}

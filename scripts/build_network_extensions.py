@@ -5,13 +5,13 @@ from extend_heumar_camberg import pt,dist,walk
 ROOT=Path(__file__).resolve().parents[1]
 x=json.loads((ROOT/'data/a3-heumar-camberg-osm.json').read_text())
 extra=json.loads((ROOT/'data/a59-a560-osm.json').read_text())
-elements=list({(e['type'],e['id']):e for e in x['elements']+json.loads((ROOT/'data/a3-wiesbaden-osm.json').read_text())['elements']+extra['elements']+json.loads((ROOT/'data/cologne-triangle-osm.json').read_text())['elements']}.values())
+elements=list({(e['type'],e['id']):e for e in x['elements']+json.loads((ROOT/'data/a3-wiesbaden-osm.json').read_text())['elements']+extra['elements']+json.loads((ROOT/'data/cologne-triangle-osm.json').read_text())['elements']+json.loads((ROOT/'data/bonn-a59-a562-osm.json').read_text())['elements']}.values())
 ways=[w for w in elements if w['type']=='way' and w.get('geometry')]
 from extend_heumar_camberg import read_data
 core=read_data()
 corepoints={tuple(p) for r in core['roads'] if r['road'].startswith('A3') for p in r['points']}
 def road_of(key):
- return next((road for prefix,road in [('A3-','A3'),('A48-','A48'),('extra-a59-','A59'),('extra-a560-','A560'),('extra-a4-','A4'),('extra-a559-','A559')] if key.startswith(prefix)),None)
+ return next((road for prefix,road in [('A3-','A3'),('A48-','A48'),('extra-a59-','A59'),('extra-a560-','A560'),('extra-a562-','A562'),('extra-a4-','A4'),('extra-a559-','A559')] if key.startswith(prefix)),None)
 features=[]
 def add(key,name,zone,kind,parts):
  points=[];lanes=[];ids=[];segments=[];metre=0
@@ -21,7 +21,7 @@ def add(key,name,zone,kind,parts):
   count=int(w.get('tags',{}).get('lanes','1'))
   turns=w.get('tags',{}).get('turn:lanes','').split('|');through=sum(not ('merge_to_' in t or t in ['left','right','slight_left','slight_right']) for t in turns)
   if len(turns)>1 and through>=2:count=min(count,through)
-  count=min(count,2 if key.startswith(('extra-a560-','extra-a559-')) else 3) if kind=='motorway' else count
+  count=min(count,2 if key.startswith(('extra-a560-','extra-a559-','extra-a562-')) else 3) if kind=='motorway' else count
   length=sum(dist(a,b) for a,b in zip(ps,ps[1:]));segments.append(dict(fromM=metre,toM=metre+length,lanes=count));metre+=length
   lanes.append(count);ids.extend(w.get('wayIds',[w['id']]))
  if len(points)<2:return
@@ -51,16 +51,21 @@ for east,key,label in [(True,'extra-a560-hennef','A560 → Hennef'),(False,'extr
 # A59 route, never connected with invented straight lines.
 a59=[w for w in ways if w.get('tags',{}).get('highway')=='motorway_link' or w.get('tags',{}).get('ref','').replace(' ','')=='A59' or w.get('tags',{}).get('highway')=='motorway' and 'A 4' in w['tags'].get('ref','').split(';') and min(p['lat'] for p in w['geometry'])>50.922]
 g59=collections.defaultdict(list)
+main59=collections.defaultdict(list);incoming59=collections.Counter()
 for w in a59:
  ps=[pt(p) for p in w['geometry']]
  if w['tags'].get('oneway')=='-1':ps.reverse()
- for a,b in zip(ps,ps[1:]):g59[a].append((b,w))
-for north,key,label in [(True,'extra-a59-koeln','A59 → Köln / Heumar'),(False,'extra-a59-bonn','A59 → Bonn / Sankt Augustin')]:
- starts=[p for p in g59 if (p[0]<50.785 if north else p in corepoints and p[0]>50.91)]
+ for a,b in zip(ps,ps[1:]):
+  g59[a].append((b,w))
+  if w.get('tags',{}).get('highway')=='motorway' and w['tags'].get('ref','').replace(' ','')=='A59':main59[a].append(b);incoming59[b]+=1
+northStarts={p for p in main59 if p[0]<50.735 and not incoming59[p]}
+southEnds={p for p in incoming59 if p[0]<50.735 and not main59[p]}
+for north,key,label in [(True,'extra-a59-koeln','A59 → Köln / Heumar'),(False,'extra-a59-bonn','A59 → Bonn / Bonn-Ost')]:
+ starts=[p for p in g59 if (p in northStarts if north else p in corepoints and p[0]>50.91)]
  candidates=[]
  for start in starts:
   try:
-   edges=walk(g59,start,lambda p:p in corepoints and p[0]>50.91 if north else p[0]<50.785)
+   edges=walk(g59,start,lambda p:p in corepoints and p[0]>50.91 if north else p in southEnds)
    if edges:candidates.append(edges)
   except ValueError:pass
  if not candidates:raise ValueError('A59 missing continuous directed carriageway '+key)
@@ -71,7 +76,29 @@ for north,key,label in [(True,'extra-a59-koeln','A59 → Köln / Heumar'),(False
  for a,b,w in edges:
   if parts and parts[-1][0]['id']==w['id']:parts[-1][1].append(b)
   else:parts.append((w,[a,b]))
- add(key,label,'A59 Sankt Augustin–Heumar','motorway',parts)
+ add(key,label,'A59 Bonn-Ost–Heumar','motorway',parts)
+# The complete A562 is a pair of directed motorway walks, including the
+# original Rhine bridge geometry. Ramp turns are separate selectable paths.
+a562=[w for w in ways if w.get('tags',{}).get('highway')=='motorway' and 'A562' in w['tags'].get('ref','').replace(' ','').split(';')]
+g562=collections.defaultdict(list);incoming562=collections.Counter()
+for w in a562:
+ ps=list(map(pt,w['geometry']))
+ if w['tags'].get('oneway')=='-1':ps.reverse()
+ for a,b in zip(ps,ps[1:]):g562[a].append((b,w));incoming562[b]+=1
+ends562={p for p in incoming562 if not g562[p]};candidates562=[]
+for start in list(g562):
+ if incoming562[start]:continue
+ try:edges=walk(g562,start,lambda p:p in ends562)
+ except ValueError:continue
+ if edges:candidates562.append(edges)
+for east,key,label in [(True,'extra-a562-bonn-ost','A562 → Bonn-Ost / Königswinter'),(False,'extra-a562-bonn','A562 → Bonn / Bad Godesberg')]:
+ options=[es for es in candidates562 if (es[-1][1][1]>es[0][0][1])==east]
+ if not options:raise ValueError('Missing complete A562 direction '+key)
+ edges=max(options,key=lambda es:sum(dist(a,b) for a,b,w in es));parts=[]
+ for a,b,w in edges:
+  if parts and parts[-1][0]['id']==w['id']:parts[-1][1].append(b)
+  else:parts.append((w,[a,b]))
+ add(key,label,'A562 Bonn / Rheinbrücke / Bonn-Ost','motorway',parts)
 # Complete the west and south sides of the Cologne triangle. Shared
 # A3/A4 and A4/A59 road sections keep their existing directional owner.
 owned=corepoints|{tuple(p) for f in features if f['kind']=='motorway' for p in f['points']}
@@ -115,7 +142,7 @@ for w in ways:
  if w.get('tags',{}).get('highway')!='motorway_link' or w['tags'].get('access') in ['no','private'] or w['tags'].get('motor_vehicle') in ['no','private']:continue
  if any(w['id'] in f['wayIds'] for f in features if f['kind']=='motorway'):continue
  ps=list(map(pt,w['geometry']))
- if not any(50.775<=p[0]<=50.963 and 6.98<=p[1]<=7.315 for p in ps):continue
+ if not any(50.695<=p[0]<=50.963 and 6.98<=p[1]<=7.315 for p in ps):continue
  if w['tags'].get('oneway')=='-1':ps.reverse()
  for a,b in zip(ps,ps[1:]):lg[a].append((b,w))
 for source,vertices in trunks.items():
@@ -139,7 +166,7 @@ for w in ways:
  # to the previous A59/A560 region. Exact connectivity filters below
  # exclude ramps belonging only to other motorways.
  if any(w['id'] in ramp['wayIds'] for ramp in core['ramps']):continue
- if not any(50.775<=p['lat']<=50.963 and 6.98<=p['lon']<=7.315 for p in w['geometry']) and not any(dist(pt(p),j['position'])<2200 for p in w['geometry'] for j in core['exits']):continue
+ if not any(50.695<=p['lat']<=50.963 and 6.98<=p['lon']<=7.315 for p in w['geometry']) and not any(dist(pt(p),j['position'])<2200 for p in w['geometry'] for j in core['exits']):continue
  if any(w['id'] in f['wayIds'] for f in features if f['kind']=='ramp'):continue
  if w['id'] in {i for r in json.loads((ROOT/'data/siegburg-connections.json').read_text())['connections'] for i in r['wayIds']}:continue
  if any(w['id'] in f['wayIds'] for f in features if f['kind']=='motorway'):continue
@@ -193,13 +220,27 @@ for f in features:
   if n['type']!='node' or t.get('highway')!='motorway_junction' or not t.get('ref') or pt(n) not in vertices:continue
   ref=t['ref'];name=t.get('name',road+' '+ref)
   if road=='A559' and ref not in ['1','2','3']:continue
-  if road=='A59' and ref not in ['32','33','34','35','36','37','38','39']:continue
+  if road=='A59' and ref not in ['32','33','34','35','36','37','38','39','40','41','42','43']:continue
   if name.startswith('Dreieck '):name='AD '+name[8:]
   if name.startswith('Kreuz '):name='AK '+name[6:]
   j=next((j for j in junctions if j['road']==road and j['ref']==ref),None)
   if not j:j=dict(road=road,ref=ref,name=name,position=pt(n),source='osm-junction',directional={});junctions.append(j)
   old=j['directional'].get(f['id']);order={tuple(p):i for i,p in enumerate(f['points'])}
   if not old or order[pt(n)]<order[tuple(old['position'])]:j['directional'][f['id']]=dict(position=pt(n),nodeId=n['id'])
+# Bonn-Ost's northbound OSM diverge is tagged motorway_junction without
+# a ref/name. Reuse that exact node for the already identified A59 AK 43.
+bonnOst=next(j for j in junctions if j['road']=='A59' and j['ref']=='43')
+north59=next(f for f in features if f['id']=='extra-a59-koeln')
+vertices59=set(map(tuple,north59['points']))
+unnumbered=[n for n in elements if n['type']=='node' and n.get('tags',{}).get('highway')=='motorway_junction' and not n['tags'].get('ref') and pt(n) in vertices59 and dist(pt(n),bonnOst['position'])<1800]
+if unnumbered:
+ node=min(unnumbered,key=lambda n:dist(pt(n),bonnOst['position']))
+ bonnOst['directional']['extra-a59-koeln']=dict(position=pt(node),nodeId=node['id'])
+northTurn=next((f for f in features if f['id'].startswith('extra-turn-extra-a59-koeln-to-extra-a562-bonn-')),None)
+if northTurn:
+ point=northTurn['points'][0]
+ way=next(w for w in ways if w['id']==northTurn['wayIds'][0])
+ bonnOst['directional']['extra-a59-koeln']=dict(position=point,nodeId=way['nodes'][0])
 # Fill entry-only directions from an exact retained on-ramp merge, never
 # from the opposing carriageway's exit node.
 for j in junctions:
@@ -235,9 +276,12 @@ for f in features:
   names={'A3-koeln':'A3 → Köln','A3-frankfurt':'A3 → Frankfurt','A48-koblenz':'A48 → Koblenz','A48-dernbach':'A48 → Dernbach'}
   names.update({r['id']:r['name'] for r in features if r['kind']=='motorway'})
   f['name']=label+(' · Abfahrt von '+names[origin] if origin else ' · Auffahrt auf '+names[target] if target else ' · Rampenzweig')
+streetKinds={'trunk','trunk_link','primary','primary_link','secondary','secondary_link','tertiary','tertiary_link','residential','unclassified','living_street','service'}
+streetpoints={pt(p) for w in ways if w.get('tags',{}).get('highway') in streetKinds and w['tags'].get('access') not in ['private','no'] and w['tags'].get('motor_vehicle') not in ['private','no'] for p in w['geometry']}
+rampBoundaryPoints=sorted({tuple(p) for f in features if f['kind']=='ramp' for p in f['points']} & streetpoints)
 ids=[f['id'] for f in features]
 assert len(ids)==len(set(ids)), 'Duplicate directed path IDs'
-text="import type {Point,Exit} from './core.js';\nexport const EXTENSION_IDS="+json.dumps(ids)+" as const;\nexport type ExtensionId=typeof EXTENSION_IDS[number];\nexport interface ExtensionRoute {id:ExtensionId;name:string;zone:string;kind:'motorway'|'ramp';lanes:number;laneSegments:{fromM:number;toM:number;lanes:number}[];points:Point[];wayIds:number[];demandVph:number;freeKmh:number}\nexport const extensionRoutes:ExtensionRoute[]="+json.dumps(features,separators=(',',':'))+";\nexport const extensionJunctions:Exit[]="+json.dumps(junctions,separators=(',',':'))+";\nconst byId=new Map<string,ExtensionRoute>(extensionRoutes.map(r=>[r.id,r]));\nexport const extensionRoute=(id:string)=>byId.get(id);\n"
+text="import type {Point,Exit} from './core.js';\nexport const EXTENSION_IDS="+json.dumps(ids)+" as const;\nexport type ExtensionId=typeof EXTENSION_IDS[number];\nexport interface ExtensionRoute {id:ExtensionId;name:string;zone:string;kind:'motorway'|'ramp';lanes:number;laneSegments:{fromM:number;toM:number;lanes:number}[];points:Point[];wayIds:number[];demandVph:number;freeKmh:number}\nexport const extensionRoutes:ExtensionRoute[]="+json.dumps(features,separators=(',',':'))+";\nexport const extensionJunctions:Exit[]="+json.dumps(junctions,separators=(',',':'))+";\nexport const extensionRampBoundaryPoints:Point[]="+json.dumps(rampBoundaryPoints,separators=(',',':'))+";\nconst byId=new Map<string,ExtensionRoute>(extensionRoutes.map(r=>[r.id,r]));\nexport const extensionRoute=(id:string)=>byId.get(id);\n"
 (ROOT/'src/network-extensions.ts').write_text(text)
 print('Generated',len(features),'directed extension paths;',sum(len(f['points']) for f in features),'original vertices')
 

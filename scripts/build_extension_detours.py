@@ -5,7 +5,7 @@ import json,collections,heapq,math
 from extend_heumar_camberg import ROOT,read_data,pt,dist
 bundle=json.loads((ROOT/'data/extension-junctions.json').read_text());core=read_data()
 features=bundle['routes'];junctions=core['exits']+bundle['junctions']
-sources=[json.loads((ROOT/p).read_text())['elements'] for p in ['data/a3-heumar-camberg-osm.json','data/a59-a560-osm.json','data/cologne-triangle-osm.json']]
+sources=[json.loads((ROOT/p).read_text())['elements'] for p in ['data/a3-heumar-camberg-osm.json','data/a59-a560-osm.json','data/cologne-triangle-osm.json','data/bonn-a59-a562-osm.json']]
 ways=list({e['id']:e for source in sources for e in source if e['type']=='way' and e.get('geometry') and any(50.65<p['lat']<50.97 and 6.98<p['lon']<7.4 for p in e['geometry'])}.values())
 # Build core directional chains by exact endpoint topology.
 trunks={f['id']:list(map(tuple,f['points'])) for f in features if f['kind']=='motorway'}
@@ -52,7 +52,7 @@ for key in trunks:
   graphs[key,mode]=g
 anchors={}
 for key,ps in trunks.items():
- road=next(road for prefix,road in [('A3-','A3'),('extra-a4-','A4'),('extra-a559-','A559'),('extra-a59-','A59'),('extra-a560-','A560')] if key.startswith(prefix));anchors[key]=[]
+ road=next(road for prefix,road in [('A3-','A3'),('extra-a4-','A4'),('extra-a559-','A559'),('extra-a59-','A59'),('extra-a560-','A560'),('extra-a562-','A562')] if key.startswith(prefix));anchors[key]=[]
  for j in junctions:
   if j['road']!=road or key not in j.get('directional',{}):continue
   p=tuple(j['directional'][key]['position'])

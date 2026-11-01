@@ -3,6 +3,7 @@ import type {SimEvent} from './events.js';
 import {networkRoad} from './network-road.js';
 import {junctionAccess} from './road-controls.js';
 import {localRoadAvailability} from './calendar-traffic.js';
+import {applyJunctionRampLimits} from './junction-ramp-bindings.js';
 /** Ordinary local trips, independent of incidents and simulator detours.
  * The rates are explicit scenario assumptions, scaled with the selected
  * direction's demand profile; they are not traffic counts. AK/AD turn flows
@@ -66,5 +67,6 @@ export function normalJunctionTraffic(route:Corridor,exits:readonly Exit[],deman
    entryCapacityVph:profile.entry,exitCapacityVph:profile.exit,
    exitTerminalVph:Math.min(profile.exit,profile.terminal*localRoadAvailability(moment)),exitStorageVehicles:profile.storage};
  });
- return regional&&moment?regionalJunctionDemands(route,exits,demandVph,moment,ordinary,events):ordinary;
+ const demands=regional&&moment?regionalJunctionDemands(route,exits,demandVph,moment,ordinary,events):ordinary;
+ return applyJunctionRampLimits(route,exits,events,demands);
 }

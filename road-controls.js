@@ -1,11 +1,12 @@
-import { extensionJunctions } from './network-extensions.js?build=f9b1a07464ae5574';
-import { networkRoad } from './network-road.js?build=f9b1a07464ae5574';
-import { networkData } from './geodata.js?build=f9b1a07464ae5574';
+import { extensionJunctions } from './network-extensions.js?build=843cafdd159e0564';
+import { networkRoad } from './network-road.js?build=843cafdd159e0564';
+import { networkData } from './geodata.js?build=843cafdd159e0564';
+import { junctionRampAccess } from './junction-ramp-bindings.js?build=843cafdd159e0564';
 /** Physical lane restrictions and directional AS access on actual road
  * intervals. Administrative closures keep their separate exit-gate rule. */
-import { exitPosition } from './core.js?build=f9b1a07464ae5574';
-import { suggestedSpeed } from './events.js?build=f9b1a07464ae5574';
-import { positionM } from './spatial.js?build=f9b1a07464ae5574';
+import { exitPosition } from './core.js?build=843cafdd159e0564';
+import { suggestedSpeed } from './events.js?build=843cafdd159e0564';
+import { positionM } from './spatial.js?build=843cafdd159e0564';
 export function roadSections(route, events) {
     const located = events.filter(e => e.pathKey === route.key && e.kind !== 'closure').flatMap(event => {
         const fromM = positionM(route, event.point);
@@ -43,7 +44,8 @@ export function physicalEvents(route, events, sections = roadSections(route, eve
 const junctionDefinitions = new Map([...networkData.exits, ...extensionJunctions].map(e => [e.road + ':' + e.ref, e]));
 export function junctionAccess(route, events, metre, ref) {
     const base = junctionDefinitions.get(networkRoad(route.key) + ':' + ref)?.access?.[route.key];
-    let entry = base?.entry ?? true, exit = base?.exit ?? true;
+    const rampAccess = junctionRampAccess(route, [...junctionDefinitions.values()], ref, events);
+    let entry = (base?.entry ?? true) && rampAccess.entry, exit = (base?.exit ?? true) && rampAccess.exit;
     for (const e of events) {
         if (e.pathKey !== route.key || e.kind !== 'roadworks')
             continue;

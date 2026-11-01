@@ -1,9 +1,9 @@
-import { DIRECTIONS } from './core.js?build=f9b1a07464ae5574';
-import { extensionRoutes } from './network-extensions.js?build=f9b1a07464ae5574';
-import { networkRoad } from './network-road.js?build=f9b1a07464ae5574';
-import { NETWORK_PATHS, PATHS } from './traffic.js?build=f9b1a07464ae5574';
+import { DIRECTIONS } from './core.js?build=843cafdd159e0564';
+import { extensionRoutes } from './network-extensions.js?build=843cafdd159e0564';
+import { networkRoad } from './network-road.js?build=843cafdd159e0564';
+import { NETWORK_PATHS, PATHS } from './traffic.js?build=843cafdd159e0564';
 export const MOTORWAY_PATHS = [...DIRECTIONS, ...extensionRoutes.filter(r => r.kind === 'motorway').map(r => r.id)];
-export const MOTORWAY_GROUPS = ['A3', 'A4', 'A48', 'A59', 'A559', 'A560'].map(road => ({ road, paths: MOTORWAY_PATHS.filter(key => networkRoad(key) === road) }));
+export const MOTORWAY_GROUPS = ['A3', 'A4', 'A48', 'A59', 'A559', 'A560', 'A562'].map(road => ({ road, paths: MOTORWAY_PATHS.filter(key => networkRoad(key) === road) }));
 export function junctionDirectory(exits) {
     return MOTORWAY_GROUPS.map(group => ({ ...group, junctions: exits.filter(e => e.road === group.road)
             .sort((a, b) => a.ref.localeCompare(b.ref, 'de', { numeric: true })) }));

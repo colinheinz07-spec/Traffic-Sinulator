@@ -359,7 +359,7 @@ export function advanceCells(previous:CellRouteState,route:Corridor,events:reado
  const junctions=junctionDemand.map(d=>{
   if(!Number.isFinite(d.entryVph)||d.entryVph<0||!Number.isFinite(d.exitPercent)||d.exitPercent<0||d.exitPercent>100||
    !Number.isFinite(d.metre)||d.metre<0||d.metre>=route.lengthM||
-   !Number.isFinite(d.entryCapacityVph)||!Number.isFinite(d.exitCapacityVph)||d.entryCapacityVph<=0||d.exitCapacityVph<=0||
+   !Number.isFinite(d.entryCapacityVph)||!Number.isFinite(d.exitCapacityVph)||d.entryCapacityVph<0||d.exitCapacityVph<=0||
    !Number.isFinite(d.exitTerminalVph??DEFAULT_EXIT_TERMINAL_VPH)||(d.exitTerminalVph??DEFAULT_EXIT_TERMINAL_VPH)<0||
    !Number.isFinite(d.exitStorageVehicles??DEFAULT_EXIT_STORAGE_VEHICLES)||(d.exitStorageVehicles??DEFAULT_EXIT_STORAGE_VEHICLES)<=0)
    throw Error('Ungültiger Anschlussstellenzufluss');

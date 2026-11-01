@@ -1,4 +1,12 @@
-# A3/A4/A48/A59/A559/A560 Stausimulator – TRAFFIC 1.18.1
+# A3/A4/A48/A59/A559/A560/A562 Stausimulator – TRAFFIC 1.19.0
+
+## Bonn-Erweiterung und belegungsabhängige Rampen (1.19.0)
+
+Die A59 reicht jetzt in beiden Richtungen bis zum Kreuz Bonn-Ost. Hinzu kommt die vollständige A562 über den Rhein mit Bonn-Bad Godesberg, Bonn-Rheinaue, Bonn-Ramersdorf und Bonn-Ost. Anschlussstellen, echte gerichtete Überleitungen und Nebenstraßenumfahrungen verwenden die enthaltenen OSM-Geometrien. A562 und A59 haben eigene Richtungs-, Tages- und Wochenendprofile; die Stundenwerte bleiben ausdrücklich Modellannahmen.
+
+Ortsauffahrten und -abfahrten zeigen die tatsächlich im Anschlussstellenmodell wartenden Fahrzeuge. Dieselbe Fahrzeugbilanz speist die Rampenfarbe und den angezeigten Durchfluss. Ein entfernter Unfall erzeugt keinen unabhängigen Rampenrückstau. Abfahrende Umleitungsfahrzeuge teilen den kurzen Rampenspeicher mit dem normalen Ortsverkehr. Rampenunfälle begrenzen den jeweiligen Anschluss; formale Sperren verhindern neue Zuflüsse, vorhandene Fahrzeuge bleiben erhalten. Autobahnüberleitungen behalten ihre vorhandene, an der tatsächlichen Einmündung wirkende Rückstaulogik.
+
+Die neue Quelle liegt in `data/bonn-a59-a562-osm.json`. Aktualisierung: `python3 scripts/fetch_bonn_osm.py`, anschließend `python3 scripts/build_network_extensions.py`, `python3 scripts/build_extension_detours.py` und `npm test`. Die Graphen verwenden originale gemeinsame OSM-Punkte; es werden keine geraden Ersatzverbindungen erzeugt. Die Grenzen zum nicht modellierten A565-/B42-Netz bleiben äußere Netzgrenzen.
 
 
 ## Rampensperren und kompaktere Staus (1.18.1)

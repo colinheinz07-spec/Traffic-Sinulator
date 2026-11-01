@@ -1,11 +1,11 @@
-import { extensionRoute } from './network-extensions.js?build=f9b1a07464ae5574';
-import { baseLaneCapacity } from './traffic-physics.js?build=f9b1a07464ae5574';
-import { positionM, closureGate } from './spatial.js?build=f9b1a07464ae5574';
-import { baselineCapacity, eventCapacity } from './traffic.js?build=f9b1a07464ae5574';
-import { flowPolicy, DEFAULT_CLEARANCE_MIN } from './events.js?build=f9b1a07464ae5574';
-import { colorAtSpeed, freeSpeedKmh, QUEUE_JAM_DENSITY_PER_LANE, CONGESTION_WAVE_KMH } from './traffic-physics.js?build=f9b1a07464ae5574';
-import { normalJunctionTraffic, exitRampVehicles, DEFAULT_EXIT_TERMINAL_VPH, DEFAULT_EXIT_STORAGE_VEHICLES } from './junction-traffic.js?build=f9b1a07464ae5574';
-import { roadSections, physicalEvents, junctionAccess } from './road-controls.js?build=f9b1a07464ae5574';
+import { extensionRoute } from './network-extensions.js?build=843cafdd159e0564';
+import { baseLaneCapacity } from './traffic-physics.js?build=843cafdd159e0564';
+import { positionM, closureGate } from './spatial.js?build=843cafdd159e0564';
+import { baselineCapacity, eventCapacity } from './traffic.js?build=843cafdd159e0564';
+import { flowPolicy, DEFAULT_CLEARANCE_MIN } from './events.js?build=843cafdd159e0564';
+import { colorAtSpeed, freeSpeedKmh, QUEUE_JAM_DENSITY_PER_LANE, CONGESTION_WAVE_KMH } from './traffic-physics.js?build=843cafdd159e0564';
+import { normalJunctionTraffic, exitRampVehicles, DEFAULT_EXIT_TERMINAL_VPH, DEFAULT_EXIT_STORAGE_VEHICLES } from './junction-traffic.js?build=843cafdd159e0564';
+import { roadSections, physicalEvents, junctionAccess } from './road-controls.js?build=843cafdd159e0564';
 const TARGET_CELL_M = 100, WAVE_KMH = CONGESTION_WAVE_KMH, JAM_PER_LANE = QUEUE_JAM_DENSITY_PER_LANE;
 // One observation per MODEL minute; repainting/pause never advances this.
 const TRAVEL_ALPHA = 1 - Math.exp(-1 / 6);
@@ -335,7 +335,7 @@ export function advanceCells(previous, route, events, demandVph, exits = [], por
     const junctions = junctionDemand.map(d => {
         if (!Number.isFinite(d.entryVph) || d.entryVph < 0 || !Number.isFinite(d.exitPercent) || d.exitPercent < 0 || d.exitPercent > 100 ||
             !Number.isFinite(d.metre) || d.metre < 0 || d.metre >= route.lengthM ||
-            !Number.isFinite(d.entryCapacityVph) || !Number.isFinite(d.exitCapacityVph) || d.entryCapacityVph <= 0 || d.exitCapacityVph <= 0 ||
+            !Number.isFinite(d.entryCapacityVph) || !Number.isFinite(d.exitCapacityVph) || d.entryCapacityVph < 0 || d.exitCapacityVph <= 0 ||
             !Number.isFinite(d.exitTerminalVph ?? DEFAULT_EXIT_TERMINAL_VPH) || (d.exitTerminalVph ?? DEFAULT_EXIT_TERMINAL_VPH) < 0 ||
             !Number.isFinite(d.exitStorageVehicles ?? DEFAULT_EXIT_STORAGE_VEHICLES) || (d.exitStorageVehicles ?? DEFAULT_EXIT_STORAGE_VEHICLES) <= 0)
             throw Error('Ungültiger Anschlussstellenzufluss');
