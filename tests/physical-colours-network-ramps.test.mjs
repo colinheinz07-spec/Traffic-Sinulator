@@ -27,6 +27,15 @@ test('a real occupied stopped road cell has a continuous dark-red physical statu
  assert.ok(mapped.bands.get(path).some(b=>b.color==='standstill'&&b.fromM<=cell.fromM&&b.toM>=cell.toM));
 });
 
+test('one genuinely stopped vehicle gets a dark status without fabricating a long queue',()=>{
+ const path='A3-koeln',state=initialiseCells(routes[path],0),cell=state.cells[40];
+ cell.vehicles=1;cell.densityVehKm=1/((cell.toM-cell.fromM)/1000);cell.speedKmh=0;
+ const map=trafficView([],{[path]:state},routes,[],[],1);
+ const band=map.bands.get(path).find(b=>b.color==='standstill'&&b.fromM<=cell.fromM&&b.toM>=cell.toM);
+ assert.ok(band);
+ assert.ok(map.reports[path].queueKm<.11);
+});
+
 test('verified A59/A562 junction transfers downstream physical congestion into the actual connector ramp',()=>{
  const links=buildExtensionConnections(routes);
  const link=links.find(l=>l.from==='extra-a59-bonn'&&l.to==='extra-a562-bonn');
