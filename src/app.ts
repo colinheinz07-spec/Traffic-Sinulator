@@ -49,7 +49,7 @@ const drawnRoads=buildContinuousRoads(allRoads);
 const spatialCorridors=makeCorridors(allRoads,ramps);
 const rampConnections=buildRampConnections(ramps,spatialCorridors);
 const networkConnections=[...rampConnections,...buildExtensionConnections(spatialCorridors)];
-const localRampPaths=new Set(MOTORWAY_PATHS.flatMap(key=>junctionRampBindings(spatialCorridors[key],exits)
+const localRampPaths=new Set<PathKey>(MOTORWAY_PATHS.flatMap(key=>junctionRampBindings(spatialCorridors[key],exits)
  .flatMap(binding=>binding.segments.map(segment=>segment.ramp.id))));
 const directMerges=mainlineMerges(spatialCorridors);
 // Verify both endpoints before treating a ramp as a motorway connector.
