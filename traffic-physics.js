@@ -1,4 +1,4 @@
-import { extensionRoute } from './network-extensions.js?build=617dcf4768f6b17d';
+import { extensionRoute } from './network-extensions.js?build=3ec7c01d02d3d638';
 /** Unrestricted base service before event-specific reductions. These are
  * simulator assumptions, not measured capacities for every A3/A48 section.
  * Motorway lanes and single-lane interchange connectors remain distinct. */

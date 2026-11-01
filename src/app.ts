@@ -1,3 +1,4 @@
+import {MOTORWAY_PATHS,MOTORWAY_GROUPS,junctionDirectory,junctionRoute,trafficOverviewPaths} from './network-presentation.js';
 import type {DetourGeometry} from './detour-routing.js';
 import {planExtensionDetours,refreshExtensionDetour,extensionDetours} from './extension-detours.js';
 import {networkRoad} from './network-road.js';
@@ -478,10 +479,10 @@ function renderJunctionMovements(path:PathKey){
  const host=$('junction-movements');host.replaceChildren();
  if(path.startsWith('ramp-')||extensionRoute(path)?.kind==='ramp'){
   const p=document.createElement('p');p.className='junction-note';
-  p.textContent='Die Überleitungsrampe ist keine eigene Ortsanschlussstelle. Wähle A3 Köln/Frankfurt oder A48 Dernbach/Koblenz.';
+  p.textContent='Die Überleitungsrampe ist keine eigene Ortsanschlussstelle. Wähle eine Fahrtrichtung der A3, A48, A59 oder A560.';
   host.append(p);return;
  }
- for(const row of junctionRows(path as typeof DIRECTIONS[number])){
+ for(const row of junctionRows(path)){
   const card=document.createElement('div');
   card.className='junction-movement'+(row.mandatory?' critical':'');
   const header=document.createElement('div');header.className='junction-head';
@@ -757,15 +758,15 @@ function renderTraffic(){
  const mergeQueues=jams.filter(j=>j.id.startsWith('merge:')&&!j.released);
  const overflowText=spillbacks.map(s=>`${trafficRouteLabel(s.rampId)}: ${trafficNumber(s.lengthM/1000,2)} km Rückstau auf ${trafficRouteLabel(s.source)}`).join(' · ');
  const mergeText=mergeQueues.map(x=>`${trafficRouteLabel(x.pathKey)}: ${trafficNumber(x.queueVehicles)} Fahrzeuge warten wegen Rückstau an der Einmündung`).join(' · ');
- $('traffic-interchange').textContent=[overflowText,mergeText].filter(Boolean).join(' · ')||'AD Dernbach: Kein Rückstau reicht derzeit von einer Rampe auf A3/A48 oder von einer Zielautobahn in eine Rampe zurück.';
+ $('traffic-interchange').textContent=[overflowText,mergeText].filter(Boolean).join(' · ')||'Im gesamten Netz reicht derzeit kein Rampenrückstau auf eine Hauptfahrbahn und kein Rückstau einer Zielautobahn in eine Rampe zurück.';
  const parent=$('traffic-summary');parent.replaceChildren();
- const summaryPaths=PATHS.filter(item=>!extensionRoute(item)||item===key||timeline.some(e=>e.pathKey===item)||view.reports[item].queueVehicles>.01);
+ const summaryPaths=trafficOverviewPaths(key,new Set(timeline.map(e=>e.pathKey)),new Set(PATHS.filter(item=>view.reports[item].queueVehicles>.01)));
  for(const item of summaryPaths){const m=view.reports[item];
   const button=document.createElement('button');button.type='button';button.className='traffic-summary-row';
   const label=document.createElement('span');label.textContent=trafficRouteLabel(item);
   const status=document.createElement('strong');status.className=`traffic-state ${m.color}`;
   status.textContent=`${trafficNumber(m.queueKm,1)} km · ${speedDelayLabel(view.delays[item])} · Ø ${trafficNumber(m.meanSpeedKmh??m.speedKmh)} km/h${m.sharedRampVehicles>0?' · Abfahrt '+trafficColorName[m.exitColor].toLowerCase():''}`;
-  button.append(label,status);button.setAttribute('aria-label',`${label.textContent}, ${status.textContent}`);
+  button.dataset.pathKey=item;button.append(label,status);button.setAttribute('aria-label',`${label.textContent}, ${status.textContent}`);
   button.onclick=()=>selectTrafficRoute(item);parent.append(button);
  }
   const container=$('traffic-jams');container.replaceChildren();
@@ -802,7 +803,7 @@ function renderTraffic(){
     row.append(extra);
    }
    row.setAttribute('aria-label',`${symbol} ${kind}, ${trafficRouteLabel(jam.pathKey)}, ${delay.textContent}, ${length.textContent}, ${speed.textContent}`);
-   row.onclick=()=>{focus=overflow?ramps.find(r=>r.id===overflow.rampId)!.points[0]!:jam.point;zoom=Math.max(zoom,14);refresh();};
+   row.onclick=()=>{focus=overflow?spatialCorridors[overflow.rampId].points[0]!:jam.point;zoom=Math.max(zoom,14);refresh();};
    container.append(row);
   }
 
@@ -857,7 +858,11 @@ function stepTraffic(minutes:number){
 }
 function initializeTraffic(){
  const select=$<HTMLSelectElement>('traffic-route');select.replaceChildren();
- for(const key of PATHS){const option=document.createElement('option');option.value=key;option.textContent=trafficRouteLabel(key);select.append(option)}
+ for(const group of [...MOTORWAY_GROUPS,{road:'Überleitungen / Rampen',paths:PATHS.filter(key=>!MOTORWAY_PATHS.includes(key))}]){
+  const host=document.createElement('optgroup');host.label=group.road;
+  for(const key of group.paths){const option=document.createElement('option');option.value=key;option.textContent=trafficRouteLabel(key);host.append(option)}
+  select.append(host);
+ }
  select.value='A3-koeln';selectTrafficRoute(select.value);
  select.addEventListener('change',()=>selectTrafficRoute(select.value));
  const pattern=$<HTMLSelectElement>('traffic-demand-mode');
@@ -1177,32 +1182,39 @@ function selectAt(x:number,y:number){
  $('detail').hidden=false;
  hint.textContent='Mehrere Fahrtrichtungen am Fingertipp: bitte unten eindeutig auswählen.';
 }
+function openJunction(exit:Exit){
+ const path=junctionRoute(exit,$<HTMLSelectElement>('traffic-route').value);
+ if(path)selectTrafficRoute(path);
+ focusOn(path?exitPosition(exit,path):exit.position,13.8);
+ hint.textContent=`${exit.road} AS/Knoten ${exit.ref} – ${exit.name}. ${path?trafficRouteLabel(path)+'. ':''}Tippe auf die zugehörige Fahrbahn, um ein Ereignis zu setzen.`;
+}
 function makeExitButtons(){const parent=$('junctions');parent.replaceChildren();
- const sorted=[...exits].sort((a,b)=>a.road===b.road?(a.road==='A3'?Number.parseFloat(b.ref)-Number.parseFloat(a.ref)||b.ref.localeCompare(a.ref):Number(a.ref)-Number(b.ref)):a.road==='A3'?-1:1);
  const toolbar=document.querySelector<HTMLElement>('.toolbar')!;
  const oldButtons=new Map<string,HTMLElement>([['A3:39',$('dernbach')],['A48:9',$('koblenz')],['A3:41',$('diez')],
   ['A3:42',$('limburg-nord')],['A3:43',$('limburg-sued')],['A3:34',$('honnef')],['A3:33',$('siebengebirge')],['A3:32',$('bonn-siegburg')]]);
- toolbar.replaceChildren($('fit'));
- $('junction-count').textContent=String(sorted.length);
- for(const exit of sorted){const button=document.createElement('button');const heading=document.createElement('span');heading.textContent=`${exit.road} · ${exit.ref}`;
-  button.append(heading,document.createTextNode(exit.name));button.addEventListener('click',()=>{focusOn(exit.position,13.8);hint.textContent=`${exit.road} AS/Knoten ${exit.ref} – ${exit.name}. Tippe auf die zugehörige Fahrbahn.`;});parent.append(button);
-  const key=exit.road+':'+exit.ref,shortcut=oldButtons.get(key)??document.createElement('button');
-  shortcut.dataset.junctionKey=key;shortcut.textContent=/^(AD|AK) /.test(exit.name)?exit.name:'AS '+exit.name;
-  shortcut.onclick=()=>{focusOn(exit.position,13.8);hint.textContent=`${exit.road} ${exit.ref} ${exit.name}`;};
-  toolbar.append(shortcut);
+ toolbar.replaceChildren($('fit'));$('junction-count').textContent=String(exits.length);
+ for(const group of junctionDirectory(exits)){
+  const section=document.createElement('section');section.className='junction-motorway';section.dataset.road=group.road;
+  const title=document.createElement('h3');title.textContent=`${group.road} · ${group.junctions.length} Anschlussstellen / Knoten`;
+  const list=document.createElement('div');list.className='junctions';section.append(title,list);parent.append(section);
+  for(const exit of group.junctions){
+   const key=exit.road+':'+exit.ref,button=document.createElement('button'),heading=document.createElement('span');heading.textContent=`${exit.road} · ${exit.ref}`;
+   button.dataset.junctionKey=key;button.append(heading,document.createTextNode(exit.name));button.onclick=()=>openJunction(exit);list.append(button);
+   const shortcut=oldButtons.get(key)??document.createElement('button');shortcut.dataset.junctionKey=key;
+   shortcut.textContent=exit.road+' · '+(/^(AD|AK) /.test(exit.name)?exit.name:'AS '+exit.name);
+   shortcut.onclick=()=>openJunction(exit);toolbar.append(shortcut);
+  }
  }
 }
 function fillMetrics(){const parent=$('metrics');parent.replaceChildren();
- for(const dir of DIRECTIONS){const card=document.createElement('div');card.className='metric';const title=document.createElement('small'),amount=document.createElement('strong');
-  title.textContent=names[dir];amount.textContent=`${allRoads.filter(r=>r.road===dir).reduce((sum,r)=>sum+r.km,0).toFixed(1)} km Fahrbahn`;card.append(title,amount);parent.append(card);
+ for(const dir of MOTORWAY_PATHS){const card=document.createElement('div');card.className='metric';card.dataset.pathKey=dir;
+  const title=document.createElement('small'),amount=document.createElement('strong');
+  title.textContent=trafficRouteLabel(dir);amount.textContent=`${(spatialCorridors[dir].lengthM/1000).toFixed(1)} km Fahrbahn`;
+  card.append(title,amount);parent.append(card);
  }
 }
 function bind(){
  $('fit').onclick=()=>fit();$('dernbach').onclick=()=>focusOn([50.460264,7.767549],14.2);
- for(const [id,road,ref] of [['koblenz','A48','9'],['diez','A3','41'],['limburg-nord','A3','42'],['limburg-sued','A3','43'],['honnef','A3','34'],['siebengebirge','A3','33'],['bonn-siegburg','A3','32']]){
-  $(id!).onclick=()=>{const exit=exits.find(e=>e.road===road&&e.ref===ref),key=$<HTMLSelectElement>('traffic-route').value as RoadId;
-   if(exit)focusOn(DIRECTIONS.includes(key)?exitPosition(exit,key):exit.position,13.8)};
- }
  $('plus').onclick=()=>{zoom=Math.min(17,zoom+1);refresh()};$('minus').onclick=()=>{zoom=Math.max(8,zoom-1);refresh()};
  $('close').onclick=()=>{$('detail').hidden=true;$('event-delete').dataset.confirm='';};
  $('new-event-button').onclick=beginEventForm;
@@ -1237,7 +1249,7 @@ function bind(){
  window.addEventListener('resize',refresh);
 }
 function start(){if(!mapReady.valid){status.classList.add('error');status.textContent='Geodatenprüfung fehlgeschlagen';hint.textContent=mapReady.errors.join(' · ');return;}
- fillMetrics();makeExitButtons();bind();initializeTraffic();redrawEventList();fit();status.textContent=`✓ ${exits.length} AS/Knoten · ${allRoads.length} OSM-Fahrbahnstücke · ${extensionRoutes.length} Zusatzfahrwege · 4 Dernbach-Rampen`;
+ fillMetrics();makeExitButtons();bind();initializeTraffic();redrawEventList();fit();status.textContent=`✓ ${exits.length} AS/Knoten · ${allRoads.length} OSM-Fahrbahnstücke · ${extensionRoutes.length} Zusatzfahrwege · A3 · A48 · A59 · A560`;
  refresh();
 }
 start();
