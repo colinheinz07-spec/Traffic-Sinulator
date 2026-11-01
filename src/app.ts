@@ -52,6 +52,11 @@ const networkConnections=[...rampConnections,...buildExtensionConnections(spatia
 const localRampPaths=new Set(MOTORWAY_PATHS.flatMap(key=>junctionRampBindings(spatialCorridors[key],exits)
  .flatMap(binding=>binding.segments.map(segment=>segment.ramp.id))));
 const directMerges=mainlineMerges(spatialCorridors);
+// Verify both endpoints before treating a ramp as a motorway connector.
+// Ordinary AS ramps are owned by the junction solver, not simulated twice.
+const connectedRampPaths=[...new Set(networkConnections.filter(link=>
+ link.from!==link.rampId&&link.to!==link.rampId&&!localRampPaths.has(link.rampId))
+ .map(link=>link.rampId))];
 let badges:RampBadge[]=[];
 let junctionLabels:JunctionLabel[]=[];
 let trafficLabelRects:LabelRect[]=[];
@@ -868,7 +873,12 @@ function stepTraffic(minutes:number){
    const legacyActive=remainingInterchangeDemands(active,[...activeDetours.values()],timeline);
    for(const key of localRampPaths)legacyActive[key]=0;
    for(const feature of extensionRoutes)if(!visibleRanges(feature.id,feature.points).length)legacyActive[feature.id]=0;
-   spatialState=advanceSpatial(spatialState,timeline,legacyActive,1,spatialCorridors,networkConnections,transfers,exits,physicalMainline,PATHS);
+   // Connected motorway ramps receive real downstream back-pressure.
+   // Keep queues from formerly active incidents until their vehicles discharge.
+   const rampPaths=[...new Set([...PATHS,...connectedRampPaths,
+    ...timeline.filter(e=>extensionRoute(e.pathKey)?.kind==='ramp'&&!localRampPaths.has(e.pathKey)).map(e=>e.pathKey),
+    ...Object.values(spatialState.queues).filter(q=>extensionRoute(q.pathKey)?.kind==='ramp'&&!localRampPaths.has(q.pathKey)).map(q=>q.pathKey)])];
+   spatialState=advanceSpatial(spatialState,timeline,legacyActive,1,spatialCorridors,networkConnections,transfers,exits,physicalMainline,rampPaths);
   }
  }
  catch(e){stopTraffic();$('traffic-issue').textContent=e instanceof Error?e.message:'Simulationsfehler';return;}
