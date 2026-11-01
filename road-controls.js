@@ -1,9 +1,9 @@
-import { networkData } from './geodata.js?build=19433adb960dd212';
+import { networkData } from './geodata.js?build=afa91542bd05d6e2';
 /** Physical lane restrictions and directional AS access on actual road
  * intervals. Administrative closures keep their separate exit-gate rule. */
-import { exitPosition } from './core.js?build=19433adb960dd212';
-import { suggestedSpeed } from './events.js?build=19433adb960dd212';
-import { positionM } from './spatial.js?build=19433adb960dd212';
+import { exitPosition } from './core.js?build=afa91542bd05d6e2';
+import { suggestedSpeed } from './events.js?build=afa91542bd05d6e2';
+import { positionM } from './spatial.js?build=afa91542bd05d6e2';
 export function roadSections(route, events) {
     const located = events.filter(e => e.pathKey === route.key && e.kind !== 'closure').flatMap(event => {
         const fromM = positionM(route, event.point);

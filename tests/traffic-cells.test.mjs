@@ -79,10 +79,10 @@ test('one free lane need not create a jam at very low demand',()=>{
 });
 test('cell network couples verified detours and retains the separate ramp projection',()=>{
  const src=readFileSync('src/app.ts','utf8');
- assert.match(src,/CELL_PATHS=PATHS\.filter\(key=>!key\.startsWith\('ramp-'\)\)/);
+ assert.match(src,/CELL_PATHS=PATHS\.filter\(key=>DIRECTIONS\.includes\(key as RoadId\)\)/);
  assert.match(src,/advanceRoutedNetwork\(cellNetwork/);
  const view=readFileSync('src/traffic-view.ts','utf8');
  assert.match(view,/state\?cellSpeedBands\(state\):own\.flatMap/);
  assert.ok(src.includes('view.bands'));
- assert.match(src,/advanceSpatial\(spatialState,timeline,(?:active|legacyActive),1,spatialCorridors,rampConnections,transfers,exits(?:,physicalMainline)?\)/);
+ assert.match(src,/advanceSpatial\(spatialState,timeline,(?:active|legacyActive),1,spatialCorridors,networkConnections,transfers,exits,physicalMainline,PATHS\)/);
 });

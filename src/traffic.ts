@@ -1,3 +1,4 @@
+import {EXTENSION_IDS,extensionRoutes,extensionRoute} from './network-extensions.js';
 /** Deliberately isolated, macroscopic first-pass traffic-flow simulation.
  * Traffic volumes, capacities, and queue density are modelling assumptions,
  * NOT measured flows, road regulations, official diversion routes, or observed jams.
@@ -12,7 +13,8 @@ export const PATHS=[
  'ramp-a3-to-a48-from-frankfurt','ramp-a48-to-koeln',
  'ramp-a3-to-a48-from-koeln','ramp-a48-to-frankfurt'
 ] as const;
-export type PathKey=typeof PATHS[number];
+export const NETWORK_PATHS=[...PATHS,...EXTENSION_IDS] as const;
+export type PathKey=typeof NETWORK_PATHS[number];
 export type TrafficColor='free'|'slow'|'jam'|'standstill';
 export type TrafficState={minute:number;vehiclesWaiting:Record<PathKey,number>};
 export interface TrafficEstimate {
@@ -30,6 +32,7 @@ export interface TrafficEstimate {
  officiallyClosed:boolean;
 }
 const demandDefaults:Record<PathKey,number>={
+ ...Object.fromEntries(extensionRoutes.map(r=>[r.id,r.demandVph])) as Record<typeof EXTENSION_IDS[number],number>,
  'A3-koeln':4200,'A3-frankfurt':4100,
  'A48-dernbach':2400,'A48-koblenz':1700,
  'ramp-a3-to-a48-from-frankfurt':1000,'ramp-a48-to-koeln':1000,
@@ -38,13 +41,13 @@ const demandDefaults:Record<PathKey,number>={
 const motorwayBaseLanes:Record<RoadId,number>={
  'A3-koeln':3,'A3-frankfurt':3,'A48-dernbach':2,'A48-koblenz':2
 };
-const defaultKmH=(key:PathKey)=>key.startsWith('ramp-')?80:130;
+const defaultKmH=(key:PathKey)=>extensionRoute(key)?.freeKmh??(key.startsWith('ramp-')?80:130);
 export function defaultDemand(key:PathKey):number{return demandDefaults[key]}
 export function baselineCapacity(key:PathKey):number{
- return baseLaneCapacity(key)*(key.startsWith('ramp-')?1:motorwayBaseLanes[key as RoadId]);
+ return baseLaneCapacity(key)*(extensionRoute(key)?.lanes??(key.startsWith('ramp-')?1:motorwayBaseLanes[key as RoadId]));
 }
 export function emptyTraffic():TrafficState{
- return {minute:0,vehiclesWaiting:Object.fromEntries(PATHS.map(p=>[p,0])) as Record<PathKey,number>};
+ return {minute:0,vehiclesWaiting:Object.fromEntries(NETWORK_PATHS.map(p=>[p,0])) as Record<PathKey,number>};
 }
 /** A3/A48 scenario assumptions (NOT actual freight counts). The vehicle
  * composition can be supplied by subsequent route/time-based demand models.
@@ -151,7 +154,7 @@ export function advanceTraffic(state:TrafficState,events:readonly SimEvent[],dem
  const waiting={...state.vehiclesWaiting};
  // Minute-by-minute conservation: queued vehicles + arrivals - discharged vehicles.
  // Deliberately NO fake ramp interchanges, departures or fictional detours.
- for(let minute=0;minute<minutes;minute++)for(const key of PATHS){
+ for(let minute=0;minute<minutes;minute++)for(const key of NETWORK_PATHS){
   const volume=demands[key];
   if(!Number.isFinite(volume)||volume<0||volume>8000)throw Error('Zufluss außerhalb des zulässigen Bereichs');
   const capacity=pathBottleneck(key,events,volume).capacityVph;
@@ -198,7 +201,7 @@ export function demandAtClock(base:Readonly<Record<PathKey,number>>,moment:Date)
  // 1.4 is a scenario calibration, not measured hourly A3/A48 count data.
  const raw=interpolateHourly(profile,hour);
  const factor=raw<1?raw**1.4:raw;
- return Object.fromEntries(PATHS.map(key=>{
+ return Object.fromEntries(NETWORK_PATHS.map(key=>{
   let direction=1;
   if(weekday!==0&&weekday!==6){
    const morning=Math.max(0,1-Math.abs(hour-7.75)/2.5);
@@ -220,5 +223,5 @@ export function demandScale(minute:number,mode:DemandMode):number{
 }
 export function demandAtMinute(base:Readonly<Record<PathKey,number>>,minute:number,mode:DemandMode):Record<PathKey,number>{
  const factor=demandScale(minute,mode);
- return Object.fromEntries(PATHS.map(key=>[key,Math.round(base[key]*factor)])) as Record<PathKey,number>;
+ return Object.fromEntries(NETWORK_PATHS.map(key=>[key,Math.round(base[key]*factor)])) as Record<PathKey,number>;
 }

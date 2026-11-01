@@ -1,13 +1,13 @@
-import { localRoadAvailability } from './calendar-traffic.js?build=19433adb960dd212';
+import { localRoadAvailability } from './calendar-traffic.js?build=afa91542bd05d6e2';
 /** Motorway cells and multiple local simulator routes share ONE vehicle budget.
  * Side-road admission is limited by cars reaching the real exit cell; cars
  * return only after their local journey and when the merge accepts them.
  */
-import { advanceCells, cellInventory } from './traffic-cells.js?build=19433adb960dd212';
-import { advanceDetour, detourVehicles, detourStorage } from './detour-flow.js?build=19433adb960dd212';
-import { routedDiversionChoice, requiredDiversionGate } from './diversion-policy.js?build=19433adb960dd212';
-import { journeyRampCapacity, journeyTrafficShare } from './interchange-journeys.js?build=19433adb960dd212';
-import { normalJunctionTraffic } from './junction-traffic.js?build=19433adb960dd212';
+import { advanceCells, cellInventory } from './traffic-cells.js?build=afa91542bd05d6e2';
+import { advanceDetour, detourVehicles, detourStorage } from './detour-flow.js?build=afa91542bd05d6e2';
+import { routedDiversionChoice, requiredDiversionGate } from './diversion-policy.js?build=afa91542bd05d6e2';
+import { journeyRampCapacity, journeyTrafficShare } from './interchange-journeys.js?build=afa91542bd05d6e2';
+import { normalJunctionTraffic } from './junction-traffic.js?build=afa91542bd05d6e2';
 /** The remaining legacy turn solver must not offer a second copy of trips
  * that chose a side-road/alternate-ramp journey. Existing ramp inventories
  * remain in that solver and finish normally when their control permits it. */

@@ -2,7 +2,7 @@
  * boundaries. Every choice has an offline simulated side-road corridor.
  * This planner itself never removes vehicles.
  */
-import type {Exit,RoadId} from './core.js';
+import {DIRECTIONS,type Exit,type RoadId} from './core.js';
 import type {SimEvent} from './events.js';
 import {positionM,closureGate,type Corridor} from './spatial.js';
 import {DIVERSION_LINKS,diversionJunctions,nearestExitBeforeQueue,type DiversionLink,type JunctionAnchor} from './diversions.js';
@@ -29,7 +29,7 @@ export function automaticDiversions(events:readonly SimEvent[],corridors:Readonl
  const plans=new Map<string,AutomaticDiversion>();
  const available=(path:PathKey,access:'entry'|'exit')=>accessibleExits(corridors[path],events,exits,access);
  for(const event of events){
-  if(event.pathKey.startsWith('ramp-'))continue;
+  if(!DIRECTIONS.includes(event.pathKey as RoadId))continue;
   const path=event.pathKey as RoadId,route=corridors[path],at=positionM(route,event.point);
   if(at===null)continue;
   const targets=bundledTargets(path,exits,route),all=targets.filter(x=>!isNetworkDestination(x)&&junctionAccess(route,events,x.metre,x.ref).exit);
@@ -74,7 +74,7 @@ export function automaticDiversions(events:readonly SimEvent[],corridors:Readonl
  // clearing after an event use the same nearest-exit rule. Queue IDs are
  // internal route causes; no fictional event is added to the timeline.
  for(const [key,grid] of Object.entries(cells)){
-  if(!grid||key.startsWith('ramp-'))continue;
+  if(!grid||!DIRECTIONS.includes(key as RoadId))continue;
   const path=key as RoadId,route=corridors[path],targets=bundledTargets(path,exits,route);
   for(const span of cellQueueSpans(grid)){
    const time=speedDelayInCells(grid,span.fromM,span.toM,span.toM+grid.cellM);

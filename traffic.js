@@ -1,16 +1,19 @@
+import { EXTENSION_IDS, extensionRoutes, extensionRoute } from './network-extensions.js?build=afa91542bd05d6e2';
 /** Deliberately isolated, macroscopic first-pass traffic-flow simulation.
  * Traffic volumes, capacities, and queue density are modelling assumptions,
  * NOT measured flows, road regulations, official diversion routes, or observed jams.
  * One controlling bottleneck per directional path; no A3/A48 ramp transfer yet.
  */
-import { flowPolicy } from './events.js?build=19433adb960dd212';
-import { baseLaneCapacity, QUEUE_JAM_DENSITY_PER_LANE } from './traffic-physics.js?build=19433adb960dd212';
+import { flowPolicy } from './events.js?build=afa91542bd05d6e2';
+import { baseLaneCapacity, QUEUE_JAM_DENSITY_PER_LANE } from './traffic-physics.js?build=afa91542bd05d6e2';
 export const PATHS = [
     'A3-koeln', 'A3-frankfurt', 'A48-dernbach', 'A48-koblenz',
     'ramp-a3-to-a48-from-frankfurt', 'ramp-a48-to-koeln',
     'ramp-a3-to-a48-from-koeln', 'ramp-a48-to-frankfurt'
 ];
+export const NETWORK_PATHS = [...PATHS, ...EXTENSION_IDS];
 const demandDefaults = {
+    ...Object.fromEntries(extensionRoutes.map(r => [r.id, r.demandVph])),
     'A3-koeln': 4200, 'A3-frankfurt': 4100,
     'A48-dernbach': 2400, 'A48-koblenz': 1700,
     'ramp-a3-to-a48-from-frankfurt': 1000, 'ramp-a48-to-koeln': 1000,
@@ -19,13 +22,13 @@ const demandDefaults = {
 const motorwayBaseLanes = {
     'A3-koeln': 3, 'A3-frankfurt': 3, 'A48-dernbach': 2, 'A48-koblenz': 2
 };
-const defaultKmH = (key) => key.startsWith('ramp-') ? 80 : 130;
+const defaultKmH = (key) => extensionRoute(key)?.freeKmh ?? (key.startsWith('ramp-') ? 80 : 130);
 export function defaultDemand(key) { return demandDefaults[key]; }
 export function baselineCapacity(key) {
-    return baseLaneCapacity(key) * (key.startsWith('ramp-') ? 1 : motorwayBaseLanes[key]);
+    return baseLaneCapacity(key) * (extensionRoute(key)?.lanes ?? (key.startsWith('ramp-') ? 1 : motorwayBaseLanes[key]));
 }
 export function emptyTraffic() {
-    return { minute: 0, vehiclesWaiting: Object.fromEntries(PATHS.map(p => [p, 0])) };
+    return { minute: 0, vehiclesWaiting: Object.fromEntries(NETWORK_PATHS.map(p => [p, 0])) };
 }
 /** A3/A48 scenario assumptions (NOT actual freight counts). The vehicle
  * composition can be supplied by subsequent route/time-based demand models.
@@ -142,7 +145,7 @@ export function advanceTraffic(state, events, demands, minutes) {
     // Minute-by-minute conservation: queued vehicles + arrivals - discharged vehicles.
     // Deliberately NO fake ramp interchanges, departures or fictional detours.
     for (let minute = 0; minute < minutes; minute++)
-        for (const key of PATHS) {
+        for (const key of NETWORK_PATHS) {
             const volume = demands[key];
             if (!Number.isFinite(volume) || volume < 0 || volume > 8000)
                 throw Error('Zufluss außerhalb des zulässigen Bereichs');
@@ -191,7 +194,7 @@ export function demandAtClock(base, moment) {
     // 1.4 is a scenario calibration, not measured hourly A3/A48 count data.
     const raw = interpolateHourly(profile, hour);
     const factor = raw < 1 ? raw ** 1.4 : raw;
-    return Object.fromEntries(PATHS.map(key => {
+    return Object.fromEntries(NETWORK_PATHS.map(key => {
         let direction = 1;
         if (weekday !== 0 && weekday !== 6) {
             const morning = Math.max(0, 1 - Math.abs(hour - 7.75) / 2.5);
@@ -215,5 +218,5 @@ export function demandScale(minute, mode) {
 }
 export function demandAtMinute(base, minute, mode) {
     const factor = demandScale(minute, mode);
-    return Object.fromEntries(PATHS.map(key => [key, Math.round(base[key] * factor)]));
+    return Object.fromEntries(NETWORK_PATHS.map(key => [key, Math.round(base[key] * factor)]));
 }

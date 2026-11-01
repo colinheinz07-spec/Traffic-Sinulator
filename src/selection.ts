@@ -1,3 +1,4 @@
+import {extensionRoutes,type ExtensionRoute,type ExtensionId} from './network-extensions.js';
 /** Map hit-testing remains separate from rendering and transport logic.
  * All snapped positions are interpolated ONLY on verified OSM road geometries.
  */
@@ -5,6 +6,7 @@ import {nearestPolyline,exitPosition,type Point,type Road,type Ramp,type Exit,ty
 
 export type MapHit =
   | {kind:'road';road:Road;ramp?:never;point:Point;distance:number;fraction:number;key:RoadId}
+  | {kind:'extension';feature:ExtensionRoute;road?:never;ramp?:never;point:Point;distance:number;fraction:number;key:ExtensionId}
   | {kind:'ramp';road?:never;ramp:Ramp;point:Point;distance:number;fraction:number;key:string};
 
 /** Reduce hundreds of OSM ways to one candidate for each motorway direction and each ramp. */
@@ -42,7 +44,7 @@ export function airDistanceMetres(a:Point,b:Point):number{
  return 6371000*2*Math.atan2(Math.sqrt(t),Math.sqrt(Math.max(0,1-t)));
 }
 export function closestJunction(hit:MapHit,exits:readonly Exit[]):{exit:Exit;distanceKm:number}|null{
- if(hit.kind==='ramp')return null; // AD Dernbach is the known junction of every ramp.
+ if(hit.kind!=='road')return null; // AD Dernbach is the known junction of every ramp.
  const motorway=hit.road.road.startsWith('A3')?'A3':'A48';
  let best:{exit:Exit;distanceKm:number}|null=null;
  for(const exit of exits){
@@ -65,7 +67,14 @@ export function lanePositions(count:number):string[]{
 }
 
 export function hitLabel(hit:MapHit):string{
+ if(hit.kind==='extension')return hit.feature.name;
  if(hit.kind==='ramp')return hit.ramp.name;
  const titles:Record<RoadId,string>={'A3-koeln':'A3 → Köln','A3-frankfurt':'A3 → Frankfurt','A48-dernbach':'A48 → Dernbach','A48-koblenz':'A48 → Koblenz'};
  return titles[hit.road.road];
+}
+
+export function extensionCandidates(tap:[number,number],project:(p:Point)=>[number,number],tolerance=18):MapHit[]{
+ return extensionRoutes.flatMap(feature=>{const hit=nearestPolyline(feature.points,tap,project);
+  return hit.distance>tolerance?[]:[{kind:'extension' as const,feature,point:hit.point,distance:hit.distance,fraction:hit.fraction,key:feature.id}];
+ });
 }

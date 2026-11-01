@@ -1,3 +1,4 @@
+import {extensionRoutes,extensionRoute} from './network-extensions.js';
 import {normalThroughLanes} from './lane-info.js';
 /** Georeferenced, per-event queue model on the exact OSM motorway carriageway curves.
  * A first-pass conservation model (not a calibrated traffic forecast).
@@ -6,7 +7,7 @@ import {normalThroughLanes} from './lane-info.js';
 import {buildContinuousRoads} from './cartography.js';
 import {exitPosition,type Road,type Ramp,type Point,type Exit,type RoadId} from './core.js';
 import type {SimEvent} from './events.js';
-import type {RampConnection} from './interchange.js';
+import type {NetworkConnection} from './interchange.js';
 import {PATHS,baselineCapacity,eventCapacity,defaultDemand,type PathKey,type TrafficColor} from './traffic.js';
 import {baseLaneCapacity,colorAtSpeed,queueFundamentalDiagram,freeSpeedKmh} from './traffic-physics.js';
 import {physicalEvents,accessibleExits} from './road-controls.js';
@@ -50,6 +51,8 @@ export function makeCorridors(roads:readonly Road[],ramps:readonly Ramp[]):Recor
   }
   result.set(key,route);
  }
+ for(const extra of extensionRoutes){const route=corridor(extra.id,extra.points);
+  route.normalLanes=[{fromM:0,toM:route.lengthM,lanes:extra.lanes}];result.set(extra.id,route);}
  return Object.fromEntries(result) as Record<PathKey,Corridor>;
 }
 // Directional OSM geometry is fixed for a corridor's lifetime. Reuse the
@@ -144,15 +147,15 @@ export function mergeSupplyVph(ramp:PathKey,targetCapacityVph:number,targetDeman
  const requested=Math.min(baselineCapacity(ramp),Math.max(defaultDemand(ramp),rampDemandVph+queuedVehicles*60));
  return Math.min(baselineCapacity(ramp),Math.round(requested*supplyRatio));
 }
-export function advanceSpatial(prev:SpatialState,events:readonly SimEvent[],demands:Readonly<Record<PathKey,number>>,minutes:number,corridors:Record<PathKey,Corridor>,links:readonly RampConnection[]=[],transfers:readonly SpatialTransfer[]=[],exits:readonly Exit[]=[],physicalMainline?:readonly Jam[]):SpatialState{
+export function advanceSpatial(prev:SpatialState,events:readonly SimEvent[],demands:Readonly<Record<PathKey,number>>,minutes:number,corridors:Record<PathKey,Corridor>,links:readonly NetworkConnection[]=[],transfers:readonly SpatialTransfer[]=[],exits:readonly Exit[]=[],physicalMainline?:readonly Jam[],paths:readonly PathKey[]=PATHS):SpatialState{
  if(!Number.isInteger(minutes)||minutes<1||minutes>60)throw Error('Ungültiger Simulations-Zeitschritt');
  const current:Record<string,QueuedAt>={};
  for(const [id,q] of Object.entries(prev.queues))if(q.vehicles>1e-6)current[id]={...q};
  // Each minute calculates junction supply from the ACTUAL queued vehicles.
  for(let tick=0;tick<minutes;tick++){
   const raw=links.length?jamsAt({minute:prev.minute+tick,queues:current},events,corridors):[];
-  const existing=physicalMainline===undefined?raw:[...raw.filter(j=>j.pathKey.startsWith('ramp-')),...physicalMainline];
-  for(const key of PATHS){
+  const existing=physicalMainline===undefined?raw:[...raw.filter(j=>j.pathKey.startsWith('ramp-')||extensionRoute(j.pathKey)?.kind==='ramp'),...physicalMainline];
+  for(const key of paths){
   let volume=demands[key];if(!Number.isFinite(volume)||volume<0||volume>8000)throw Error('Ungültiger Zufluss');
   const route=corridors[key];
   const nodes:{id:string;event:SimEvent|null;place:number;point:Point;limitVph?:number;
@@ -177,7 +180,7 @@ export function advanceSpatial(prev:SpatialState,events:readonly SimEvent[],dema
     // approach cannot supply a fresh, independent stream of turning cars.
     return gate&&gate.eventM<=link.rampEntryM+1&&gate.metre<=link.rampEntryM+1&&gate.endM>link.rampEntryM-1;
    });
-   const closedAtFork=link.to==='A48-koblenz'&&(closedMerge||sourceClosed);
+   const closedAtFork=(link.to==='A48-koblenz'||!!extensionRoute(link.rampId))&&(closedMerge||sourceClosed);
    if(closedAtFork)volume=0;
    if(closedMerge&&!closedAtFork){
     nodes.push({id:'closed-merge:'+key,event:null,place:Math.max(0,route.lengthM-.5),

@@ -1,13 +1,14 @@
-import { normalThroughLanes } from './lane-info.js?build=19433adb960dd212';
+import { extensionRoutes, extensionRoute } from './network-extensions.js?build=afa91542bd05d6e2';
+import { normalThroughLanes } from './lane-info.js?build=afa91542bd05d6e2';
 /** Georeferenced, per-event queue model on the exact OSM motorway carriageway curves.
  * A first-pass conservation model (not a calibrated traffic forecast).
  * No vehicle sprites, hidden road connectors, A3/A48 transfers, or invented detours.
  */
-import { buildContinuousRoads } from './cartography.js?build=19433adb960dd212';
-import { exitPosition } from './core.js?build=19433adb960dd212';
-import { PATHS, baselineCapacity, eventCapacity, defaultDemand } from './traffic.js?build=19433adb960dd212';
-import { baseLaneCapacity, colorAtSpeed, queueFundamentalDiagram, freeSpeedKmh } from './traffic-physics.js?build=19433adb960dd212';
-import { physicalEvents, accessibleExits } from './road-controls.js?build=19433adb960dd212';
+import { buildContinuousRoads } from './cartography.js?build=afa91542bd05d6e2';
+import { exitPosition } from './core.js?build=afa91542bd05d6e2';
+import { PATHS, baselineCapacity, eventCapacity, defaultDemand } from './traffic.js?build=afa91542bd05d6e2';
+import { baseLaneCapacity, colorAtSpeed, queueFundamentalDiagram, freeSpeedKmh } from './traffic-physics.js?build=afa91542bd05d6e2';
+import { physicalEvents, accessibleExits } from './road-controls.js?build=afa91542bd05d6e2';
 const rad = Math.PI / 180;
 export function metres(a, b) {
     const dx = (b[1] - a[1]) * 111195 * Math.cos((a[0] + b[0]) / 2 * rad);
@@ -43,6 +44,11 @@ export function makeCorridors(roads, ramps) {
             }).sort((a, b) => a.fromM - b.fromM);
         }
         result.set(key, route);
+    }
+    for (const extra of extensionRoutes) {
+        const route = corridor(extra.id, extra.points);
+        route.normalLanes = [{ fromM: 0, toM: route.lengthM, lanes: extra.lanes }];
+        result.set(extra.id, route);
     }
     return Object.fromEntries(result);
 }
@@ -158,7 +164,7 @@ export function mergeSupplyVph(ramp, targetCapacityVph, targetDemandVph, rampDem
     const requested = Math.min(baselineCapacity(ramp), Math.max(defaultDemand(ramp), rampDemandVph + queuedVehicles * 60));
     return Math.min(baselineCapacity(ramp), Math.round(requested * supplyRatio));
 }
-export function advanceSpatial(prev, events, demands, minutes, corridors, links = [], transfers = [], exits = [], physicalMainline) {
+export function advanceSpatial(prev, events, demands, minutes, corridors, links = [], transfers = [], exits = [], physicalMainline, paths = PATHS) {
     if (!Number.isInteger(minutes) || minutes < 1 || minutes > 60)
         throw Error('Ungültiger Simulations-Zeitschritt');
     const current = {};
@@ -168,8 +174,8 @@ export function advanceSpatial(prev, events, demands, minutes, corridors, links 
     // Each minute calculates junction supply from the ACTUAL queued vehicles.
     for (let tick = 0; tick < minutes; tick++) {
         const raw = links.length ? jamsAt({ minute: prev.minute + tick, queues: current }, events, corridors) : [];
-        const existing = physicalMainline === undefined ? raw : [...raw.filter(j => j.pathKey.startsWith('ramp-')), ...physicalMainline];
-        for (const key of PATHS) {
+        const existing = physicalMainline === undefined ? raw : [...raw.filter(j => j.pathKey.startsWith('ramp-') || extensionRoute(j.pathKey)?.kind === 'ramp'), ...physicalMainline];
+        for (const key of paths) {
             let volume = demands[key];
             if (!Number.isFinite(volume) || volume < 0 || volume > 8000)
                 throw Error('Ungültiger Zufluss');
@@ -201,7 +207,7 @@ export function advanceSpatial(prev, events, demands, minutes, corridors, links 
                         // approach cannot supply a fresh, independent stream of turning cars.
                         return gate && gate.eventM <= link.rampEntryM + 1 && gate.metre <= link.rampEntryM + 1 && gate.endM > link.rampEntryM - 1;
                     });
-                    const closedAtFork = link.to === 'A48-koblenz' && (closedMerge || sourceClosed);
+                    const closedAtFork = (link.to === 'A48-koblenz' || !!extensionRoute(link.rampId)) && (closedMerge || sourceClosed);
                     if (closedAtFork)
                         volume = 0;
                     if (closedMerge && !closedAtFork) {

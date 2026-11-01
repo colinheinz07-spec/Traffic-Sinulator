@@ -77,7 +77,11 @@ export function bundledDetourGeometry(id:string,path:RoadId,from:Exit,to:Exit,
    graph.set(ends[p].from,[...(graph.get(ends[p].from)??[]),{to:'end-'+p,points,lengthM,capacity:650,sectionId:ends[p].from+'>end-'+p}]);
   }else add(ends[p].from,'end-'+p,ends[p].via,760);
  }
- for(const r of regionalDetours.filter(r=>r.path===path)){
+ // Cross-motorway journeys also need the target A3's extended local
+ // connections (e.g. A48 Höhr -> A3 Bad Camberg), not just the feeder's.
+ const regionalPaths=new Set<string>([path]);
+ if(to.road==='A3'&&!path.startsWith('A3')){regionalPaths.add('A3-koeln');regionalPaths.add('A3-frankfurt');}
+ for(const r of regionalDetours.filter(r=>regionalPaths.has(r.path))){
   const a='A3:'+r.from,b=r.to.startsWith('end-')?r.to:'A3:'+r.to,points=r.points;
   const lengthM=points.slice(1).reduce((n,v,i)=>n+metres(points[i]!,v),0);
   graph.set(a,[...(graph.get(a)??[]),{to:b,points,lengthM,capacity:650,sectionId:a+'>'+b}]);

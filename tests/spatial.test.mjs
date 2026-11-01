@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {networkData} from '../dist/geodata.js';
 import {makeCorridors,positionM,routeSlice,emptySpatial,advanceSpatial,jamsAt,jamBands,metres} from '../dist/spatial.js';
-import {defaultDemands,PATHS} from '../dist/traffic.js';
+import {defaultDemands,PATHS,NETWORK_PATHS} from '../dist/traffic.js';
 import {eventFromHit} from '../dist/events.js';
 
 const corridors=makeCorridors(networkData.roads,networkData.ramps),demands=defaultDemands();
@@ -15,8 +15,8 @@ function eventAt(key,fraction,kind='roadworks',closed=[0,1],speed=40,id='e'){
  const laneCount=key.startsWith('ramp-')?2:3;
  return eventFromHit(hit,kind,laneCount,closed,id,date,{lengthM:kind==='closure'?200:500,speedKmh:speed,shoulder:kind==='closure'?'blocked':'normal'});
 }
-test('complete eight real OSM corridors, no route jumps or opposing carriageway conflation',()=>{
- assert.deepEqual(Object.keys(corridors).sort(),[...PATHS].sort());
+test('core and extension OSM corridors are registered without route jumps or opposing carriageway conflation',()=>{
+ assert.deepEqual(Object.keys(corridors).sort(),[...NETWORK_PATHS].sort());
  for(const key of PATHS){
   const c=corridors[key];assert.ok(c.points.length>=30,key);assert.ok(c.lengthM>1000,key);
   assert.ok(c.metres.every((v,i)=>i===0||v>=c.metres[i-1]));
@@ -84,7 +84,7 @@ test('SPCK main entry supports own per-stau report and compiled geometry overlay
  const html=readFileSync('index.html','utf8'),app=readFileSync('src/app.ts','utf8');
  assert.match(html,/id="traffic-jams"/);assert.match(html,/id="traffic-jams-count"/);
  assert.match(app,/drawSpatialJams\(\)/);assert.match(app,/routeSlice/);
- assert.match(app,/advanceSpatial\(spatialState,timeline,(?:active|legacyActive),1,spatialCorridors,rampConnections,transfers,exits(?:,physicalMainline)?\)/);
+ assert.match(app,/advanceSpatial\(spatialState,timeline,(?:active|legacyActive),1,spatialCorridors,networkConnections,transfers,exits,physicalMainline,PATHS\)/);
  assert.match(app,/initializeTraffic\(\);redrawEventList\(\)/);
  assert.ok(!html.includes('map-v2/'));
 });

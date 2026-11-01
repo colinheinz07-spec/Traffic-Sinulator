@@ -1,3 +1,4 @@
+import { junctionAccess } from './road-controls.js?build=afa91542bd05d6e2';
 /** Publicly documented emergency diversion (Bedarfsumleitung) INVENTORY.
  * Sources:
  *  - OSM Wiki Germany/Bedarfsumleitung/Rheinland-Pfalz and Hessen (Oct 2026)
@@ -6,8 +7,8 @@
  * This module produces ROUTE PLANNING PREVIEWS only. It must never silently
  * subtract or teleport vehicles from the conserved A3/A48 motorway queues.
  */
-import { exitPosition } from './core.js?build=19433adb960dd212';
-import { positionM, closureGate } from './spatial.js?build=19433adb960dd212';
+import { exitPosition } from './core.js?build=afa91542bd05d6e2';
+import { positionM, closureGate } from './spatial.js?build=afa91542bd05d6e2';
 const r = (code, path, fromRef, toRef, evidence = 'named-endpoints') => ({
     id: path + '-' + code, code, path, fromRoad: path.startsWith('A3') ? 'A3' : 'A48', fromRef,
     toRoad: toRef ? (path.startsWith('A3') ? 'A3' : 'A48') : null, toRef, evidence,
@@ -95,7 +96,7 @@ export function planDiversion(event, route, exits, delayMin, maxOptions = Infini
         return null;
     const all = diversionJunctions(path, exits, route);
     const section = closureGate(route, event, exits);
-    const upstream = all.filter(x => !x.isInterchange && (section ? x.metre <= section.metre + 1 : x.metre < at - 50)).reverse().slice(0, maxOptions);
+    const upstream = all.filter(x => !x.isInterchange && junctionAccess(route, [event], x.metre, x.ref).exit && (section ? x.metre <= section.metre + 1 : x.metre < at - 50)).reverse().slice(0, maxOptions);
     const candidates = upstream.map((exit, index) => {
         const link = DIVERSION_LINKS.find(u => u.path === path && u.fromRoad === exit.road && u.fromRef === exit.ref) ?? null;
         return { exit, link, upstreamKm: Math.max(0, (at - exit.metre) / 1000),

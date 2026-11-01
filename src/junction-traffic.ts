@@ -5,7 +5,7 @@ import {localRoadAvailability} from './calendar-traffic.js';
  * direction's demand profile; they are not traffic counts. AK/AD turn flows
  * remain in the separate interchange solver.
  */
-import type {Exit,RoadId} from './core.js';
+import {DIRECTIONS,type Exit,type RoadId} from './core.js';
 import type {Corridor} from './spatial.js';
 import {diversionJunctions} from './diversions.js';
 
@@ -48,7 +48,7 @@ export function exitRampVehicles(state:JunctionTrafficState):number{
  return (state.exitQueue?.normal??0)+Object.values(state.exitQueue?.detours??{}).reduce((n,v)=>n+v,0);
 }
 export function normalJunctionTraffic(route:Corridor,exits:readonly Exit[],demandVph:number,moment?:Date):JunctionTrafficDemand[]{
- if(route.key.startsWith('ramp-'))return [];
+ if(!DIRECTIONS.includes(route.key as RoadId))return [];
  return diversionJunctions(route.key as RoadId,exits,route).filter(j=>!j.isInterchange).map(j=>{
   // 4–8% local turnover per AS. Balanced ordinary entry/exit at the
   // reference free flow avoids artificially growing demand at every node.

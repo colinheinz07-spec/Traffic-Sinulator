@@ -1,4 +1,5 @@
-import { validDailyRecurrence, dailyRecurrenceBounds, dailyOccurrenceAt } from './recurring-events.js?build=19433adb960dd212';
+import { extensionRoute } from './network-extensions.js?build=afa91542bd05d6e2';
+import { validDailyRecurrence, dailyRecurrenceBounds, dailyOccurrenceAt } from './recurring-events.js?build=afa91542bd05d6e2';
 export const EVENT_KINDS = ['roadworks', 'accident', 'breakdown', 'closure'];
 export const eventNames = { roadworks: 'Baustelle', accident: 'Unfall', breakdown: 'Lkw-Panne', closure: 'Vollsperrung' };
 export const eventSymbols = { roadworks: '🚧', accident: '💥', breakdown: '🚛', closure: '⛔' };
@@ -7,10 +8,10 @@ export const STORAGE_KEY = 'traffic-sinulator-events-v1';
 export const DEFAULT_CLEARANCE_MIN = 30;
 const directions = new Set(['A3-koeln', 'A3-frankfurt', 'A48-koblenz', 'A48-dernbach']);
 const knownRampIds = new Set(['ramp-a3-to-a48-from-frankfurt', 'ramp-a3-to-a48-from-koeln', 'ramp-a48-to-koeln', 'ramp-a48-to-frankfurt']);
-export function isKnownPath(key) { return directions.has(key) || knownRampIds.has(key); }
+export function isKnownPath(key) { return directions.has(key) || knownRampIds.has(key) || !!extensionRoute(key); }
 export function isEventKind(v) { return typeof v === 'string' && EVENT_KINDS.includes(v); }
 const isShoulder = (x) => x === 'normal' || x === 'open' || x === 'blocked';
-function isPoint(p) { return Array.isArray(p) && p.length === 2 && p.every(n => typeof n === 'number' && Number.isFinite(n)) && p[0] >= 50.24 && p[0] <= 50.96 && p[1] >= 7.03 && p[1] <= 8.34; }
+function isPoint(p) { return Array.isArray(p) && p.length === 2 && p.every(n => typeof n === 'number' && Number.isFinite(n)) && p[0] >= 50.24 && p[0] <= 50.96 && p[1] >= 6.98 && p[1] <= 8.34; }
 export function maxLengthM(kind) { return kind === 'accident' || kind === 'breakdown' ? 200 : kind === 'closure' ? 100000 : 20000; }
 export function defaultLengthM(kind) { return kind === 'roadworks' ? 500 : kind === 'closure' ? 200 : kind === 'accident' ? 100 : 50; }
 /** These are adjustable *simulation assumptions*, not German traffic-law speed limits. */

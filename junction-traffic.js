@@ -1,6 +1,12 @@
-import { junctionAccess } from './road-controls.js?build=19433adb960dd212';
-import { localRoadAvailability } from './calendar-traffic.js?build=19433adb960dd212';
-import { diversionJunctions } from './diversions.js?build=19433adb960dd212';
+import { junctionAccess } from './road-controls.js?build=afa91542bd05d6e2';
+import { localRoadAvailability } from './calendar-traffic.js?build=afa91542bd05d6e2';
+/** Ordinary local trips, independent of incidents and simulator detours.
+ * The rates are explicit scenario assumptions, scaled with the selected
+ * direction's demand profile; they are not traffic counts. AK/AD turn flows
+ * remain in the separate interchange solver.
+ */
+import { DIRECTIONS } from './core.js?build=afa91542bd05d6e2';
+import { diversionJunctions } from './diversions.js?build=afa91542bd05d6e2';
 // No surveyed AS signal plans or local off-ramp lengths are bundled. These
 // are explicit defaults: roughly one 300 m queue lane, and ~39% effective
 // green at 1800 veh/h/lane. They are not measured AS-specific capacities.
@@ -21,7 +27,7 @@ export function exitRampVehicles(state) {
     return (state.exitQueue?.normal ?? 0) + Object.values(state.exitQueue?.detours ?? {}).reduce((n, v) => n + v, 0);
 }
 export function normalJunctionTraffic(route, exits, demandVph, moment) {
-    if (route.key.startsWith('ramp-'))
+    if (!DIRECTIONS.includes(route.key))
         return [];
     return diversionJunctions(route.key, exits, route).filter(j => !j.isInterchange).map(j => {
         // 4–8% local turnover per AS. Balanced ordinary entry/exit at the

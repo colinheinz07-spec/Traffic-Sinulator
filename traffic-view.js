@@ -1,15 +1,16 @@
+import { extensionRoute } from './network-extensions.js?build=afa91542bd05d6e2';
 /** One snapshot for map geometry, jam cards and direction summaries.
  * Mainline queues are measured on the same congested CTM cells as the map.
  * Legacy queues remain the simulation input for the separate ramp ledger;
  * their synthetic lengths never truncate a mainline display queue.
  */
-import { PATHS, baselineCapacity } from './traffic.js?build=19433adb960dd212';
-import { routeSlice } from './spatial.js?build=19433adb960dd212';
-import { cellSpeedBands, cellQueueSpans } from './traffic-cells.js?build=19433adb960dd212';
-import { physicalSpeedBands, stopAndGoBands, resolveSpeedBands, freeSpeedKmh, colorAtSpeed } from './traffic-physics.js?build=19433adb960dd212';
-import { speedDelayInCells, speedDelayInBands, queueTravelHeads } from './speed-delay.js?build=19433adb960dd212';
-import { routeReport } from './network-report.js?build=19433adb960dd212';
-import { positionM } from './spatial.js?build=19433adb960dd212';
+import { NETWORK_PATHS as PATHS, baselineCapacity } from './traffic.js?build=afa91542bd05d6e2';
+import { routeSlice } from './spatial.js?build=afa91542bd05d6e2';
+import { cellSpeedBands, cellQueueSpans } from './traffic-cells.js?build=afa91542bd05d6e2';
+import { physicalSpeedBands, stopAndGoBands, resolveSpeedBands, freeSpeedKmh, colorAtSpeed } from './traffic-physics.js?build=afa91542bd05d6e2';
+import { speedDelayInCells, speedDelayInBands, queueTravelHeads } from './speed-delay.js?build=afa91542bd05d6e2';
+import { routeReport } from './network-report.js?build=afa91542bd05d6e2';
+import { positionM } from './spatial.js?build=afa91542bd05d6e2';
 function extents(bands) {
     const groups = [];
     for (const b of bands) {
@@ -164,13 +165,13 @@ export function trafficView(legacy, cells, corridors, events, spills, minute) {
                 released: root?.released ?? false, outOfBoundsM: 0, delay, feederM });
         }
         let delay = state ? speedDelayInCells(state) : speedDelayInBands(path, mapped);
-        if (path.startsWith('ramp-'))
+        if (path.startsWith('ramp-') || extensionRoute(path)?.kind === 'ramp')
             for (const spill of spills.filter(s => s.rampId === path)) {
                 delay = addDelay(delay, speedDelayInBands(spill.source, overflow.get(path + '|' + spill.id) ?? []));
             }
         const base = routeReport(path, legacy, spills, events);
         const speedKmh = Math.min(freeSpeedKmh(path), ...mapped.filter(b => b.color !== 'free').map(b => b.speedKmh));
-        const queueM = path.startsWith('ramp-') ? lengthM(queueBands) + spills.filter(s => s.rampId === path)
+        const queueM = path.startsWith('ramp-') || extensionRoute(path)?.kind === 'ramp' ? lengthM(queueBands) + spills.filter(s => s.rampId === path)
             .reduce((n, s) => n + lengthM(overflow.get(path + '|' + s.id) ?? []), 0) :
             lengthM([...queueBands, ...(spillBands.get(path) ?? [])]);
         const ownJams = jams.filter(j => j.pathKey === path), ownStock = ownJams.reduce((n, j) => n + j.queueVehicles, 0);

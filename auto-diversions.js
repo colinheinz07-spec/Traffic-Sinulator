@@ -1,16 +1,21 @@
-import { positionM, closureGate } from './spatial.js?build=19433adb960dd212';
-import { DIVERSION_LINKS, diversionJunctions, nearestExitBeforeQueue } from './diversions.js?build=19433adb960dd212';
-import { speedDelayInCells } from './speed-delay.js?build=19433adb960dd212';
-import { cellQueueSpans } from './traffic-cells.js?build=19433adb960dd212';
-import { bundledTargets, isNetworkDestination } from './bundled-detours.js?build=19433adb960dd212';
-import { junctionAccess, accessibleExits } from './road-controls.js?build=19433adb960dd212';
-import { interchangeJourneys } from './interchange-journeys.js?build=19433adb960dd212';
-import { INTERCHANGE_DIVERSION_START_MIN } from './interchange.js?build=19433adb960dd212';
+/** Directional choices at every reachable normal exit, including network
+ * boundaries. Every choice has an offline simulated side-road corridor.
+ * This planner itself never removes vehicles.
+ */
+import { DIRECTIONS } from './core.js?build=afa91542bd05d6e2';
+import { positionM, closureGate } from './spatial.js?build=afa91542bd05d6e2';
+import { DIVERSION_LINKS, diversionJunctions, nearestExitBeforeQueue } from './diversions.js?build=afa91542bd05d6e2';
+import { speedDelayInCells } from './speed-delay.js?build=afa91542bd05d6e2';
+import { cellQueueSpans } from './traffic-cells.js?build=afa91542bd05d6e2';
+import { bundledTargets, isNetworkDestination } from './bundled-detours.js?build=afa91542bd05d6e2';
+import { junctionAccess, accessibleExits } from './road-controls.js?build=afa91542bd05d6e2';
+import { interchangeJourneys } from './interchange-journeys.js?build=afa91542bd05d6e2';
+import { INTERCHANGE_DIVERSION_START_MIN } from './interchange.js?build=afa91542bd05d6e2';
 export function automaticDiversions(events, corridors, exits, cells, connections = [], turnDelays = {}) {
     const plans = new Map();
     const available = (path, access) => accessibleExits(corridors[path], events, exits, access);
     for (const event of events) {
-        if (event.pathKey.startsWith('ramp-'))
+        if (!DIRECTIONS.includes(event.pathKey))
             continue;
         const path = event.pathKey, route = corridors[path], at = positionM(route, event.point);
         if (at === null)
@@ -59,7 +64,7 @@ export function automaticDiversions(events, corridors, exits, cells, connections
     // clearing after an event use the same nearest-exit rule. Queue IDs are
     // internal route causes; no fictional event is added to the timeline.
     for (const [key, grid] of Object.entries(cells)) {
-        if (!grid || key.startsWith('ramp-'))
+        if (!grid || !DIRECTIONS.includes(key))
             continue;
         const path = key, route = corridors[path], targets = bundledTargets(path, exits, route);
         for (const span of cellQueueSpans(grid)) {

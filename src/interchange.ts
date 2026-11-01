@@ -50,20 +50,21 @@ export function interchangeDelays(jams:readonly Jam[],events:readonly SimEvent[]
  return result;
 }
 
-export interface RampConnection {
+export interface NetworkConnection {
  rampId:PathKey;
- from:RoadId;
- to:RoadId;
+ from:PathKey;
+ to:PathKey;
  rampEntryM:number;
  downstreamMergeM:number;
  sourceGapM:number;
  mergeGapM:number;
 }
+export interface RampConnection extends NetworkConnection {from:RoadId;to:RoadId}
 export interface Spillback {
  id:string;
  rampId:PathKey;
- source:RoadId;
- target:RoadId;
+ source:PathKey;
+ target:PathKey;
  sourceAnchorM:number;
  fromM:number;
  toM:number;
@@ -126,9 +127,10 @@ function pointAt(route:Corridor,m:number):Point{
  * overlay is a *location* of overflowing ramp vehicles, not another queue.
  * One exit lane at 95 veh/km is the declared simplifying storage assumption.
  */
-export function rampSpillbacks(jams:readonly Jam[],connections:readonly RampConnection[],routes:Readonly<Record<PathKey,Corridor>>):Spillback[]{
+export function rampSpillbacks(jams:readonly Jam[],connections:readonly NetworkConnection[],routes:Readonly<Record<PathKey,Corridor>>):Spillback[]{
  const output:Spillback[]=[];
  for(const connection of connections){
+  if(connection.from===connection.rampId)continue; // external entry boundary, no upstream motorway
   const route=routes[connection.from];
   // Serial incidents on the same ramp cannot each claim the same upstream
   // motorway queue. Use the largest overflow and one owner per ramp.

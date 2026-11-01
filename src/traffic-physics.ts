@@ -1,3 +1,4 @@
+import {extensionRoute} from './network-extensions.js';
 /** Deterministic, speed-based traffic colors and a kinematic-wave approximation.
  * The resulting speeds are MODEL ESTIMATES, not GPS measurements.
  */
@@ -7,7 +8,7 @@ import type {PathKey,TrafficColor} from './traffic.js';
  * simulator assumptions, not measured capacities for every A3/A48 section.
  * Motorway lanes and single-lane interchange connectors remain distinct. */
 export function baseLaneCapacity(path:PathKey):number{
- return path.startsWith('ramp-')?1500:2000;
+ return extensionRoute(path)?.kind==='ramp'||path.startsWith('ramp-')?1500:2000;
 }
 
 export interface SpeedBand {
@@ -19,7 +20,7 @@ export interface SpeedBand {
 export const QUEUE_JAM_DENSITY_PER_LANE=130,CONGESTION_WAVE_KMH=22;
 const RANK:Record<TrafficColor,number>={free:0,slow:1,jam:2,standstill:3};
 export function freeSpeedKmh(path:PathKey):number{
- return path.startsWith('ramp-')?80:130;
+ return extensionRoute(path)?.freeKmh??(path.startsWith('ramp-')?80:130);
 }
 /** One consistent definition for UI, queues, ramps and OSM map overlays. */
 export function colorAtSpeed(speedKmh:number):TrafficColor{
@@ -221,7 +222,7 @@ export function stopAndGoBands(jam:MovingQueue,simMinute:number):SpeedBand[]{
   const signalTime=simMinute-upstreamM/WAVE_UPSTREAM_M_PER_MIN;
   const source=propagatedBaseSpeed(jam.speedHistory,simMinute,upstreamM,jam.speedKmh);
   const kmh=localWaveSpeed(source,signalTime,jam.id??jam.pathKey,jam.queueM/1000,free,
-   jam.pathKey.startsWith('ramp-')||jam.offsetBackM!==undefined?'ramp':'motorway');
+   jam.pathKey.startsWith('ramp-')||extensionRoute(jam.pathKey)?.kind==='ramp'||jam.offsetBackM!==undefined?'ramp':'motorway');
   const color=colorAtSpeed(kmh);
   const last=out.at(-1);
   if(last&&last.color===color&&Math.abs(last.toM-fromM)<.01){

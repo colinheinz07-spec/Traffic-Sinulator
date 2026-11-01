@@ -1,15 +1,16 @@
+import { extensionRoute } from './network-extensions.js?build=afa91542bd05d6e2';
 /** Unrestricted base service before event-specific reductions. These are
  * simulator assumptions, not measured capacities for every A3/A48 section.
  * Motorway lanes and single-lane interchange connectors remain distinct. */
 export function baseLaneCapacity(path) {
-    return path.startsWith('ramp-') ? 1500 : 2000;
+    return extensionRoute(path)?.kind === 'ramp' || path.startsWith('ramp-') ? 1500 : 2000;
 }
 /** Standstill storage and backward relaxation are simulator assumptions.
  * 130 vehicles/km/lane corresponds to about 7.7 m per stored vehicle. */
 export const QUEUE_JAM_DENSITY_PER_LANE = 130, CONGESTION_WAVE_KMH = 22;
 const RANK = { free: 0, slow: 1, jam: 2, standstill: 3 };
 export function freeSpeedKmh(path) {
-    return path.startsWith('ramp-') ? 80 : 130;
+    return extensionRoute(path)?.freeKmh ?? (path.startsWith('ramp-') ? 80 : 130);
 }
 /** One consistent definition for UI, queues, ramps and OSM map overlays. */
 export function colorAtSpeed(speedKmh) {
@@ -214,7 +215,7 @@ export function stopAndGoBands(jam, simMinute) {
         const upstreamM = (jam.offsetBackM ?? 0) + jam.anchorM - (fromM + toM) / 2;
         const signalTime = simMinute - upstreamM / WAVE_UPSTREAM_M_PER_MIN;
         const source = propagatedBaseSpeed(jam.speedHistory, simMinute, upstreamM, jam.speedKmh);
-        const kmh = localWaveSpeed(source, signalTime, jam.id ?? jam.pathKey, jam.queueM / 1000, free, jam.pathKey.startsWith('ramp-') || jam.offsetBackM !== undefined ? 'ramp' : 'motorway');
+        const kmh = localWaveSpeed(source, signalTime, jam.id ?? jam.pathKey, jam.queueM / 1000, free, jam.pathKey.startsWith('ramp-') || extensionRoute(jam.pathKey)?.kind === 'ramp' || jam.offsetBackM !== undefined ? 'ramp' : 'motorway');
         const color = colorAtSpeed(kmh);
         const last = out.at(-1);
         if (last && last.color === color && Math.abs(last.toM - fromM) < .01) {

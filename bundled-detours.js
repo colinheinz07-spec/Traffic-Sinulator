@@ -1,14 +1,14 @@
-import { regionalDetours } from './regional-detours.js?build=19433adb960dd212';
-import { junctionAccess } from './road-controls.js?build=19433adb960dd212';
-import { networkData } from './geodata.js?build=19433adb960dd212';
+import { regionalDetours } from './regional-detours.js?build=afa91542bd05d6e2';
+import { junctionAccess } from './road-controls.js?build=afa91542bd05d6e2';
+import { networkData } from './geodata.js?build=afa91542bd05d6e2';
 /** Offline simulator side-road network. These hand-authored corridors are
  * approximate, NOT surveyed OSM ways, official U-routes or navigation advice.
  * Every normal AS has a route in both directions, including network exits.
  * Longer bypasses concatenate the same sections; no routing server is used.
  */
-import { DIRECTIONS, names, exitPosition } from './core.js?build=19433adb960dd212';
-import { diversionJunctions } from './diversions.js?build=19433adb960dd212';
-import { metres, positionM } from './spatial.js?build=19433adb960dd212';
+import { DIRECTIONS, names, exitPosition } from './core.js?build=afa91542bd05d6e2';
+import { diversionJunctions } from './diversions.js?build=afa91542bd05d6e2';
+import { metres, positionM } from './spatial.js?build=afa91542bd05d6e2';
 export const BUNDLED_SECTIONS = [
     { from: 'A3:33', to: 'A3:34', capacity: 820, via: [[50.6840, 7.2697], [50.6760, 7.2745], [50.6679, 7.2812], [50.6597, 7.2930], [50.6550, 7.3070], [50.6509, 7.3215]] },
     { from: 'A3:34', to: 'A3:35', capacity: 820, via: [[50.6450, 7.3414], [50.6379, 7.3547], [50.6268, 7.3675], [50.6212, 7.3900], [50.6087, 7.4115], [50.5986, 7.4184]] },
@@ -83,7 +83,14 @@ export function bundledDetourGeometry(id, path, from, to, exits) {
         else
             add(ends[p].from, 'end-' + p, ends[p].via, 760);
     }
-    for (const r of regionalDetours.filter(r => r.path === path)) {
+    // Cross-motorway journeys also need the target A3's extended local
+    // connections (e.g. A48 Höhr -> A3 Bad Camberg), not just the feeder's.
+    const regionalPaths = new Set([path]);
+    if (to.road === 'A3' && !path.startsWith('A3')) {
+        regionalPaths.add('A3-koeln');
+        regionalPaths.add('A3-frankfurt');
+    }
+    for (const r of regionalDetours.filter(r => regionalPaths.has(r.path))) {
         const a = 'A3:' + r.from, b = r.to.startsWith('end-') ? r.to : 'A3:' + r.to, points = r.points;
         const lengthM = points.slice(1).reduce((n, v, i) => n + metres(points[i], v), 0);
         graph.set(a, [...(graph.get(a) ?? []), { to: b, points, lengthM, capacity: 650, sectionId: a + '>' + b }]);

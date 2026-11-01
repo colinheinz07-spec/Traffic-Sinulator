@@ -1,7 +1,9 @@
-import {siegburgContext} from './siegburg-context.js';
+import {buildExtensionConnections} from './extension-connections.js';
+import {extensionRoutes,extensionRoute} from './network-extensions.js';
+import {worldGeometry} from './map-geometry.js';
 import {announcedClosureDemands} from './calendar-traffic.js';
 import {bindMapGestures} from './map-gestures.js';
-import {PATHS,pathBottleneck,eventCapacity,baselineCapacity,defaultDemand,defaultDemands,demandAtMinute,demandAtClock,type DemandMode,type PathKey,type TrafficColor} from './traffic.js';
+import {NETWORK_PATHS as PATHS,pathBottleneck,eventCapacity,baselineCapacity,defaultDemand,defaultDemands,demandAtMinute,demandAtClock,type DemandMode,type PathKey,type TrafficColor} from './traffic.js';
 import {networkData} from './geodata.js';
 import {routeReport} from './network-report.js';
 import {makeCorridors,routeSlice,positionM,closureGate,advanceSpatial,emptySpatial,jamsAt} from './spatial.js';
@@ -20,7 +22,7 @@ import {bundledDetourGeometry,bundledExitRoutes,bundledTargets,isNetworkDestinat
 import {emptyDetour,detourVehicles,type DetourConfig} from './detour-flow.js';
 import {decodeEvents,eventFromHit,updatedEvent,eventNames,eventSymbols,eventSummary,flowPolicy,defaultLengthM,defaultSettings,maxLengthM,suggestedSpeed,DEFAULT_CLEARANCE_MIN,STORAGE_KEY,isEventKind,validEvent,effectiveEventsAt,eventScheduleStatus,type EventKind,type ShoulderMode,type SimEvent} from './events.js';
 import {roadLaneInfo,rampLaneInfo} from './lane-info.js';
-import {mapCandidates,chooseMapHits,closestJunction,lanePositions,hitLabel,type MapHit} from './selection.js';
+import {mapCandidates,chooseMapHits,closestJunction,lanePositions,hitLabel,extensionCandidates,type MapHit} from './selection.js';
 import {buildContinuousRoads,lineWidths,along,rampBadges,layoutJunctionLabels,type Rectangle,type RampBadge,type JunctionLabel} from './cartography.js';
 import {placeJamCallout,type LabelRect} from './map-callouts.js';
 import {installScheduleForm} from './schedule-form.js';
@@ -37,6 +39,7 @@ const mapReady=validateMap(networkData);const allRoads=networkData.roads,ramps=n
 const drawnRoads=buildContinuousRoads(allRoads);
 const spatialCorridors=makeCorridors(allRoads,ramps);
 const rampConnections=buildRampConnections(ramps,spatialCorridors);
+const networkConnections=[...rampConnections,...buildExtensionConnections(spatialCorridors)];
 let badges:RampBadge[]=[];
 let junctionLabels:JunctionLabel[]=[];
 let trafficLabelRects:LabelRect[]=[];
@@ -48,7 +51,7 @@ let editingEventId:string|null=null;
 let speedManuallyChanged=false;
 let storageWarning='';
 function readStoredEvents():SimEvent[]{try{return decodeEvents(window.localStorage.getItem(STORAGE_KEY)).map(event=>{
- if(event.pathKey.startsWith('ramp-'))return event;
+ if(event.pathKey.startsWith('ramp-')||extensionRoute(event.pathKey))return event;
  const project=(p:Point):[number,number]=>[p[1]*111195*Math.cos(event.point[0]*Math.PI/180),p[0]*111195];
  const road=allRoads.filter(r=>r.road===event.pathKey).map(road=>({road,hit:nearestPolyline(road.points,project(event.point),project)}))
   .sort((a,b)=>a.hit.distance-b.hit.distance)[0];
@@ -58,8 +61,9 @@ function readStoredEvents():SimEvent[]{try{return decodeEvents(window.localStora
  return {...event,laneCount,closedLanes:event.kind==='closure'?Array.from({length:laneCount},(_,i)=>i):event.closedLanes.filter(i=>i<laneCount),
   ...(event.schedule?{schedule:{...event.schedule,phases:event.schedule.phases.map(phase=>({...phase,closedLanes:phase.kind==='closure'?Array.from({length:laneCount},(_,i)=>i):phase.closedLanes.filter(i=>i<laneCount)}))}}:{})};
  })}catch{return []}}
-function persistEvents(){try{window.localStorage.setItem(STORAGE_KEY,JSON.stringify(events));storageWarning='';}catch{storageWarning='Achtung: Dieser Browser speichert Ereignisse nicht dauerhaft.';}renderTraffic();}
+function persistEvents(){try{window.localStorage.setItem(STORAGE_KEY,JSON.stringify(events));storageWarning='';}catch{storageWarning='Achtung: Dieser Browser speichert Ereignisse nicht dauerhaft.';}mapTrafficSnapshot=undefined;renderTrafficSafely();}
 function eventPathLabel(e:SimEvent):string{
+ const extra=extensionRoute(e.pathKey);if(extra)return extra.name;
  const ramp=ramps.find(r=>r.id===e.pathKey);
  return ramp?.name??(names[e.pathKey as keyof typeof names]||'Unbekannter Fahrweg');
 }
@@ -117,8 +121,12 @@ function showExistingEvent(e:SimEvent){
  hint.textContent=`${eventNames[e.kind]} ausgewählt – du kannst die Verkehrsführung bearbeiten oder das Ereignis entfernen.`;
  refresh();
 }
+function hitLaneInfo(hit:MapHit){
+ if(hit.kind==='extension')return {count:hit.feature.lanes,label:`${hit.feature.lanes} Fahrstreifen · OSM-Fahrweg`,source:'osm' as const,wayId:hit.feature.wayIds[0]??null};
+ return hit.kind==='ramp'?rampLaneInfo(hit.ramp,hit.point):roadLaneInfo(hit.road);
+}
 function laneCountFor(hit:MapHit):number{
- const info=hit.kind==='ramp'?rampLaneInfo(hit.ramp,hit.point):roadLaneInfo(hit.road);
+ const info=hitLaneInfo(hit);
  return info.source==='unknown'?0:info.count;
 }
 function drawEventMarkers(width:number,height:number){
@@ -146,7 +154,7 @@ function currentShoulder():ShoulderMode{return $<HTMLSelectElement>('event-shoul
 let formJunctionClosures:NonNullable<SimEvent['settings']['junctionClosures']>={};
 function renderEventJunctionChoices(){
  const container=$('event-junctions'),kind=$<HTMLSelectElement>('event-kind').value;
- container.replaceChildren();$('event-junction-row').hidden=kind!=='roadworks'||formPathKey().startsWith('ramp-');
+ container.replaceChildren();$('event-junction-row').hidden=kind!=='roadworks'||(formPathKey().startsWith('ramp-')||!!extensionRoute(formPathKey()));
  if($('event-junction-row').hidden)return;
  const path=formPathKey() as RoadId,route=spatialCorridors[path];
  const point=editingEventId?events.find(e=>e.id===editingEventId)?.point:selected?.point;
@@ -184,7 +192,7 @@ function updateEventConfigPreview(resetSpeed=false){
  if(!isEventKind(kind))return;
  const count=formLaneCount(),closed=kind==='closure'?Array.from({length:count},(_,i)=>i):chosenLanes();
  const shoulder=$<HTMLSelectElement>('event-shoulder'),shoulderRow=$('event-shoulder-row');
- const isRamp=formPathKey().startsWith('ramp-');
+ const isRamp=formPathKey().startsWith('ramp-')||extensionRoute(formPathKey())?.kind==='ramp';
  $('event-shoulder-only').hidden=isRamp;
  shoulderRow.hidden=isRamp;$('event-shoulder-note').hidden=isRamp;
  if(isRamp)shoulder.value='normal';
@@ -273,8 +281,11 @@ function saveNewEvent(){
    if(events.length>=150)throw Error('Maximal 150 Ereignisse gleichzeitig möglich.');
    events=[...events,entry];
   }
-  persistEvents();redrawEventList();showExistingEvent(entry);
-  if(storageWarning)hint.textContent=storageWarning;
+  // Commit the event, then close the editor before updating other panels.
+  // Rendering must never make a successfully saved event look unsaved.
+  clearEventUi();activeEventId=entry.id;selected=null;$('detail').hidden=true;
+  persistEvents();refresh();
+  hint.textContent=storageWarning||`${eventNames[entry.kind]} gespeichert · ${eventPathLabel(entry)} · ${eventStatus(entry)}`;
  }catch(e){$('event-form-error').textContent=e instanceof Error?e.message:'Ereignis konnte nicht gespeichert werden.';}
 }
 function removeExistingEvent(){
@@ -290,7 +301,7 @@ function removeExistingEvent(){
 // AD ramp turn-demand dynamics still use the separate spatial solver.
 
 let spatialState=emptySpatial();
-const CELL_PATHS=PATHS.filter(key=>!key.startsWith('ramp-'));
+const CELL_PATHS=PATHS.filter(key=>DIRECTIONS.includes(key as RoadId));
 let cellNetwork:Partial<Record<PathKey,CellRouteState>>={};
 const trafficDemands=defaultDemands();
 type ActiveDetour=RoutedDetour;
@@ -348,7 +359,7 @@ function currentDemands():Record<PathKey,number>{
  return announcedClosureDemands(base,events,simulatedClock());
 }
 let trafficTimer:ReturnType<typeof setInterval>|null=null;
-const trafficRouteLabel=(key:string)=>ramps.find(r=>r.id===key)?.name??(names[key as keyof typeof names]??key);
+const trafficRouteLabel=(key:string)=>extensionRoute(key)?.name??ramps.find(r=>r.id===key)?.name??(names[key as keyof typeof names]??key);
 const trafficNumber=(n:number,digits=0)=>n.toLocaleString('de-DE',{maximumFractionDigits:digits,minimumFractionDigits:digits});
 const trafficColorName:Record<TrafficColor,string>={free:'Frei',slow:'Stockend',jam:'Stau / Stop-and-Go',standstill:'Stillstand / extrem langsam (≤ 10 km/h)'};
 /** Find a motorway re-entry AFTER the incident, always in the correct
@@ -442,13 +453,16 @@ function realJunctionFlows():RealDetourFlow[]{
   vehiclesOnDetour:detourVehicles(entry.state),waitingAtReentry:entry.state.waitingMerge
  }));
 }
+const junctionSnapshot=new Map<RoadId,JunctionMovement[]>();
 function junctionRows(path:typeof DIRECTIONS[number]):JunctionMovement[]{
+ const cached=junctionSnapshot.get(path);if(cached)return cached;
  const timeline=activeEvents();
- return junctionMovements(path,spatialCorridors[path],exits,timeline,null,realJunctionFlows(),cellNetwork[path]?.junctions??[]);
+ const rows=junctionMovements(path,spatialCorridors[path],exits,timeline,null,realJunctionFlows(),cellNetwork[path]?.junctions??[]);
+ junctionSnapshot.set(path,rows);return rows;
 }
 function renderJunctionMovements(path:PathKey){
  const host=$('junction-movements');host.replaceChildren();
- if(path.startsWith('ramp-')){
+ if(path.startsWith('ramp-')||extensionRoute(path)){
   const p=document.createElement('p');p.className='junction-note';
   p.textContent='Die Überleitungsrampe ist keine eigene Ortsanschlussstelle. Wähle A3 Köln/Frankfurt oder A48 Dernbach/Koblenz.';
   host.append(p);return;
@@ -538,6 +552,7 @@ function drawJunctionMovementHints(width:number,height:number){
 function renderDiversionPlanner(key:PathKey,jams:ReturnType<typeof jamsAt>,spillbacks:ReturnType<typeof rampSpillbacks>){
  const parent=$('traffic-diversion-plans'),catalog=$('traffic-diversion-catalog');
  parent.replaceChildren();catalog.replaceChildren();
+ if(extensionRoute(key)){const p=document.createElement('p');p.textContent='Eigener Simulator-Fahrweg mit Zufluss, Fahrstreifenkapazität und Ereignissen. Ortsumleitungen sind auf diesem Zusatzfahrweg nicht hinterlegt.';parent.append(p);return;}
  if(key.startsWith('ramp-')){
   const p=document.createElement('p');p.textContent='Überleitungsrampen am AD Dernbach sind keine Ortsausfahrten. Wähle A3 oder A48, um geeignete Bedarfsumleitungen zu sehen.';
   parent.append(p);return;
@@ -648,13 +663,14 @@ function updateMapClock(){
  state.className='map-clock-status'+(running?' running':'');
 }
 function renderTraffic(){
+ junctionSnapshot.clear();
  // Viewing another carriageway is read-only. Only a simulation tick may
  // prepare routes and update diversion intentions.
  const timeline=activeEvents();
  const selector=$<HTMLSelectElement>('traffic-route');const key=selector.value as PathKey;
  if(!PATHS.includes(key))return;
  const jams=trafficJams(timeline);
- const spillbacks=rampSpillbacks(jams,rampConnections,spatialCorridors);
+ const spillbacks=rampSpillbacks(jams,networkConnections,spatialCorridors);
  const view=trafficView(jams,cellNetwork,spatialCorridors,timeline,spillbacks,spatialState.minute);
  mapTrafficSnapshot={timeline,list:jams,spillbacks,view};
  const result=view.reports[key];
@@ -703,7 +719,8 @@ function renderTraffic(){
  const mergeText=mergeQueues.map(x=>`${trafficRouteLabel(x.pathKey)}: ${trafficNumber(x.queueVehicles)} Fahrzeuge warten wegen Rückstau an der Einmündung`).join(' · ');
  $('traffic-interchange').textContent=[overflowText,mergeText].filter(Boolean).join(' · ')||'AD Dernbach: Kein Rückstau reicht derzeit von einer Rampe auf A3/A48 oder von einer Zielautobahn in eine Rampe zurück.';
  const parent=$('traffic-summary');parent.replaceChildren();
- for(const item of PATHS){const m=view.reports[item];
+ const summaryPaths=PATHS.filter(item=>!extensionRoute(item)||item===key||timeline.some(e=>e.pathKey===item)||view.reports[item].queueVehicles>.01);
+ for(const item of summaryPaths){const m=view.reports[item];
   const button=document.createElement('button');button.type='button';button.className='traffic-summary-row';
   const label=document.createElement('span');label.textContent=trafficRouteLabel(item);
   const status=document.createElement('strong');status.className=`traffic-state ${m.color}`;
@@ -781,7 +798,7 @@ function stepTraffic(minutes:number){
    const timeline=activeEvents();
    const transfers:import('./spatial.js').SpatialTransfer[]=[];
    const jams=trafficJams(timeline);
-   const spillbacks=rampSpillbacks(jams,rampConnections,spatialCorridors);
+   const spillbacks=rampSpillbacks(jams,networkConnections,spatialCorridors);
    // Actual departures and returns share the A3/A48 cell inventory.
    for(const key of CELL_PATHS)cellNetwork[key]??=initialiseCells(spatialCorridors[key],active[key]);
    const next=advanceRoutedNetwork(cellNetwork,spatialCorridors,timeline,active,exits,[...activeDetours.values()],
@@ -790,9 +807,9 @@ function stepTraffic(minutes:number){
    for(const entry of next.detours)activeDetours.set(entry.config.id,entry);
    transfers.push(...next.transfers);
    const physicalMainline=trafficView(jams,cellNetwork,spatialCorridors,timeline,spillbacks,spatialState.minute+1)
-    .physicalJams.filter(j=>!j.pathKey.startsWith('ramp-'));
+    .physicalJams.filter(j=>!j.pathKey.startsWith('ramp-')&&extensionRoute(j.pathKey)?.kind!=='ramp');
    const legacyActive=remainingInterchangeDemands(active,[...activeDetours.values()],timeline);
-   spatialState=advanceSpatial(spatialState,timeline,legacyActive,1,spatialCorridors,rampConnections,transfers,exits,physicalMainline);
+   spatialState=advanceSpatial(spatialState,timeline,legacyActive,1,spatialCorridors,networkConnections,transfers,exits,physicalMainline,PATHS);
   }
  }
  catch(e){stopTraffic();$('traffic-issue').textContent=e instanceof Error?e.message:'Simulationsfehler';return;}
@@ -854,7 +871,19 @@ function initializeTraffic(){
 
 const imageCache=new Map<string,{image:HTMLImageElement;ready:boolean;failed:boolean}>();
 const size=()=>{const width=wrapper.clientWidth,height=wrapper.clientHeight,scale=Math.min(2,window.devicePixelRatio||1);if(canvas.width!==Math.floor(width*scale)||canvas.height!==Math.floor(height*scale)){canvas.width=Math.floor(width*scale);canvas.height=Math.floor(height*scale);}return {width,height,scale};};
-function toScreen(p:Point):[number,number]{const mid=mercator(focus,zoom),v=mercator(p,zoom);return [wrapper.clientWidth/2+v[0]-mid[0],wrapper.clientHeight/2+v[1]-mid[1]];}
+let projection:{zoom:number;focus:Point;width:number;height:number;scale:number;left:number;top:number}|undefined;
+function screenProjection(){
+ const width=wrapper.clientWidth,height=wrapper.clientHeight;
+ if(!projection||projection.zoom!==zoom||projection.focus!==focus||projection.width!==width||projection.height!==height){
+  const center=mercator(focus,zoom);projection={zoom,focus,width,height,scale:2**zoom,left:width/2-center[0],top:height/2-center[1]};
+ }
+ return projection;
+}
+const pointWorld=new WeakMap<Point,[number,number]>();
+function toScreen(p:Point):[number,number]{
+ let world=pointWorld.get(p);if(!world){world=mercator(p,0);pointWorld.set(p,world);}
+ const transform=screenProjection();return [world[0]*transform.scale+transform.left,world[1]*transform.scale+transform.top];
+}
 function fromScreen(x:number,y:number):Point{const mid=mercator(focus,zoom);return inverse([mid[0]+x-wrapper.clientWidth/2,mid[1]+y-wrapper.clientHeight/2],zoom);}
 let frame=0;
 const refresh=()=>{needsDraw=true;if(!frame)frame=requestAnimationFrame(()=>{frame=0;if(needsDraw){needsDraw=false;draw();}});};
@@ -884,6 +913,14 @@ function drawTiles(width:number,height:number){
 }
 function stroke(points:Point[],width:number,color:string,offset=0){
  if(points.length<2)return;
+ const geometry=worldGeometry(points),transform=screenProjection(),margin=width+Math.abs(offset)+4;
+ if(geometry.maxX*transform.scale+transform.left < -margin||geometry.minX*transform.scale+transform.left > transform.width+margin||
+  geometry.maxY*transform.scale+transform.top < -margin||geometry.minY*transform.scale+transform.top > transform.height+margin)return;
+ if(!offset&&geometry.path){
+  context!.save();context!.translate(geometry.anchor[0]*transform.scale+transform.left,geometry.anchor[1]*transform.scale+transform.top);
+  context!.scale(transform.scale,transform.scale);context!.strokeStyle=color;context!.lineWidth=width/transform.scale;
+  context!.lineJoin='round';context!.lineCap='round';context!.stroke(geometry.path);context!.restore();return;
+ }
  context!.beginPath();for(let i=0;i<points.length;i++){
   let [x,y]=toScreen(points[i]!);
   if(offset){const a=toScreen(points[Math.max(0,i-1)]!),b=toScreen(points[Math.min(points.length-1,i+1)]!);
@@ -931,7 +968,7 @@ function drawSpatialJams(){
  trafficLabelRects=[];
  if(!mapTrafficSnapshot){
   const timeline=activeEvents(),list=trafficJams(timeline);
-  const spillbacks=rampSpillbacks(list,rampConnections,spatialCorridors);
+  const spillbacks=rampSpillbacks(list,networkConnections,spatialCorridors);
   mapTrafficSnapshot={timeline,list,spillbacks,view:trafficView(list,cellNetwork,spatialCorridors,timeline,spillbacks,spatialState.minute)};
  }
  const {timeline,list,spillbacks,view}=mapTrafficSnapshot;
@@ -942,8 +979,8 @@ function drawSpatialJams(){
  const terminalFeeders=new Set<PathKey>(spillbacks.filter(s=>
   Math.abs(s.sourceAnchorM-spatialCorridors[s.source].lengthM)<1).map(s=>s.source));
  for(const [key,bands] of view.bands){
-  const route=spatialCorridors[key],narrow=key.startsWith('ramp-');
-  const count=key.startsWith('A48')?2:3;
+  const route=spatialCorridors[key],narrow=key.startsWith('ramp-')||extensionRoute(key)?.kind==='ramp';
+  const count=extensionRoute(key)?.lanes??(key.startsWith('A48')?2:3);
   const restricted=narrow?[]:roadSections(route,timeline).filter(s=>s.openLanes.length<count);
   const drawOpen=(line:Point[],section:typeof restricted[number],color:string)=>{
    const lanes=[...section.openLanes,...(section.shoulderOpen?[-1]:[])];
@@ -995,6 +1032,7 @@ function drawSpatialJams(){
   const event=timeline.find(e=>e.id===jam.eventId),sign=event?eventSymbols[event.kind]:'🚗';
   const shortDirection=jam.pathKey==='A3-koeln'?'A3 Köln':jam.pathKey==='A3-frankfurt'?'A3 Frankfurt'
    :jam.pathKey==='A48-dernbach'?'A48 Dernbach':jam.pathKey==='A48-koblenz'?'A48 Koblenz'
+   :extensionRoute(jam.pathKey)?extensionRoute(jam.pathKey)!.name
    :jam.pathKey==='ramp-a48-to-koeln'?'A48→A3 Köln'
    :jam.pathKey==='ramp-a48-to-frankfurt'?'A48→A3 Ffm':'AD Dernbach Rampe';
   const delay=speedDelayLabel(jam.delay,1,true);
@@ -1026,7 +1064,7 @@ function draw(){
  // Zoom-adaptive outlines keep both carriageways visually distinct on narrow screens.
  const lines=lineWidths(zoom);
  for(const road of drawnRoads)stroke(road.points,lines.motorwayCasing,'#083348');
- for(const feature of siegburgContext){stroke(feature.points,feature.kind==='ramp'?lines.rampCasing:lines.motorwayCasing,'#061927');stroke(feature.points,feature.kind==='ramp'?lines.ramp:lines.motorway,'#9baebd');}
+ for(const feature of extensionRoutes){stroke(feature.points,feature.kind==='ramp'?lines.rampCasing:lines.motorwayCasing,'#061927');stroke(feature.points,feature.kind==='ramp'?lines.ramp:lines.motorway,'#26bb7c');}
  for(const road of drawnRoads)stroke(road.points,lines.motorway,roadColors[road.road]);
  for(const ramp of ramps)stroke(ramp.points,lines.rampCasing,'#273b4c');
  for(const ramp of ramps)stroke(ramp.points,lines.ramp,'#26bb7c');
@@ -1043,21 +1081,21 @@ function showSelected(hit:MapHit){
  $('selected-fields').hidden=false;
  $('selection-help').hidden=false;
  $('selected-title').textContent=hitLabel(hit);
- $('selected-note').textContent=hit.kind==='ramp'
+ $('selected-note').textContent=hit.kind==='extension'?`${hit.feature.zone} · geprüfter OSM-Fahrweg`:hit.kind==='ramp'
   ? 'Überleitung am AD Dernbach – vom OSM-Fahrbahnverlauf ausgewählt.'
   : `Fahrtrichtung eindeutig zugeordnet · OSM-Way ${hit.road.wayId}`;
  $('selected-direction').textContent=hitLabel(hit);
  $('selected-coords').textContent=`${hit.point[0].toFixed(6)}° N · ${hit.point[1].toFixed(6)}° E`;
  const timeline=activeEvents(),jams=trafficJams(timeline);
- const view=trafficView(jams,cellNetwork,spatialCorridors,timeline,rampSpillbacks(jams,rampConnections,spatialCorridors),spatialState.minute);
+ const view=trafficView(jams,cellNetwork,spatialCorridors,timeline,rampSpillbacks(jams,networkConnections,spatialCorridors),spatialState.minute);
  const details=view.reports[hit.key as PathKey];
  $('selected-traffic').textContent=`${trafficNumber(details.queueVehicles)} Fahrzeuge auf diesem Fahrweg · ${trafficNumber(details.queueKm,2)} km Rückstau · ${speedDelayLabel(view.delays[hit.key as PathKey])}${details.sharedRampVehicles>0?' Durchgang · Abfahrt '+(details.exitDelayMin===null?'blockiert':'+'+trafficNumber(details.exitDelayMin,1)+' min'):''}`;
- const lane=hit.kind==='ramp'?rampLaneInfo(hit.ramp,hit.point):roadLaneInfo(hit.road);
+ const lane=hitLaneInfo(hit);
  $('selected-lanes').textContent=lane.label;
  $('selected-lane-names').textContent=lanePositions(lane.count).join(' · ')||'Keine gesicherte Fahrstreifenaufteilung';
  if(lane.source!=='osm'&&lane.source!=='normal')$('selected-note').textContent+=' · Fahrstreifenangabe nicht aktuell verifiziert.';
  const junction=closestJunction(hit,exits);
- $('selected-junction').textContent=hit.kind==='ramp'
+ $('selected-junction').textContent=hit.kind==='extension'?hit.feature.zone:hit.kind==='ramp'
   ? 'AD Dernbach (A3 39 / A48 13)'
   : junction?`${junction.exit.road} ${junction.exit.ref} ${junction.exit.name} · ca. ${junction.distanceKm.toFixed(1).replace('.',',')} km Luftlinie`:'Nicht zugeordnet';
  $('detail').hidden=false;
@@ -1076,11 +1114,11 @@ function selectAt(x:number,y:number){
   if(snapped)showSelected(snapped);
   return;
  }
- const nearby=mapCandidates(allRoads,ramps,[x,y],toScreen,zoom<10.5?12:18);
+ const nearby=[...mapCandidates(allRoads,ramps,[x,y],toScreen,zoom<10.5?12:18),
+  ...extensionCandidates([x,y],toScreen,zoom<10.5?12:18)].sort((a,b)=>a.distance-b.distance);
  const options=chooseMapHits(nearby);
  if(!options.length){
-  const contextual=siegburgContext.map(feature=>({feature,hit:nearestPolyline(feature.points,[x,y],toScreen)})).sort((a,b)=>a.hit.distance-b.hit.distance)[0];
-  hint.textContent=contextual&&contextual.hit.distance<16?`${contextual.feature.name??'A560 am AK Bonn/Siegburg'} · ${contextual.feature.lanes} reguläre Fahrstreifen · Kartenergänzung, ohne eigene Verkehrssimulation`:'Keine A3-/A48-Fahrbahn oder Rampe getroffen. Zoome näher heran.';return;}
+  hint.textContent='Keine Fahrbahn oder Rampe getroffen. Zoome näher heran.';return;}
  if(options.length===1){showSelected(options[0]!);return;}
  selected=null;activeEventId=null;clearEventUi();refresh();
  $('selected-title').textContent='Fahrtrichtung auswählen';
@@ -1158,7 +1196,7 @@ function bind(){
  window.addEventListener('resize',refresh);
 }
 function start(){if(!mapReady.valid){status.classList.add('error');status.textContent='Geodatenprüfung fehlgeschlagen';hint.textContent=mapReady.errors.join(' · ');return;}
- fillMetrics();makeExitButtons();bind();initializeTraffic();redrawEventList();fit();status.textContent=`✓ ${exits.length} AS/Knoten · ${allRoads.length} OSM-Fahrbahnstücke · 4 AD-Rampen · AK Bonn/Siegburg vollständig`;
+ fillMetrics();makeExitButtons();bind();initializeTraffic();redrawEventList();fit();status.textContent=`✓ ${exits.length} AS/Knoten · ${allRoads.length} OSM-Fahrbahnstücke · ${extensionRoutes.length} Zusatzfahrwege · 4 Dernbach-Rampen`;
  refresh();
 }
 start();

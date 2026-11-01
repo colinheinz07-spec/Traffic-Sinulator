@@ -1,3 +1,4 @@
+import {junctionAccess} from './road-controls.js';
 /** Publicly documented emergency diversion (Bedarfsumleitung) INVENTORY.
  * Sources:
  *  - OSM Wiki Germany/Bedarfsumleitung/Rheinland-Pfalz and Hessen (Oct 2026)
@@ -112,7 +113,7 @@ export function planDiversion(event:SimEvent,route:Corridor,exits:readonly Exit[
  if(at===null)return null;
  const all=diversionJunctions(path,exits,route);
  const section=closureGate(route,event,exits);
- const upstream=all.filter(x=>!x.isInterchange&&(section?x.metre<=section.metre+1:x.metre<at-50)).reverse().slice(0,maxOptions);
+ const upstream=all.filter(x=>!x.isInterchange&&junctionAccess(route,[event],x.metre,x.ref).exit&&(section?x.metre<=section.metre+1:x.metre<at-50)).reverse().slice(0,maxOptions);
  const candidates=upstream.map((exit,index)=>{
   const link=DIVERSION_LINKS.find(u=>u.path===path&&u.fromRoad===exit.road&&u.fromRef===exit.ref)??null;
   return {exit,link,upstreamKm:Math.max(0,(at-exit.metre)/1000),

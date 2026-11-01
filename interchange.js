@@ -1,6 +1,6 @@
-import { positionM, metres } from './spatial.js?build=19433adb960dd212';
-import { defaultDemand, eventCapacity } from './traffic.js?build=19433adb960dd212';
-import { DEFAULT_CLEARANCE_MIN } from './events.js?build=19433adb960dd212';
+import { positionM, metres } from './spatial.js?build=afa91542bd05d6e2';
+import { defaultDemand, eventCapacity } from './traffic.js?build=afa91542bd05d6e2';
+import { DEFAULT_CLEARANCE_MIN } from './events.js?build=afa91542bd05d6e2';
 export const INTERCHANGE_DIVERSION_START_MIN = 45;
 const movements = {
     'ramp-a48-to-koeln': { from: 'A48-dernbach', to: 'A3-koeln' },
@@ -110,6 +110,8 @@ function pointAt(route, m) {
 export function rampSpillbacks(jams, connections, routes) {
     const output = [];
     for (const connection of connections) {
+        if (connection.from === connection.rampId)
+            continue; // external entry boundary, no upstream motorway
         const route = routes[connection.from];
         // Serial incidents on the same ramp cannot each claim the same upstream
         // motorway queue. Use the largest overflow and one owner per ramp.

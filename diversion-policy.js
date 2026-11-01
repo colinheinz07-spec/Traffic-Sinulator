@@ -1,12 +1,12 @@
-import { cellQueueSpans } from './traffic-cells.js?build=19433adb960dd212';
-import { closureGate } from './spatial.js?build=19433adb960dd212';
-import { diversionJunctions, nearestExitBeforeQueue, potentialDiversionPercent } from './diversions.js?build=19433adb960dd212';
-import { speedDelayInCells } from './speed-delay.js?build=19433adb960dd212';
-import { freeSpeedKmh } from './traffic-physics.js?build=19433adb960dd212';
-import { INTERCHANGE_DIVERSION_START_MIN, interchangeTrafficShare } from './interchange.js?build=19433adb960dd212';
-import { closedMovementEvent, viaJourneyUsable, journeyRampCapacity, journeyTrafficShare } from './interchange-journeys.js?build=19433adb960dd212';
-import { accessibleExits, junctionAccess } from './road-controls.js?build=19433adb960dd212';
-import { exitRampVehicles, DEFAULT_EXIT_TERMINAL_VPH } from './junction-traffic.js?build=19433adb960dd212';
+import { cellQueueSpans } from './traffic-cells.js?build=afa91542bd05d6e2';
+import { closureGate } from './spatial.js?build=afa91542bd05d6e2';
+import { diversionJunctions, nearestExitBeforeQueue, potentialDiversionPercent } from './diversions.js?build=afa91542bd05d6e2';
+import { speedDelayInCells } from './speed-delay.js?build=afa91542bd05d6e2';
+import { freeSpeedKmh } from './traffic-physics.js?build=afa91542bd05d6e2';
+import { INTERCHANGE_DIVERSION_START_MIN, interchangeTrafficShare } from './interchange.js?build=afa91542bd05d6e2';
+import { closedMovementEvent, viaJourneyUsable, journeyRampCapacity, journeyTrafficShare } from './interchange-journeys.js?build=afa91542bd05d6e2';
+import { accessibleExits, junctionAccess } from './road-controls.js?build=afa91542bd05d6e2';
+import { exitRampVehicles, DEFAULT_EXIT_TERMINAL_VPH } from './junction-traffic.js?build=afa91542bd05d6e2';
 function exitTerminalWait(source, metre) {
     const ramp = source.junctions?.find(j => Math.abs(j.metre - metre) < 25);
     return ramp ? exitRampVehicles(ramp) / Math.max(1, ramp.exitTerminalVph ?? DEFAULT_EXIT_TERMINAL_VPH) * 60 : 0;
