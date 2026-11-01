@@ -38,6 +38,14 @@ test('actual entry and exit inventories color only their own physical ramp and c
  const exitJams=junctionRampJams({[path]:grid},routes,exits,[]);assert.ok(exitJams.length);assert.ok(exitJams.every(j=>off.has(j.pathKey)));
  grid.junctions[0].exitQueue={normal:0,detours:{}};assert.deepEqual(junctionRampJams({[path]:grid},routes,exits,[]),[]);
 });
+test('fractional ramps stay visually clear but larger real queues colour their own ramp',()=>{
+ const path='A3-koeln',grid=state(path,'40');
+ grid.junctions[0].waiting=1.5;
+ assert.deepEqual(junctionRampJams({[path]:grid},routes,exits,[]),[]);
+ assert.equal(grid.junctions[0].waiting,1.5,'map filtering must not delete cars');
+ grid.junctions[0].waiting=20;
+ assert.ok(junctionRampJams({[path]:grid},routes,exits,[]).length>0);
+});
 test('a physical ramp accident limits its own junction service while a formal closure prevents fresh entry',()=>{
  const path='extra-a59-koeln',route=routes[path],bindings=junctionRampBindings(route,exits).filter(b=>b.ref==='41'&&b.kind==='entry');
  assert.ok(bindings.length);const ramps=[...new Map(bindings.map(b=>[b.segments.at(-1).ramp.id,b.segments.at(-1).ramp])).values()];
