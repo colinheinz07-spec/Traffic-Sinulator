@@ -1,3 +1,5 @@
+import {regionalFlowAt,regionalJunctionDemands} from './regional-traffic.js';
+import type {SimEvent} from './events.js';
 import {networkRoad} from './network-road.js';
 import {junctionAccess} from './road-controls.js';
 import {localRoadAvailability} from './calendar-traffic.js';
@@ -48,16 +50,17 @@ export function junctionCapacityProfile(road:string,ref:string){
 export function exitRampVehicles(state:JunctionTrafficState):number{
  return (state.exitQueue?.normal??0)+Object.values(state.exitQueue?.detours??{}).reduce((n,v)=>n+v,0);
 }
-export function normalJunctionTraffic(route:Corridor,exits:readonly Exit[],demandVph:number,moment?:Date):JunctionTrafficDemand[]{
+export function normalJunctionTraffic(route:Corridor,exits:readonly Exit[],demandVph:number,moment?:Date,regional=false,events:readonly SimEvent[]=[]):JunctionTrafficDemand[]{
  if(!networkRoad(route.key))return [];
- return diversionJunctions(route.key as RoadId,exits,route).filter(j=>!j.isInterchange).map(j=>{
+ const ordinary=diversionJunctions(route.key as RoadId,exits,route).filter(j=>!j.isInterchange).map(j=>{
   // 4–8% local turnover per AS. Balanced ordinary entry/exit at the
   // reference free flow avoids artificially growing demand at every node.
   const share=4+Number.parseInt(j.ref,10)%5,profile=junctionCapacityProfile(networkRoad(route.key)!,j.ref);
   const access=junctionAccess(route,[],j.metre,j.ref);
   return {id:route.key+':local:'+j.ref,ref:j.ref,metre:j.metre,
-   entryVph:access.entry?Math.min(700,demandVph*share/100):0,exitPercent:access.exit?share:0,
+   entryVph:access.entry?Math.min(700,(regional&&moment?regionalFlowAt(route,exits,demandVph,j.metre+.1,moment):demandVph)*share/100):0,exitPercent:access.exit?share:0,
    entryCapacityVph:profile.entry,exitCapacityVph:profile.exit,
    exitTerminalVph:Math.min(profile.exit,profile.terminal*localRoadAvailability(moment)),exitStorageVehicles:profile.storage};
  });
+ return regional&&moment?regionalJunctionDemands(route,exits,demandVph,moment,ordinary,events):ordinary;
 }

@@ -1,11 +1,12 @@
-import { EXTENSION_IDS, extensionRoutes, extensionRoute } from './network-extensions.js?build=b8c6f2049b46157b';
+import { REFERENCE_PEAKS, profileFactor, profileIdentity } from './traffic-profiles.js?build=44f71684add0e0c7';
+import { EXTENSION_IDS, extensionRoutes, extensionRoute } from './network-extensions.js?build=44f71684add0e0c7';
 /** Deliberately isolated, macroscopic first-pass traffic-flow simulation.
  * Traffic volumes, capacities, and queue density are modelling assumptions,
  * NOT measured flows, road regulations, official diversion routes, or observed jams.
  * One controlling bottleneck per directional path; no A3/A48 ramp transfer yet.
  */
-import { flowPolicy } from './events.js?build=b8c6f2049b46157b';
-import { baseLaneCapacity, QUEUE_JAM_DENSITY_PER_LANE } from './traffic-physics.js?build=b8c6f2049b46157b';
+import { flowPolicy } from './events.js?build=44f71684add0e0c7';
+import { baseLaneCapacity, QUEUE_JAM_DENSITY_PER_LANE } from './traffic-physics.js?build=44f71684add0e0c7';
 export const PATHS = [
     'A3-koeln', 'A3-frankfurt', 'A48-dernbach', 'A48-koblenz',
     'ramp-a3-to-a48-from-frankfurt', 'ramp-a48-to-koeln',
@@ -14,6 +15,7 @@ export const PATHS = [
 export const NETWORK_PATHS = [...PATHS, ...EXTENSION_IDS];
 const demandDefaults = {
     ...Object.fromEntries(extensionRoutes.map(r => [r.id, r.demandVph])),
+    ...REFERENCE_PEAKS,
     'A3-koeln': 4200, 'A3-frankfurt': 4100,
     'A48-dernbach': 2400, 'A48-koblenz': 1700,
     'ramp-a3-to-a48-from-frankfurt': 1000, 'ramp-a48-to-koeln': 1000,
@@ -65,7 +67,7 @@ export function eventCapacity(e, volumeVph = defaultDemand(e.pathKey), heavyFrac
     const policy = flowPolicy(e);
     if (!policy.canEnter)
         return 0;
-    if (!Number.isFinite(volumeVph) || volumeVph < 0 || volumeVph > 8000)
+    if (!Number.isFinite(volumeVph) || volumeVph < 0 || volumeVph > 16000)
         throw Error('Ungültiger Zufluss');
     if (!Number.isFinite(heavyFraction) || heavyFraction < 0 || heavyFraction > 1)
         throw Error('Ungültiger Schwerlastanteil');
@@ -157,54 +159,22 @@ export function advanceTraffic(state, events, demands, minutes) {
     return { minute: state.minute + minutes, vehiclesWaiting: waiting };
 }
 export function defaultDemands() { return { ...demandDefaults }; }
-const WEEKDAY_PROFILE = [
-    [0, .14], [4, .09], [5, .20], [6, .52], [7, .86], [8, 1], [9, .79], [10, .66],
-    [12, .68], [14, .72], [15, .82], [16, 1], [17, 1.05], [18, .82], [19, .58],
-    [21, .32], [23, .19], [24, .14]
-];
-const SATURDAY_PROFILE = [
-    [0, .23], [3, .15], [6, .14], [8, .28], [10, .54], [12, .78], [15, .85],
-    [17, .76], [20, .61], [23, .33], [24, .23]
-];
-const SUNDAY_PROFILE = [
-    [0, .22], [4, .13], [8, .18], [10, .40], [12, .63], [15, .79], [17, .92],
-    [19, .76], [21, .46], [23, .26], [24, .22]
-];
-function interpolateHourly(points, hour) {
-    for (let i = 1; i < points.length; i++) {
-        const [end, value] = points[i], [start, previous] = points[i - 1];
-        if (hour <= end)
-            return previous + (value - previous) * (hour - start) / (end - start);
-    }
-    return points.at(-1)[1];
-}
-/** Synthetic local-clock demand: reference volumes are peak-hour inputs, NOT
- * measured traffic counts. Public holidays and school holidays not modelled.
- * Date uses local device time, including DST at a real elapsed-minute rollover.
- */
+/** Local calendar profiles vary by motorway and direction. References are
+ * peak-hour model inputs, not DTV or current measured hourly counts. */
 export function demandAtClock(base, moment) {
     if (!Number.isFinite(moment.getTime()))
         throw Error('Ungültiges Simulationsdatum');
-    const weekday = moment.getDay(), hour = moment.getHours() + moment.getMinutes() / 60;
-    const profile = weekday === 0 ? SUNDAY_PROFILE : weekday === 6 ? SATURDAY_PROFILE : WEEKDAY_PROFILE;
-    // The reference is a PEAK-hour input. The former broad curve summed to
-    // about 103,500 A3 vehicles/day across a representative model week with
-    // the defaults, perpetuating overload far outside the rush hours.
-    // Sharpen the synthetic peaks without changing their reference inputs.
-    // 1.4 is a scenario calibration, not measured hourly A3/A48 count data.
-    const raw = interpolateHourly(profile, hour);
-    const factor = raw < 1 ? raw ** 1.4 : raw;
+    const factors = new Map();
     return Object.fromEntries(NETWORK_PATHS.map(key => {
-        let direction = 1;
-        if (weekday !== 0 && weekday !== 6) {
-            const morning = Math.max(0, 1 - Math.abs(hour - 7.75) / 2.5);
-            const evening = Math.max(0, 1 - Math.abs(hour - 16.75) / 2.5);
-            if (key === 'A3-frankfurt' || key === 'A48-dernbach' || key === 'ramp-a48-to-frankfurt')
-                direction += .09 * morning;
-            if (key === 'A3-koeln' || key === 'A48-koblenz' || key === 'ramp-a48-to-koeln')
-                direction += .09 * evening;
+        // Most ramps share one family. Cache the result per profile/direction
+        // inside this minute rather than recomputing a curve for every fragment.
+        const id = profileIdentity(key);
+        let factor = factors.get(id);
+        if (factor === undefined) {
+            factor = profileFactor(key, moment);
+            factors.set(id, factor);
         }
-        return [key, Math.max(0, Math.min(8000, Math.round(base[key] * factor * direction)))];
+        return [key, Math.max(0, Math.min(8000, Math.round(base[key] * factor)))];
     }));
 }
 /** Synthetic ending of a traffic peak. No measured traffic; no arbitrary delay cap. */

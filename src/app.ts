@@ -1,3 +1,5 @@
+import {profileDescription} from './traffic-profiles.js';
+import {regionalFlowAt,regionalBoundaryFlow,regionalDescription} from './regional-traffic.js';
 import {MOTORWAY_PATHS,MOTORWAY_GROUPS,junctionDirectory,junctionRoute,trafficOverviewPaths} from './network-presentation.js';
 import type {DetourGeometry} from './detour-routing.js';
 import {planExtensionDetours,refreshExtensionDetour,extensionDetours} from './extension-detours.js';
@@ -714,6 +716,7 @@ function renderTraffic(){
  const spillbacks=rampSpillbacks(jams,networkConnections,spatialCorridors);
  const view=trafficView(jams,cellNetwork,spatialCorridors,timeline,spillbacks,spatialState.minute);
  mapTrafficSnapshot={timeline,list:jams,spillbacks,view};
+ if(selected)updateSelectedTraffic(selected,view);
  const result=view.reports[key];
  const bn=pathBottleneck(key,timeline);
  $('traffic-minute').textContent=`Minute ${spatialState.minute}`;
@@ -726,9 +729,9 @@ function renderTraffic(){
   flow.enter+=entry.state.lastDeparture*60;flow.leave+=entry.state.lastRejoined*60;extraRampFlow.set(j.rampId,flow);
  }
  if(key.startsWith('ramp-'))activeDemands[key]+=extraRampFlow.get(key)?.enter??0;
- $('traffic-demand').textContent=trafficNumber(activeDemands[key]);
+ $('traffic-demand').textContent=trafficNumber(demandMode==='clock'&&networkRoad(key)?regionalBoundaryFlow(spatialCorridors[key],exits,activeDemands[key],simulatedClock()):activeDemands[key]);
  $('traffic-demand-hint').textContent=demandMode==='clock'
-  ?'Automatisches Tagesprofil: Nacht, Morgen- und Abendspitze sowie Werktag/Samstag/Sonntag. Der eingegebene Zufluss ist ein Spitzenstunden-Referenzwert, kein Messwert. Feiertage und Ferien sind noch nicht berücksichtigt.'
+  ?profileDescription(key)+'. Anstieg ab etwa 5 Uhr, Morgenspitze je Strecke um 7–8 Uhr, danach Rückgang; eigene Abend- und Wochenendprofile. '+regionalDescription(key)+' Der Eingabewert ist eine Modellreferenz pro Richtung, keine DTV-Zahl oder Live-Messung. Feiertage/Ferien sind nicht berücksichtigt.'
   :demandMode==='wave'?'Testmodus: Abklingende Stoßzeit ab Simulationsstart; der Zufluss sinkt über ca. 100 Minuten.'
   :'Testmodus: Konstanter Zufluss unabhängig von Datum und Uhrzeit.';
  let shownCapacity=result.capacityVph;
@@ -841,9 +844,9 @@ function stepTraffic(minutes:number){
    const jams=trafficJams(timeline);
    const spillbacks=rampSpillbacks(jams,networkConnections,spatialCorridors);
    // Actual departures and returns share the A3/A48 cell inventory.
-   for(const key of CELL_PATHS)cellNetwork[key]??=initialiseCells(spatialCorridors[key],active[key]);
+   for(const key of CELL_PATHS)cellNetwork[key]??=initialiseCells(spatialCorridors[key],active[key],demandMode==='clock'?metre=>regionalFlowAt(spatialCorridors[key],exits,active[key],metre,simulatedClock()):undefined);
    const next=advanceRoutedNetwork(cellNetwork,spatialCorridors,timeline,active,exits,[...activeDetours.values()],
-    interchangeDelays(jams,timeline),simulatedClock());
+    interchangeDelays(jams,timeline),simulatedClock(),demandMode==='clock');
    cellNetwork=next.cells;
    for(const entry of next.detours)activeDetours.set(entry.config.id,entry);
    transfers.push(...next.transfers);
@@ -1120,6 +1123,11 @@ function draw(){
  if(selected){const [x,y]=toScreen(selected.point);context!.beginPath();context!.arc(x,y,9,0,2*Math.PI);context!.fillStyle='#39d7ff';context!.fill();context!.lineWidth=2;context!.strokeStyle='#fff';context!.stroke();}
 }
 function focusOn(place:Point,z=13){activeEventId=null;selected=null;$('detail').hidden=true;focus=place;zoom=z;refresh()}
+function updateSelectedTraffic(hit:MapHit,view:ReturnType<typeof trafficView>){
+ const key=hit.key as PathKey,details=view.reports[key];
+ $('selected-traffic').textContent=`${trafficNumber(details.queueVehicles)} Fahrzeuge auf diesem Fahrweg · ${trafficNumber(details.queueKm,2)} km Rückstau · ${speedDelayLabel(view.delays[key])}${details.sharedRampVehicles>0?' Durchgang · Abfahrt '+(details.exitDelayMin===null?'blockiert':'+'+trafficNumber(details.exitDelayMin,1)+' min'):''}`;
+ if(demandMode==='clock'&&networkRoad(key)){const at=positionM(spatialCorridors[key],hit.point);if(at!==null)$('selected-traffic').textContent+=' · Verkehrsnachfrage hier: '+trafficNumber(regionalFlowAt(spatialCorridors[key],exits,currentDemands()[key],at,simulatedClock()))+' Fzg/h (Modell)';}
+}
 function showSelected(hit:MapHit){
  activeEventId=null;clearEventUi();selected=hit;selectTrafficRoute(hit.key);refresh();
  $('selection-chooser').hidden=true;
@@ -1134,8 +1142,7 @@ function showSelected(hit:MapHit){
  $('selected-coords').textContent=`${hit.point[0].toFixed(6)}° N · ${hit.point[1].toFixed(6)}° E`;
  const timeline=activeEvents(),jams=trafficJams(timeline);
  const view=trafficView(jams,cellNetwork,spatialCorridors,timeline,rampSpillbacks(jams,networkConnections,spatialCorridors),spatialState.minute);
- const details=view.reports[hit.key as PathKey];
- $('selected-traffic').textContent=`${trafficNumber(details.queueVehicles)} Fahrzeuge auf diesem Fahrweg · ${trafficNumber(details.queueKm,2)} km Rückstau · ${speedDelayLabel(view.delays[hit.key as PathKey])}${details.sharedRampVehicles>0?' Durchgang · Abfahrt '+(details.exitDelayMin===null?'blockiert':'+'+trafficNumber(details.exitDelayMin,1)+' min'):''}`;
+ updateSelectedTraffic(hit,view);
  const lane=hitLaneInfo(hit);
  $('selected-lanes').textContent=lane.label;
  $('selected-lane-names').textContent=lanePositions(lane.count).join(' · ')||'Keine gesicherte Fahrstreifenaufteilung';

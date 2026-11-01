@@ -1,11 +1,11 @@
-import { extensionRoute } from './network-extensions.js?build=b8c6f2049b46157b';
-import { baseLaneCapacity } from './traffic-physics.js?build=b8c6f2049b46157b';
-import { positionM, closureGate } from './spatial.js?build=b8c6f2049b46157b';
-import { baselineCapacity, eventCapacity } from './traffic.js?build=b8c6f2049b46157b';
-import { flowPolicy, DEFAULT_CLEARANCE_MIN } from './events.js?build=b8c6f2049b46157b';
-import { colorAtSpeed, freeSpeedKmh, QUEUE_JAM_DENSITY_PER_LANE, CONGESTION_WAVE_KMH } from './traffic-physics.js?build=b8c6f2049b46157b';
-import { normalJunctionTraffic, exitRampVehicles, DEFAULT_EXIT_TERMINAL_VPH, DEFAULT_EXIT_STORAGE_VEHICLES } from './junction-traffic.js?build=b8c6f2049b46157b';
-import { roadSections, physicalEvents, junctionAccess } from './road-controls.js?build=b8c6f2049b46157b';
+import { extensionRoute } from './network-extensions.js?build=44f71684add0e0c7';
+import { baseLaneCapacity } from './traffic-physics.js?build=44f71684add0e0c7';
+import { positionM, closureGate } from './spatial.js?build=44f71684add0e0c7';
+import { baselineCapacity, eventCapacity } from './traffic.js?build=44f71684add0e0c7';
+import { flowPolicy, DEFAULT_CLEARANCE_MIN } from './events.js?build=44f71684add0e0c7';
+import { colorAtSpeed, freeSpeedKmh, QUEUE_JAM_DENSITY_PER_LANE, CONGESTION_WAVE_KMH } from './traffic-physics.js?build=44f71684add0e0c7';
+import { normalJunctionTraffic, exitRampVehicles, DEFAULT_EXIT_TERMINAL_VPH, DEFAULT_EXIT_STORAGE_VEHICLES } from './junction-traffic.js?build=44f71684add0e0c7';
+import { roadSections, physicalEvents, junctionAccess } from './road-controls.js?build=44f71684add0e0c7';
 const TARGET_CELL_M = 100, WAVE_KMH = CONGESTION_WAVE_KMH, JAM_PER_LANE = QUEUE_JAM_DENSITY_PER_LANE;
 // One observation per MODEL minute; repainting/pause never advances this.
 const TRAVEL_ALPHA = 1 - Math.exp(-1 / 6);
@@ -15,7 +15,7 @@ export function cellLanes(path) {
 export function cellCriticalDensity(path) {
     return Math.min(baselineCapacity(path) / freeSpeedKmh(path), JAM_PER_LANE * cellLanes(path) * WAVE_KMH / (freeSpeedKmh(path) + WAVE_KMH));
 }
-export function initialiseCells(route, initialDemandVph) {
+export function initialiseCells(route, initialDemandVph, localDemandAt) {
     if (!Number.isFinite(initialDemandVph) || initialDemandVph < 0 || initialDemandVph > 8000)
         throw Error('Ungültiger Zufluss für Zellmodell');
     const count = Math.ceil(route.lengthM / TARGET_CELL_M);
@@ -26,8 +26,14 @@ export function initialiseCells(route, initialDemandVph) {
     const equilibriumDensity = Math.min(.96 * jam, Math.min(initialDemandVph, cap) / v);
     const cells = Array.from({ length: count }, (_, i) => {
         const fromM = i * cellM, toM = (i + 1) * cellM;
-        return { fromM, toM, vehicles: equilibriumDensity * dx,
-            flowVph: Math.min(initialDemandVph, cap), speedKmh: v, densityVehKm: equilibriumDensity };
+        const demand = localDemandAt?.((fromM + toM) / 2) ?? initialDemandVph;
+        if (!Number.isFinite(demand) || demand < 0)
+            throw Error('Ungültiger örtlicher Zufluss');
+        const localLanes = localDemandAt ? (route.normalLanes?.find(s => s.fromM <= fromM && s.toM > fromM)?.lanes ?? lanes) : lanes;
+        const localCap = localDemandAt ? Math.min(baseLaneCapacity(route.key) * localLanes, v * WAVE_KMH * JAM_PER_LANE * localLanes / (v + WAVE_KMH)) : cap;
+        const density = localDemandAt ? Math.min(.96 * JAM_PER_LANE * localLanes, Math.min(demand, localCap) / v) : equilibriumDensity;
+        return { fromM, toM, vehicles: density * dx,
+            flowVph: Math.min(demand, localCap), speedKmh: v, densityVehKm: density };
     });
     return { pathKey: route.key, minute: 0, cellM, cells, backlog: 0, initialVehicles: cells.reduce((s, c) => s + c.vehicles, 0),
         offeredTotal: 0, exitedTotal: 0 };
@@ -281,7 +287,7 @@ export function platoonServiceFactor(id, minute, ceiling = Infinity) {
  * Outflow is discharged at the far end. No arbitrary time-loss surcharges.
  */
 export function advanceCells(previous, route, events, demandVph, exits = [], ports = [], junctionDemand = normalJunctionTraffic(route, exits, demandVph)) {
-    if (previous.pathKey !== route.key || !Number.isFinite(demandVph) || demandVph < 0 || demandVph > 8000)
+    if (previous.pathKey !== route.key || !Number.isFinite(demandVph) || demandVph < 0 || demandVph > 16000)
         throw Error('Zellmodell: Richtung oder Zufluss ungültig');
     const n = previous.cells.length, dx = previous.cellM / 1000;
     const substeps = Math.max(30, Math.ceil(freeSpeedKmh(route.key) * 1000 / (60 * previous.cellM))), dtMin = 1 / substeps;

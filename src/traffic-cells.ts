@@ -82,7 +82,7 @@ export function cellCriticalDensity(path:PathKey):number{
  return Math.min(baselineCapacity(path)/freeSpeedKmh(path),
   JAM_PER_LANE*cellLanes(path)*WAVE_KMH/(freeSpeedKmh(path)+WAVE_KMH));
 }
-export function initialiseCells(route:Corridor,initialDemandVph:number):CellRouteState{
+export function initialiseCells(route:Corridor,initialDemandVph:number,localDemandAt?:(metre:number)=>number):CellRouteState{
  if(!Number.isFinite(initialDemandVph)||initialDemandVph<0||initialDemandVph>8000)
   throw Error('Ungültiger Zufluss für Zellmodell');
  const count=Math.ceil(route.lengthM/TARGET_CELL_M);
@@ -93,8 +93,13 @@ export function initialiseCells(route:Corridor,initialDemandVph:number):CellRout
  const equilibriumDensity=Math.min(.96*jam,Math.min(initialDemandVph,cap)/v);
  const cells=Array.from({length:count},(_,i):TrafficCell=>{
   const fromM=i*cellM,toM=(i+1)*cellM;
-  return {fromM,toM,vehicles:equilibriumDensity*dx,
-   flowVph:Math.min(initialDemandVph,cap),speedKmh:v,densityVehKm:equilibriumDensity};
+  const demand=localDemandAt?.((fromM+toM)/2)??initialDemandVph;
+  if(!Number.isFinite(demand)||demand<0)throw Error('Ungültiger örtlicher Zufluss');
+  const localLanes=localDemandAt?(route.normalLanes?.find(s=>s.fromM<=fromM&&s.toM>fromM)?.lanes??lanes):lanes;
+  const localCap=localDemandAt?Math.min(baseLaneCapacity(route.key)*localLanes,v*WAVE_KMH*JAM_PER_LANE*localLanes/(v+WAVE_KMH)):cap;
+  const density=localDemandAt?Math.min(.96*JAM_PER_LANE*localLanes,Math.min(demand,localCap)/v):equilibriumDensity;
+  return {fromM,toM,vehicles:density*dx,
+   flowVph:Math.min(demand,localCap),speedKmh:v,densityVehKm:density};
  });
  return {pathKey:route.key,minute:0,cellM,cells,backlog:0,initialVehicles:cells.reduce((s,c)=>s+c.vehicles,0),
   offeredTotal:0,exitedTotal:0};
@@ -307,7 +312,7 @@ export function platoonServiceFactor(id:string,minute:number,ceiling=Infinity):n
 export function advanceCells(previous:CellRouteState,route:Corridor,events:readonly SimEvent[],
  demandVph:number,exits:readonly Exit[]=[],ports:readonly CellDetourPort[]=[],
  junctionDemand:readonly JunctionTrafficDemand[]=normalJunctionTraffic(route,exits,demandVph)):CellRouteState{
- if(previous.pathKey!==route.key||!Number.isFinite(demandVph)||demandVph<0||demandVph>8000)
+ if(previous.pathKey!==route.key||!Number.isFinite(demandVph)||demandVph<0||demandVph>16000)
   throw Error('Zellmodell: Richtung oder Zufluss ungültig');
  const n=previous.cells.length,dx=previous.cellM/1000;
  const substeps=Math.max(30,Math.ceil(freeSpeedKmh(route.key)*1000/(60*previous.cellM))),dtMin=1/substeps;

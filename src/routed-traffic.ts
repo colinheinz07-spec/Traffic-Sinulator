@@ -1,3 +1,4 @@
+import {regionalBoundaryFlow} from './regional-traffic.js';
 import {extensionRoute} from './network-extensions.js';
 import {localRoadAvailability} from './calendar-traffic.js';
 /** Motorway cells and multiple local simulator routes share ONE vehicle budget.
@@ -116,7 +117,7 @@ export function advanceRoutedPath(previous:CellRouteState,route:Corridor,
 export function advanceRoutedNetwork(previous:Partial<Record<PathKey,CellRouteState>>,
  routes:Readonly<Record<PathKey,Corridor>>,events:readonly SimEvent[],
  demands:Readonly<Record<PathKey,number>>,exits:readonly Exit[],detours:readonly RoutedDetour[],
- turnDelays:Readonly<Partial<Record<PathKey,number>>>={},moment?:Date){
+ turnDelays:Readonly<Partial<Record<PathKey,number>>>={},moment?:Date,regional=false){
  const ports=new Map<PathKey,CellDetourPort[]>();
  const intentions=new Map<string,number>();
  const localOffers=new Map<PathKey,ReturnType<typeof normalJunctionTraffic>>();
@@ -139,7 +140,7 @@ export function advanceRoutedNetwork(previous:Partial<Record<PathKey,CellRouteSt
   const capacity=Math.min(motorway?1500:Infinity,Math.min(rampRoom,Math.max(0,detourStorage(config)-detourVehicles(state)))*60,
    motorway?entry.enabled===false?0:roadLimit:Infinity);
   if(journey?.kind==='protected'&&!localOffers.has(config.path))
-   localOffers.set(config.path,normalJunctionTraffic(routes[config.path],exits,demands[config.path]));
+   localOffers.set(config.path,normalJunctionTraffic(routes[config.path],exits,demands[config.path],moment,regional,events));
   const sourceOffers=demands[config.path]+(localOffers.get(config.path)??[])
    .filter(j=>j.metre<config.fromM).reduce((n,j)=>n+j.entryVph,0);
   const passage=journey?.kind==='protected'&&roadLimit>0&&entry.enabled!==false&&
@@ -182,8 +183,8 @@ export function advanceRoutedNetwork(previous:Partial<Record<PathKey,CellRouteSt
  }
  const cells:Partial<Record<PathKey,CellRouteState>>={};
  for(const key of Object.keys(previous) as PathKey[])
-  cells[key]=advanceCells(sourceStates[key]!,routes[key],events,demands[key],exits,ports.get(key)??[],
-   normalJunctionTraffic(routes[key],exits,demands[key],moment));
+  cells[key]=advanceCells(sourceStates[key]!,routes[key],events,regional&&moment?regionalBoundaryFlow(routes[key],exits,demands[key],moment):demands[key],exits,ports.get(key)??[],
+   normalJunctionTraffic(routes[key],exits,demands[key],moment,regional,events));
  const effective=detours.map(e=>{
   const j=e.config.journey,motorway=j?.kind==='via'||j?.kind==='protected'||j?.kind==='evacuation'||e.config.exitIsInterchange===true;
   const factor=motorway?1:localRoadAvailability(moment);

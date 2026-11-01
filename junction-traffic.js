@@ -1,7 +1,8 @@
-import { networkRoad } from './network-road.js?build=b8c6f2049b46157b';
-import { junctionAccess } from './road-controls.js?build=b8c6f2049b46157b';
-import { localRoadAvailability } from './calendar-traffic.js?build=b8c6f2049b46157b';
-import { diversionJunctions } from './diversions.js?build=b8c6f2049b46157b';
+import { regionalFlowAt, regionalJunctionDemands } from './regional-traffic.js?build=44f71684add0e0c7';
+import { networkRoad } from './network-road.js?build=44f71684add0e0c7';
+import { junctionAccess } from './road-controls.js?build=44f71684add0e0c7';
+import { localRoadAvailability } from './calendar-traffic.js?build=44f71684add0e0c7';
+import { diversionJunctions } from './diversions.js?build=44f71684add0e0c7';
 // No surveyed AS signal plans or local off-ramp lengths are bundled. These
 // are explicit defaults: roughly one 300 m queue lane, and ~39% effective
 // green at 1800 veh/h/lane. They are not measured AS-specific capacities.
@@ -21,17 +22,18 @@ export function junctionCapacityProfile(road, ref) {
 export function exitRampVehicles(state) {
     return (state.exitQueue?.normal ?? 0) + Object.values(state.exitQueue?.detours ?? {}).reduce((n, v) => n + v, 0);
 }
-export function normalJunctionTraffic(route, exits, demandVph, moment) {
+export function normalJunctionTraffic(route, exits, demandVph, moment, regional = false, events = []) {
     if (!networkRoad(route.key))
         return [];
-    return diversionJunctions(route.key, exits, route).filter(j => !j.isInterchange).map(j => {
+    const ordinary = diversionJunctions(route.key, exits, route).filter(j => !j.isInterchange).map(j => {
         // 4–8% local turnover per AS. Balanced ordinary entry/exit at the
         // reference free flow avoids artificially growing demand at every node.
         const share = 4 + Number.parseInt(j.ref, 10) % 5, profile = junctionCapacityProfile(networkRoad(route.key), j.ref);
         const access = junctionAccess(route, [], j.metre, j.ref);
         return { id: route.key + ':local:' + j.ref, ref: j.ref, metre: j.metre,
-            entryVph: access.entry ? Math.min(700, demandVph * share / 100) : 0, exitPercent: access.exit ? share : 0,
+            entryVph: access.entry ? Math.min(700, (regional && moment ? regionalFlowAt(route, exits, demandVph, j.metre + .1, moment) : demandVph) * share / 100) : 0, exitPercent: access.exit ? share : 0,
             entryCapacityVph: profile.entry, exitCapacityVph: profile.exit,
             exitTerminalVph: Math.min(profile.exit, profile.terminal * localRoadAvailability(moment)), exitStorageVehicles: profile.storage };
     });
+    return regional && moment ? regionalJunctionDemands(route, exits, demandVph, moment, ordinary, events) : ordinary;
 }
