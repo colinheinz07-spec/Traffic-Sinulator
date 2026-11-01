@@ -166,7 +166,8 @@ export function junctionRampJams(cells, routes, exits, events, detours = []) {
             const returns = b.kind === 'entry' ? detours.filter(e => !e.config.exitsNetwork && (e.config.targetPath ?? e.config.path) === path && Math.abs(e.config.toM - j.metre) < 250) : [];
             const stock = (b.kind === 'entry' ? j.waiting + returns.reduce((n, e) => n + e.state.waitingMerge, 0) :
                 (j.exitQueue?.normal ?? 0) + Object.values(j.exitQueue?.detours ?? {}).reduce((n, v) => n + v, 0)) * b.share;
-            if (stock < .01)
+            // Fractional inventories remain in the solver; suppress sub-two-car map flicker.
+            if (stock < 2)
                 continue;
             const limit = restriction(b, events);
             const passed = (b.kind === 'entry' ? j.lastEntered + returns.reduce((n, e) => n + e.state.lastRejoined, 0) : j.lastExited) * 60 * b.share;
