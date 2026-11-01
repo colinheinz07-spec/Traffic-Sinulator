@@ -29,7 +29,7 @@ test('a real occupied stopped road cell has a continuous dark-red physical statu
 
 test('one genuinely stopped vehicle gets a dark status without fabricating a long queue',()=>{
  const path='A3-koeln',state=initialiseCells(routes[path],0),cell=state.cells[40];
- cell.vehicles=1;cell.densityVehKm=1/((cell.toM-cell.fromM)/1000);cell.speedKmh=0;
+ cell.vehicles=1;cell.densityVehKm=1/((cell.toM-cell.fromM)/1000);cell.speedKmh=0;cell.blockedAtM=cell.toM;
  const map=trafficView([],{[path]:state},routes,[],[],1);
  const band=map.bands.get(path).find(b=>b.color==='standstill'&&b.fromM<=cell.fromM&&b.toM>=cell.toM);
  assert.ok(band);
