@@ -1,12 +1,14 @@
-import { cellQueueSpans } from './traffic-cells.js?build=afa91542bd05d6e2';
-import { closureGate } from './spatial.js?build=afa91542bd05d6e2';
-import { diversionJunctions, nearestExitBeforeQueue, potentialDiversionPercent } from './diversions.js?build=afa91542bd05d6e2';
-import { speedDelayInCells } from './speed-delay.js?build=afa91542bd05d6e2';
-import { freeSpeedKmh } from './traffic-physics.js?build=afa91542bd05d6e2';
-import { INTERCHANGE_DIVERSION_START_MIN, interchangeTrafficShare } from './interchange.js?build=afa91542bd05d6e2';
-import { closedMovementEvent, viaJourneyUsable, journeyRampCapacity, journeyTrafficShare } from './interchange-journeys.js?build=afa91542bd05d6e2';
-import { accessibleExits, junctionAccess } from './road-controls.js?build=afa91542bd05d6e2';
-import { exitRampVehicles, DEFAULT_EXIT_TERMINAL_VPH } from './junction-traffic.js?build=afa91542bd05d6e2';
+import { networkRoad } from './network-road.js?build=617dcf4768f6b17d';
+import { cellQueueSpans } from './traffic-cells.js?build=617dcf4768f6b17d';
+import { closureGate } from './spatial.js?build=617dcf4768f6b17d';
+import { diversionJunctions, nearestExitBeforeQueue, potentialDiversionPercent } from './diversions.js?build=617dcf4768f6b17d';
+import { speedDelayInCells } from './speed-delay.js?build=617dcf4768f6b17d';
+import { eventCapacity, defaultDemand } from './traffic.js?build=617dcf4768f6b17d';
+import { freeSpeedKmh } from './traffic-physics.js?build=617dcf4768f6b17d';
+import { INTERCHANGE_DIVERSION_START_MIN, interchangeTrafficShare } from './interchange.js?build=617dcf4768f6b17d';
+import { closedMovementEvent, viaJourneyUsable, journeyRampCapacity, journeyTrafficShare } from './interchange-journeys.js?build=617dcf4768f6b17d';
+import { accessibleExits, junctionAccess } from './road-controls.js?build=617dcf4768f6b17d';
+import { exitRampVehicles, DEFAULT_EXIT_TERMINAL_VPH } from './junction-traffic.js?build=617dcf4768f6b17d';
 function exitTerminalWait(source, metre) {
     const ramp = source.junctions?.find(j => Math.abs(j.metre - metre) < 25);
     return ramp ? exitRampVehicles(ramp) / Math.max(1, ramp.exitTerminalVph ?? DEFAULT_EXIT_TERMINAL_VPH) * 60 : 0;
@@ -137,11 +139,31 @@ function interchangeChoice(entry, cells, routes, events, exits, demands, turnDel
 }
 function baseDiversionChoice(entry, entries, cells, routes, events, exits, demands, turnDelays = {}) {
     const { config, state } = entry, path = config.path, target = config.targetPath ?? path;
+    if (config.id.startsWith('EXT-') && target !== path) {
+        const empty = { percent: 0, mandatory: false, delayMin: 0, upstreamRank: 0 };
+        if (entry.enabled === false || config.geometry.roadCapacityVph <= 0)
+            return empty;
+        const route = routes[path], destination = routes[target], grid = cells[path];
+        if (!route || !destination || !grid)
+            return empty;
+        const turn = config.sourceEndM ?? route.lengthM;
+        const last = diversionJunctions(path, accessibleExits(route, events, exits, 'exit'), route)
+            .filter(j => !j.isInterchange && j.metre <= turn + 1 && junctionAccess(route, events, j.metre, j.ref).exit).at(-1);
+        if (!last || Math.abs(last.metre - config.fromM) > 25)
+            return empty;
+        if (events.some(e => { const gate = closureGate(destination, e, exits, events); return gate && config.toM >= gate.metre - 1 && config.toM < gate.endM - 1; }))
+            return empty;
+        const cause = events.find(e => e.id === config.eventId);
+        const share = config.movementId ? Math.min(1, (demands[config.movementId] ?? defaultDemand(config.movementId)) / Math.max(1, demands[path] ?? defaultDemand(path))) : 0;
+        const mandatory = !!cause && (cause.kind === 'closure' || eventCapacity(cause) === 0);
+        const delayMin = (turn > config.fromM + 1 ? speedDelayInCells(grid, config.fromM, turn, turn).delayMin : 0) + (turnDelays[config.movementId] ?? 0);
+        return { percent: mandatory ? share * 100 : Math.min((state.choicePercent ?? 0) + 5, voluntaryDiversionPercent(delayMin, config.geometry.freeMinutes) * share), mandatory, delayMin, upstreamRank: 0 };
+    }
     const source = cells[path], destination = cells[target], route = routes[path];
     if (!source || !destination || !route)
         throw Error('Umleitungsentscheidung ohne verbundenen Fahrbahnzustand');
-    const sourceAS = exits.find(e => e.road === (path.startsWith('A3') ? 'A3' : 'A48') && e.ref === config.geometry.sourceExitRef);
-    const targetAS = exits.find(e => e.road === (target.startsWith('A3') ? 'A3' : 'A48') && e.ref === config.geometry.targetExitRef);
+    const sourceAS = exits.find(e => e.road === (networkRoad(path)) && e.ref === config.geometry.sourceExitRef);
+    const targetAS = exits.find(e => e.road === (networkRoad(target)) && e.ref === config.geometry.targetExitRef);
     if (sourceAS && !junctionAccess(route, events, config.fromM, sourceAS.ref).exit ||
         targetAS && !junctionAccess(routes[target], events, config.toM, targetAS.ref).entry)
         return { percent: 0, mandatory: false, delayMin: 0, upstreamRank: 0 };

@@ -1,3 +1,4 @@
+import {extensionRoute} from './network-extensions.js';
 import {baseLaneCapacity} from './traffic-physics.js';
 /** Experimental cell-transmission traffic on real OSM carriageways.
  * Mainline cells and simulator detours share mass-conserving transfers. Their
@@ -75,7 +76,7 @@ const TARGET_CELL_M=100,WAVE_KMH=CONGESTION_WAVE_KMH,JAM_PER_LANE=QUEUE_JAM_DENS
 // One observation per MODEL minute; repainting/pause never advances this.
 const TRAVEL_ALPHA=1-Math.exp(-1/6);
 export function cellLanes(path:PathKey):number{
- return path.startsWith('ramp-')?1:path.startsWith('A48')?2:3;
+ return extensionRoute(path)?.lanes??(path.startsWith('ramp-')?1:path.startsWith('A48')?2:3);
 }
 export function cellCriticalDensity(path:PathKey):number{
  return Math.min(baselineCapacity(path)/freeSpeedKmh(path),

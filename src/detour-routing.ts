@@ -1,3 +1,4 @@
+import type {PathKey} from './traffic.js';
 /** Real OpenStreetMap streets for detours. Never build fictitious straight
  * connectors: a detour is usable only with a connected route over OSM ways.
  * Official sources are OSM relations identified in the German U-route wiki.
@@ -14,7 +15,7 @@ export interface Segment {from:number;to:number;lengthM:number;weight:number;roa
 export interface RoadGraph {adjacency:Map<number,Segment[]>;coordinates:Map<number,Point>;
  neighbours:Map<number,Set<number>>;trafficSignals:Set<number>}
 export interface DetourGeometry {
- id:string;path:RoadId;sourceExitRef:string;targetExitRef:string;points:Point[];
+ id:string;path:PathKey;sourceExitRef:string;targetExitRef:string;points:Point[];
  lengthKm:number;freeMinutes:number;roadCapacityVph:number;junctionCount:number;trafficLightCount:number;source:'osm-official-relation'|'osm-routed-infill'|'simulated-bundled'|'osm-motorway-ramp';
  relationId:number|null;label:string;
  /** Directional simulator road sections. Routes using the same section

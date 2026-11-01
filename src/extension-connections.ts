@@ -5,7 +5,7 @@ import type {PathKey} from './traffic.js';
 /** Connect only exact retained OSM endpoints. A self reference denotes an
  * external network boundary, not a fabricated road to an unmapped motorway. */
 export function buildExtensionConnections(routes:Readonly<Record<PathKey,Corridor>>):NetworkConnection[]{
- const trunks=['A3-koeln','A3-frankfurt','extra-a560-hennef','extra-a560-bonn'] as const;
+ const trunks:PathKey[]=['A3-koeln','A3-frankfurt',...extensionRoutes.filter(r=>r.kind==='motorway').map(r=>r.id)];
  const output:NetworkConnection[]=[];
  for(const ramp of extensionRoutes.filter(r=>r.kind==='ramp')){
   const path=routes[ramp.id],first=path.points[0]!,last=path.points.at(-1)!;

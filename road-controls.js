@@ -1,9 +1,11 @@
-import { networkData } from './geodata.js?build=afa91542bd05d6e2';
+import { extensionJunctions } from './network-extensions.js?build=617dcf4768f6b17d';
+import { networkRoad } from './network-road.js?build=617dcf4768f6b17d';
+import { networkData } from './geodata.js?build=617dcf4768f6b17d';
 /** Physical lane restrictions and directional AS access on actual road
  * intervals. Administrative closures keep their separate exit-gate rule. */
-import { exitPosition } from './core.js?build=afa91542bd05d6e2';
-import { suggestedSpeed } from './events.js?build=afa91542bd05d6e2';
-import { positionM } from './spatial.js?build=afa91542bd05d6e2';
+import { exitPosition } from './core.js?build=617dcf4768f6b17d';
+import { suggestedSpeed } from './events.js?build=617dcf4768f6b17d';
+import { positionM } from './spatial.js?build=617dcf4768f6b17d';
 export function roadSections(route, events) {
     const located = events.filter(e => e.pathKey === route.key && e.kind !== 'closure').flatMap(event => {
         const fromM = positionM(route, event.point);
@@ -38,8 +40,9 @@ export function physicalEvents(route, events, sections = roadSections(route, eve
             settings: { ...event.settings, speedKmh: section.event.settings.speedKmh, shoulder: section.event.settings.shoulder }, createdAt: event.createdAt } : event;
     });
 }
+const junctionDefinitions = new Map([...networkData.exits, ...extensionJunctions].map(e => [e.road + ':' + e.ref, e]));
 export function junctionAccess(route, events, metre, ref) {
-    const base = networkData.exits.find(e => e.road === (route.key.startsWith('A3') ? 'A3' : 'A48') && e.ref === ref)?.access?.[route.key];
+    const base = junctionDefinitions.get(networkRoad(route.key) + ':' + ref)?.access?.[route.key];
     let entry = base?.entry ?? true, exit = base?.exit ?? true;
     for (const e of events) {
         if (e.pathKey !== route.key || e.kind !== 'roadworks')
@@ -58,7 +61,7 @@ export function junctionAccess(route, events, metre, ref) {
     return { entry, exit };
 }
 export function accessibleExits(route, events, exits, access) {
-    const road = route.key.startsWith('A3') ? 'A3' : 'A48';
+    const road = networkRoad(route.key);
     return exits.filter(e => {
         if (e.road !== road)
             return true;

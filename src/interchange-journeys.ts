@@ -91,7 +91,7 @@ function plan(key:string,source:RoadId,from:JunctionAnchor,target:RoadId,to:Junc
 }
 /** A formal closure on the intended arm or ramp requires another route
  * even when its empty closed cells cannot yield a numerical travel loss. */
-export function closedMovementEvent(movementId:PathKey,target:RoadId,merge:number,firstExit:number,
+export function closedMovementEvent(movementId:PathKey,target:PathKey,merge:number,firstExit:number,
  events:readonly SimEvent[],routes:Readonly<Partial<Record<PathKey,Corridor>>>):SimEvent|undefined{
  return events.find(e=>{
   if(e.kind!=='closure')return false;

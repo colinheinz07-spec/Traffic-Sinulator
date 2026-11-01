@@ -1,3 +1,4 @@
+import {networkRoad} from './network-road.js';
 /** The queue chooses WHERE to leave: the nearest normal exit before its
  * tail, plus exits still reachable by drivers already inside that queue.
  * Its own time loss chooses WHEN and HOW MANY: voluntary uptake from 45
@@ -11,6 +12,7 @@ import type {PathKey} from './traffic.js';
 import {closureGate,type Corridor} from './spatial.js';
 import {diversionJunctions,nearestExitBeforeQueue,potentialDiversionPercent} from './diversions.js';
 import {speedDelayInCells} from './speed-delay.js';
+import {eventCapacity,defaultDemand} from './traffic.js';
 import {freeSpeedKmh} from './traffic-physics.js';
 import {INTERCHANGE_DIVERSION_START_MIN,interchangeTrafficShare} from './interchange.js';
 import {closedMovementEvent,viaJourneyUsable,journeyRampCapacity,journeyTrafficShare} from './interchange-journeys.js';
@@ -143,10 +145,26 @@ function baseDiversionChoice(entry:ChoiceRoute,entries:readonly ChoiceRoute[],
  events:readonly SimEvent[],exits:readonly Exit[],demands:Readonly<Partial<Record<PathKey,number>>>,
  turnDelays:Readonly<Partial<Record<PathKey,number>>>={}):DiversionChoice{
  const {config,state}=entry,path=config.path,target=config.targetPath??path;
+ if(config.id.startsWith('EXT-')&&target!==path){
+  const empty={percent:0,mandatory:false,delayMin:0,upstreamRank:0};
+  if(entry.enabled===false||config.geometry.roadCapacityVph<=0)return empty;
+  const route=routes[path],destination=routes[target],grid=cells[path];if(!route||!destination||!grid)return empty;
+  const turn=config.sourceEndM??route.lengthM;
+  const last=diversionJunctions(path,accessibleExits(route,events,exits,'exit'),route)
+   .filter(j=>!j.isInterchange&&j.metre<=turn+1&&junctionAccess(route,events,j.metre,j.ref).exit).at(-1);
+  if(!last||Math.abs(last.metre-config.fromM)>25)return empty;
+  if(events.some(e=>{const gate=closureGate(destination,e,exits,events);return gate&&config.toM>=gate.metre-1&&config.toM<gate.endM-1;}))return empty;
+  const cause=events.find(e=>e.id===config.eventId);
+  const share=config.movementId?Math.min(1,(demands[config.movementId]??defaultDemand(config.movementId))/Math.max(1,demands[path]??defaultDemand(path))):0;
+  const mandatory=!!cause&&(cause.kind==='closure'||eventCapacity(cause)===0);
+  const delayMin=(turn>config.fromM+1?speedDelayInCells(grid,config.fromM,turn,turn).delayMin:0)+(turnDelays[config.movementId!]??0);
+  return {percent:mandatory?share*100:Math.min((state.choicePercent??0)+5,voluntaryDiversionPercent(delayMin,config.geometry.freeMinutes)*share),mandatory,delayMin,upstreamRank:0};
+ }
+
  const source=cells[path],destination=cells[target],route=routes[path];
  if(!source||!destination||!route)throw Error('Umleitungsentscheidung ohne verbundenen Fahrbahnzustand');
- const sourceAS=exits.find(e=>e.road===(path.startsWith('A3')?'A3':'A48')&&e.ref===config.geometry.sourceExitRef);
- const targetAS=exits.find(e=>e.road===(target.startsWith('A3')?'A3':'A48')&&e.ref===config.geometry.targetExitRef);
+ const sourceAS=exits.find(e=>e.road===(networkRoad(path))&&e.ref===config.geometry.sourceExitRef);
+ const targetAS=exits.find(e=>e.road===(networkRoad(target))&&e.ref===config.geometry.targetExitRef);
  if(sourceAS&&!junctionAccess(route,events,config.fromM,sourceAS.ref).exit||
   targetAS&&!junctionAccess(routes[target]!,events,config.toM,targetAS.ref).entry)
   return {percent:0,mandatory:false,delayMin:0,upstreamRank:0};

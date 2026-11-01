@@ -1,14 +1,15 @@
+import { extensionRoute } from './network-extensions.js?build=617dcf4768f6b17d';
 /** Direction-specific entrance/exit situation for the A3/A48 simulator.
  * Targets are PLANNED route-choice percentages, not counted departures.
  * Counted values come from ordinary junction cells and detour ledgers.
  * Every normal AS is covered; AK/AD are separate motorway nodes and cannot
  * be misrepresented as exits onto local roads.
  */
-import { names } from './core.js?build=afa91542bd05d6e2';
-import { positionM, closureGate } from './spatial.js?build=afa91542bd05d6e2';
-import { diversionJunctions } from './diversions.js?build=afa91542bd05d6e2';
-import { exitRampVehicles, DEFAULT_EXIT_TERMINAL_VPH, DEFAULT_EXIT_STORAGE_VEHICLES } from './junction-traffic.js?build=afa91542bd05d6e2';
-import { junctionAccess } from './road-controls.js?build=afa91542bd05d6e2';
+import { names } from './core.js?build=617dcf4768f6b17d';
+import { positionM, closureGate } from './spatial.js?build=617dcf4768f6b17d';
+import { diversionJunctions } from './diversions.js?build=617dcf4768f6b17d';
+import { exitRampVehicles, DEFAULT_EXIT_TERMINAL_VPH, DEFAULT_EXIT_STORAGE_VEHICLES } from './junction-traffic.js?build=617dcf4768f6b17d';
+import { junctionAccess } from './road-controls.js?build=617dcf4768f6b17d';
 /** A formal closure forces departure only at the LAST usable normal exit.
  * Earlier exits are voluntary alternatives chosen by remaining time loss,
  * independently of the tail's distance from any junction.
@@ -92,6 +93,6 @@ export function junctionMovements(path, route, exits, events, _delayMin, real = 
  * have ordinary entries while this direction has a formal closure. */
 export function junctionMovementHint(row) {
     const count = (value) => value.toLocaleString('de-DE', { maximumFractionDigits: 0 });
-    return { title: 'AS ' + row.exit.ref + ' · ' + names[row.path].replace(' Richtung ', ' → '),
+    return { title: 'AS ' + row.exit.ref + ' · ' + (extensionRoute(row.path)?.name ?? names[row.path] ?? row.path).replace(' Richtung ', ' → '),
         flow: 'Abfahrt ' + (row.exit.access?.[row.path]?.exit === false ? 'nicht vorhanden' : count(row.outVph) + '/h' + (row.exitClosed ? ' ⛔' : '')) + ' · Auffahrt ' + (row.exit.access?.[row.path]?.entry === false ? 'nicht vorhanden' : count(row.inVph) + '/h' + (row.entryClosed ? ' ⛔' : '')) };
 }

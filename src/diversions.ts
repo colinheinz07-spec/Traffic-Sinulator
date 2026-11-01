@@ -1,3 +1,4 @@
+import {networkRoad} from './network-road.js';
 import {junctionAccess} from './road-controls.js';
 /** Publicly documented emergency diversion (Bedarfsumleitung) INVENTORY.
  * Sources:
@@ -15,12 +16,12 @@ import {positionM,closureGate} from './spatial.js';
 export type DiversionEvidence='named-endpoints'|'partial';
 export interface DiversionLink {
  id:string;code:string;path:RoadId;
- fromRoad:'A3'|'A48';fromRef:string;toRoad:'A3'|'A48'|null;toRef:string|null;
+ fromRoad:Exit['road'];fromRef:string;toRoad:Exit['road']|null;toRef:string|null;
  evidence:DiversionEvidence;description:string;
 }
 const r=(code:string,path:RoadId,fromRef:string,toRef:string|null,evidence:DiversionEvidence='named-endpoints'):DiversionLink=>({
  id:path+'-'+code,code,path,fromRoad:path.startsWith('A3')?'A3':'A48',fromRef,
- toRoad:toRef?(path.startsWith('A3')?'A3':'A48'):null,toRef,evidence,
+ toRoad:toRef?(networkRoad(path)):null,toRef,evidence,
  description:evidence==='partial'?'Start belegt, Ziel oder Straßenverlauf unvollständig':
  'Start und Ziel dokumentiert; Nebenstraßen-Geometrie noch nicht übernommen'
 });
@@ -63,9 +64,9 @@ export type JunctionAnchor=Exit & {metre:number;isInterchange:boolean};
 /** Exit coordinates come from the already-audited geodata file. Snap only
  * their motorway positions: this is NOT a side-road ramp location.
  */
-export function diversionJunctions(path:RoadId,exits:readonly Exit[],corridor:Corridor):JunctionAnchor[]{
+export function diversionJunctions(path:import('./traffic.js').PathKey,exits:readonly Exit[],corridor:Corridor):JunctionAnchor[]{
  if(path!==corridor.key)throw Error('Fahrtrichtung und Geometrie passen nicht zusammen');
- const road=path.startsWith('A3')?'A3':'A48';
+ const road=networkRoad(path);
  return exits.filter(e=>e.road===road&&(!e.directional||!!e.directional[path])).map(e=>({
   ...e,position:exitPosition(e,path),metre:positionM(corridor,exitPosition(e,path),900),
   isInterchange:e.name.startsWith('AD ')||e.name.startsWith('AK ')
@@ -102,7 +103,7 @@ export function potentialDiversionPercent(delayMin:number|null,required:boolean)
 }
 /** Last ordinary exit before this queue, with no distance-to-tail limit.
  * AD/AK nodes cannot serve as exits onto local roads. */
-export function nearestExitBeforeQueue(path:RoadId,route:Corridor,exits:readonly Exit[],tailM:number,endM=Infinity):JunctionAnchor|null{
+export function nearestExitBeforeQueue(path:import('./traffic.js').PathKey,route:Corridor,exits:readonly Exit[],tailM:number,endM=Infinity):JunctionAnchor|null{
  return diversionJunctions(path,exits,route).filter(j=>!j.isInterchange&&j.metre<=tailM+.1&&j.metre<=endM+25).at(-1)??null;
 }
 export function planDiversion(event:SimEvent,route:Corridor,exits:readonly Exit[],

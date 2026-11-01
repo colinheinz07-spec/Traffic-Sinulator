@@ -1,9 +1,9 @@
-import { extensionRoutes } from './network-extensions.js?build=afa91542bd05d6e2';
-import { positionM, metres } from './spatial.js?build=afa91542bd05d6e2';
+import { extensionRoutes } from './network-extensions.js?build=617dcf4768f6b17d';
+import { positionM, metres } from './spatial.js?build=617dcf4768f6b17d';
 /** Connect only exact retained OSM endpoints. A self reference denotes an
  * external network boundary, not a fabricated road to an unmapped motorway. */
 export function buildExtensionConnections(routes) {
-    const trunks = ['A3-koeln', 'A3-frankfurt', 'extra-a560-hennef', 'extra-a560-bonn'];
+    const trunks = ['A3-koeln', 'A3-frankfurt', ...extensionRoutes.filter(r => r.kind === 'motorway').map(r => r.id)];
     const output = [];
     for (const ramp of extensionRoutes.filter(r => r.kind === 'ramp')) {
         const path = routes[ramp.id], first = path.points[0], last = path.points.at(-1);

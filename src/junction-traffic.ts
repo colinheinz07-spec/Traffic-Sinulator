@@ -1,3 +1,4 @@
+import {networkRoad} from './network-road.js';
 import {junctionAccess} from './road-controls.js';
 import {localRoadAvailability} from './calendar-traffic.js';
 /** Ordinary local trips, independent of incidents and simulator detours.
@@ -48,11 +49,11 @@ export function exitRampVehicles(state:JunctionTrafficState):number{
  return (state.exitQueue?.normal??0)+Object.values(state.exitQueue?.detours??{}).reduce((n,v)=>n+v,0);
 }
 export function normalJunctionTraffic(route:Corridor,exits:readonly Exit[],demandVph:number,moment?:Date):JunctionTrafficDemand[]{
- if(!DIRECTIONS.includes(route.key as RoadId))return [];
+ if(!networkRoad(route.key))return [];
  return diversionJunctions(route.key as RoadId,exits,route).filter(j=>!j.isInterchange).map(j=>{
   // 4–8% local turnover per AS. Balanced ordinary entry/exit at the
   // reference free flow avoids artificially growing demand at every node.
-  const share=4+Number.parseInt(j.ref,10)%5,profile=junctionCapacityProfile(route.key.startsWith('A3')?'A3':'A48',j.ref);
+  const share=4+Number.parseInt(j.ref,10)%5,profile=junctionCapacityProfile(networkRoad(route.key)!,j.ref);
   const access=junctionAccess(route,[],j.metre,j.ref);
   return {id:route.key+':local:'+j.ref,ref:j.ref,metre:j.metre,
    entryVph:access.entry?Math.min(700,demandVph*share/100):0,exitPercent:access.exit?share:0,

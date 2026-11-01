@@ -1,3 +1,4 @@
+import {extensionRoute} from './network-extensions.js';
 /** First incremental AD Dernbach interaction: a ramp queue can occupy its
  * upstream motorway's exit lane once the storage *before its own obstruction*
  * has filled. Geometry is snapped only to the verified OSM centreline.
@@ -20,9 +21,9 @@ const movements:Partial<Record<PathKey,{from:RoadId;to:RoadId}>>={
 /** Explicit destination-mix assumption, not individually observed trips.
  * A48 ends at the two A3 branches. A3 includes straight-ahead traffic, so
  * only its configured A48 turn share is eligible for the Koblenz bypass. */
-export function interchangeTrafficShare(id:PathKey,from:RoadId,to:RoadId,
+export function interchangeTrafficShare(id:PathKey,from:PathKey,to:PathKey,
  demands:Readonly<Partial<Record<PathKey,number>>>):number{
- const movement=movements[id];
+ const movement=movements[id]??(extensionRoute(id)?.kind==='ramp'?{from,to}:undefined);
  if(!movement||movement.from!==from||movement.to!==to)return 0;
  const rate=(key:PathKey)=>Math.max(0,demands[key]??defaultDemand(key));
  const total=from==='A48-dernbach'?rate('ramp-a48-to-koeln')+rate('ramp-a48-to-frankfurt'):rate(from);

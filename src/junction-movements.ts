@@ -1,3 +1,4 @@
+import {extensionRoute} from './network-extensions.js';
 /** Direction-specific entrance/exit situation for the A3/A48 simulator.
  * Targets are PLANNED route-choice percentages, not counted departures.
  * Counted values come from ordinary junction cells and detour ledgers.
@@ -15,7 +16,7 @@ import type {PathKey} from './traffic.js';
 import {junctionAccess} from './road-controls.js';
 
 export interface JunctionMovement {
- path:RoadId;exit:JunctionAnchor;
+ path:PathKey;exit:JunctionAnchor;
  desiredPercent:number;mandatory:boolean;entryClosed:boolean;exitClosed:boolean;eventId:string|null;
  distanceBeforeClosureKm:number|null;
  outVph:number;inVph:number;vehiclesOnDetour:number;
@@ -25,8 +26,8 @@ export interface JunctionMovement {
  exitRampVehicles:number;exitRampStorageVehicles:number;exitTerminalVph:number;exitAdmittedVph:number;
 }
 export interface RealDetourFlow {
- path:RoadId;fromM:number;toM:number;eventId:string;
- targetPath?:RoadId;
+ path:PathKey;fromM:number;toM:number;eventId:string;
+ targetPath?:PathKey;
  movementId?:PathKey;
  openTurn?:{gateM:number;percent:number};
  desiredPercent?:number;
@@ -38,7 +39,7 @@ export interface RealDetourFlow {
  * The requested exit intention is never a claim that a
  * ramp can absorb an unlimited traffic stream.
  */
-export function junctionMovements(path:RoadId,route:Corridor,exits:readonly Exit[],
+export function junctionMovements(path:PathKey,route:Corridor,exits:readonly Exit[],
  events:readonly SimEvent[],_delayMin:number|null,real:readonly RealDetourFlow[]=[],
  local:readonly JunctionTrafficState[]=[]):JunctionMovement[]{
  const junctions=diversionJunctions(path,exits,route);
@@ -104,6 +105,6 @@ export function junctionMovements(path:RoadId,route:Corridor,exits:readonly Exit
  * have ordinary entries while this direction has a formal closure. */
 export function junctionMovementHint(row:JunctionMovement):{title:string;flow:string}{
  const count=(value:number)=>value.toLocaleString('de-DE',{maximumFractionDigits:0});
- return {title:'AS '+row.exit.ref+' · '+names[row.path].replace(' Richtung ',' → '),
+ return {title:'AS '+row.exit.ref+' · '+(extensionRoute(row.path)?.name??names[row.path as RoadId]??row.path).replace(' Richtung ',' → '),
   flow:'Abfahrt '+(row.exit.access?.[row.path]?.exit===false?'nicht vorhanden':count(row.outVph)+'/h'+(row.exitClosed?' ⛔':''))+' · Auffahrt '+(row.exit.access?.[row.path]?.entry===false?'nicht vorhanden':count(row.inVph)+'/h'+(row.entryClosed?' ⛔':''))};
 }

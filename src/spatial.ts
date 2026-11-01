@@ -1,3 +1,4 @@
+import {networkRoad} from './network-road.js';
 import {extensionRoutes,extensionRoute} from './network-extensions.js';
 import {normalThroughLanes} from './lane-info.js';
 /** Georeferenced, per-event queue model on the exact OSM motorway carriageway curves.
@@ -52,7 +53,7 @@ export function makeCorridors(roads:readonly Road[],ramps:readonly Ramp[]):Recor
   result.set(key,route);
  }
  for(const extra of extensionRoutes){const route=corridor(extra.id,extra.points);
-  route.normalLanes=[{fromM:0,toM:route.lengthM,lanes:extra.lanes}];result.set(extra.id,route);}
+  route.normalLanes=extra.laneSegments;result.set(extra.id,route);}
  return Object.fromEntries(result) as Record<PathKey,Corridor>;
 }
 // Directional OSM geometry is fixed for a corridor's lifetime. Reuse the
@@ -108,7 +109,7 @@ export function closureGate(route:Corridor,event:SimEvent,exits:readonly Exit[],
  if(event.kind!=='closure'||event.pathKey!==route.key||route.key.startsWith('ramp-'))return null;
  const at=positionM(route,event.point);
  if(at===null)return null;
- const road=route.key.startsWith('A3')?'A3':'A48';
+ const road=networkRoad(route.key);
  const junctions=exits.filter(x=>x.road===road&&(!x.directional||!!x.directional[route.key as RoadId]))
   .map(exit=>{const position=exitPosition(exit,route.key as RoadId);
    return {exit:{...exit,position},metre:positionM(route,position,900)};})

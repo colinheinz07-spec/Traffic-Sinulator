@@ -1,3 +1,4 @@
+import {extensionRoute} from './network-extensions.js';
 import {localRoadAvailability} from './calendar-traffic.js';
 /** Motorway cells and multiple local simulator routes share ONE vehicle budget.
  * Side-road admission is limited by cars reaching the real exit cell; cars
@@ -22,7 +23,7 @@ export interface RoutedDetour {config:DetourConfig;state:DetourState;enabled?:bo
 export function remainingInterchangeDemands(demands:Readonly<Record<PathKey,number>>,
  entries:readonly RoutedDetour[],events:readonly SimEvent[]):Record<PathKey,number>{
  const result={...demands};
- for(const id of Object.keys(demands).filter(k=>k.startsWith('ramp-')) as PathKey[]){
+ for(const id of Object.keys(demands).filter(k=>k.startsWith('ramp-')||extensionRoute(k)?.kind==='ramp') as PathKey[]){
   let avoided=0,owned=0;
   for(const entry of entries.filter(e=>e.config.movementId===id)){
    const j=entry.config.journey;
@@ -127,13 +128,13 @@ export function advanceRoutedNetwork(previous:Partial<Record<PathKey,CellRouteSt
   const cross=target!==config.path;
   const interest=routedDiversionChoice(entry,detours,previous,routes,events,exits,demands,turnDelays).percent;
   intentions.set(config.id,interest);
-  const journey=config.journey,motorway=journey?.kind==='via'||journey?.kind==='protected'||journey?.kind==='evacuation';
+  const journey=config.journey,motorway=journey?.kind==='via'||journey?.kind==='protected'||journey?.kind==='evacuation'||config.exitIsInterchange===true;
   const committed=journey&&journey.kind!=='closure-bypass'?journey:undefined;
   const roadLimit=journeyRampCapacity(config,events,demands);
-  const rampSiblings=motorway?detours.filter(e=>{
+  const rampSiblings=journey&&(journey.kind==='via'||journey.kind==='protected'||journey.kind==='evacuation')?detours.filter(e=>{
    const j=e.config.journey;return (j?.kind==='via'||j?.kind==='protected'||j?.kind==='evacuation')&&j.rampId===journey.rampId;
   }):[];
-  const rampRoom=motorway?Math.max(0,Math.min(...rampSiblings.map(e=>detourStorage(e.config)))-
+  const rampRoom=rampSiblings.length?Math.max(0,Math.min(...rampSiblings.map(e=>detourStorage(e.config)))-
    rampSiblings.reduce((n,e)=>n+detourVehicles(e.state),0))/rampSiblings.length:Infinity;
   const capacity=Math.min(motorway?1500:Infinity,Math.min(rampRoom,Math.max(0,detourStorage(config)-detourVehicles(state)))*60,
    motorway?entry.enabled===false?0:roadLimit:Infinity);
@@ -184,7 +185,7 @@ export function advanceRoutedNetwork(previous:Partial<Record<PathKey,CellRouteSt
   cells[key]=advanceCells(sourceStates[key]!,routes[key],events,demands[key],exits,ports.get(key)??[],
    normalJunctionTraffic(routes[key],exits,demands[key],moment));
  const effective=detours.map(e=>{
-  const j=e.config.journey,motorway=j?.kind==='via'||j?.kind==='protected'||j?.kind==='evacuation';
+  const j=e.config.journey,motorway=j?.kind==='via'||j?.kind==='protected'||j?.kind==='evacuation'||e.config.exitIsInterchange===true;
   const factor=motorway?1:localRoadAvailability(moment);
   const capacity=motorway?journeyRampCapacity(e.config,events,demands):e.config.geometry.roadCapacityVph*factor;
   return {...e,config:{...e.config,geometry:{...e.config.geometry,roadCapacityVph:capacity,

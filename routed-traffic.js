@@ -1,19 +1,20 @@
-import { localRoadAvailability } from './calendar-traffic.js?build=afa91542bd05d6e2';
+import { extensionRoute } from './network-extensions.js?build=617dcf4768f6b17d';
+import { localRoadAvailability } from './calendar-traffic.js?build=617dcf4768f6b17d';
 /** Motorway cells and multiple local simulator routes share ONE vehicle budget.
  * Side-road admission is limited by cars reaching the real exit cell; cars
  * return only after their local journey and when the merge accepts them.
  */
-import { advanceCells, cellInventory } from './traffic-cells.js?build=afa91542bd05d6e2';
-import { advanceDetour, detourVehicles, detourStorage } from './detour-flow.js?build=afa91542bd05d6e2';
-import { routedDiversionChoice, requiredDiversionGate } from './diversion-policy.js?build=afa91542bd05d6e2';
-import { journeyRampCapacity, journeyTrafficShare } from './interchange-journeys.js?build=afa91542bd05d6e2';
-import { normalJunctionTraffic } from './junction-traffic.js?build=afa91542bd05d6e2';
+import { advanceCells, cellInventory } from './traffic-cells.js?build=617dcf4768f6b17d';
+import { advanceDetour, detourVehicles, detourStorage } from './detour-flow.js?build=617dcf4768f6b17d';
+import { routedDiversionChoice, requiredDiversionGate } from './diversion-policy.js?build=617dcf4768f6b17d';
+import { journeyRampCapacity, journeyTrafficShare } from './interchange-journeys.js?build=617dcf4768f6b17d';
+import { normalJunctionTraffic } from './junction-traffic.js?build=617dcf4768f6b17d';
 /** The remaining legacy turn solver must not offer a second copy of trips
  * that chose a side-road/alternate-ramp journey. Existing ramp inventories
  * remain in that solver and finish normally when their control permits it. */
 export function remainingInterchangeDemands(demands, entries, events) {
     const result = { ...demands };
-    for (const id of Object.keys(demands).filter(k => k.startsWith('ramp-'))) {
+    for (const id of Object.keys(demands).filter(k => k.startsWith('ramp-') || extensionRoute(k)?.kind === 'ramp')) {
         let avoided = 0, owned = 0;
         for (const entry of entries.filter(e => e.config.movementId === id)) {
             const j = entry.config.journey;
@@ -131,14 +132,14 @@ export function advanceRoutedNetwork(previous, routes, events, demands, exits, d
         const cross = target !== config.path;
         const interest = routedDiversionChoice(entry, detours, previous, routes, events, exits, demands, turnDelays).percent;
         intentions.set(config.id, interest);
-        const journey = config.journey, motorway = journey?.kind === 'via' || journey?.kind === 'protected' || journey?.kind === 'evacuation';
+        const journey = config.journey, motorway = journey?.kind === 'via' || journey?.kind === 'protected' || journey?.kind === 'evacuation' || config.exitIsInterchange === true;
         const committed = journey && journey.kind !== 'closure-bypass' ? journey : undefined;
         const roadLimit = journeyRampCapacity(config, events, demands);
-        const rampSiblings = motorway ? detours.filter(e => {
+        const rampSiblings = journey && (journey.kind === 'via' || journey.kind === 'protected' || journey.kind === 'evacuation') ? detours.filter(e => {
             const j = e.config.journey;
             return (j?.kind === 'via' || j?.kind === 'protected' || j?.kind === 'evacuation') && j.rampId === journey.rampId;
         }) : [];
-        const rampRoom = motorway ? Math.max(0, Math.min(...rampSiblings.map(e => detourStorage(e.config))) -
+        const rampRoom = rampSiblings.length ? Math.max(0, Math.min(...rampSiblings.map(e => detourStorage(e.config))) -
             rampSiblings.reduce((n, e) => n + detourVehicles(e.state), 0)) / rampSiblings.length : Infinity;
         const capacity = Math.min(motorway ? 1500 : Infinity, Math.min(rampRoom, Math.max(0, detourStorage(config) - detourVehicles(state))) * 60, motorway ? entry.enabled === false ? 0 : roadLimit : Infinity);
         if (journey?.kind === 'protected' && !localOffers.has(config.path))
@@ -196,7 +197,7 @@ export function advanceRoutedNetwork(previous, routes, events, demands, exits, d
     for (const key of Object.keys(previous))
         cells[key] = advanceCells(sourceStates[key], routes[key], events, demands[key], exits, ports.get(key) ?? [], normalJunctionTraffic(routes[key], exits, demands[key], moment));
     const effective = detours.map(e => {
-        const j = e.config.journey, motorway = j?.kind === 'via' || j?.kind === 'protected' || j?.kind === 'evacuation';
+        const j = e.config.journey, motorway = j?.kind === 'via' || j?.kind === 'protected' || j?.kind === 'evacuation' || e.config.exitIsInterchange === true;
         const factor = motorway ? 1 : localRoadAvailability(moment);
         const capacity = motorway ? journeyRampCapacity(e.config, events, demands) : e.config.geometry.roadCapacityVph * factor;
         return { ...e, config: { ...e.config, geometry: { ...e.config.geometry, roadCapacityVph: capacity,

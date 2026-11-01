@@ -1,6 +1,7 @@
-import { positionM, metres } from './spatial.js?build=afa91542bd05d6e2';
-import { defaultDemand, eventCapacity } from './traffic.js?build=afa91542bd05d6e2';
-import { DEFAULT_CLEARANCE_MIN } from './events.js?build=afa91542bd05d6e2';
+import { extensionRoute } from './network-extensions.js?build=617dcf4768f6b17d';
+import { positionM, metres } from './spatial.js?build=617dcf4768f6b17d';
+import { defaultDemand, eventCapacity } from './traffic.js?build=617dcf4768f6b17d';
+import { DEFAULT_CLEARANCE_MIN } from './events.js?build=617dcf4768f6b17d';
 export const INTERCHANGE_DIVERSION_START_MIN = 45;
 const movements = {
     'ramp-a48-to-koeln': { from: 'A48-dernbach', to: 'A3-koeln' },
@@ -12,7 +13,7 @@ const movements = {
  * A48 ends at the two A3 branches. A3 includes straight-ahead traffic, so
  * only its configured A48 turn share is eligible for the Koblenz bypass. */
 export function interchangeTrafficShare(id, from, to, demands) {
-    const movement = movements[id];
+    const movement = movements[id] ?? (extensionRoute(id)?.kind === 'ramp' ? { from, to } : undefined);
     if (!movement || movement.from !== from || movement.to !== to)
         return 0;
     const rate = (key) => Math.max(0, demands[key] ?? defaultDemand(key));

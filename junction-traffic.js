@@ -1,12 +1,7 @@
-import { junctionAccess } from './road-controls.js?build=afa91542bd05d6e2';
-import { localRoadAvailability } from './calendar-traffic.js?build=afa91542bd05d6e2';
-/** Ordinary local trips, independent of incidents and simulator detours.
- * The rates are explicit scenario assumptions, scaled with the selected
- * direction's demand profile; they are not traffic counts. AK/AD turn flows
- * remain in the separate interchange solver.
- */
-import { DIRECTIONS } from './core.js?build=afa91542bd05d6e2';
-import { diversionJunctions } from './diversions.js?build=afa91542bd05d6e2';
+import { networkRoad } from './network-road.js?build=617dcf4768f6b17d';
+import { junctionAccess } from './road-controls.js?build=617dcf4768f6b17d';
+import { localRoadAvailability } from './calendar-traffic.js?build=617dcf4768f6b17d';
+import { diversionJunctions } from './diversions.js?build=617dcf4768f6b17d';
 // No surveyed AS signal plans or local off-ramp lengths are bundled. These
 // are explicit defaults: roughly one 300 m queue lane, and ~39% effective
 // green at 1800 veh/h/lane. They are not measured AS-specific capacities.
@@ -27,12 +22,12 @@ export function exitRampVehicles(state) {
     return (state.exitQueue?.normal ?? 0) + Object.values(state.exitQueue?.detours ?? {}).reduce((n, v) => n + v, 0);
 }
 export function normalJunctionTraffic(route, exits, demandVph, moment) {
-    if (!DIRECTIONS.includes(route.key))
+    if (!networkRoad(route.key))
         return [];
     return diversionJunctions(route.key, exits, route).filter(j => !j.isInterchange).map(j => {
         // 4–8% local turnover per AS. Balanced ordinary entry/exit at the
         // reference free flow avoids artificially growing demand at every node.
-        const share = 4 + Number.parseInt(j.ref, 10) % 5, profile = junctionCapacityProfile(route.key.startsWith('A3') ? 'A3' : 'A48', j.ref);
+        const share = 4 + Number.parseInt(j.ref, 10) % 5, profile = junctionCapacityProfile(networkRoad(route.key), j.ref);
         const access = junctionAccess(route, [], j.metre, j.ref);
         return { id: route.key + ':local:' + j.ref, ref: j.ref, metre: j.metre,
             entryVph: access.entry ? Math.min(700, demandVph * share / 100) : 0, exitPercent: access.exit ? share : 0,

@@ -1,4 +1,5 @@
-import { junctionAccess } from './road-controls.js?build=afa91542bd05d6e2';
+import { networkRoad } from './network-road.js?build=617dcf4768f6b17d';
+import { junctionAccess } from './road-controls.js?build=617dcf4768f6b17d';
 /** Publicly documented emergency diversion (Bedarfsumleitung) INVENTORY.
  * Sources:
  *  - OSM Wiki Germany/Bedarfsumleitung/Rheinland-Pfalz and Hessen (Oct 2026)
@@ -7,11 +8,11 @@ import { junctionAccess } from './road-controls.js?build=afa91542bd05d6e2';
  * This module produces ROUTE PLANNING PREVIEWS only. It must never silently
  * subtract or teleport vehicles from the conserved A3/A48 motorway queues.
  */
-import { exitPosition } from './core.js?build=afa91542bd05d6e2';
-import { positionM, closureGate } from './spatial.js?build=afa91542bd05d6e2';
+import { exitPosition } from './core.js?build=617dcf4768f6b17d';
+import { positionM, closureGate } from './spatial.js?build=617dcf4768f6b17d';
 const r = (code, path, fromRef, toRef, evidence = 'named-endpoints') => ({
     id: path + '-' + code, code, path, fromRoad: path.startsWith('A3') ? 'A3' : 'A48', fromRef,
-    toRoad: toRef ? (path.startsWith('A3') ? 'A3' : 'A48') : null, toRef, evidence,
+    toRoad: toRef ? (networkRoad(path)) : null, toRef, evidence,
     description: evidence === 'partial' ? 'Start belegt, Ziel oder Straßenverlauf unvollständig' :
         'Start und Ziel dokumentiert; Nebenstraßen-Geometrie noch nicht übernommen'
 });
@@ -55,7 +56,7 @@ export const CROSS_MOTORWAY_DIVERSION = {
 export function diversionJunctions(path, exits, corridor) {
     if (path !== corridor.key)
         throw Error('Fahrtrichtung und Geometrie passen nicht zusammen');
-    const road = path.startsWith('A3') ? 'A3' : 'A48';
+    const road = networkRoad(path);
     return exits.filter(e => e.road === road && (!e.directional || !!e.directional[path])).map(e => ({
         ...e, position: exitPosition(e, path), metre: positionM(corridor, exitPosition(e, path), 900),
         isInterchange: e.name.startsWith('AD ') || e.name.startsWith('AK ')

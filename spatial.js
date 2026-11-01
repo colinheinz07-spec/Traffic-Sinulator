@@ -1,14 +1,15 @@
-import { extensionRoutes, extensionRoute } from './network-extensions.js?build=afa91542bd05d6e2';
-import { normalThroughLanes } from './lane-info.js?build=afa91542bd05d6e2';
+import { networkRoad } from './network-road.js?build=617dcf4768f6b17d';
+import { extensionRoutes, extensionRoute } from './network-extensions.js?build=617dcf4768f6b17d';
+import { normalThroughLanes } from './lane-info.js?build=617dcf4768f6b17d';
 /** Georeferenced, per-event queue model on the exact OSM motorway carriageway curves.
  * A first-pass conservation model (not a calibrated traffic forecast).
  * No vehicle sprites, hidden road connectors, A3/A48 transfers, or invented detours.
  */
-import { buildContinuousRoads } from './cartography.js?build=afa91542bd05d6e2';
-import { exitPosition } from './core.js?build=afa91542bd05d6e2';
-import { PATHS, baselineCapacity, eventCapacity, defaultDemand } from './traffic.js?build=afa91542bd05d6e2';
-import { baseLaneCapacity, colorAtSpeed, queueFundamentalDiagram, freeSpeedKmh } from './traffic-physics.js?build=afa91542bd05d6e2';
-import { physicalEvents, accessibleExits } from './road-controls.js?build=afa91542bd05d6e2';
+import { buildContinuousRoads } from './cartography.js?build=617dcf4768f6b17d';
+import { exitPosition } from './core.js?build=617dcf4768f6b17d';
+import { PATHS, baselineCapacity, eventCapacity, defaultDemand } from './traffic.js?build=617dcf4768f6b17d';
+import { baseLaneCapacity, colorAtSpeed, queueFundamentalDiagram, freeSpeedKmh } from './traffic-physics.js?build=617dcf4768f6b17d';
+import { physicalEvents, accessibleExits } from './road-controls.js?build=617dcf4768f6b17d';
 const rad = Math.PI / 180;
 export function metres(a, b) {
     const dx = (b[1] - a[1]) * 111195 * Math.cos((a[0] + b[0]) / 2 * rad);
@@ -47,7 +48,7 @@ export function makeCorridors(roads, ramps) {
     }
     for (const extra of extensionRoutes) {
         const route = corridor(extra.id, extra.points);
-        route.normalLanes = [{ fromM: 0, toM: route.lengthM, lanes: extra.lanes }];
+        route.normalLanes = extra.laneSegments;
         result.set(extra.id, route);
     }
     return Object.fromEntries(result);
@@ -124,7 +125,7 @@ export function closureGate(route, event, exits, events = []) {
     const at = positionM(route, event.point);
     if (at === null)
         return null;
-    const road = route.key.startsWith('A3') ? 'A3' : 'A48';
+    const road = networkRoad(route.key);
     const junctions = exits.filter(x => x.road === road && (!x.directional || !!x.directional[route.key]))
         .map(exit => {
         const position = exitPosition(exit, route.key);

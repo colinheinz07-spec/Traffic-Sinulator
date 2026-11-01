@@ -15,8 +15,8 @@ export type InterchangeJourney=(
  {kind:'closure-bypass';forcedByEventId:string}
 )&{forcedByEventId?:string};
 export interface DetourConfig {
- id:string;path:RoadId;fromM:number;toM:number;eventId:string;geometry:DetourGeometry;
- targetPath?:RoadId;sourceEndM?:number;targetEntryM?:number;
+ id:string;path:PathKey;fromM:number;toM:number;eventId:string;geometry:DetourGeometry;
+ targetPath?:PathKey;sourceEndM?:number;targetEntryM?:number;
  /** The normal AD turn being bypassed; its configured traffic determines
   * the destination share, rather than sending all through traffic away. */
  movementId?:PathKey;
@@ -24,6 +24,7 @@ export interface DetourConfig {
  alternativeGroup?:string;
  journey?:InterchangeJourney;
  exitsNetwork?:boolean;
+ exitIsInterchange?:boolean;
 }
 export interface InTransit {minute:number;vehicles:number}
 export interface DetourState {

@@ -1,8 +1,8 @@
-import { extensionRoutes } from './network-extensions.js?build=afa91542bd05d6e2';
+import { extensionRoutes } from './network-extensions.js?build=617dcf4768f6b17d';
 /** Map hit-testing remains separate from rendering and transport logic.
  * All snapped positions are interpolated ONLY on verified OSM road geometries.
  */
-import { nearestPolyline, exitPosition } from './core.js?build=afa91542bd05d6e2';
+import { nearestPolyline, exitPosition } from './core.js?build=617dcf4768f6b17d';
 /** Reduce hundreds of OSM ways to one candidate for each motorway direction and each ramp. */
 export function mapCandidates(roads, ramps, tap, project, tolerance = 18) {
     const hits = new Map();
