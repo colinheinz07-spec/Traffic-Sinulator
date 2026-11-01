@@ -875,8 +875,8 @@ function stepTraffic(minutes:number){
    for(const feature of extensionRoutes)if(!visibleRanges(feature.id,feature.points).length)legacyActive[feature.id]=0;
    // Connected motorway ramps receive real downstream back-pressure.
    // Keep queues from formerly active incidents until their vehicles discharge.
-   const rampPaths=[...new Set([...PATHS,...connectedRampPaths,
-    ...timeline.filter(e=>extensionRoute(e.pathKey)?.kind==='ramp'&&!localRampPaths.has(e.pathKey)).map(e=>e.pathKey),
+   const rampPaths:PathKey[]=[...new Set<PathKey>([...PATHS,...connectedRampPaths,
+    ...timeline.filter(e=>extensionRoute(e.pathKey)?.kind==='ramp'&&!localRampPaths.has(e.pathKey as PathKey)).map(e=>e.pathKey as PathKey),
     ...Object.values(spatialState.queues).filter(q=>extensionRoute(q.pathKey)?.kind==='ramp'&&!localRampPaths.has(q.pathKey)).map(q=>q.pathKey)])];
    spatialState=advanceSpatial(spatialState,timeline,legacyActive,1,spatialCorridors,networkConnections,transfers,exits,physicalMainline,rampPaths);
   }
