@@ -1,9 +1,9 @@
 /** Endpoint-connected mainlines exchange a receiving signal. This limits
  * actual discharge in the feeder CTM, rather than painting a second queue.
  * Aggregate motorway demands remain calibrated independently (not OD trips). */
-import { extensionRoutes } from './network-extensions.js?build=843cafdd159e0564';
-import { positionM, metres } from './spatial.js?build=843cafdd159e0564';
-import { CONGESTION_WAVE_KMH, QUEUE_JAM_DENSITY_PER_LANE } from './traffic-physics.js?build=843cafdd159e0564';
+import { extensionRoutes } from './network-extensions.js?build=580eed8acabcbe14';
+import { positionM, metres } from './spatial.js?build=580eed8acabcbe14';
+import { CONGESTION_WAVE_KMH, QUEUE_JAM_DENSITY_PER_LANE } from './traffic-physics.js?build=580eed8acabcbe14';
 export function mainlineMerges(routes) {
     const mains = ['A3-koeln', 'A3-frankfurt', 'A48-dernbach', 'A48-koblenz', ...extensionRoutes.filter(r => r.kind === 'motorway').map(r => r.id)];
     return mains.flatMap(from => {
