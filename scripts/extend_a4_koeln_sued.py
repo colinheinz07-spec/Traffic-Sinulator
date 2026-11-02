@@ -126,14 +126,21 @@ w555=[w for w in ways if allowed(w,'A555')]
 g555,rev555=graphs(w555)
 def a555_path(north):
  candidates=[p for p in g555 if 6.94<p[1]<7.006 and
-             (50.853<p[0]<50.872 if north else 50.899<p[0]<50.918)]
- candidates.sort(key=lambda p:abs(p[0]-(50.855 if north else 50.916)))
- goal=(lambda p:50.905<p[0]<50.923) if north else (lambda p:50.851<p[0]<50.865)
+             (50.853<p[0]<50.872 if north else 50.882<p[0]<50.911)]
+ candidates.sort(key=lambda p:abs(p[0]-(50.855 if north else 50.897)))
+ # The AK uses separate motorway_link branches at the north end, so stop
+ # each trunk at its actual interchange approach rather than continuing
+ # a non-existent motorway chain through the distributor roundabout.
+ goal=(lambda p:50.885<p[0]<50.913) if north else (lambda p:50.851<p[0]<50.867)
  possibilities=[]
  for p in candidates[:100]:
   edges=walk(g555,p,goal,13000)
   if edges and 2600<length(edges)<11000:possibilities.append(edges)
- if not possibilities:raise ValueError('A555 missing continuous OSM '+('northbound' if north else 'southbound'))
+ if not possibilities:
+  print('A555 OSM DEBUG: direction',north,'candidates',len(candidates),
+        'lat range',min(p[0] for p in g555),max(p[0] for p in g555),
+        'endpoints',[(p, len(g555[p])) for p in candidates[:20]],flush=True)
+  raise ValueError('A555 missing continuous OSM '+('northbound' if north else 'southbound'))
  return max(possibilities,key=length)
 bonn=a555_path(False);koeln=a555_path(True)
 a555s=new_feature('extra-a555-bonn','A555 → Bonn / Rodenkirchen','motorway',bonn,'A555 Köln-Süd–Rodenkirchen',3000)
