@@ -3,7 +3,7 @@ import {extensionRoutes} from './network-extensions.js';
 import {networkRoad} from './network-road.js';
 import {NETWORK_PATHS,PATHS,type PathKey} from './traffic.js';
 export const MOTORWAY_PATHS:readonly PathKey[]=[...DIRECTIONS,...extensionRoutes.filter(r=>r.kind==='motorway').map(r=>r.id)];
-export const MOTORWAY_GROUPS=(['A3','A4','A48','A59','A555','A559','A560','A562'] as const).map(road=>({road,paths:MOTORWAY_PATHS.filter(key=>networkRoad(key)===road)}));
+export const MOTORWAY_GROUPS=(['A1','A3','A4','A48','A59','A555','A559','A560','A562'] as const).map(road=>({road,paths:MOTORWAY_PATHS.filter(key=>networkRoad(key)===road)}));
 export function junctionDirectory(exits:readonly Exit[]){
  return MOTORWAY_GROUPS.map(group=>({...group,junctions:exits.filter(e=>e.road===group.road)
   .sort((a,b)=>a.ref.localeCompare(b.ref,'de',{numeric:true}))}));
