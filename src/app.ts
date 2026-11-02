@@ -1,6 +1,6 @@
 import {visibleRanges,canonicalPhysicalEvent} from './physical-paths.js';
 import {junctionRampBindings,junctionRampJams,junctionRampFlows} from './junction-ramp-bindings.js';
-import {mainlineMerges,downstreamReceiving} from './network-receiving.js';
+import {mainlineMerges,downstreamReceiving,rampReceiving} from './network-receiving.js';
 import {profileDescription} from './traffic-profiles.js';
 import {regionalFlowAt,regionalBoundaryFlow,regionalDescription} from './regional-traffic.js';
 import {MOTORWAY_PATHS,MOTORWAY_GROUPS,junctionDirectory,junctionRoute,trafficOverviewPaths} from './network-presentation.js';
@@ -878,7 +878,7 @@ function stepTraffic(minutes:number){
    const rampPaths:PathKey[]=[...new Set<PathKey>([...PATHS,...connectedRampPaths,
     ...timeline.filter(e=>extensionRoute(e.pathKey)?.kind==='ramp'&&!localRampPaths.has(e.pathKey as PathKey)).map(e=>e.pathKey as PathKey),
     ...Object.values(spatialState.queues).filter(q=>extensionRoute(q.pathKey)?.kind==='ramp'&&!localRampPaths.has(q.pathKey)).map(q=>q.pathKey)])];
-   spatialState=advanceSpatial(spatialState,timeline,legacyActive,1,spatialCorridors,networkConnections,transfers,exits,physicalMainline,rampPaths);
+   spatialState=advanceSpatial(spatialState,timeline,legacyActive,1,spatialCorridors,networkConnections,transfers,exits,physicalMainline,rampPaths,rampReceiving(cellNetwork,networkConnections));
   }
  }
  catch(e){stopTraffic();$('traffic-issue').textContent=e instanceof Error?e.message:'Simulationsfehler';return;}
