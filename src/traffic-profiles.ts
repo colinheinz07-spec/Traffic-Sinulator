@@ -15,6 +15,7 @@ const saturday:Curve=[[0,.14],[3,.15],[6,.14],[8,.28],[10,.54],[12,.78],[15,.85]
 const sunday:Curve=[[0,.14],[4,.13],[8,.18],[10,.40],[12,.63],[15,.79],[17,.92],[19,.76],[21,.46],[23,.23],[24,.14]];
 const exponent:Record<ProfileFamily,number>={transit:1.4,koblenz:1.25,ring:1.15,airport:1.2,urban:1.3,siegtal:1.3};
 export const REFERENCE_PEAKS:Readonly<Record<string,number>>={
+ 'extra-a1-dortmund':2900,'extra-a1-koblenz':2850,
  'A3-koeln':4200,'A3-frankfurt':4100,'A48-dernbach':2400,'A48-koblenz':1700,
  'extra-a59-koeln':3600,'extra-a59-bonn':3600,
  'extra-a4-aachen':4200,'extra-a4-olpe':4300,
@@ -32,7 +33,7 @@ export function profileFamily(key:string):ProfileFamily{
  if(key.startsWith('A3-'))family='transit';
  else if(key.startsWith('A48-')||key.startsWith('ramp-'))family='koblenz';
  else if(key.startsWith('extra-a59-'))family='airport';
- else if(key.startsWith('extra-a4-')||key.startsWith('extra-a555-'))family='ring';
+ else if(key.startsWith('extra-a4-')||key.startsWith('extra-a555-')||key.startsWith('extra-a1-'))family='ring';
  else if(key.startsWith('extra-a559-')||key.startsWith('extra-a562-'))family='urban';
  else if(key.startsWith('extra-a560-'))family='siegtal';
  else{const feature=extensionRoute(key);family=feature&&feature.points.some(p=>p[0]>50.78&&p[1]<7.17)?'ring':feature?.zone.startsWith('A48')?'koblenz':'transit';}
