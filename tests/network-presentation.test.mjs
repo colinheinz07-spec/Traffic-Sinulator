@@ -7,7 +7,7 @@ import {networkRoad} from '../dist/network-road.js';
 const exits=[...networkData.exits,...extensionJunctions];
 test('every modelled motorway has two permanent directions in the same overview and registry',()=>{
  assert.equal(MOTORWAY_PATHS.length,14);
- assert.deepEqual(MOTORWAY_GROUPS.map(g=>[g.road,g.paths.length]),[['A3',2],['A4',2],['A48',2],['A59',2],['A559',2],['A560',2],['A562',2]]);
+ assert.deepEqual(MOTORWAY_GROUPS.map(g=>[g.road,g.paths.length]),[['A3',2],['A4',2],['A48',2],['A59',2],['A555',2],['A559',2],['A560',2],['A562',2]]);
  const rows=trafficOverviewPaths('A3-koeln',new Set(),new Set());
  for(const path of MOTORWAY_PATHS)assert.ok(rows.includes(path));
  const ramp=extensionRoutes.find(r=>r.kind==='ramp').id;
