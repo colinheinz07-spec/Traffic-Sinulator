@@ -69,7 +69,13 @@ def append_parts(feature,edges,front=False):
  for w,ps in groups:
   if newpoints and newpoints[-1]!=ps[0]:raise ValueError('Disconnected A4 extension')
   newpoints+=ps[1:] if newpoints else ps
-  s=seg(w,ps,distance);distance=s['toM'];sections.append(s);ids.append(w['id'])
+  s=seg(w,ps,distance)
+  # Eifeltor: OSM way 455315450 represents only the one-lane branch
+  # of the two-lane parallel bridge corridor. CTM keeps an aggregated
+  # two-lane receiving cross-section here (without inventing geometry).
+  # Other motorway links and ramps keep their real OSM lanes unchanged.
+  if w['id']==455315450 and s['lanes']==1:s['lanes']=2
+  distance=s['toM'];sections.append(s);ids.append(w['id'])
  if front:
   assert newpoints[-1]==tuple(feature['points'][0]),'A4 eastbound join differs from exact OSM'
   feature['points']=[list(p) for p in newpoints[:-1]]+feature['points']
@@ -104,12 +110,19 @@ def junction(ref,road,name,position,source,dirkeys):
   # A junction exit must sit on a real off-ramp divergence and inside the
   # retained carriageway. Never place an AS at metre=route.lengthM.
   interior=vertices-{tuple(f['points'][0]),tuple(f['points'][-1])}
-  tagged=[point(n) for n in nodes if n.get('tags',{}).get('ref')==ref
-          and point(n) in interior and metres(point(n),position)<2000]
+  # Prefer a direction's true numbered OSM junction node. If that
+  # direction uses a neighbouring collector road, project the REAL OSM
+  # node to its nearest retained motorway vertex instead of a manually
+  # estimated junction centre kilometres away.
+  official=[point(n) for n in nodes if ref in n.get('tags',{}).get('ref','').split(';')
+            and n.get('tags',{}).get('highway')=='motorway_junction'
+            and metres(point(n),position)<2600]
+  tagged=[q for q in official if q in interior]
+  reference=min(official,key=lambda q:metres(q,position)) if official else position
   departures=[directed(w)[0] for w in ways if w.get('tags',{}).get('highway')=='motorway_link'
-          and directed(w)[0] in interior and metres(directed(w)[0],position)<1800]
-  candidates=(tagged or departures or list(interior))
-  near=min(candidates,key=lambda p:metres(p,position))
+          and directed(w)[0] in interior and metres(directed(w)[0],reference)<800]
+  candidates=tagged or departures or list(interior)
+  near=min(candidates,key=lambda p:metres(p,reference))
   node=next((n for n in nodes if point(n)==near),None)
   j.setdefault('directional',{})[f['id']]={'position':list(near),'nodeId':node['id'] if node else 0}
  return j
@@ -166,15 +179,18 @@ a1south=new_feature('extra-a1-koblenz','A1 → Koblenz / Köln-Süd','motorway',
 features.extend([a1north,a1south])
 # Numbered and directional actual motorway anchor locations.
 junction('10','A4','AK Köln-West',akwest,'osm-junction',[a4w,a4e])
-junction('11a','A4','Köln-Klettenberg',(50.9030,6.9007),'osm-junction',[a4w,a4e])
-junction('11b','A4','Köln-Eifeltor',(50.8924,6.9348),'osm-junction',[a4w,a4e])
+klettenberg=(50.8961,6.9144)  # centroid of actual OSM ref=11a junction nodes
+eifeltor=(50.8910,6.92655) # centroid of actual OSM ref=11b junction nodes
+junction('11a','A4','Köln-Klettenberg',klettenberg,'osm-junction',[a4w,a4e])
+junction('11b','A4','Köln-Eifeltor',eifeltor,'osm-junction',[a4w,a4e])
 junction('104','A1','AK Köln-West',akwest,'osm-junction',[a1north,a1south])
 # Directed inter-motorway links: all legal exact OSM junction paths; preserve
 # branch-by-branch lane counts, no path or forbidden turn inferred.
 trunks={f['id']:set(map(tuple,f['points'])) for f in [a4w,a4e,a1north,a1south]}
 linkways=[w for w in ways if w.get('tags',{}).get('highway')=='motorway_link'
  and w.get('tags',{}).get('access') not in ('no','private')
- and any(metres(point(p),akwest)<3000 for p in w['geometry'])]
+ and any(min(metres(point(p),center) for center in
+            (akwest,klettenberg,eifeltor))<1800 for p in w['geometry'])]
 # At AK Köln-West the collection/distribution lanes include short
 # motorway-classified pieces between true motorway_link ways. Traversing
 # the directed OSM graph, including these pieces, preserves legal geometry.
@@ -202,8 +218,8 @@ for w in linkways:
  if w['id'] in used:continue
  ps=directed(w)
  if not any(p in v for p in ps for v in trunks.values()):continue
- near=min((('AK Köln-West',akwest),('AS Köln-Klettenberg',(50.9030,6.9007)),
-           ('AS Köln-Eifeltor',(50.8924,6.9348))),key=lambda x:metres(ps[len(ps)//2],x[1]))
+ near=min((('AK Köln-West',akwest),('AS Köln-Klettenberg',klettenberg),
+           ('AS Köln-Eifeltor',eifeltor)),key=lambda x:metres(ps[len(ps)//2],x[1]))
  if metres(ps[len(ps)//2],near[1])>2500:continue
  pathkey='extra-koelnwest-link-'+str(w['id'])
  features.append(new_feature(pathkey,near[0]+' · Rampenzweig','ramp',
