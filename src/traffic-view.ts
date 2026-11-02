@@ -172,7 +172,14 @@ export function trafficView(
    // falsely keep this ramp blocked and grow its feeder queue indefinitely.
    // Released heads recover their own road capacity; an uncontrolled
    // local queue cannot borrow a distant restriction through a free gap.
-   const serviceCapacity=state?head?.travelDetector?.capacityVph??baselineCapacity(path):root?.capacityVph??0;
+   // The physical zero-capacity face inside THIS connected queue governs its
+   // ramp merge, even when an upstream detector still reports free service.
+   // Restrict the scan to the contiguous displayed queue: an independent
+   // upstream incident must not poison a downstream open merge.
+   const blockedHead=state?.cells.some(c=>c.blockedAtM!==undefined&&
+    c.toM>group.fromM-.5&&c.fromM<group.toM+.5)??false;
+   const serviceCapacity=blockedHead?0:
+    state?head?.travelDetector?.capacityVph??baselineCapacity(path):root?.capacityVph??0;
    jams.push({id:'display:'+path+':'+Math.round(group.toM),eventId:event?.id,queueOwnerId:root?.id,waveHeadM,
     pathKey:path,eventKind:event?.kind??null,point,anchorM:group.toM,
     queueVehicles:vehicles,queueM:group.toM-group.fromM+feederM,

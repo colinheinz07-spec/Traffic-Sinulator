@@ -161,7 +161,11 @@ export function trafficView(legacy, cells, corridors, events, spills, minute) {
             // falsely keep this ramp blocked and grow its feeder queue indefinitely.
             // Released heads recover their own road capacity; an uncontrolled
             // local queue cannot borrow a distant restriction through a free gap.
-            const serviceCapacity = state ? head?.travelDetector?.capacityVph ?? baselineCapacity(path) : root?.capacityVph ?? 0;
+            // A closed cross-section inside this connected queue blocks the merge.
+            const blockedHead = state?.cells.some(c => c.blockedAtM !== undefined &&
+                c.toM > group.fromM - .5 && c.fromM < group.toM + .5) ?? false;
+            const serviceCapacity = blockedHead ? 0 :
+                state ? head?.travelDetector?.capacityVph ?? baselineCapacity(path) : root?.capacityVph ?? 0;
             jams.push({ id: 'display:' + path + ':' + Math.round(group.toM), eventId: event?.id, queueOwnerId: root?.id, waveHeadM,
                 pathKey: path, eventKind: event?.kind ?? null, point, anchorM: group.toM,
                 queueVehicles: vehicles, queueM: group.toM - group.fromM + feederM,

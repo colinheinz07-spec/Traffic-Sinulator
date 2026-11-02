@@ -42,3 +42,13 @@ test('fully obstructed incidents have no invented clearance or infinite numeric 
  assert.ok(Number.isFinite(delay.delayMin));
  assert.ok(grid.cells.some(x=>x.blockedAtM!==undefined));
 });
+
+test('downstream occupied full blockage keeps an independently displayed ramp queue blocked',()=>{
+ const grid=initialiseCells(route,0);
+ for(const c of grid.cells)if(c.fromM>=1500&&c.toM<=1800){
+  c.vehicles=18;c.densityVehKm=180;c.speedKmh=0;
+  c.blockedAtM=c.toM;c.travelDetector={control:'accident',capacityVph:0,active:true,samples:1,meanFlowVph:0};
+ }
+ const bands=cellSpeedBands(grid);
+ assert.ok(bands.length>0&&bands.some(b=>b.color==='standstill'));
+});
