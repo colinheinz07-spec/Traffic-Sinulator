@@ -286,3 +286,8 @@ text="import type {Point,Exit} from './core.js';\nexport const EXTENSION_IDS="+j
 print('Generated',len(features),'directed extension paths;',sum(len(f['points']) for f in features),'original vertices')
 
 (ROOT/'data/extension-junctions.json').write_text(json.dumps(dict(routes=features,junctions=junctions),separators=(',',':')))
+# Reapply the official Köln-Süd A4/A555 OSM extension on every rebuild.
+if (ROOT/'data/a4-koeln-sued-osm.json').exists():
+ import runpy
+ runpy.run_path(str(ROOT/'scripts/extend_a4_koeln_sued.py'),run_name='__main__')
+
