@@ -4,7 +4,7 @@ from concurrent.futures import ThreadPoolExecutor
 import json, urllib.parse, urllib.request, time
 ROOT=Path(__file__).resolve().parents[1]
 # Overlapping tiles retain exact directional nodes; avoid approximated coordinates.
-CENTERS=[(round(50.885+i*.011,6),round(6.956+j*.015,6)) for i in range(4) for j in range(5)]
+CENTERS=[(round(50.885+i*.011,6),round(6.956+j*.015,6)) for i in range(4) for j in range(5)] + [(50.863,6.971),(50.873,6.971),(50.863,6.986)]
 HIGHWAYS={'motorway','motorway_link','trunk','trunk_link','primary','primary_link',
           'secondary','secondary_link','tertiary','tertiary_link','residential','unclassified'}
 def tile(center):
