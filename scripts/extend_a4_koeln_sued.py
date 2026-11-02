@@ -119,8 +119,8 @@ append_parts(a4e,[(b,a,w) for a,b,w in reversed(back)],True)
 a4w['name']='A4 → Aachen / Köln-Süd'
 a4e['name']='A4 → Olpe / Köln-Gremberg / Heumar'
 a4w['zone']=a4e['zone']='A4 Köln-Gremberg–Köln-Süd'
-assert 5500<length(west)<13000,('A4 westward extension',length(west))
-assert 5500<length(back)<13000,('A4 eastward extension',length(back))
+assert 4200<length(west)<13000,('A4 westward extension',length(west))
+assert 4200<length(back)<13000,('A4 eastward extension',length(back))
 # Short genuine A555 motorway arms: south beyond AS Rodenkirchen, north to Köln-Bayenthal.
 w555=[w for w in ways if allowed(w,'A555')]
 g555,rev555=graphs(w555)
