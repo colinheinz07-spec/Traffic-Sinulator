@@ -6,7 +6,7 @@ import { extensionRoute } from './network-extensions.js?build=20261102-flow1';
  */
 import { NETWORK_PATHS as PATHS, baselineCapacity } from './traffic.js?build=20261102-flow1';
 import { routeSlice } from './spatial.js?build=20261102-flow1';
-import { cellSpeedBands, cellQueueSpans } from './traffic-cells.js?build=20261102-flow1';
+import { cellSpeedBands, cellQueueSpans, cellCriticalDensity } from './traffic-cells.js?build=20261102-flow1';
 import { physicalSpeedBands, stopAndGoBands, resolveSpeedBands, freeSpeedKmh, colorAtSpeed } from './traffic-physics.js?build=20261102-flow1';
 import { speedDelayInCells, speedDelayInBands, queueTravelHeads } from './speed-delay.js?build=20261102-flow1';
 import { routeReport } from './network-report.js?build=20261102-flow1';
@@ -111,6 +111,13 @@ export function trafficView(legacy, cells, corridors, events, spills, minute) {
                         color: colorAtSpeed(cell.speedKmh), source: 'restriction' });
                 }
             }
+        // Display an observed slow packet without inventing extra queue length.
+        if (state) for (const cell of state.cells) {
+            if (cell.vehicles < .75 || cell.speedKmh > 65 || cell.speedKmh <= 10 ||
+                cell.densityVehKm >= (cell.criticalDensityVehKm ?? cellCriticalDensity(path)) * 1.10) continue;
+            restrictions.push({ fromM: cell.fromM, toM: cell.toM, speedKmh: cell.speedKmh,
+                color: colorAtSpeed(cell.speedKmh), source: 'restriction' });
+        }
         const mapped = resolveSpeedBands([...restrictions, ...queueBands]);
         bands.set(path, mapped);
         let ownVehicles = 0;

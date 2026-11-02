@@ -842,8 +842,10 @@ export function cellSpeedBands(state) {
         // Only actual dense queues or an occupied, physically blocked face
         // belong to the JAM layer. An uncongested 40-km/h worksite belongs to
         // the separate measured-speed restriction layer, not the queue length.
-        const observedSlow = c.vehicles >= .1 && c.speedKmh <= 65;
-        if (!observedSlow)
+        const physicallyBlocked = c.blockedAtM !== undefined && c.vehicles >= .75;
+        const actuallyStopped = c.vehicles >= .75 && c.speedKmh <= 10;
+        if (c.speedKmh > 65 || (!physicallyBlocked && !actuallyStopped &&
+            c.densityVehKm < (c.criticalDensityVehKm ?? critical) * 1.10 && c.approachLimitKmh === undefined))
             continue;
         const color = colorAtSpeed(c.speedKmh);
         if (color === 'free')
@@ -866,7 +868,7 @@ export function cellQueueSpans(state) {
     const threshold = cellCriticalDensity(state.pathKey) * 1.10, spans = [];
     for (const c of state.cells) {
         if (c.densityVehKm < (c.criticalDensityVehKm !== undefined ? c.criticalDensityVehKm * 1.10 : threshold) && (c.queueMemoryMin ?? 0) <= 0 &&
-            !(c.vehicles >= .1 && c.speedKmh <= 65))
+            !(c.vehicles >= .75 && c.speedKmh <= 10))
             continue;
         const last = spans.at(-1);
         if (last && Math.abs(last.toM - c.fromM) < .1)

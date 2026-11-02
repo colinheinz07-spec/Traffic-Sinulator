@@ -13,7 +13,8 @@ const a=junctions.find(j=>j.ref==='42'),b=junctions.find(j=>j.ref==='43'),at=(a.
 function incident(closedLanes,id='limburg-regression'){
  return {id,kind:'accident',pathKey:path,point:routeSlice(route,at,at+2)[0],laneCount:3,
   closedLanes,createdAt:'2026-10-23T13:00:00Z',
-  settings:{lengthM:100,speedKmh:closedLanes.length===3?0:40,shoulder:'normal'}};
+  settings:{lengthM:100,speedKmh:closedLanes.length===3?0:40,shoulder:'normal',
+   ...(closedLanes.length===3?{clearanceMin:30}:{})}};
 }
 
 test('a blocked accident forecasts declared reopening without dividing by tiny CTM flow',()=>{

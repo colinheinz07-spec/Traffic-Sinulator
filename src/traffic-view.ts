@@ -6,7 +6,7 @@ import {extensionRoute} from './network-extensions.js';
  */
 import {NETWORK_PATHS as PATHS,baselineCapacity,type PathKey,type TrafficColor} from './traffic.js';
 import {routeSlice,type Corridor,type Jam} from './spatial.js';
-import {cellSpeedBands,cellQueueSpans,type CellRouteState} from './traffic-cells.js';
+import {cellSpeedBands,cellQueueSpans,cellCriticalDensity,type CellRouteState} from './traffic-cells.js';
 import {physicalSpeedBands,stopAndGoBands,resolveSpeedBands,freeSpeedKmh,colorAtSpeed,type SpeedBand} from './traffic-physics.js';
 import {speedDelayInCells,speedDelayInBands,queueTravelHeads,type SpeedDelay} from './speed-delay.js';
 import {routeReport,type RouteReport} from './network-report.js';
@@ -120,6 +120,14 @@ export function trafficView(
     restrictions.push({fromM,toM,speedKmh:cell.speedKmh,
      color:colorAtSpeed(cell.speedKmh),source:'restriction'});
    }
+  }
+  // A slow packet may be observable before it reaches jam density.
+  // Paint its measured local speed, but do not invent additional jam length.
+  if(state)for(const cell of state.cells){
+   if(cell.vehicles<.75||cell.speedKmh>65||cell.speedKmh<=10||
+    cell.densityVehKm>=(cell.criticalDensityVehKm??cellCriticalDensity(path))*1.10)continue;
+   restrictions.push({fromM:cell.fromM,toM:cell.toM,speedKmh:cell.speedKmh,
+    color:colorAtSpeed(cell.speedKmh),source:'restriction'});
   }
   const mapped=resolveSpeedBands([...restrictions,...queueBands]);
   bands.set(path,mapped);
