@@ -175,7 +175,12 @@ trunks={f['id']:set(map(tuple,f['points'])) for f in [a4w,a4e,a1north,a1south]}
 linkways=[w for w in ways if w.get('tags',{}).get('highway')=='motorway_link'
  and w.get('tags',{}).get('access') not in ('no','private')
  and any(metres(point(p),akwest)<3000 for p in w['geometry'])]
-g,_=graphs(linkways)
+# At AK Köln-West the collection/distribution lanes include short
+# motorway-classified pieces between true motorway_link ways. Traversing
+# the directed OSM graph, including these pieces, preserves legal geometry.
+turnways=linkways+[w for w in ways if w.get('tags',{}).get('highway')=='motorway'
+ and any(metres(point(p),akwest)<1600 for p in w['geometry'])]
+g,_=graphs(turnways)
 count=0
 for source,vertices in trunks.items():
  for target,goals in trunks.items():
