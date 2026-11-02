@@ -102,6 +102,9 @@ def junction(ref,road,name,position,source,dirkeys):
  old=next((j for j in junctions if j['road']==road and j['ref']==ref),None)
  if old is not None:
   j=old
+  j['name']=name
+  j['position']=list(position)
+  j['source']=source
  else:
   j={'road':road,'ref':ref,'name':name,'position':list(position),'source':source,'directional':{}}
   junctions.append(j)
@@ -138,8 +141,10 @@ def south_interchange_link(w):
 g4,rev4=graphs([w for w in ways if allowed(w,'A4') or south_interchange_link(w)])
 akwest=(50.925833,6.845278)
 goal=lambda p: 50.914<p[0]<50.946 and p[1]<6.844
-west=walk(g4,tuple(a4w['points'][-1]),goal,maxdist=19000)
-back=walk(rev4,tuple(a4e['points'][0]),goal,maxdist=19000)
+# This script also runs on an already-published extension. If the A4
+# endpoints already reach AK Köln-West, preserve the existing geometry.
+west=[] if goal(tuple(a4w['points'][-1])) else walk(g4,tuple(a4w['points'][-1]),goal,maxdist=19000)
+back=[] if goal(tuple(a4e['points'][0])) else walk(rev4,tuple(a4e['points'][0]),goal,maxdist=19000)
 def reachable(g,start):
  seen={start};pending=[start]
  for p in pending:
@@ -153,10 +158,15 @@ print('A4 West reachability',len(seen),'westmost',min(seen,key=lambda p:p[1]),
 print('A4 debug west/back',bool(west),bool(back),'startW',a4w['points'][-1],
  'startE',a4e['points'][0],'nodes',len(g4),'W start exists',tuple(a4w['points'][-1]) in g4,
  'E reverse exists',tuple(a4e['points'][0]) in rev4,flush=True)
-assert west and back,'Missing continuous directed A4 to AK Köln-West: do NOT draw fake link'
-assert 6000<length(west)<16000,('Westbound A4 OSM length',length(west))
-assert 6000<length(back)<16000,('Eastbound A4 OSM length',length(back))
+assert west is not None and back is not None,'Missing continuous directed A4 to AK Köln-West: do NOT draw fake link'
+if west:assert 6000<length(west)<16000,('Westbound A4 OSM length',length(west))
+if back:assert 6000<length(back)<16000,('Eastbound A4 OSM length',length(back))
 append_parts(a4w,west);append_parts(a4e,[(b,a,w) for a,b,w in reversed(back)],True)
+# A parallel bridge lane carries the remaining corridor flow at Eifeltor.
+# Correct the previously imported branch too, not just new OSM segments.
+for segm in a4w['laneSegments']:
+ if segm['lanes']==1 and 10500<segm['fromM']<13000:
+  segm['lanes']=2
 a4w['name']='A4 → Köln-West / Aachen'
 a4e['name']='A4 → Köln-Süd / Heumar / Olpe'
 a4w['zone']=a4e['zone']='A4 AK Köln-West–AD Köln-Heumar'
@@ -174,9 +184,14 @@ def a1_route(north):
  if not options:raise ValueError('A1 motorway has no exact directed crossing at Köln-West '+str(north))
  return max(options,key=length)
 north=a1_route(True);southbound=a1_route(False)
-a1north=new_feature('extra-a1-dortmund','A1 → Dortmund / Köln-Nord','motorway',north,'AK Köln-West A1',2800)
-a1south=new_feature('extra-a1-koblenz','A1 → Koblenz / Köln-Süd','motorway',southbound,'AK Köln-West A1',2800)
-features.extend([a1north,a1south])
+a1north=next((f for f in features if f['id']=='extra-a1-dortmund'),None)
+a1south=next((f for f in features if f['id']=='extra-a1-koblenz'),None)
+if a1north is None:
+ a1north=new_feature('extra-a1-dortmund','A1 → Dortmund / Köln-Nord','motorway',north,'AK Köln-West A1',2800)
+ features.append(a1north)
+if a1south is None:
+ a1south=new_feature('extra-a1-koblenz','A1 → Koblenz / Köln-Süd','motorway',southbound,'AK Köln-West A1',2800)
+ features.append(a1south)
 # Numbered and directional actual motorway anchor locations.
 junction('10','A4','AK Köln-West',akwest,'osm-junction',[a4w,a4e])
 klettenberg=(50.8961,6.9144)  # centroid of actual OSM ref=11a junction nodes
@@ -211,7 +226,7 @@ for source,vertices in trunks.items():
   key='extra-koelnwest-turn-'+source+'-to-'+target+'-'+str(edges[0][2]['id'])
   if any(f['id']==key for f in features):continue
   features.append(new_feature(key,name,'ramp',edges,'AK Köln-West',0));count+=1
-assert count>=2,'No verifiable A1/A4 turn ramps at Köln-West'
+assert sum(f['id'].startswith('extra-koelnwest-turn-') for f in features)>=2,'No verifiable A1/A4 turn ramps at Köln-West'
 # Other exact OSM motorway_link portions of the interchange and local AS.
 used={i for f in features for i in f['wayIds']}
 for w in linkways:
