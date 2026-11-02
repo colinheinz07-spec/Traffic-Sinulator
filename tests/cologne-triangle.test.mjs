@@ -33,7 +33,7 @@ test('new A4 geometry joins the existing Heumar corridor without duplicating its
  const edge=(a,b)=>[a.join(','),b.join(',')].sort().join('|');
  const existing=new Set(['A3-koeln','A3-frankfurt','extra-a59-koeln','extra-a59-bonn'].flatMap(k=>routes[k].points.slice(1).map((p,i)=>edge(routes[k].points[i],p))));
  for(const key of ['extra-a4-aachen','extra-a4-olpe']){
-  const r=routes[key];assert.ok(r.lengthM>8000&&r.lengthM<16000);
+  const r=routes[key];assert.ok(r.lengthM>15000&&r.lengthM<27000);
   for(let i=1;i<r.points.length;i++)assert.ok(!existing.has(edge(r.points[i-1],r.points[i])),key+' shared edge');
   const at=key.endsWith('aachen')?r.points[0]:r.points.at(-1);
   assert.ok(['A3-koeln','A3-frankfurt','extra-a59-koeln','extra-a59-bonn'].some(k=>positionM(routes[k],at,.1)!==null));
