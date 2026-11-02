@@ -101,7 +101,16 @@ def junction(ref,road,name,position,source,dirkeys):
   j={'road':road,'ref':ref,'name':name,'position':list(position),'source':source,'directional':{}}
   junctions.append(j)
  for f in dirkeys:
-  near=min((tuple(p) for p in f['points']),key=lambda p:metres(p,position))
+  vertices=set(map(tuple,f['points']))
+  # A junction exit must sit on a real off-ramp divergence and inside the
+  # retained carriageway. Never place an AS at metre=route.lengthM.
+  interior=vertices-{tuple(f['points'][0]),tuple(f['points'][-1])}
+  tagged=[point(n) for n in nodes if n.get('tags',{}).get('ref')==ref
+          and point(n) in interior and metres(point(n),position)<2000]
+  departures=[directed(w)[0] for w in ways if w.get('tags',{}).get('highway')=='motorway_link'
+          and directed(w)[0] in interior and metres(directed(w)[0],position)<1800]
+  candidates=(tagged or departures or list(interior))
+  near=min(candidates,key=lambda p:metres(p,position))
   node=next((n for n in nodes if point(n)==near),None)
   j.setdefault('directional',{})[f['id']]={'position':list(near),'nodeId':node['id'] if node else 0}
  return j
