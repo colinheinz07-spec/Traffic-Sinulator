@@ -28,7 +28,7 @@ for(const key of ['extra-a59-koeln','extra-a59-bonn'])test(key+': Porz–Heumar 
  for(let t=0;t<35;t++){const next=advanceRoutedNetwork(cells,routes,[event],defaultDemands(),exits,detours);cells=next.cells;detours=next.detours;}
  assert.ok(detours[0].state.admittedTotal>300);assert.ok(detours[0].state.returnedTotal>100);assert.equal(detours[0].desiredPercent,100);
  const total=Object.values(cells).reduce((n,g)=>n+cellInventory(g)+g.exitedTotal-g.offeredTotal,0)+detours.reduce((n,d)=>n+detourVehicles(d.state),0);assert.ok(Math.abs(total-initial)<1e-4);
- const leg=key.endsWith('koeln')?'extra-a4-olpe':'extra-a4-aachen';const blocked=incident(leg,routes[leg].lengthM*.5);
+ const leg=key.endsWith('koeln')?'extra-a4-olpe':'extra-a4-aachen';const oldHeumarMid=leg.endsWith('aachen')?1800:routes[leg].lengthM-1800;const blocked=incident(leg,oldHeumarMid);
  assert.equal(refreshExtensionDetour(config,routes,[event,blocked],exits,cells).geometry.roadCapacityVph,0);
 });
 test('legacy Heumar aliases cannot draw independent queue stripes on physical mainlines and saved closures migrate',()=>{
