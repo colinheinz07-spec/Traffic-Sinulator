@@ -195,10 +195,12 @@ function localControls(route:Corridor,events:readonly SimEvent[],demandVph:numbe
     const release={...event,closedLanes:Array.from({length:event.laneCount-1},(_,i)=>i),
      settings:{...event.settings,speedKmh:40,shoulder:'normal' as const}};
     const waitMin=event.settings.clearanceMin??DEFAULT_CLEARANCE_MIN;
-    if(waitMin<=0){unknownBlocks.add(face);continue;}
-    const old=forecasts.get(face);
-    forecasts.set(face,{waitMin:Math.max(old?.waitMin??0,waitMin),
-     serviceVph:Math.min(old?.serviceVph??Infinity,eventCapacity(release,demandVph))});
+    if(waitMin<=0)unknownBlocks.add(face);
+    else{
+     const old=forecasts.get(face);
+     forecasts.set(face,{waitMin:Math.max(old?.waitMin??0,waitMin),
+      serviceVph:Math.min(old?.serviceVph??Infinity,eventCapacity(release,demandVph))});
+    }
    }
   }
   faceControls[face]!.push(JSON.stringify([event.id,event.kind,event.closedLanes,event.settings]));
