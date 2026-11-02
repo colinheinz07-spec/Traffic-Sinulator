@@ -117,13 +117,19 @@ def junction(ref,road,name,position,source,dirkeys):
   # direction uses a neighbouring collector road, project the REAL OSM
   # node to its nearest retained motorway vertex instead of a manually
   # estimated junction centre kilometres away.
-  official=[point(n) for n in nodes if ref in n.get('tags',{}).get('ref','').split(';')
-            and n.get('tags',{}).get('highway')=='motorway_junction'
-            and metres(point(n),position)<2600]
+  # Combined ref "11b;11a" marks the fork to Eifeltor, not both
+  # independent AS positions. Prefer individually signed OSM nodes.
+  individually=[point(n) for n in nodes if n.get('tags',{}).get('ref')==ref
+       and n.get('tags',{}).get('highway')=='motorway_junction'
+       and metres(point(n),position)<2600]
+  combined=[point(n) for n in nodes if ref in n.get('tags',{}).get('ref','').split(';')
+       and n.get('tags',{}).get('highway')=='motorway_junction'
+       and metres(point(n),position)<2600]
+  official=individually or combined
   tagged=[q for q in official if q in interior]
   reference=min(official,key=lambda q:metres(q,position)) if official else position
   departures=[directed(w)[0] for w in ways if w.get('tags',{}).get('highway')=='motorway_link'
-          and directed(w)[0] in interior and metres(directed(w)[0],reference)<800]
+          and directed(w)[0] in interior and metres(directed(w)[0],reference)<350]
   candidates=tagged or departures or list(interior)
   near=min(candidates,key=lambda p:metres(p,reference))
   node=next((n for n in nodes if point(n)==near),None)
