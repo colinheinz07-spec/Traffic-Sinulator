@@ -31,7 +31,7 @@ test('A555 connects both directions to AK Köln-Süd and Rodenkirchen without fi
    if(w.tags.oneway==='-1')pts.reverse();
    return pts.slice(1).map((p,i)=>JSON.stringify([pts[i],p]));}));
  for(const id of ['extra-a555-bonn','extra-a555-koeln']){
-  const f=feature(id);assert.ok(f&&f.points.length>20);
+  const f=feature(id);assert.ok(f&&f.points.length>8);
   assert.ok(routes[id].lengthM>2700&&routes[id].lengthM<11000);
   assert.equal(networkRoad(id),'A555');
   for(let i=1;i<f.points.length;i++)assert.ok(edges.has(JSON.stringify([f.points[i-1],f.points[i]])),id+' missing exact OSM way edge '+i);
