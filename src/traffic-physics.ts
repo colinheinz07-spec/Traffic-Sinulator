@@ -6,9 +6,9 @@ import type {PathKey,TrafficColor} from './traffic.js';
 
 /** Unrestricted base service before event-specific reductions. These are
  * simulator assumptions, not measured capacities for every A3/A48 section.
- * Motorway lanes and single-lane interchange connectors remain distinct. */
+ * Motorway lanes receive +100 vehicles/hour (2000 → 2100);\n * one-lane interchange ramps retain 1500 and stay distinct. */
 export function baseLaneCapacity(path:PathKey):number{
- return extensionRoute(path)?.kind==='ramp'||path.startsWith('ramp-')?1500:2000;
+ return extensionRoute(path)?.kind==='ramp'||path.startsWith('ramp-')?1500:2100;
 }
 
 export interface SpeedBand {
