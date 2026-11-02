@@ -9,7 +9,8 @@ ROOT=Path(__file__).resolve().parents[1]
 CENTERS=[(50.886,6.962),(50.893,6.944),(50.898,6.927),
          (50.903,6.911),(50.909,6.893),(50.915,6.875),
          (50.921,6.858),(50.927,6.845),(50.938,6.845),
-         (50.948,6.845),(50.905,6.846),(50.893,6.848)]
+         (50.948,6.845),(50.905,6.846),(50.893,6.848),
+         (50.889,6.931)]
 ALLOWED={'motorway','motorway_link','trunk','trunk_link','primary','primary_link','secondary',
  'secondary_link','tertiary','tertiary_link','residential','unclassified','service'}
 def fetch_bbox(lat,lon,half_lon,half_lat,depth=0):
@@ -40,14 +41,22 @@ def tile(pos):
  print('OSM West',pos,len(result),flush=True)
  return result
 def main():
- with concurrent.futures.ThreadPoolExecutor(max_workers=3) as pool:tiles=list(pool.map(tile,CENTERS))
- items={(e['type'],e['id']):e for group in tiles for e in group}
+ output=ROOT/'data/a4-koeln-west-osm.json'
+ previous=json.loads(output.read_text()) if output.exists() else {'elements':[],'tiles':[]}
+ done={tuple(c) for c in previous['tiles']}
+ pending=[c for c in CENTERS if c not in done]
+ print('OSM west cached tiles',len(done),'new tiles',pending,flush=True)
+ with concurrent.futures.ThreadPoolExecutor(max_workers=3) as pool:tiles=list(pool.map(tile,pending))
+ items={(e['type'],e['id']):e for e in previous['elements']}
+ for group in tiles:
+  for e in group:items[e['type'],e['id']]=e
  nodes={n['id']:n for n in items.values() if n['type']=='node'}
  roads=[]
  for w in items.values():
   if w['type']!='way' or w.get('tags',{}).get('highway') not in ALLOWED:continue
-  if not all(i in nodes for i in w.get('nodes',[])):continue
-  w['geometry']=[{'lat':nodes[i]['lat'],'lon':nodes[i]['lon']} for i in w['nodes']]
+  if 'geometry' not in w:
+   if not all(i in nodes for i in w.get('nodes',[])):continue
+   w['geometry']=[{'lat':nodes[i]['lat'],'lon':nodes[i]['lon']} for i in w['nodes']]
   roads.append(w)
  junctions=[n for n in nodes.values() if n.get('tags',{}).get('highway')=='motorway_junction']
  for road in ('A4','A1'):
@@ -55,7 +64,8 @@ def main():
          road in w.get('tags',{}).get('ref','').replace(' ','').split(';')]
   assert len(found)>10, f'Missing OSM motorway {road} on Cologne western ring'
  print('West Köln OSM',len(roads),'roads;',len(junctions),'motorway junctions',flush=True)
- (ROOT/'data/a4-koeln-west-osm.json').write_text(json.dumps({
+ output.write_text(json.dumps({
  'source':'OpenStreetMap API 0.6; © OpenStreetMap contributors; ODbL',
- 'tiles':CENTERS,'elements':roads+junctions},separators=(',',':')))
+ 'tiles':[list(c) for c in CENTERS],'elements':roads+junctions},separators=(',',':')))
+
 if __name__=='__main__':main()
