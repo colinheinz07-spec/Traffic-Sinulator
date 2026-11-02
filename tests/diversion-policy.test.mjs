@@ -203,7 +203,8 @@ test('long real Unfall runs never force remote exits and use the remaining delay
  const path='A3-frankfurt',route=routes[path];
  for(const closedLanes of [[0,1],[0,1,2]]){
   const event={...incident(path,'42','43','accident'),id:'limburg-incident',closedLanes,
-   settings:{lengthM:100,speedKmh:closedLanes.length===3?0:40,shoulder:'normal'}};
+   settings:{lengthM:100,speedKmh:closedLanes.length===3?0:40,shoulder:'normal',
+    ...(closedLanes.length===3?{clearanceMin:30}:{})}};
   let cells={[path]:initialiseCells(route,4200)},entries=prepare(event),firstDiez=null;
   for(let t=0;t<120;t++){
    const previous=cells[path];

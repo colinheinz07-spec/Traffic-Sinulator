@@ -1118,6 +1118,24 @@ function drawSpatialJams(){
   trafficLabelRects.push(callout);
  }
 }
+function drawClosureSections(){
+ const widths=lineWidths(zoom);
+ for(const event of activeEvents()){
+  if(event.kind!=='closure')continue;
+  const route=spatialCorridors[event.pathKey as PathKey];if(!route)continue;
+  const from=positionM(route,event.point);if(from===null)continue;
+  const to=Math.min(route.lengthM,from+event.settings.lengthM);
+  const narrow=event.pathKey.startsWith('ramp-')||extensionRoute(event.pathKey)?.kind==='ramp';
+  for(const visible of visibleRanges(event.pathKey,route.points)){
+   const start=Math.max(from,visible.fromM),end=Math.min(to,visible.toM);
+   if(end-start<1)continue;
+   const line=routeSlice(route,start,end);if(line.length<2)continue;
+   const width=narrow?widths.ramp:widths.motorway;
+   stroke(line,width+2.6,'#ffe8e8');
+   context!.save();context!.setLineDash([7,6]);stroke(line,width+1.2,'#c72535');context!.restore();
+  }
+ }
+}
 function draw(){
  const {width,height,scale}=size();context!.setTransform(scale,0,0,scale,0,0);
  context!.fillStyle='#132b3d';context!.fillRect(0,0,width,height);
@@ -1130,7 +1148,7 @@ function draw(){
  for(const road of drawnRoads)stroke(road.points,lines.motorway,roadColors[road.road]);
  for(const ramp of ramps)stroke(ramp.points,lines.rampCasing,'#273b4c');
  for(const ramp of ramps)stroke(ramp.points,lines.ramp,'#26bb7c');
- drawSpatialJams();
+ drawSpatialJams();drawClosureSections();
  plotLabels(width,height);plotRampBadges(width,height);drawEventMarkers(width,height);
  drawJunctionMovementHints(width,height);
  if(selected){const [x,y]=toScreen(selected.point);context!.beginPath();context!.arc(x,y,9,0,2*Math.PI);context!.fillStyle='#39d7ff';context!.fill();context!.lineWidth=2;context!.strokeStyle='#fff';context!.stroke();}

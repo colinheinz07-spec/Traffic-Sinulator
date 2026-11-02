@@ -11,7 +11,8 @@ const routes=makeCorridors(networkData.roads,networkData.ramps);
 function event(path,at,kind,closed,id){
  const laneCount=path.startsWith('A48')?2:3;
  return {id,kind,pathKey:path,point:routeSlice(routes[path],at,at+1)[0],laneCount,closedLanes:closed,
-  createdAt:'2026-10-25T10:00:00Z',settings:{lengthM:100,speedKmh:closed.length===laneCount?0:40,shoulder:'normal'}};
+  createdAt:'2026-10-25T10:00:00Z',settings:{lengthM:100,speedKmh:closed.length===laneCount?0:40,shoulder:'normal',
+   ...(kind==='accident'&&closed.length===laneCount?{clearanceMin:30}:{})}};
 }
 
 for(const path of ['A3-koeln','A3-frankfurt','A48-dernbach','A48-koblenz'])

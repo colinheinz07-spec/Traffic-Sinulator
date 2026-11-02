@@ -1,11 +1,11 @@
-import { extensionRoute } from './network-extensions.js?build=aaaf1444372c77a3';
-import { baseLaneCapacity } from './traffic-physics.js?build=aaaf1444372c77a3';
-import { positionM, closureGate } from './spatial.js?build=aaaf1444372c77a3';
-import { baselineCapacity, eventCapacity } from './traffic.js?build=aaaf1444372c77a3';
-import { flowPolicy, DEFAULT_CLEARANCE_MIN } from './events.js?build=aaaf1444372c77a3';
-import { colorAtSpeed, freeSpeedKmh, QUEUE_JAM_DENSITY_PER_LANE, CONGESTION_WAVE_KMH } from './traffic-physics.js?build=aaaf1444372c77a3';
-import { normalJunctionTraffic, exitRampVehicles, DEFAULT_EXIT_TERMINAL_VPH, DEFAULT_EXIT_STORAGE_VEHICLES } from './junction-traffic.js?build=aaaf1444372c77a3';
-import { roadSections, physicalEvents, junctionAccess } from './road-controls.js?build=aaaf1444372c77a3';
+import { extensionRoute } from './network-extensions.js?build=20261102-flow1';
+import { baseLaneCapacity } from './traffic-physics.js?build=20261102-flow1';
+import { positionM, closureGate } from './spatial.js?build=20261102-flow1';
+import { baselineCapacity, eventCapacity } from './traffic.js?build=20261102-flow1';
+import { flowPolicy, DEFAULT_CLEARANCE_MIN } from './events.js?build=20261102-flow1';
+import { colorAtSpeed, freeSpeedKmh, QUEUE_JAM_DENSITY_PER_LANE, CONGESTION_WAVE_KMH } from './traffic-physics.js?build=20261102-flow1';
+import { normalJunctionTraffic, exitRampVehicles, DEFAULT_EXIT_TERMINAL_VPH, DEFAULT_EXIT_STORAGE_VEHICLES } from './junction-traffic.js?build=20261102-flow1';
+import { roadSections, physicalEvents, junctionAccess } from './road-controls.js?build=20261102-flow1';
 const TARGET_CELL_M = 100, WAVE_KMH = CONGESTION_WAVE_KMH, JAM_PER_LANE = QUEUE_JAM_DENSITY_PER_LANE;
 // One observation per MODEL minute; repainting/pause never advances this.
 const TRAVEL_ALPHA = 1 - Math.exp(-1 / 6);
@@ -142,9 +142,13 @@ function localControls(route, events, demandVph, count, cellM, exits = []) {
                 // the physical event remains completely blocked until the user edits it.
                 const release = { ...event, closedLanes: Array.from({ length: event.laneCount - 1 }, (_, i) => i),
                     settings: { ...event.settings, speedKmh: 40, shoulder: 'normal' } };
-                const old = forecasts.get(face);
-                forecasts.set(face, { waitMin: Math.max(old?.waitMin ?? 0, event.settings.clearanceMin ?? DEFAULT_CLEARANCE_MIN),
-                    serviceVph: Math.min(old?.serviceVph ?? Infinity, eventCapacity(release, demandVph)) });
+                const waitMin = event.settings.clearanceMin ?? DEFAULT_CLEARANCE_MIN;
+                if (waitMin <= 0) unknownBlocks.add(face);
+                else {
+                    const old = forecasts.get(face);
+                    forecasts.set(face, { waitMin: Math.max(old?.waitMin ?? 0, waitMin),
+                        serviceVph: Math.min(old?.serviceVph ?? Infinity, eventCapacity(release, demandVph)) });
+                }
             }
         }
         faceControls[face].push(JSON.stringify([event.id, event.kind, event.closedLanes, event.settings]));
@@ -838,9 +842,10 @@ export function cellSpeedBands(state) {
         // Only actual dense queues or an occupied, physically blocked face
         // belong to the JAM layer. An uncongested 40-km/h worksite belongs to
         // the separate measured-speed restriction layer, not the queue length.
-        const physicallyBlocked = c.blockedAtM !== undefined && c.vehicles >= 1;
-        if (c.speedKmh > 65 ||
-            (!physicallyBlocked && c.densityVehKm < (c.criticalDensityVehKm ?? critical) * 1.10 && c.approachLimitKmh === undefined))
+        const physicallyBlocked = c.blockedAtM !== undefined && c.vehicles >= .75;
+        const actuallyStopped = c.vehicles >= .75 && c.speedKmh <= 10;
+        if (c.speedKmh > 65 || (!physicallyBlocked && !actuallyStopped &&
+            c.densityVehKm < (c.criticalDensityVehKm ?? critical) * 1.10 && c.approachLimitKmh === undefined))
             continue;
         const color = colorAtSpeed(c.speedKmh);
         if (color === 'free')
@@ -863,7 +868,7 @@ export function cellQueueSpans(state) {
     const threshold = cellCriticalDensity(state.pathKey) * 1.10, spans = [];
     for (const c of state.cells) {
         if (c.densityVehKm < (c.criticalDensityVehKm !== undefined ? c.criticalDensityVehKm * 1.10 : threshold) && (c.queueMemoryMin ?? 0) <= 0 &&
-            !(c.approachLimitKmh !== undefined && c.speedKmh <= 65))
+            !(c.vehicles >= .75 && c.speedKmh <= 10))
             continue;
         const last = spans.at(-1);
         if (last && Math.abs(last.toM - c.fromM) < .1)

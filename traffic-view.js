@@ -1,16 +1,16 @@
-import { extensionRoute } from './network-extensions.js?build=aaaf1444372c77a3';
+import { extensionRoute } from './network-extensions.js?build=20261102-flow1';
 /** One snapshot for map geometry, jam cards and direction summaries.
  * Mainline queues are measured on the same congested CTM cells as the map.
  * Legacy queues remain the simulation input for the separate ramp ledger;
  * their synthetic lengths never truncate a mainline display queue.
  */
-import { NETWORK_PATHS as PATHS, baselineCapacity } from './traffic.js?build=aaaf1444372c77a3';
-import { routeSlice } from './spatial.js?build=aaaf1444372c77a3';
-import { cellSpeedBands, cellQueueSpans } from './traffic-cells.js?build=aaaf1444372c77a3';
-import { physicalSpeedBands, stopAndGoBands, resolveSpeedBands, freeSpeedKmh, colorAtSpeed } from './traffic-physics.js?build=aaaf1444372c77a3';
-import { speedDelayInCells, speedDelayInBands, queueTravelHeads } from './speed-delay.js?build=aaaf1444372c77a3';
-import { routeReport } from './network-report.js?build=aaaf1444372c77a3';
-import { positionM } from './spatial.js?build=aaaf1444372c77a3';
+import { NETWORK_PATHS as PATHS, baselineCapacity } from './traffic.js?build=20261102-flow1';
+import { routeSlice } from './spatial.js?build=20261102-flow1';
+import { cellSpeedBands, cellQueueSpans, cellCriticalDensity } from './traffic-cells.js?build=20261102-flow1';
+import { physicalSpeedBands, stopAndGoBands, resolveSpeedBands, freeSpeedKmh, colorAtSpeed } from './traffic-physics.js?build=20261102-flow1';
+import { speedDelayInCells, speedDelayInBands, queueTravelHeads } from './speed-delay.js?build=20261102-flow1';
+import { routeReport } from './network-report.js?build=20261102-flow1';
+import { positionM } from './spatial.js?build=20261102-flow1';
 function extents(bands) {
     const groups = [];
     for (const b of bands) {
@@ -111,6 +111,13 @@ export function trafficView(legacy, cells, corridors, events, spills, minute) {
                         color: colorAtSpeed(cell.speedKmh), source: 'restriction' });
                 }
             }
+        // Display an observed slow packet without inventing extra queue length.
+        if (state) for (const cell of state.cells) {
+            if (cell.vehicles < .75 || cell.speedKmh > 65 || cell.speedKmh <= 10 ||
+                cell.densityVehKm >= (cell.criticalDensityVehKm ?? cellCriticalDensity(path)) * 1.10) continue;
+            restrictions.push({ fromM: cell.fromM, toM: cell.toM, speedKmh: cell.speedKmh,
+                color: colorAtSpeed(cell.speedKmh), source: 'restriction' });
+        }
         const mapped = resolveSpeedBands([...restrictions, ...queueBands]);
         bands.set(path, mapped);
         let ownVehicles = 0;
@@ -154,7 +161,13 @@ export function trafficView(legacy, cells, corridors, events, spills, minute) {
             // falsely keep this ramp blocked and grow its feeder queue indefinitely.
             // Released heads recover their own road capacity; an uncontrolled
             // local queue cannot borrow a distant restriction through a free gap.
-            const serviceCapacity = state ? head?.travelDetector?.capacityVph ?? baselineCapacity(path) : root?.capacityVph ?? 0;
+            // A closed cross-section inside this connected queue blocks the merge.
+            const blockedHead = state?.cells.some(c => c.blockedAtM !== undefined &&
+                c.toM > group.fromM - .5 && c.fromM < group.toM + .5) ?? false;
+            const localHead = state?.cells.filter(c => c.travelDetector?.active &&
+                c.toM > group.fromM - .5 && c.fromM < group.toM + .5).at(-1);
+            const serviceCapacity = blockedHead ? 0 :
+                localHead?.travelDetector?.capacityVph ?? head?.travelDetector?.capacityVph ?? root?.capacityVph ?? baselineCapacity(path);
             jams.push({ id: 'display:' + path + ':' + Math.round(group.toM), eventId: event?.id, queueOwnerId: root?.id, waveHeadM,
                 pathKey: path, eventKind: event?.kind ?? null, point, anchorM: group.toM,
                 queueVehicles: vehicles, queueM: group.toM - group.fromM + feederM,

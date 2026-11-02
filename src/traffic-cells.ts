@@ -194,9 +194,13 @@ function localControls(route:Corridor,events:readonly SimEvent[],demandVph:numbe
     // the physical event remains completely blocked until the user edits it.
     const release={...event,closedLanes:Array.from({length:event.laneCount-1},(_,i)=>i),
      settings:{...event.settings,speedKmh:40,shoulder:'normal' as const}};
-    const old=forecasts.get(face);
-    forecasts.set(face,{waitMin:Math.max(old?.waitMin??0,event.settings.clearanceMin??DEFAULT_CLEARANCE_MIN),
-     serviceVph:Math.min(old?.serviceVph??Infinity,eventCapacity(release,demandVph))});
+    const waitMin=event.settings.clearanceMin??DEFAULT_CLEARANCE_MIN;
+    if(waitMin<=0)unknownBlocks.add(face);
+    else{
+     const old=forecasts.get(face);
+     forecasts.set(face,{waitMin:Math.max(old?.waitMin??0,waitMin),
+      serviceVph:Math.min(old?.serviceVph??Infinity,eventCapacity(release,demandVph))});
+    }
    }
   }
   faceControls[face]!.push(JSON.stringify([event.id,event.kind,event.closedLanes,event.settings]));
@@ -802,9 +806,10 @@ export function cellSpeedBands(state:CellRouteState):CellSpeedBand[]{
   // Only actual dense queues or an occupied, physically blocked face
   // belong to the JAM layer. An uncongested 40-km/h worksite belongs to
   // the separate measured-speed restriction layer, not the queue length.
-  const physicallyBlocked=c.blockedAtM!==undefined&&c.vehicles>=1;
-  if(c.speedKmh>65||
-   (!physicallyBlocked&&c.densityVehKm<(c.criticalDensityVehKm??critical)*1.10&&c.approachLimitKmh===undefined))continue;
+  const physicallyBlocked=c.blockedAtM!==undefined&&c.vehicles>=.75;
+  const actuallyStopped=c.vehicles>=.75&&c.speedKmh<=10;
+  if(c.speedKmh>65||(!physicallyBlocked&&!actuallyStopped&&
+   c.densityVehKm<(c.criticalDensityVehKm??critical)*1.10&&c.approachLimitKmh===undefined))continue;
   const color=colorAtSpeed(c.speedKmh);
   if(color==='free')continue;
   const last=bands.at(-1);
@@ -822,7 +827,7 @@ export function cellQueueSpans(state:CellRouteState):{fromM:number;toM:number}[]
  const threshold=cellCriticalDensity(state.pathKey)*1.10,spans:{fromM:number;toM:number}[]=[];
  for(const c of state.cells){
   if(c.densityVehKm<(c.criticalDensityVehKm!==undefined?c.criticalDensityVehKm*1.10:threshold)&&(c.queueMemoryMin??0)<=0&&
-   !(c.approachLimitKmh!==undefined&&c.speedKmh<=65))continue;
+   !(c.vehicles>=.75&&c.speedKmh<=10))continue;
   const last=spans.at(-1);
   if(last&&Math.abs(last.toM-c.fromM)<.1)last.toM=c.toM;
   else spans.push({fromM:c.fromM,toM:c.toM});

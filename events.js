@@ -5,13 +5,13 @@ export const eventNames = { roadworks: 'Baustelle', accident: 'Unfall', breakdow
 export const eventSymbols = { roadworks: '🚧', accident: '💥', breakdown: '🚛', closure: '⛔' };
 /** Keep old key so 0.7 events do not disappear after updating to 0.8. */
 export const STORAGE_KEY = 'traffic-sinulator-events-v1';
-export const DEFAULT_CLEARANCE_MIN = 30;
+export const DEFAULT_CLEARANCE_MIN = 0;
 const directions = new Set(['A3-koeln', 'A3-frankfurt', 'A48-koblenz', 'A48-dernbach']);
 const knownRampIds = new Set(['ramp-a3-to-a48-from-frankfurt', 'ramp-a3-to-a48-from-koeln', 'ramp-a48-to-koeln', 'ramp-a48-to-frankfurt']);
 export function isKnownPath(key) { return directions.has(key) || knownRampIds.has(key) || !!extensionRoute(key); }
 export function isEventKind(v) { return typeof v === 'string' && EVENT_KINDS.includes(v); }
 const isShoulder = (x) => x === 'normal' || x === 'open' || x === 'blocked';
-function isPoint(p) { return Array.isArray(p) && p.length === 2 && p.every(n => typeof n === 'number' && Number.isFinite(n)) && p[0] >= 50.02 && p[0] <= 50.98 && p[1] >= 6.98 && p[1] <= 8.44; }
+function isPoint(p) { return Array.isArray(p) && p.length === 2 && p.every(n => typeof n === 'number' && Number.isFinite(n)) && p[0] >= -90 && p[0] <= 90 && p[1] >= -180 && p[1] <= 180; }
 export function maxLengthM(kind) { return kind === 'accident' || kind === 'breakdown' ? 200 : kind === 'closure' ? 100000 : 20000; }
 export function defaultLengthM(kind) { return kind === 'roadworks' ? 500 : kind === 'closure' ? 200 : kind === 'accident' ? 100 : 50; }
 /** These are adjustable *simulation assumptions*, not German traffic-law speed limits. */
@@ -52,7 +52,8 @@ export function validEvent(v) {
     if (x.kind === 'closure' && s.shoulder !== 'blocked')
         return false;
     const passable = x.kind !== 'closure' && (laneCount - x.closedLanes.length + (s.shoulder === 'open' ? 1 : 0) > 0);
-    if (!Number.isInteger(s.speedKmh) || s.speedKmh < 0 || s.speedKmh > 130 || s.speedKmh % 10 !== 0)
+    if (!Number.isFinite(s.speedKmh) || s.speedKmh < 0 || s.speedKmh > 130 ||
+        (s.speedKmh !== 0.5 && (!Number.isInteger(s.speedKmh) || s.speedKmh % 10 !== 0)))
         return false;
     if ((!passable && s.speedKmh !== 0) || (passable && s.speedKmh === 0))
         return false;
@@ -171,8 +172,10 @@ export function eventSummary(e) {
         parts.push('Standstreifen gesperrt');
     for (const [ref, mode] of Object.entries(e.settings.junctionClosures ?? {}))
         parts.push('AS ' + ref + ': ' + (mode === 'entry' ? 'Auffahrt' : mode === 'exit' ? 'Abfahrt' : 'Auf- und Abfahrt') + ' gesperrt');
-    if (e.kind !== 'closure' && !flowPolicy(e).canEnter)
-        parts.push('Prognose: Freigabe eines Fahrstreifens in angenommenen ' + (e.settings.clearanceMin ?? DEFAULT_CLEARANCE_MIN) + ' min');
+    if (e.kind !== 'closure' && !flowPolicy(e).canEnter) {
+        const release = e.settings.clearanceMin ?? DEFAULT_CLEARANCE_MIN;
+        parts.push(release > 0 ? 'Optionale Freigabeprognose: ' + release + ' min' : 'Durchfahrt blockiert · Freigabezeit unbekannt');
+    }
     return parts.join(' · ');
 }
 /** A planned event is active in [start,end). Phases replace lane settings

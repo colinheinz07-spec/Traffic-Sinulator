@@ -6,7 +6,7 @@ import {extensionRoute} from './network-extensions.js';
  */
 import {NETWORK_PATHS as PATHS,baselineCapacity,type PathKey,type TrafficColor} from './traffic.js';
 import {routeSlice,type Corridor,type Jam} from './spatial.js';
-import {cellSpeedBands,cellQueueSpans,type CellRouteState} from './traffic-cells.js';
+import {cellSpeedBands,cellQueueSpans,cellCriticalDensity,type CellRouteState} from './traffic-cells.js';
 import {physicalSpeedBands,stopAndGoBands,resolveSpeedBands,freeSpeedKmh,colorAtSpeed,type SpeedBand} from './traffic-physics.js';
 import {speedDelayInCells,speedDelayInBands,queueTravelHeads,type SpeedDelay} from './speed-delay.js';
 import {routeReport,type RouteReport} from './network-report.js';
@@ -121,6 +121,14 @@ export function trafficView(
      color:colorAtSpeed(cell.speedKmh),source:'restriction'});
    }
   }
+  // A slow packet may be observable before it reaches jam density.
+  // Paint its measured local speed, but do not invent additional jam length.
+  if(state)for(const cell of state.cells){
+   if(cell.vehicles<.75||cell.speedKmh>65||cell.speedKmh<=10||
+    cell.densityVehKm>=(cell.criticalDensityVehKm??cellCriticalDensity(path))*1.10)continue;
+   restrictions.push({fromM:cell.fromM,toM:cell.toM,speedKmh:cell.speedKmh,
+    color:colorAtSpeed(cell.speedKmh),source:'restriction'});
+  }
   const mapped=resolveSpeedBands([...restrictions,...queueBands]);
   bands.set(path,mapped);
   let ownVehicles=0;
@@ -164,7 +172,19 @@ export function trafficView(
    // falsely keep this ramp blocked and grow its feeder queue indefinitely.
    // Released heads recover their own road capacity; an uncontrolled
    // local queue cannot borrow a distant restriction through a free gap.
-   const serviceCapacity=state?head?.travelDetector?.capacityVph??baselineCapacity(path):root?.capacityVph??0;
+   // The physical zero-capacity face inside THIS connected queue governs its
+   // ramp merge, even when an upstream detector still reports free service.
+   // Restrict the scan to the contiguous displayed queue: an independent
+   // upstream incident must not poison a downstream open merge.
+   const blockedHead=state?.cells.some(c=>c.blockedAtM!==undefined&&
+    c.toM>group.fromM-.5&&c.fromM<group.toM+.5)??false;
+   // Use the downstream-most active detector inside this connected queue.
+   // An upstream (still closed) accident cannot suppress a locally reopened
+   // merge head further downstream.
+   const localHead=state?.cells.filter(c=>c.travelDetector?.active&&
+    c.toM>group.fromM-.5&&c.fromM<group.toM+.5).at(-1);
+   const serviceCapacity=blockedHead?0:
+    localHead?.travelDetector?.capacityVph??head?.travelDetector?.capacityVph??root?.capacityVph??baselineCapacity(path);
    jams.push({id:'display:'+path+':'+Math.round(group.toM),eventId:event?.id,queueOwnerId:root?.id,waveHeadM,
     pathKey:path,eventKind:event?.kind??null,point,anchorM:group.toM,
     queueVehicles:vehicles,queueM:group.toM-group.fromM+feederM,

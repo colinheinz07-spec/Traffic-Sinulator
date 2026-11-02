@@ -90,6 +90,8 @@ export function eventCapacity(e:SimEvent,
  if(!Number.isFinite(heavyFraction)||heavyFraction<0||heavyFraction>1)throw Error('Ungültiger Schwerlastanteil');
  const perLane=baseLaneCapacity(e.pathKey as PathKey);
  const laneCapacity=perLane*(policy.openMainLanes+(e.settings.shoulder==='open'?.65:0));
+ // 0,5 km/h ist Kriechverkehr, keine typische Fahrstreifenkapazität.
+ if(policy.speedKmh===0.5)return Math.max(1,Math.floor(.5*QUEUE_JAM_DENSITY_PER_LANE*policy.openTotalLanes));
  const normalSpeed=defaultKmH(e.pathKey as PathKey);
  const parallel=policy.openMainLanes>=2&&e.closedLanes.length>0;
  // The 2000 veh/h/lane motorway reference is a saturated service headway, not

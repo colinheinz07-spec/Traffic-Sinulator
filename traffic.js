@@ -1,12 +1,12 @@
-import { REFERENCE_PEAKS, profileFactor, profileIdentity } from './traffic-profiles.js?build=aaaf1444372c77a3';
-import { EXTENSION_IDS, extensionRoutes, extensionRoute } from './network-extensions.js?build=aaaf1444372c77a3';
+import { REFERENCE_PEAKS, profileFactor, profileIdentity } from './traffic-profiles.js?build=20261102-flow1';
+import { EXTENSION_IDS, extensionRoutes, extensionRoute } from './network-extensions.js?build=20261102-flow1';
 /** Deliberately isolated, macroscopic first-pass traffic-flow simulation.
  * Traffic volumes, capacities, and queue density are modelling assumptions,
  * NOT measured flows, road regulations, official diversion routes, or observed jams.
  * One controlling bottleneck per directional path; no A3/A48 ramp transfer yet.
  */
-import { flowPolicy } from './events.js?build=aaaf1444372c77a3';
-import { baseLaneCapacity, QUEUE_JAM_DENSITY_PER_LANE } from './traffic-physics.js?build=aaaf1444372c77a3';
+import { flowPolicy } from './events.js?build=20261102-flow1';
+import { baseLaneCapacity, QUEUE_JAM_DENSITY_PER_LANE } from './traffic-physics.js?build=20261102-flow1';
 export const PATHS = [
     'A3-koeln', 'A3-frankfurt', 'A48-dernbach', 'A48-koblenz',
     'ramp-a3-to-a48-from-frankfurt', 'ramp-a48-to-koeln',
@@ -73,6 +73,9 @@ export function eventCapacity(e, volumeVph = defaultDemand(e.pathKey), heavyFrac
         throw Error('Ungültiger Schwerlastanteil');
     const perLane = baseLaneCapacity(e.pathKey);
     const laneCapacity = perLane * (policy.openMainLanes + (e.settings.shoulder === 'open' ? .65 : 0));
+    // 0,5 km/h ist Kriechverkehr, keine typische Fahrstreifenkapazität.
+    if (policy.speedKmh === 0.5)
+        return Math.max(1, Math.floor(.5 * QUEUE_JAM_DENSITY_PER_LANE * policy.openTotalLanes));
     const normalSpeed = defaultKmH(e.pathKey);
     const parallel = policy.openMainLanes >= 2 && e.closedLanes.length > 0;
     // The 2000 veh/h/lane motorway reference is a saturated service headway, not

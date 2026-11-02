@@ -200,12 +200,12 @@
  <p class="settings-note" id="event-length-note">Baustellenabschnitt individuell einstellen.</p>
  <div id="event-junction-row"><p class="settings-note">Anschlussstellen in dieser Baustelle – gilt nur für die gewählte Fahrtrichtung:</p><div id="event-junctions"></div></div>
  <label for="event-speed" class="row-label">Vorbeifahrgeschwindigkeit / Tempolimit (km/h)
- <select id="event-speed"><option value="0">0 – kein Durchfluss</option><option value="10">10</option><option value="20">20</option><option value="30">30</option><option value="40">40</option><option value="50">50</option><option value="60">60</option><option value="70">70</option><option value="80">80</option><option value="90">90</option><option value="100">100</option><option value="110">110</option><option value="120">120</option><option value="130">130</option></select></label>
+ <select id="event-speed"><option value="0">0 – kein Durchfluss</option><option value="0.5">0,5 – Kriechverkehr (nur bei offener Durchfahrt)</option><option value="10">10</option><option value="20">20</option><option value="30">30</option><option value="40">40</option><option value="50">50</option><option value="60">60</option><option value="70">70</option><option value="80">80</option><option value="90">90</option><option value="100">100</option><option value="110">110</option><option value="120">120</option><option value="130">130</option></select></label>
  <p class="event-info" id="event-rule-hint">Geschwindigkeit und Fahrstreifen werden im Simulationsmodell berücksichtigt.</p>
  <div id="event-forecast-row" hidden>
   <label for="event-clearance" class="row-label">Für die Prognose: erwartete Restdauer bis ein Fahrstreifen frei ist (Minuten)
-   <input type="number" inputmode="numeric" id="event-clearance" min="0" max="720" step="1" value="30"></label>
-  <p class="settings-note">30 Minuten sind eine anpassbare Modellannahme. Der mit „~“ gekennzeichnete Zeitverlust berücksichtigt diese Restdauer und den Rückstau. Die tatsächliche Sperre bleibt bis zur Bearbeitung des Ereignisses bestehen.</p>
+   <input type="number" inputmode="numeric" id="event-clearance" min="0" max="720" step="1" value="0"></label>
+  <p class="settings-note">0 Minuten = keine angenommene Freigabe. Bei vollständiger Blockade bleibt die Durchfahrt ohne Prognose gesperrt. Optional kannst du eine erwartete Freigabezeit als Szenario eintragen; die reale Ereignissperre endet erst beim Bearbeiten.</p>
  </div>
 <section id="event-schedule-section" class="event-schedule">
  <label class="schedule-enable"><input type="checkbox" id="event-scheduled">
@@ -248,4 +248,4 @@
 </div>
 <div id="existing-event" hidden><p id="existing-event-desc"></p><div class="event-actions"><button id="event-edit" type="button">Verkehrsführung bearbeiten</button><button id="event-delete" class="danger" type="button">Ereignis entfernen</button></div></div>
 <p id="selection-help">Ereignisse verändern Kapazität, Verkehrsfluss und Rückstau im Simulator.</p></section>
-<script type="module" src="./app.js?build=aaaf1444372c77a3"></script></body></html>
+<script type="module" src="./app.js?build=20261102-flow1"></script></body></html>
