@@ -1,5 +1,5 @@
-import { extensionRoutes } from './network-extensions.js?build=d1b388adff4c16bc';
-import { positionM, metres } from './spatial.js?build=d1b388adff4c16bc';
+import { extensionRoutes } from './network-extensions.js?build=ccd069608dc30037';
+import { positionM, metres } from './spatial.js?build=ccd069608dc30037';
 /** Connect only exact retained OSM endpoints. A self reference denotes an
  * external network boundary, not a fabricated road to an unmapped motorway. */
 export function buildExtensionConnections(routes) {

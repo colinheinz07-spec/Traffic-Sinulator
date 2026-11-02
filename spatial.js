@@ -1,15 +1,15 @@
-import { networkRoad } from './network-road.js?build=d1b388adff4c16bc';
-import { extensionRoutes, extensionRoute } from './network-extensions.js?build=d1b388adff4c16bc';
-import { normalThroughLanes } from './lane-info.js?build=d1b388adff4c16bc';
+import { networkRoad } from './network-road.js?build=ccd069608dc30037';
+import { extensionRoutes, extensionRoute } from './network-extensions.js?build=ccd069608dc30037';
+import { normalThroughLanes } from './lane-info.js?build=ccd069608dc30037';
 /** Georeferenced, per-event queue model on the exact OSM motorway carriageway curves.
  * A first-pass conservation model (not a calibrated traffic forecast).
  * No vehicle sprites, hidden road connectors, A3/A48 transfers, or invented detours.
  */
-import { buildContinuousRoads } from './cartography.js?build=d1b388adff4c16bc';
-import { exitPosition } from './core.js?build=d1b388adff4c16bc';
-import { PATHS, baselineCapacity, eventCapacity, defaultDemand } from './traffic.js?build=d1b388adff4c16bc';
-import { baseLaneCapacity, colorAtSpeed, queueFundamentalDiagram, freeSpeedKmh } from './traffic-physics.js?build=d1b388adff4c16bc';
-import { physicalEvents, accessibleExits } from './road-controls.js?build=d1b388adff4c16bc';
+import { buildContinuousRoads } from './cartography.js?build=ccd069608dc30037';
+import { exitPosition } from './core.js?build=ccd069608dc30037';
+import { PATHS, baselineCapacity, eventCapacity, defaultDemand } from './traffic.js?build=ccd069608dc30037';
+import { baseLaneCapacity, colorAtSpeed, queueFundamentalDiagram, freeSpeedKmh } from './traffic-physics.js?build=ccd069608dc30037';
+import { physicalEvents, accessibleExits } from './road-controls.js?build=ccd069608dc30037';
 const rad = Math.PI / 180;
 export function metres(a, b) {
     const dx = (b[1] - a[1]) * 111195 * Math.cos((a[0] + b[0]) / 2 * rad);
@@ -178,7 +178,7 @@ export function mergeSupplyVph(ramp, targetCapacityVph, targetDemandVph, rampDem
     const requested = Math.min(baselineCapacity(ramp), Math.max(defaultDemand(ramp), rampDemandVph + queuedVehicles * 60));
     return Math.min(baselineCapacity(ramp), Math.round(requested * supplyRatio));
 }
-export function advanceSpatial(prev, events, demands, minutes, corridors, links = [], transfers = [], exits = [], physicalMainline, paths = PATHS) {
+export function advanceSpatial(prev, events, demands, minutes, corridors, links = [], transfers = [], exits = [], physicalMainline, paths = PATHS, receivingVph = {}) {
     if (!Number.isInteger(minutes) || minutes < 1 || minutes > 60)
         throw Error('Ungültiger Simulations-Zeitschritt');
     const current = {};
@@ -235,12 +235,17 @@ export function advanceSpatial(prev, events, demands, minutes, corridors, links 
                     }
                     const blocked = existing.filter(j => j.pathKey === link.to && j.anchorM > link.downstreamMergeM + .1
                         && j.anchorM - j.queueM < link.downstreamMergeM - .1);
-                    if (blocked.length && !closedAtFork) {
-                        // A dark-red queue is not a closed merge: calculate actual downstream supply.
-                        const targetCapacity = Math.min(...blocked.map(j => j.capacityVph));
-                        const cap = mergeSupplyVph(key, targetCapacity, demands[link.to], volume, current['merge:' + key]?.vehicles ?? 0);
-                        nodes.push({ id: 'merge:' + key, event: null, place: Math.max(0, route.lengthM - .5),
-                            point: route.points.at(-1), limitVph: cap });
+                    if (!closedAtFork) {
+                        // Measure available receiving capacity at the actual downstream cell,
+                        // rather than requiring an explicit incident on the connector.
+                        const measured = receivingVph[key];
+                        const targetCapacity = Math.min(measured ?? Infinity, ...blocked.map(j => j.capacityVph));
+                        if (Number.isFinite(targetCapacity)) {
+                            const cap = mergeSupplyVph(key, targetCapacity, demands[link.to], volume, current['merge:' + key]?.vehicles ?? 0);
+                            if (cap < baselineCapacity(key))
+                                nodes.push({ id: 'merge:' + key, event: null,
+                                    place: Math.max(0, route.lengthM - .5), point: route.points.at(-1), limitVph: cap });
+                        }
                     }
                 }
             // Connected, validated OSM detours are inserted at the physical junction

@@ -1,7 +1,7 @@
-import { extensionRoute } from './network-extensions.js?build=d1b388adff4c16bc';
-import { positionM, metres } from './spatial.js?build=d1b388adff4c16bc';
-import { defaultDemand, eventCapacity } from './traffic.js?build=d1b388adff4c16bc';
-import { DEFAULT_CLEARANCE_MIN } from './events.js?build=d1b388adff4c16bc';
+import { extensionRoute } from './network-extensions.js?build=ccd069608dc30037';
+import { positionM, metres } from './spatial.js?build=ccd069608dc30037';
+import { defaultDemand, eventCapacity } from './traffic.js?build=ccd069608dc30037';
+import { DEFAULT_CLEARANCE_MIN } from './events.js?build=ccd069608dc30037';
 export const INTERCHANGE_DIVERSION_START_MIN = 45;
 const movements = {
     'ramp-a48-to-koeln': { from: 'A48-dernbach', to: 'A3-koeln' },

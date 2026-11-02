@@ -1,6 +1,6 @@
 /** Demand curves are model assumptions. DTV anchors are two-way DAILY
  * counts, never hourly inputs. See docs/Regional-demand.md for evidence. */
-import { extensionRoute } from './network-extensions.js?build=d1b388adff4c16bc';
+import { extensionRoute } from './network-extensions.js?build=ccd069608dc30037';
 const weekday = {
     transit: [[0, .14], [4, .09], [5, .20], [6, .52], [7, .86], [8, 1], [9, .79], [10, .66], [12, .68], [14, .72], [15, .82], [16, 1], [17, 1.05], [18, .82], [19, .58], [21, .32], [23, .19], [24, .14]],
     koblenz: [[0, .12], [4, .08], [4.5, .12], [5, .24], [6, .62], [7.25, 1], [8, .94], [9, .64], [10, .55], [12, .58], [14, .68], [15.5, .94], [16.5, 1], [17.5, .92], [19, .52], [21, .28], [23, .16], [24, .12]],
@@ -13,10 +13,13 @@ const saturday = [[0, .14], [3, .15], [6, .14], [8, .28], [10, .54], [12, .78], 
 const sunday = [[0, .14], [4, .13], [8, .18], [10, .40], [12, .63], [15, .79], [17, .92], [19, .76], [21, .46], [23, .23], [24, .14]];
 const exponent = { transit: 1.4, koblenz: 1.25, ring: 1.15, airport: 1.2, urban: 1.3, siegtal: 1.3 };
 export const REFERENCE_PEAKS = {
+    'extra-a1-dortmund': 2900, 'extra-a1-koblenz': 2850,
     'A3-koeln': 4200, 'A3-frankfurt': 4100, 'A48-dernbach': 2400, 'A48-koblenz': 1700,
     'extra-a59-koeln': 3600, 'extra-a59-bonn': 3600,
     'extra-a4-aachen': 4200, 'extra-a4-olpe': 4300,
-    'extra-a555-koeln': 3400, 'extra-a555-bonn': 3300,
+    // These retained A555 corridors include one-lane AK Köln-Süd turning arms.
+    // Calibrate only traffic committed to each arm, not entire three-lane A555.
+    'extra-a555-koeln': 1250, 'extra-a555-bonn': 1200,
     'extra-a559-gremberg': 3100, 'extra-a559-porz': 3000,
     'extra-a560-hennef': 2900, 'extra-a560-bonn': 3200,
     'extra-a562-bonn': 2800, 'extra-a562-bonn-ost': 2700
@@ -33,7 +36,7 @@ export function profileFamily(key) {
         family = 'koblenz';
     else if (key.startsWith('extra-a59-'))
         family = 'airport';
-    else if (key.startsWith('extra-a4-') || key.startsWith('extra-a555-'))
+    else if (key.startsWith('extra-a4-') || key.startsWith('extra-a555-') || key.startsWith('extra-a1-'))
         family = 'ring';
     else if (key.startsWith('extra-a559-') || key.startsWith('extra-a562-'))
         family = 'urban';
