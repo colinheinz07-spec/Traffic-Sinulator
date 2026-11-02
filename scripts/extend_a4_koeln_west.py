@@ -227,12 +227,27 @@ for source,vertices in trunks.items():
   if any(f['id']==key for f in features):continue
   features.append(new_feature(key,name,'ramp',edges,'AK Köln-West',0));count+=1
 assert sum(f['id'].startswith('extra-koelnwest-turn-') for f in features)>=2,'No verifiable A1/A4 turn ramps at Köln-West'
-# Other exact OSM motorway_link portions of the interchange and local AS.
+# Include entire directed, physically attached ramp chains at AS 11a/11b.
+# Limiting each chain to real shared OSM end nodes avoids inventing local
+# connections or jumping between nearby (but disconnected) roads.
+trunkvertices=set().union(*trunks.values())
+selected={w['id'] for w in linkways if
+ any(point(p) in trunkvertices for p in w['geometry'])}
+endpoints=lambda w:{directed(w)[0],directed(w)[-1]}
+for _ in range(8):
+ reached=set().union(*(endpoints(w) for w in linkways if w['id'] in selected))
+ nearby=[w for w in linkways if w['id'] not in selected and
+         endpoints(w)&reached and
+         any(min(metres(point(p),c) for c in (akwest,klettenberg,eifeltor))<1400
+             for p in w['geometry'])]
+ if not nearby:break
+ selected.update(w['id'] for w in nearby)
+# Every selected OSM link stays its own directed route. Their identical
+# endpoint nodes let the junction solver follow connected ramp sequences.
 used={i for f in features for i in f['wayIds']}
 for w in linkways:
- if w['id'] in used:continue
+ if w['id'] in used or w['id'] not in selected:continue
  ps=directed(w)
- if not any(p in v for p in ps for v in trunks.values()):continue
  near=min((('AK Köln-West',akwest),('AS Köln-Klettenberg',klettenberg),
            ('AS Köln-Eifeltor',eifeltor)),key=lambda x:metres(ps[len(ps)//2],x[1]))
  if metres(ps[len(ps)//2],near[1])>2500:continue
