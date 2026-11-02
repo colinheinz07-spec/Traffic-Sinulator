@@ -18,6 +18,7 @@ export const REFERENCE_PEAKS:Readonly<Record<string,number>>={
  'A3-koeln':4200,'A3-frankfurt':4100,'A48-dernbach':2400,'A48-koblenz':1700,
  'extra-a59-koeln':3600,'extra-a59-bonn':3600,
  'extra-a4-aachen':4200,'extra-a4-olpe':4300,
+ 'extra-a555-koeln':3400,'extra-a555-bonn':3300,
  'extra-a559-gremberg':3100,'extra-a559-porz':3000,
  'extra-a560-hennef':2900,'extra-a560-bonn':3200,
  'extra-a562-bonn':2800,'extra-a562-bonn-ost':2700
@@ -29,7 +30,7 @@ export function profileFamily(key:string):ProfileFamily{
  if(key.startsWith('A3-'))family='transit';
  else if(key.startsWith('A48-')||key.startsWith('ramp-'))family='koblenz';
  else if(key.startsWith('extra-a59-'))family='airport';
- else if(key.startsWith('extra-a4-'))family='ring';
+ else if(key.startsWith('extra-a4-')||key.startsWith('extra-a555-'))family='ring';
  else if(key.startsWith('extra-a559-')||key.startsWith('extra-a562-'))family='urban';
  else if(key.startsWith('extra-a560-'))family='siegtal';
  else{const feature=extensionRoute(key);family=feature&&feature.points.some(p=>p[0]>50.78&&p[1]<7.17)?'ring':feature?.zone.startsWith('A48')?'koblenz':'transit';}
@@ -42,8 +43,8 @@ function interpolate(points:Curve,hour:number):number{
  }
  return points.at(-1)![1];
 }
-function preferredMorning(key:string):boolean{return ['A3-frankfurt','A48-dernbach','ramp-a48-to-frankfurt','extra-a59-koeln','extra-a559-gremberg','extra-a560-bonn','extra-a4-olpe','extra-a562-bonn'].includes(key);}
-function preferredEvening(key:string):boolean{return ['A3-koeln','A48-koblenz','ramp-a48-to-koeln','extra-a59-bonn','extra-a559-porz','extra-a560-hennef','extra-a4-aachen','extra-a562-bonn-ost'].includes(key);}
+function preferredMorning(key:string):boolean{return ['A3-frankfurt','A48-dernbach','ramp-a48-to-frankfurt','extra-a59-koeln','extra-a559-gremberg','extra-a560-bonn','extra-a4-olpe','extra-a555-koeln','extra-a562-bonn'].includes(key);}
+function preferredEvening(key:string):boolean{return ['A3-koeln','A48-koblenz','ramp-a48-to-koeln','extra-a59-bonn','extra-a559-porz','extra-a560-hennef','extra-a4-aachen','extra-a555-bonn','extra-a562-bonn-ost'].includes(key);}
 export function profileFactor(key:string,moment:Date,family=profileFamily(key)):number{
  if(!Number.isFinite(moment.getTime()))throw Error('Ungültiges Simulationsdatum');
  const day=moment.getDay(),hour=moment.getHours()+moment.getMinutes()/60;
