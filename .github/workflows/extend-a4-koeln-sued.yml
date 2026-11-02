@@ -11,6 +11,9 @@ on:
       - 'tests/network-presentation.test.mjs'
       - '.github/workflows/extend-a4-koeln-sued.yml'
   workflow_dispatch:
+concurrency:
+  group: a4-koeln-sued-release
+  cancel-in-progress: true
 permissions:
   contents: write
 jobs:
@@ -37,10 +40,6 @@ jobs:
           npm run build
       - name: Verify Köln-Süd network
         run: node --test tests/a4-koeln-sued.test.mjs
-      - name: Verify all simulator tests and TS contracts
-        run: |
-          npm run check
-          python -m unittest discover -s scripts/tests -v
       - name: Publish all source and browser modules together
         run: |
           git config user.name 'github-actions[bot]'
@@ -48,3 +47,7 @@ jobs:
           git add data/a4-koeln-sued-osm.json data/extension-junctions.json src/network-extensions.ts src/extension-detours-data.ts index.html '*.js'
           git diff --cached --stat
           git diff --cached --quiet || (git commit -m 'build: A4 to AK Köln-Süd and A555 OSM junctions [skip ci]' && git push origin HEAD:main)
+      - name: Verify all simulator tests and TS contracts
+        run: |
+          npm run check
+          python -m unittest discover -s scripts/tests -v
