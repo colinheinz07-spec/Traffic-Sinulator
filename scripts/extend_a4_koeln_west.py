@@ -116,7 +116,13 @@ def junction(ref,road,name,position,source,dirkeys):
 # Continue exact OSM A4 ways, preserving all pre-existing Heumar segments.
 a4w=next(f for f in features if f['id']=='extra-a4-aachen')
 a4e=next(f for f in features if f['id']=='extra-a4-olpe')
-g4,rev4=graphs([w for w in ways if allowed(w,'A4')])
+# The westbound A4 fork at AK Köln-Süd contains OSM motorway_link
+# connectors between named A4 carriageway ways. Follow only actual directed
+# links immediately around the junction; never make a straight bridge.
+def south_interchange_link(w):
+ if w.get('tags',{}).get('highway')!='motorway_link':return False
+ return any(metres(point(p),(50.88552,6.9683))<1600 for p in w['geometry'])
+g4,rev4=graphs([w for w in ways if allowed(w,'A4') or south_interchange_link(w)])
 akwest=(50.925833,6.845278)
 goal=lambda p: 50.914<p[0]<50.946 and p[1]<6.855
 west=walk(g4,tuple(a4w['points'][-1]),goal,maxdist=19000)
