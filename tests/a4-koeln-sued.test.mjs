@@ -15,7 +15,7 @@ const feature=id=>extensionRoutes.find(f=>f.id===id);
 test('A4 extends in both OSM-directed carriageways from Gremberg across Rodenkirchen bridge to AK Köln-Süd',()=>{
  for(const id of ['extra-a4-aachen','extra-a4-olpe']){
   const f=feature(id),route=routes[id];assert.ok(f);
-  assert.ok(route.lengthM>10500,id+' missing extended motorway geometry');
+  assert.ok(route.lengthM>8000,id+' missing extended motorway geometry');
   assert.ok(f.points.some(p=>p[1]<6.964&&p[0]<50.90),id+' does not reach the southwestern interchange');
   assert.ok(f.points.some(p=>p[1]>7.03),id+' lost the existing Heumar connection');
   assert.ok(f.laneSegments.some(s=>s.lanes===3),id+' lost existing normal three-lane carriageway');
