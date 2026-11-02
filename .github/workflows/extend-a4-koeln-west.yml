@@ -26,7 +26,17 @@ jobs:
         with:
           node-version: '22'
       - name: Fetch exact A4 Köln-West and A1 OSM ways
+        if: ${{ hashFiles('data/a4-koeln-west-osm.json') == '' }}
         run: python scripts/fetch_a4_koeln_west.py
+      - name: Retain original OSM source for reproducible reruns
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add data/a4-koeln-west-osm.json
+          if ! git diff --cached --quiet; then
+            git commit -m 'data: cache verified A4 Köln-West OSM nodes [skip ci]'
+            git push origin HEAD:main
+          fi
       - name: Extend both A4 directions and verified A1 ramps
         run: python scripts/extend_a4_koeln_west.py
       - name: Compile directional local and motorway detours
