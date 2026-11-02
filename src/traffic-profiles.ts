@@ -18,7 +18,9 @@ export const REFERENCE_PEAKS:Readonly<Record<string,number>>={
  'A3-koeln':4200,'A3-frankfurt':4100,'A48-dernbach':2400,'A48-koblenz':1700,
  'extra-a59-koeln':3600,'extra-a59-bonn':3600,
  'extra-a4-aachen':4200,'extra-a4-olpe':4300,
- 'extra-a555-koeln':3400,'extra-a555-bonn':3300,
+ // These retained A555 corridors include one-lane AK Köln-Süd turning arms.
+// Calibrate only traffic committed to each arm, not entire three-lane A555.
+ 'extra-a555-koeln':1250,'extra-a555-bonn':1200,
  'extra-a559-gremberg':3100,'extra-a559-porz':3000,
  'extra-a560-hennef':2900,'extra-a560-bonn':3200,
  'extra-a562-bonn':2800,'extra-a562-bonn-ost':2700
