@@ -1,25 +1,40 @@
 """Fetch exact A4 Köln-Süd–Köln-West, A1 crossing, Köln-Klettenberg/Eifeltor.
 OSM API 0.6, original geometry and nodes, © OpenStreetMap contributors ODbL.
 """
-import concurrent.futures,json,urllib.parse,urllib.request,time
+import concurrent.futures,json,urllib.parse,urllib.request,urllib.error,time
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 CENTERS=[(lat,lon) for lat in (50.890,50.904,50.918,50.932,50.946)
          for lon in (6.848,6.866,6.884,6.902,6.920,6.938,6.956,6.972)]
 ALLOWED={'motorway','motorway_link','trunk','trunk_link','primary','primary_link','secondary',
  'secondary_link','tertiary','tertiary_link','residential','unclassified','service'}
-def tile(pos):
- lat,lon=pos;bbox=f'{lon-.011},{lat-.0095},{lon+.011},{lat+.0095}'
+def fetch_bbox(lat,lon,half_lon,half_lat,depth=0):
+ bbox=f'{lon-half_lon},{lat-half_lat},{lon+half_lon},{lat+half_lat}'
  url='https://api.openstreetmap.org/api/0.6/map.json?'+urllib.parse.urlencode({'bbox':bbox})
- for n in range(4):
+ for n in range(3):
   try:
    req=urllib.request.Request(url,headers={'User-Agent':'Traffic-Simulator-OSM-A4-Koeln-West/1.0 (public map data)'})
    with urllib.request.urlopen(req,timeout=55) as response:data=json.load(response)
-   print('OSM West',pos,len(data['elements']),flush=True)
    return data['elements']
+  except urllib.error.HTTPError as ex:
+   # OSM rejects bounding boxes with too many elements (HTTP 400).
+   # Split into four exact overlapping tiles; no missing road vertices.
+   if ex.code==400 and depth<3:
+    out=[]
+    for x in (-.5,.5):
+     for y in (-.5,.5):
+      out+=fetch_bbox(lat+y*half_lat,lon+x*half_lon,half_lon/2,half_lat/2,depth+1)
+    return out
+   if n==2:raise RuntimeError(f'OSM bbox {bbox}: {ex}')
+   time.sleep(2*(n+1))
   except Exception as ex:
-   if n==3:raise RuntimeError(f'OSM tile {pos}: {ex}')
-   time.sleep(3*(n+1))
+   if n==2:raise RuntimeError(f'OSM bbox {bbox}: {ex}')
+   time.sleep(2*(n+1))
+def tile(pos):
+ lat,lon=pos
+ result=fetch_bbox(lat,lon,.011,.0095)
+ print('OSM West',pos,len(result),flush=True)
+ return result
 def main():
  with concurrent.futures.ThreadPoolExecutor(max_workers=3) as pool:tiles=list(pool.map(tile,CENTERS))
  items={(e['type'],e['id']):e for group in tiles for e in group}
