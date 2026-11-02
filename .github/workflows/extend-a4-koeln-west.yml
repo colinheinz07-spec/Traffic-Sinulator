@@ -25,8 +25,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Fetch exact A4 Köln-West and A1 OSM ways
-        if: ${{ hashFiles('data/a4-koeln-west-osm.json') == '' }}
+      - name: Fetch only new A4/A1 OSM tiles (reuse cached source)
         run: python scripts/fetch_a4_koeln_west.py
       - name: Retain original OSM source for reproducible reruns
         run: |
