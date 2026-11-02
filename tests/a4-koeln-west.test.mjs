@@ -29,6 +29,39 @@ test('A4 both directions pass Köln-Eifeltor, Köln-Klettenberg and reach AK Kö
   for(const k of ['extra-a4-aachen','extra-a4-olpe'])assert.ok(j.directional[k],ref+' '+k);
  }
 });
+test('A4 Köln-Klettenberg/Eifeltor labels use real numbered OSM exits and ramps',()=>{
+ const osms=JSON.parse(readFileSync('data/a4-koeln-west-osm.json','utf8'));
+ const nodes=osms.elements.filter(e=>e.type==='node'&&e.tags?.highway==='motorway_junction');
+ const distance=(a,b)=>111195*Math.hypot(a[0]-b[0],(a[1]-b[1])*Math.cos(a[0]*Math.PI/180));
+ for(const ref of ['11a','11b']){
+  const exit=exits.find(e=>e.road==='A4'&&e.ref===ref);
+  assert.ok(exit,'missing numbered exit '+ref);
+  const official=nodes.filter(n=>(n.tags.ref||'').split(';').includes(ref)).map(n=>[n.lat,n.lon]);
+  assert.ok(official.length>0,'missing OSM exit nodes '+ref);
+  assert.ok(Math.min(...official.map(n=>distance(n,exit.position)))<450,'wrong label placement '+ref);
+  for(const key of ['extra-a4-aachen','extra-a4-olpe']){
+   const pos=exit.directional?.[key]?.position;
+   assert.ok(pos,'no directional AS anchor '+key+' '+ref);
+   assert.ok(Math.min(...official.map(n=>distance(n,pos)))<500,'incorrect direction label '+key+' '+ref);
+  }
+  const name=ref==='11a'?'Köln-Klettenberg':'Köln-Eifeltor';
+  const ramps=extensionRoutes.filter(x=>x.kind==='ramp'&&x.name.includes(name));
+  assert.ok(ramps.length>=2,'missing OSM ramps at '+name);
+ }
+});
+
+test('motorway lanes receive +100 veh/h, ramp lanes retain their capacity',async()=>{
+ const {baseLaneCapacity}=await import('../dist/traffic-physics.js');
+ for(const key of ['A3-koeln','A48-koblenz','extra-a4-aachen','extra-a1-dortmund']){
+  assert.equal(baseLaneCapacity(key),2100);
+ }
+ assert.equal(baseLaneCapacity('ramp-a48-to-koeln'),1500);
+ const ramp=extensionRoutes.find(x=>x.kind==='ramp'&&x.id.includes('koelnwest'));
+ assert.ok(ramp);
+ assert.equal(baseLaneCapacity(ramp.id),1500);
+ assert.equal(baselineCapacity('A3-koeln'),6300);
+ assert.equal(baselineCapacity('A48-koblenz'),4200);
+});
 test('Köln-West A1 is available both directions with real connector ramps',()=>{
  for(const key of ['extra-a1-dortmund','extra-a1-koblenz']){
   const f=get(key);assert.ok(f&&f.kind==='motorway'&&routes[key].lengthM>1800);
