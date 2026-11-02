@@ -118,9 +118,12 @@ a4w=next(f for f in features if f['id']=='extra-a4-aachen')
 a4e=next(f for f in features if f['id']=='extra-a4-olpe')
 g4,rev4=graphs([w for w in ways if allowed(w,'A4')])
 akwest=(50.925833,6.845278)
-goal=lambda p: 50.914<p[0]<50.946 and p[1]<6.844
+goal=lambda p: 50.914<p[0]<50.946 and p[1]<6.855
 west=walk(g4,tuple(a4w['points'][-1]),goal,maxdist=19000)
 back=walk(rev4,tuple(a4e['points'][0]),goal,maxdist=19000)
+print('A4 debug west/back',bool(west),bool(back),'startW',a4w['points'][-1],
+ 'startE',a4e['points'][0],'nodes',len(g4),'W start exists',tuple(a4w['points'][-1]) in g4,
+ 'E reverse exists',tuple(a4e['points'][0]) in rev4,flush=True)
 assert west and back,'Missing continuous directed A4 to AK Köln-West: do NOT draw fake link'
 assert 6000<length(west)<16000,('Westbound A4 OSM length',length(west))
 assert 6000<length(back)<16000,('Eastbound A4 OSM length',length(back))
