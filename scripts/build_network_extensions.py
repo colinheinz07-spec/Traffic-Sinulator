@@ -290,4 +290,7 @@ print('Generated',len(features),'directed extension paths;',sum(len(f['points'])
 if (ROOT/'data/a4-koeln-sued-osm.json').exists():
  import runpy
  runpy.run_path(str(ROOT/'scripts/extend_a4_koeln_sued.py'),run_name='__main__')
+if (ROOT/'data/a4-koeln-west-osm.json').exists():
+ import runpy
+ runpy.run_path(str(ROOT/'scripts/extend_a4_koeln_west.py'),run_name='__main__')
 
