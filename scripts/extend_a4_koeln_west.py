@@ -124,7 +124,7 @@ def south_interchange_link(w):
  return any(metres(point(p),(50.88552,6.9683))<1600 for p in w['geometry'])
 g4,rev4=graphs([w for w in ways if allowed(w,'A4') or south_interchange_link(w)])
 akwest=(50.925833,6.845278)
-goal=lambda p: 50.914<p[0]<50.946 and p[1]<6.855
+goal=lambda p: 50.914<p[0]<50.946 and p[1]<6.844
 west=walk(g4,tuple(a4w['points'][-1]),goal,maxdist=19000)
 back=walk(rev4,tuple(a4e['points'][0]),goal,maxdist=19000)
 def reachable(g,start):
