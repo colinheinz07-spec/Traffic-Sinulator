@@ -5,8 +5,8 @@ import json,collections,heapq,math
 from extend_heumar_camberg import ROOT,read_data,pt,dist
 bundle=json.loads((ROOT/'data/extension-junctions.json').read_text());core=read_data()
 features=bundle['routes'];junctions=core['exits']+bundle['junctions']
-sources=[json.loads((ROOT/p).read_text())['elements'] for p in ['data/a3-heumar-camberg-osm.json','data/a59-a560-osm.json','data/cologne-triangle-osm.json','data/bonn-a59-a562-osm.json']]
-ways=list({e['id']:e for source in sources for e in source if e['type']=='way' and e.get('geometry') and any(50.65<p['lat']<50.97 and 6.98<p['lon']<7.4 for p in e['geometry'])}.values())
+sources=[json.loads((ROOT/p).read_text())['elements'] for p in ['data/a3-heumar-camberg-osm.json','data/a59-a560-osm.json','data/cologne-triangle-osm.json','data/bonn-a59-a562-osm.json', 'data/a4-koeln-sued-osm.json']]
+ways=list({e['id']:e for source in sources for e in source if e['type']=='way' and e.get('geometry') and any(50.65<p['lat']<50.97 and 6.94<p['lon']<7.4 for p in e['geometry'])}.values())
 # Build core directional chains by exact endpoint topology.
 trunks={f['id']:list(map(tuple,f['points'])) for f in features if f['kind']=='motorway'}
 for key in ['A3-koeln','A3-frankfurt']:
