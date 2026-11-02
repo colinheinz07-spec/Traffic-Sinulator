@@ -252,8 +252,12 @@ for w in linkways:
            ('AS Köln-Eifeltor',eifeltor)),key=lambda x:metres(ps[len(ps)//2],x[1]))
  if metres(ps[len(ps)//2],near[1])>2500:continue
  pathkey='extra-koelnwest-link-'+str(w['id'])
+ edges=[(a,b,w) for a,b in zip(ps,ps[1:]) if a!=b]
+ # Degenerate OSM micro-edges (<5 m) cannot store a meaningful car or
+ # form a visible ramp. Their topology is retained by adjacent ways.
+ if length(edges)<=5:continue
  features.append(new_feature(pathkey,near[0]+' · Rampenzweig','ramp',
-  [(a,b,w) for a,b in zip(ps,ps[1:])],near[0],0))
+  edges,near[0],0))
 # Extend local ramp boundary points for local-road exit routing.
 streetkinds={'trunk','trunk_link','primary','primary_link','secondary','secondary_link',
  'tertiary','tertiary_link','residential','unclassified'}
