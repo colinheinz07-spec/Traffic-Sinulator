@@ -10,7 +10,7 @@ CENTERS=[(50.886,6.962),(50.893,6.944),(50.898,6.927),
          (50.903,6.911),(50.909,6.893),(50.915,6.875),
          (50.921,6.858),(50.927,6.845),(50.938,6.845),
          (50.948,6.845),(50.905,6.846),(50.893,6.848),
-         (50.889,6.931)]
+         (50.889,6.931),(50.917,6.844)]
 ALLOWED={'motorway','motorway_link','trunk','trunk_link','primary','primary_link','secondary',
  'secondary_link','tertiary','tertiary_link','residential','unclassified','service'}
 def fetch_bbox(lat,lon,half_lon,half_lat,depth=0):
