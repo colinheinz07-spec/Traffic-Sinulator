@@ -104,10 +104,33 @@ export function layoutJunctionLabels(exits, project, viewport, zoom, measure, ob
         return [];
     const result = [];
     const inView = exits.map(exit => ({ exit, point: project(exit.position) })).filter(({ point: [x, y] }) => x >= 0 && x <= viewport.width && y >= 0 && y <= viewport.height).sort((a, b) => a.point[1] - b.point[1] || a.exit.road.localeCompare(b.exit.road) || a.exit.ref.localeCompare(b.exit.ref));
-    const used = [...obstacles, ...inView.map(({ point: [x, y] }) => ({ x: x - 5, y: y - 5, w: 10, h: 10 }))];
-    for (const { exit, point: [x, y] } of inView) {
+    // OSM describes AK Köln-Süd as A4 12 and A555 2, and Köln-West
+    // as A4 10 and A1 104. Both are valid numbers for ONE physical
+    // motorway cross. Do not draw two competing pins/labels at one place.
+    const clusters = [];
+    for (const item of inView) {
+        const existing = clusters.find(c => c.exit.name === item.exit.name &&
+            c.exit.name.startsWith('AK ') && c.exit.road !== item.exit.road &&
+            Math.hypot(c.point[0] - item.point[0], c.point[1] - item.point[1]) < 20);
+        if (existing) {
+            existing.members.push(item.exit);
+            if (item.exit.road === 'A4' && existing.exit.road !== 'A4') {
+                existing.exit = item.exit;
+                existing.point = item.point;
+            }
+        }
+        else
+            clusters.push({ ...item, members: [item.exit] });
+    }
+    const used = [...obstacles, ...clusters.map(({ point: [x, y] }) => ({ x: x - 5, y: y - 5, w: 10, h: 10 }))];
+    for (const { exit, point: [x, y], members } of clusters) {
         const kind = exit.name.startsWith('AD ') ? 'AD' : exit.name.startsWith('AK ') ? 'AK' : 'AS';
-        const compact = kind + ' ' + exit.ref, full = compact + ' ' + exit.name.replace(/^(AD|AK) /, '');
+        const duplicated = members.length > 1;
+        const numbering = members.slice().sort((a, b) => a.road.localeCompare(b.road))
+            .map(e => e.road + ' ' + e.ref).join(' / ');
+        const compact = duplicated ? kind + ' ' + numbering : kind + ' ' + exit.ref;
+        const full = duplicated ? kind + ' ' + exit.name.replace(/^(AD|AK) /, '') + ' (' + numbering + ')' :
+            compact + ' ' + exit.name.replace(/^(AD|AK) /, '');
         const variants = zoom >= 11.4 ? [full, compact] : [compact];
         let box = null, text = compact;
         for (const candidate of variants) {

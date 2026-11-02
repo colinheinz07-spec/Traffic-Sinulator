@@ -1,4 +1,4 @@
-import { mercator } from './core.js?build=ccd069608dc30037';
+import { mercator } from './core.js?build=aaaf1444372c77a3';
 const cache = new WeakMap();
 /** Reuse exact road paths during pan/zoom. Store relative coordinates to
  * avoid magnifying large-coordinate rounding at street-level zoom. */

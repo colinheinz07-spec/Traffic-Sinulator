@@ -1,9 +1,9 @@
-import { extensionRoute } from './network-extensions.js?build=ccd069608dc30037';
+import { extensionRoute } from './network-extensions.js?build=aaaf1444372c77a3';
 /** Unrestricted base service before event-specific reductions. These are
  * simulator assumptions, not measured capacities for every A3/A48 section.
- * Motorway lanes and single-lane interchange connectors remain distinct. */
+ * Motorway lanes receive +100 vehicles/hour (2000 → 2100);\n * one-lane interchange ramps retain 1500 and stay distinct. */
 export function baseLaneCapacity(path) {
-    return extensionRoute(path)?.kind === 'ramp' || path.startsWith('ramp-') ? 1500 : 2000;
+    return extensionRoute(path)?.kind === 'ramp' || path.startsWith('ramp-') ? 1500 : 2100;
 }
 /** Standstill storage and backward relaxation are simulator assumptions.
  * 130 vehicles/km/lane corresponds to about 7.7 m per stored vehicle. */
