@@ -5,6 +5,7 @@ on:
     paths:
       - 'scripts/fetch_a4_koeln_sued.py'
       - 'scripts/extend_a4_koeln_sued.py'
+      - 'scripts/build_extension_detours.py'
       - '.github/workflows/extend-a4-koeln-sued.yml'
   workflow_dispatch:
 permissions:
