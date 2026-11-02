@@ -82,7 +82,7 @@ def append_parts(feature,edges,front=False):
   feature['laneSegments'] += [dict(s,fromM=s['fromM']+oldlength,toM=s['toM']+oldlength) for s in sections]
   feature['wayIds']=list(dict.fromkeys(feature['wayIds']+ids))
 def new_feature(key,name,kind,edges,zone,flow):
- assert edges and length(edges)>50,'Missing retained OSM road '+key
+ assert edges and length(edges)>5,'Missing retained OSM road '+key
  groups=grouped(edges);points=[];sections=[];ids=[];offset=0
  for w,ps in groups:
   assert not points or points[-1]==ps[0],key+' is disconnected'
