@@ -157,7 +157,7 @@ export function mergeSupplyVph(ramp:PathKey,targetCapacityVph:number,targetDeman
  const requested=Math.min(baselineCapacity(ramp),Math.max(defaultDemand(ramp),rampDemandVph+queuedVehicles*60));
  return Math.min(baselineCapacity(ramp),Math.round(requested*supplyRatio));
 }
-export function advanceSpatial(prev:SpatialState,events:readonly SimEvent[],demands:Readonly<Record<PathKey,number>>,minutes:number,corridors:Record<PathKey,Corridor>,links:readonly NetworkConnection[]=[],transfers:readonly SpatialTransfer[]=[],exits:readonly Exit[]=[],physicalMainline?:readonly Jam[],paths:readonly PathKey[]=PATHS):SpatialState{
+export function advanceSpatial(prev:SpatialState,events:readonly SimEvent[],demands:Readonly<Record<PathKey,number>>,minutes:number,corridors:Record<PathKey,Corridor>,links:readonly NetworkConnection[]=[],transfers:readonly SpatialTransfer[]=[],exits:readonly Exit[]=[],physicalMainline?:readonly Jam[],paths:readonly PathKey[]=PATHS,receivingVph:Readonly<Partial<Record<PathKey,number>>>={}):SpatialState{
  if(!Number.isInteger(minutes)||minutes<1||minutes>60)throw Error('Ungültiger Simulations-Zeitschritt');
  const current:Record<string,QueuedAt>={};
  for(const [id,q] of Object.entries(prev.queues))if(q.vehicles>1e-6)current[id]={...q};
@@ -202,12 +202,16 @@ export function advanceSpatial(prev:SpatialState,events:readonly SimEvent[],dema
    }
    const blocked=existing.filter(j=>j.pathKey===link.to&&j.anchorM>link.downstreamMergeM+.1
     &&j.anchorM-j.queueM<link.downstreamMergeM-.1);
-   if(blocked.length&&!closedAtFork){
-    // A dark-red queue is not a closed merge: calculate actual downstream supply.
-    const targetCapacity=Math.min(...blocked.map(j=>j.capacityVph));
-    const cap=mergeSupplyVph(key,targetCapacity,demands[link.to],volume,current['merge:'+key]?.vehicles??0);
-    nodes.push({id:'merge:'+key,event:null,place:Math.max(0,route.lengthM-.5),
-     point:route.points.at(-1)!,limitVph:cap});
+   if(!closedAtFork){
+    // Measure available receiving capacity at the actual downstream cell,
+    // rather than requiring an explicit incident on the connector.
+    const measured=receivingVph[key];
+    const targetCapacity=Math.min(measured??Infinity,...blocked.map(j=>j.capacityVph));
+    if(Number.isFinite(targetCapacity)){
+     const cap=mergeSupplyVph(key,targetCapacity,demands[link.to],volume,current['merge:'+key]?.vehicles??0);
+     if(cap<baselineCapacity(key))nodes.push({id:'merge:'+key,event:null,
+      place:Math.max(0,route.lengthM-.5),point:route.points.at(-1)!,limitVph:cap});
+    }
    }
   }
   // Connected, validated OSM detours are inserted at the physical junction
