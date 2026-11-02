@@ -152,8 +152,8 @@ def a555_path(north):
   raise ValueError('A555 missing continuous OSM '+('northbound' if north else 'southbound'))
  return max(possibilities,key=length)
 bonn=a555_path(False);koeln=a555_path(True)
-a555s=new_feature('extra-a555-bonn','A555 → Bonn / Rodenkirchen','motorway',bonn,'A555 Köln-Süd–Rodenkirchen',3000)
-a555n=new_feature('extra-a555-koeln','A555 → Köln / Verteilerkreis','motorway',koeln,'A555 Köln-Süd–Rodenkirchen',3150)
+a555s=new_feature('extra-a555-bonn','A555 → Bonn / Rodenkirchen','motorway',bonn,'A555 Köln-Süd–Rodenkirchen',1200)
+a555n=new_feature('extra-a555-koeln','A555 → Köln / Verteilerkreis','motorway',koeln,'A555 Köln-Süd–Rodenkirchen',1250)
 features.extend([a555s,a555n])
 # Official numbered exits, anchored to the nearest EXACT OSM motorway vertex.
 center=(50.88552,6.9683)
