@@ -31,7 +31,7 @@ export function interchangeDelays(jams, events) {
         let loss = jam.delayMin;
         if (loss === null) {
             const event = events.find(e => e.id === jam.id && e.kind !== 'closure');
-            if (!event)
+            if (!event || (event.settings.clearanceMin ?? DEFAULT_CLEARANCE_MIN) <= 0)
                 continue;
             const release = { ...event, closedLanes: Array.from({ length: Math.max(0, event.laneCount - 1) }, (_, i) => i),
                 settings: { ...event.settings, speedKmh: 40, shoulder: 'normal' } };

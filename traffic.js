@@ -73,6 +73,9 @@ export function eventCapacity(e, volumeVph = defaultDemand(e.pathKey), heavyFrac
         throw Error('Ungültiger Schwerlastanteil');
     const perLane = baseLaneCapacity(e.pathKey);
     const laneCapacity = perLane * (policy.openMainLanes + (e.settings.shoulder === 'open' ? .65 : 0));
+    // 0,5 km/h ist Kriechverkehr, keine typische Fahrstreifenkapazität.
+    if (policy.speedKmh === 0.5)
+        return Math.max(1, Math.floor(.5 * QUEUE_JAM_DENSITY_PER_LANE * policy.openTotalLanes));
     const normalSpeed = defaultKmH(e.pathKey);
     const parallel = policy.openMainLanes >= 2 && e.closedLanes.length > 0;
     // The 2000 veh/h/lane motorway reference is a saturated service headway, not

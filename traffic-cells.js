@@ -142,8 +142,13 @@ function localControls(route, events, demandVph, count, cellM, exits = []) {
                 // the physical event remains completely blocked until the user edits it.
                 const release = { ...event, closedLanes: Array.from({ length: event.laneCount - 1 }, (_, i) => i),
                     settings: { ...event.settings, speedKmh: 40, shoulder: 'normal' } };
+                const waitMin = event.settings.clearanceMin ?? DEFAULT_CLEARANCE_MIN;
+                if (waitMin <= 0) {
+                    unknownBlocks.add(face);
+                    continue;
+                }
                 const old = forecasts.get(face);
-                forecasts.set(face, { waitMin: Math.max(old?.waitMin ?? 0, event.settings.clearanceMin ?? DEFAULT_CLEARANCE_MIN),
+                forecasts.set(face, { waitMin: Math.max(old?.waitMin ?? 0, waitMin),
                     serviceVph: Math.min(old?.serviceVph ?? Infinity, eventCapacity(release, demandVph)) });
             }
         }
@@ -838,9 +843,8 @@ export function cellSpeedBands(state) {
         // Only actual dense queues or an occupied, physically blocked face
         // belong to the JAM layer. An uncongested 40-km/h worksite belongs to
         // the separate measured-speed restriction layer, not the queue length.
-        const physicallyBlocked = c.blockedAtM !== undefined && c.vehicles >= 1;
-        if (c.speedKmh > 65 ||
-            (!physicallyBlocked && c.densityVehKm < (c.criticalDensityVehKm ?? critical) * 1.10 && c.approachLimitKmh === undefined))
+        const observedSlow = c.vehicles >= .1 && c.speedKmh <= 65;
+        if (!observedSlow)
             continue;
         const color = colorAtSpeed(c.speedKmh);
         if (color === 'free')
@@ -863,7 +867,7 @@ export function cellQueueSpans(state) {
     const threshold = cellCriticalDensity(state.pathKey) * 1.10, spans = [];
     for (const c of state.cells) {
         if (c.densityVehKm < (c.criticalDensityVehKm !== undefined ? c.criticalDensityVehKm * 1.10 : threshold) && (c.queueMemoryMin ?? 0) <= 0 &&
-            !(c.approachLimitKmh !== undefined && c.speedKmh <= 65))
+            !(c.vehicles >= .1 && c.speedKmh <= 65))
             continue;
         const last = spans.at(-1);
         if (last && Math.abs(last.toM - c.fromM) < .1)
