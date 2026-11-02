@@ -42,7 +42,9 @@ test('A4 Köln-Klettenberg/Eifeltor labels use real numbered OSM exits and ramps
   for(const key of ['extra-a4-aachen','extra-a4-olpe']){
    const pos=exit.directional?.[key]?.position;
    assert.ok(pos,'no directional AS anchor '+key+' '+ref);
-   assert.ok(Math.min(...official.map(n=>distance(n,pos)))<500,'incorrect direction label '+key+' '+ref);
+   const individually=nodes.filter(n=>n.tags.ref===ref).map(n=>[n.lat,n.lon]);
+   assert.ok(individually.length,'missing individually signed motorway exit '+ref);
+   assert.ok(Math.min(...individually.map(n=>distance(n,pos)))<430,'incorrect direction label '+key+' '+ref);
   }
   const name=ref==='11a'?'Köln-Klettenberg':'Köln-Eifeltor';
   const ramps=extensionRoutes.filter(x=>x.kind==='ramp'&&x.name.includes(name));
@@ -62,6 +64,26 @@ test('motorway lanes receive +100 veh/h, ramp lanes retain their capacity',async
  assert.equal(baselineCapacity('A3-koeln'),6300);
  assert.equal(baselineCapacity('A48-koblenz'),4200);
 });
+test('AS Köln-Klettenberg and AS Köln-Eifeltor have distinct physical directional markers',()=>{
+ const exits11=exits.filter(e=>e.road==='A4'&&(e.ref==='11a'||e.ref==='11b'));
+ const a=exits11.find(e=>e.ref==='11a'),b=exits11.find(e=>e.ref==='11b');
+ const metres=(p,q)=>111195*Math.hypot(p[0]-q[0],(p[1]-q[1])*Math.cos(p[0]*Math.PI/180));
+ for(const key of ['extra-a4-aachen','extra-a4-olpe']){
+  assert.ok(metres(a.directional[key].position,b.directional[key].position)>450,
+   'two physically different motorway exits were pinned to the same fork: '+key);
+ }
+});
+
+test('undisturbed A4 Richtung Aachen no longer creates a 4-km jam from a single OSM split-bridge lane',()=>{
+ const key='extra-a4-aachen',f=get(key),route=routes[key];
+ assert.equal(f.laneSegments.filter(s=>s.lanes===1&&s.fromM>10500&&s.fromM<13000).length,0);
+ const q=defaultDemands()[key];
+ let state=initialiseCells(route,q);
+ for(let i=0;i<68;i++)state=advanceCells(state,route,[],q,exits);
+ const max=cellQueueSpans(state).reduce((n,s)=>Math.max(n,s.toM-s.fromM),0);
+ assert.ok(max<900,'phantom stop-and-go near Eifeltor: '+max+'m');
+});
+
 test('Köln-West A1 is available both directions with real connector ramps',()=>{
  for(const key of ['extra-a1-dortmund','extra-a1-koblenz']){
   const f=get(key);assert.ok(f&&f.kind==='motorway'&&routes[key].lengthM>1800);
