@@ -178,8 +178,13 @@ export function trafficView(
    // upstream incident must not poison a downstream open merge.
    const blockedHead=state?.cells.some(c=>c.blockedAtM!==undefined&&
     c.toM>group.fromM-.5&&c.fromM<group.toM+.5)??false;
+   // Use the downstream-most active detector inside this connected queue.
+   // An upstream (still closed) accident cannot suppress a locally reopened
+   // merge head further downstream.
+   const localHead=state?.cells.filter(c=>c.travelDetector?.active&&
+    c.toM>group.fromM-.5&&c.fromM<group.toM+.5).at(-1);
    const serviceCapacity=blockedHead?0:
-    state?head?.travelDetector?.capacityVph??baselineCapacity(path):root?.capacityVph??0;
+    localHead?.travelDetector?.capacityVph??head?.travelDetector?.capacityVph??root?.capacityVph??baselineCapacity(path);
    jams.push({id:'display:'+path+':'+Math.round(group.toM),eventId:event?.id,queueOwnerId:root?.id,waveHeadM,
     pathKey:path,eventKind:event?.kind??null,point,anchorM:group.toM,
     queueVehicles:vehicles,queueM:group.toM-group.fromM+feederM,
