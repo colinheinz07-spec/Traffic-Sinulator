@@ -127,6 +127,16 @@ akwest=(50.925833,6.845278)
 goal=lambda p: 50.914<p[0]<50.946 and p[1]<6.855
 west=walk(g4,tuple(a4w['points'][-1]),goal,maxdist=19000)
 back=walk(rev4,tuple(a4e['points'][0]),goal,maxdist=19000)
+def reachable(g,start):
+ seen={start};pending=[start]
+ for p in pending:
+  for b,w in g.get(p,[]):
+   if b not in seen:seen.add(b);pending.append(b)
+ return seen
+seen=reachable(g4,tuple(a4w['points'][-1]))
+print('A4 West reachability',len(seen),'westmost',min(seen,key=lambda p:p[1]),
+ 'northmost',max(seen,key=lambda p:p[0]),
+ 'near-end nodes',sorted(seen,key=lambda p:p[1])[:5],flush=True)
 print('A4 debug west/back',bool(west),bool(back),'startW',a4w['points'][-1],
  'startE',a4e['points'][0],'nodes',len(g4),'W start exists',tuple(a4w['points'][-1]) in g4,
  'E reverse exists',tuple(a4e['points'][0]) in rev4,flush=True)
