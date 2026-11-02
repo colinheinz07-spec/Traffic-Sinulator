@@ -1,0 +1,46 @@
+name: A4 Köln-Süd OSM-Netzerweiterung
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/fetch_a4_koeln_sued.py'
+      - 'scripts/extend_a4_koeln_sued.py'
+      - '.github/workflows/extend-a4-koeln-sued.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  build-a4-south:
+    runs-on: ubuntu-latest
+    timeout-minutes: 28
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Load exact directional A4/A555 geometry from OSM
+        run: python scripts/fetch_a4_koeln_sued.py
+      - name: Extend the A4 and connect A555/AK Köln-Süd/Poll
+        run: python scripts/extend_a4_koeln_sued.py
+      - name: Rebuild local and motorway detour geometry
+        run: python scripts/build_extension_detours.py
+      - name: Install and compile
+        run: |
+          npm ci --no-audit --no-fund
+          npm run build
+      - name: Verify Köln-Süd network
+        run: node --test tests/a4-koeln-sued.test.mjs
+      - name: Verify all simulator tests and TS contracts
+        run: |
+          npm run check
+          python -m unittest discover -s scripts/tests -v
+      - name: Publish all source and browser modules together
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add data/a4-koeln-sued-osm.json data/extension-junctions.json src/network-extensions.ts src/extension-detours-data.ts index.html '*.js'
+          git diff --cached --stat
+          git diff --cached --quiet || (git commit -m 'build: A4 to AK Köln-Süd and A555 OSM junctions [skip ci]' && git push origin HEAD:main)
