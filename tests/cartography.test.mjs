@@ -55,3 +55,13 @@ test('detailed junction labels use names, and a lack of label room never erases 
  const noRoom=layoutJunctionLabels([exit],()=>[150,150],{width:380,height:450},13,t=>t.length*6,[{x:0,y:0,w:380,h:450}]);
  assert.equal(noRoom.length,1);assert.equal(noRoom[0].box,null);assert.deepEqual(noRoom[0].point,[150,150]);
 });
+
+test('one motorway-cross marker reports correct numbers for two OSM roads',()=>{
+ const a4={road:'A4',ref:'12',name:'AK Köln-Süd',position:[50.88552,6.9683]};
+ const a555={road:'A555',ref:'2',name:'AK Köln-Süd',position:[50.88552,6.9683]};
+ const labels=layoutJunctionLabels([a555,a4],()=>[180,190],{width:420,height:450},14,t=>t.length*6);
+ assert.equal(labels.length,1,'one motorway cross must not draw two duplicate markers');
+ assert.equal(labels[0].exit.road,'A4','A4 takes the canonical map marker');
+ assert.match(labels[0].text,/A4 12/);
+ assert.match(labels[0].text,/A555 2/);
+});
