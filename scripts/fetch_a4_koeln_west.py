@@ -4,8 +4,12 @@ OSM API 0.6, original geometry and nodes, © OpenStreetMap contributors ODbL.
 import concurrent.futures,json,urllib.parse,urllib.request,urllib.error,time
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
-CENTERS=[(lat,lon) for lat in (50.890,50.904,50.918,50.932,50.946)
-         for lon in (6.848,6.866,6.884,6.902,6.920,6.938,6.956,6.972)]
+# Minimal overlapping corridor tiles rather than city-wide OSM downloads.
+# Full-city tiles would exceed the public API bandwidth budget.
+CENTERS=[(50.886,6.962),(50.893,6.944),(50.898,6.927),
+         (50.903,6.911),(50.909,6.893),(50.915,6.875),
+         (50.921,6.858),(50.927,6.845),(50.938,6.845),
+         (50.948,6.845),(50.905,6.846),(50.893,6.848)]
 ALLOWED={'motorway','motorway_link','trunk','trunk_link','primary','primary_link','secondary',
  'secondary_link','tertiary','tertiary_link','residential','unclassified','service'}
 def fetch_bbox(lat,lon,half_lon,half_lat,depth=0):
