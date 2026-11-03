@@ -38,8 +38,16 @@ def download_tile(c,half_lat=TILE_LAT,half_lon=TILE_LON,depth=0):
         try:
             req=urllib.request.Request(url,headers={'User-Agent':'Traffic-Sinulator-A555-A565/1.0 (OSM source audit)'})
             with urllib.request.urlopen(req,timeout=65) as response:data=json.load(response)
-            print('OSM tile',c,depth,len(data['elements']),flush=True)
-            return data['elements']
+            # Retain only highway ways and their exact nodes *before* aggregating
+            # tile responses: central Bonn otherwise contains millions of
+            # unrelated building nodes and exhausts the CI runner memory.
+            highway=[w for w in data['elements'] if w['type']=='way' and
+                w.get('tags',{}).get('highway') in ALLOWED]
+            nodeids={i for w in highway for i in w.get('nodes',[])}
+            nodes=[n for n in data['elements'] if n['type']=='node' and
+                (n['id'] in nodeids or n.get('tags',{}).get('highway')=='motorway_junction')]
+            print('OSM tile',c,depth,len(highway),'highways',flush=True)
+            return highway+nodes
         except urllib.error.HTTPError as e:
             error=e
             if e.code==400 and depth<4:
