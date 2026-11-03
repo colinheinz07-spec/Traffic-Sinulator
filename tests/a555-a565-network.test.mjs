@@ -3,7 +3,9 @@ import assert from 'node:assert/strict';
 import {networkData} from '../dist/geodata.js';
 import {extensionRoutes,extensionJunctions} from '../dist/network-extensions.js';
 import {buildExtensionConnections} from '../dist/extension-connections.js';
-import {makeCorridors} from '../dist/spatial.js';
+import {makeCorridors,emptySpatial,advanceSpatial,jamsAt} from '../dist/spatial.js';
+import {rampSpillbacks} from '../dist/interchange.js';
+import {defaultDemands} from '../dist/traffic.js';
 import {eventFromHit,validEvent} from '../dist/events.js';
 import {networkRoad} from '../dist/network-road.js';
 import {MOTORWAY_GROUPS} from '../dist/network-presentation.js';
@@ -88,5 +90,32 @@ test('A555 and A565 congestion cells conserve vehicles through incident and reop
    state=advanceCells(state,route,minute<6?[event]:[],1250);
    assertCellConservation(state);
   }
+ }
+});
+
+test('real downstream congestion propagates into A555/A565/A59 connectors and back onto the source motorway',()=>{
+ const links=buildExtensionConnections(routes);
+ const crossings=links.filter(c=>c.from!==c.rampId&&c.to!==c.rampId&&
+  ((networkRoad(c.from)==='A555'&&networkRoad(c.to)==='A565')||
+   (networkRoad(c.from)==='A565'&&networkRoad(c.to)==='A59')));
+ assert.ok(crossings.length>=2,'Need links at AK Bonn-Nord and AD Bonn-Nordost');
+ for(const link of crossings.slice(0,4)){
+  const target=routes[link.to],ram=routes[link.rampId];
+  const anchorM=Math.min(target.lengthM-1,link.downstreamMergeM+160);
+  assert.ok(anchorM>link.downstreamMergeM,'The downstream receiving cell must be inside the destination');
+  const parent={id:'blocked-destination',pathKey:link.to,eventKind:null,
+   point:target.points.at(-1),anchorM,queueVehicles:150,
+   queueM:Math.min(450,anchorM),visibleQueueM:Math.min(450,anchorM),
+   delayMin:null,capacityVph:0,speedKmh:0,color:'standstill',released:false,outOfBoundsM:0};
+  const demand={...defaultDemands(),[link.rampId]:1500};
+  let state=emptySpatial();
+  for(let i=0;i<35;i++)state=advanceSpatial(state,[],demand,1,routes,[link],[],[],[parent],[link.rampId]);
+  const queue=state.queues['merge:'+link.rampId];
+  assert.ok(queue&&queue.vehicles>100,'Downstream standstill must retain real vehicles on '+link.rampId);
+  assert.ok(queue.capacityVph===0,'Blocked downstream must not release ramp traffic on '+link.rampId);
+  const spills=rampSpillbacks(jamsAt(state,[],routes),[link],routes);
+  if(queue.vehicles>ram.lengthM*.13+30)
+   assert.ok(spills.some(x=>x.source===link.from&&x.rampId===link.rampId),
+    'Queue beyond ramp storage should occupy the source motorway '+link.from);
  }
 });
