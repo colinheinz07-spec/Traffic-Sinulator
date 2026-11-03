@@ -215,6 +215,13 @@ def build():
     bundle=json.loads((ROOT/'data/extension-junctions.json').read_text())
     routes=bundle['routes'];junctions=bundle['junctions']
     byid={r['id']:r for r in routes}
+    # Source collection is kept versioned; re-running CI on an already built
+    # branch must never extend the same motorway a second time.
+    complete=['extra-a555-bonn','extra-a555-koeln','extra-a565-siegburg','extra-a565-koblenz']
+    if all(k in byid and byid[k]['laneSegments'][-1]['toM']>3500 for k in complete) and all(
+      byid[k]['laneSegments'][-1]['toM']>14000 for k in complete[:2]):
+        print('A555/A565 OSM network already present; importer is idempotent',flush=True)
+        return
     def motorways(ref):
         return [w for w in ways if w.get('tags',{}).get('highway')=='motorway' and
           ref in w['tags'].get('ref','').replace(' ','').split(';')]
