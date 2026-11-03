@@ -25,7 +25,15 @@ jobs:
         with:
           python-version: '3.12'
       - run: npm ci --no-audit --no-fund
-      - name: Fetch OSM motorway nodes and build all four directional carriageways
+      - name: Fetch selective OSM source roads once
+        run: python scripts/add_a555_a565.py --fetch-only
+      - name: Save OSM source snapshot to development branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/a555-a565-bonn-osm.json
+          git diff --cached --quiet || { git commit -m "data: preserve official OSM Bonn motorway coordinates [skip ci]"; git push origin HEAD:feature/a555-a565-bonn-north-network; }
+      - name: Build four directional OSM carriageways and junction geometry
         run: python scripts/add_a555_a565.py
       - name: Build OSM alternatives for extended motorway network
         run: python scripts/build_extension_detours.py

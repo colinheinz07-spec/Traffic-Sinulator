@@ -369,4 +369,6 @@ def build():
     header+="const byId=new Map<string,ExtensionRoute>(extensionRoutes.map(r=>[r.id,r]));\nexport const extensionRoute=(id:string)=>byId.get(id);\n"
     (ROOT/'src/network-extensions.ts').write_text(header)
     print('A555 / A565 expansion complete:',len(routes),'routes;',len(junctions),'junctions;',len(seen),'new ramp way candidates',flush=True)
-if __name__=='__main__':build()
+if __name__=='__main__':
+    import sys
+    collect() if '--fetch-only' in sys.argv else build()
