@@ -191,7 +191,7 @@ def feature(key,title,kind,edges,zone,demand):
         else:sections.append({'fromM':metre,'toM':metre+length,'lanes':n})
         metre+=length
         if w['id'] not in way_ids:way_ids.append(w['id'])
-    assert metre>35 and len(points)>2,(key,metre)
+    assert metre>35 and len(points)>=(2 if kind=='ramp' else 3),(key,metre)
     return {'id':key,'name':title,'zone':zone,'kind':kind,
         'lanes':max(s['lanes'] for s in sections) if kind=='motorway' else min(s['lanes'] for s in sections),
         'laneSegments':sections,'points':[list(p) for p in points],
