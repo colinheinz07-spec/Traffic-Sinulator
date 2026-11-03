@@ -29,20 +29,32 @@ def centres():
                     out.add((round(lat+dl,3),round(lon+do,3)))
     # Grid snapping makes tile overlaps deterministic and deduplicates requests.
     return sorted({(round(lat/.009)*.009,round(lon/.012)*.012) for lat,lon in out})
-def download_tile(c):
+def download_tile(c,half_lat=TILE_LAT,half_lon=TILE_LON,depth=0):
     lat,lon=c
-    bbox=f'{lon-TILE_LON},{lat-TILE_LAT},{lon+TILE_LON},{lat+TILE_LAT}'
+    bbox=f'{lon-half_lon},{lat-half_lat},{lon+half_lon},{lat+half_lat}'
     url='https://api.openstreetmap.org/api/0.6/map.json?'+urllib.parse.urlencode({'bbox':bbox})
     error=None
-    for attempt in range(5):
+    for attempt in range(3):
         try:
             req=urllib.request.Request(url,headers={'User-Agent':'Traffic-Sinulator-A555-A565/1.0 (OSM source audit)'})
-            with urllib.request.urlopen(req,timeout=65) as response: data=json.load(response)
-            print('OSM tile',c,len(data['elements']),flush=True)
+            with urllib.request.urlopen(req,timeout=65) as response:data=json.load(response)
+            print('OSM tile',c,depth,len(data['elements']),flush=True)
             return data['elements']
-        except Exception as e:
-            error=e;time.sleep(3+attempt*4)
-    raise RuntimeError(f'OSM tile {c}: {error}')
+        except urllib.error.HTTPError as e:
+            error=e
+            if e.code==400 and depth<4:
+                # OSM API refuses very dense 0.6/map urban rectangles.
+                # Four exact half-sized rectangles retain all shared vertices.
+                out=[]
+                for y in (-1,1):
+                    for x in (-1,1):
+                        out.extend(download_tile((lat+y*half_lat/2,lon+x*half_lon/2),
+                           half_lat/2,half_lon/2,depth+1))
+                return out
+            if e.code not in (429,500,502,503,504):break
+        except Exception as e:error=e
+        time.sleep(1+attempt*3)
+    raise RuntimeError(f'OSM tile {c} depth={depth}: {error}')
 def collect():
     if SOURCE.exists():
         data=json.loads(SOURCE.read_text())
