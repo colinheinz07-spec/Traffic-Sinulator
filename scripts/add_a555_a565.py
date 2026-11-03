@@ -134,7 +134,7 @@ def shortest(g,start,target,minlength=0,maxlength=30000,radius=450):
             nd=d+metres(a,b)
             if nd<cost.get(b,float('inf'))-.00001:
                 cost[b]=nd;prev[b]=(a,w);heapq.heappush(todo,(nd,b))
-    closest=sorted(((round(metres(tuple(map(float,p.split(','))),target)),p,round(cost[p])) for p in cost),key=lambda x:x[0])[:12]
+    closest=sorted(((round(metres(p,target)),p,round(cost[p])) for p in cost),key=lambda x:x[0])[:12]
     raise ValueError(f'No exact directed motorway chain {start} -> {target}; graph nodes {len(g)}; reached {len(cost)}; nearest {closest}')
 def lane(w,kind,key=None,segment=None):
     tags=w.get('tags',{})
