@@ -64,28 +64,45 @@ def download_tile(c,half_lat=TILE_LAT,half_lon=TILE_LON,depth=0):
         time.sleep(1+attempt*3)
     raise RuntimeError(f'OSM tile {c} depth={depth}: {error}')
 def collect():
-    if SOURCE.exists():
-        data=json.loads(SOURCE.read_text())
-        return data['elements']
-    tiles=centres()
-    print('Fetching',len(tiles),'OSM tiles',flush=True)
-    with ThreadPoolExecutor(max_workers=3) as executor:
-        groups=list(executor.map(download_tile,tiles))
-    combined={(e['type'],e['id']):e for group in groups for e in group}
-    nodes={e['id']:e for e in combined.values() if e['type']=='node'}
-    ways=[]
-    for w in combined.values():
-        if w['type']!='way' or w.get('tags',{}).get('highway') not in ALLOWED:continue
-        if not all(n in nodes for n in w.get('nodes',[])):continue
-        w['geometry']=[{'lat':nodes[n]['lat'],'lon':nodes[n]['lon']} for n in w['nodes']]
-        ways.append(w)
-    junctions=[n for n in nodes.values() if n.get('tags',{}).get('highway')=='motorway_junction']
-    assert len(ways)>100,'Not enough OSM source ways'
-    assert sum('A555' in w.get('tags',{}).get('ref','').replace(' ','') for w in ways)>10
-    assert sum('A565' in w.get('tags',{}).get('ref','').replace(' ','') for w in ways)>5
-    SOURCE.write_text(json.dumps({'source':'OpenStreetMap API 0.6 / © OpenStreetMap contributors / ODbL',
-        'tile_centres':tiles,'elements':ways+junctions},separators=(',',':')))
-    return ways+junctions
+    if SOURCE.exists():return json.loads(SOURCE.read_text())['elements']
+    # Two selective, geometrically bounded requests. Unlike OSM map tiles,
+    # this does not retrieve hundreds of thousands of unrelated building nodes.
+    bboxes=[(50.739,6.951,50.877,7.088),(50.737,7.059,50.778,7.151)]
+    mirrors=[
+        'https://overpass-api.de/api/interpreter',
+        'https://overpass.kumi.systems/api/interpreter',
+        'https://overpass.private.coffee/api/interpreter']
+    all_items={}
+    for bbox in bboxes:
+        bounds=','.join(map(str,bbox))
+        query='[out:json][timeout:150];(way["highway"~"^(motorway|motorway_link|trunk|trunk_link|primary|primary_link|secondary|secondary_link|tertiary|tertiary_link)$"]('+bounds+');node["highway"="motorway_junction"]('+bounds+'););out body geom;'
+        error=None;data=None
+        for mirror in mirrors:
+            try:
+                url=mirror+'?'+urllib.parse.urlencode({'data':query})
+                req=urllib.request.Request(url,headers={'User-Agent':'Traffic-Sinulator-Bonn-OSM/1.0'})
+                with urllib.request.urlopen(req,timeout=170) as response:data=json.load(response)
+                print('Overpass',mirror,bounds,len(data['elements']),flush=True)
+                break
+            except Exception as e:
+                error=e
+                print('Overpass mirror unavailable',mirror,str(e)[:160],flush=True)
+        if not data:raise RuntimeError('Selective OSM road query failed: '+str(error))
+        for e in data['elements']:
+            if e['type']=='way' and e.get('tags',{}).get('highway') in ALLOWED:
+                if e.get('geometry') and len(e['geometry'])==len(e.get('nodes',[])):
+                    all_items[e['type'],e['id']]=e
+            elif e['type']=='node' and e.get('tags',{}).get('highway')=='motorway_junction':
+                all_items[e['type'],e['id']]=e
+    ways=[w for w in all_items.values() if w['type']=='way']
+    assert len(ways)>80,'Selective OSM dataset too small'
+    for ref,minways in [('A555',10),('A565',5)]:
+        matched=[w for w in ways if w.get('tags',{}).get('highway')=='motorway' and
+                 ref in w.get('tags',{}).get('ref','').replace(' ','').split(';')]
+        assert len(matched)>=minways,(ref,len(matched))
+    SOURCE.write_text(json.dumps({'source':'Overpass OSM highway geometries / © OpenStreetMap contributors / ODbL',
+          'bounding_boxes':bboxes,'elements':list(all_items.values())},separators=(',',':')))
+    return list(all_items.values())
 def directed(w):
     ps=list(map(point,w['geometry']))
     return ps[::-1] if w.get('tags',{}).get('oneway')=='-1' else ps
