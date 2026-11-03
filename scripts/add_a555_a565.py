@@ -10,6 +10,7 @@ import json, urllib.request, urllib.parse, heapq, time
 
 ROOT=Path(__file__).resolve().parents[1]
 SOURCE=ROOT/'data/a555-a565-bonn-osm.json'
+HISTORIC=ROOT/'data/a565-bonn-bridge-2026-05-osm.json'
 SOUTH=[(50.866,6.969),(50.850,6.971),(50.833,6.984),(50.813,7.000),
        (50.793,7.023),(50.777,7.045),(50.759,7.063),(50.7464,7.0739)]
 EAST=[(50.7464,7.0739),(50.748,7.088),(50.754,7.106),(50.763,7.123),(50.765,7.134)]
@@ -103,6 +104,32 @@ def collect():
     SOURCE.write_text(json.dumps({'source':'Overpass OSM highway geometries / © OpenStreetMap contributors / ODbL',
           'bounding_boxes':bboxes,'elements':list(all_items.values())},separators=(',',':')))
     return list(all_items.values())
+def collect_historic():
+    """Use pre-closure OSM topology ONLY for the simulator's normal-state scenario.
+    The Bonn-Nord bridge/approaches are currently closed and under replacement.
+    """
+    if HISTORIC.exists():return json.loads(HISTORIC.read_text())['elements']
+    bbox='50.740,7.070,50.768,7.139'
+    query='[out:json][timeout:170][date:"2026-05-15T12:00:00Z"];(way["highway"~"^(motorway|motorway_link)$"]('+bbox+');node["highway"="motorway_junction"]('+bbox+'););out body geom;'
+    mirrors=['https://overpass-api.de/api/interpreter','https://overpass.kumi.systems/api/interpreter',
+             'https://overpass.private.coffee/api/interpreter']
+    error=None;data=None
+    for mirror in mirrors:
+        try:
+            url=mirror+'?'+urllib.parse.urlencode({'data':query})
+            req=urllib.request.Request(url,headers={'User-Agent':'Traffic-Sinulator-Bonn-OSM-Historical/1.0'})
+            with urllib.request.urlopen(req,timeout=190) as response:data=json.load(response)
+            print('Historical A565 OSM',mirror,len(data['elements']),flush=True)
+            break
+        except Exception as e:
+            error=e;print('Historical Overpass unavailable',mirror,str(e)[:180],flush=True)
+    if not data:raise RuntimeError('Cannot verify historic Bonn-Nord bridge geometry: '+str(error))
+    elements=[e for e in data['elements'] if e['type']=='node' and e.get('tags',{}).get('highway')=='motorway_junction'
+        or e['type']=='way' and e.get('geometry') and e.get('tags',{}).get('highway') in ('motorway','motorway_link')]
+    assert sum('A565' in e.get('tags',{}).get('ref','').replace(' ','') for e in elements)>=6
+    HISTORIC.write_text(json.dumps({'source':'OSM historical snapshot 2026-05-15 / ODbL',
+       'historical_not_currently_open':True,'elements':elements},separators=(',',':')))
+    return elements
 def directed(w):
     ps=list(map(point,w['geometry']))
     return ps[::-1] if w.get('tags',{}).get('oneway')=='-1' else ps
@@ -169,6 +196,7 @@ def feature(key,title,kind,edges,zone,demand):
         'wayIds':way_ids,'demandVph':demand,'freeKmh':130 if kind=='motorway' else 80}
 def build():
     new=collect()
+    historic=collect_historic()
     refs=['data/a4-koeln-sued-osm.json','data/bonn-a59-a562-osm.json','data/a59-a560-osm.json']
     combined={}
     for path in refs:
@@ -177,7 +205,11 @@ def build():
                 combined[e['type'],e['id']]=e
     for e in new:combined[e['type'],e['id']]=e
     ways=[e for e in combined.values() if e['type']=='way' and e.get('geometry')]
-    nodes=[e for e in combined.values() if e['type']=='node']
+    # Keep historical A565 motorway edges as parallel source evidence. Do not
+    # turn today's removed/closed bridge into an allegedly open real road.
+    ways += [e for e in historic if e['type']=='way' and e.get('tags',{}).get('highway')=='motorway' and
+       'A565' in e.get('tags',{}).get('ref','').replace(' ','').split(';')]
+    nodes=[e for e in combined.values() if e['type']=='node']+[e for e in historic if e['type']=='node']
     bundle=json.loads((ROOT/'data/extension-junctions.json').read_text())
     routes=bundle['routes'];junctions=bundle['junctions']
     byid={r['id']:r for r in routes}
@@ -372,4 +404,4 @@ def build():
     print('A555 / A565 expansion complete:',len(routes),'routes;',len(junctions),'junctions;',len(seen),'new ramp way candidates',flush=True)
 if __name__=='__main__':
     import sys
-    collect() if '--fetch-only' in sys.argv else build()
+    (collect(),collect_historic()) if '--fetch-only' in sys.argv else build()

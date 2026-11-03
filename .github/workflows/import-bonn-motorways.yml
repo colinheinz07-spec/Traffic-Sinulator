@@ -31,7 +31,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/a555-a565-bonn-osm.json
+          git add data/a555-a565-bonn-osm.json data/a565-bonn-bridge-2026-05-osm.json
           git diff --cached --quiet || { git commit -m "data: preserve official OSM Bonn motorway coordinates [skip ci]"; git push origin HEAD:feature/a555-a565-bonn-north-network; }
       - name: Build four directional OSM carriageways and junction geometry
         run: python scripts/add_a555_a565.py
