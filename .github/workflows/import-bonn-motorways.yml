@@ -1,0 +1,47 @@
+name: OSM A555 A565 Bonn Netzwerk bauen
+on:
+  push:
+    branches: [feature/a555-a565-bonn-north-network]
+    paths:
+      - scripts/add_a555_a565.py
+      - scripts/build_extension_detours.py
+      - tests/a555-a565-network.test.mjs
+      - .github/workflows/import-bonn-motorways.yml
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  import-bonn:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: npm ci --no-audit --no-fund
+      - name: Fetch OSM motorway nodes and build all four directional carriageways
+        run: python scripts/add_a555_a565.py
+      - name: Build OSM alternatives for extended motorway network
+        run: python scripts/build_extension_detours.py
+      - name: Compile and check new network
+        run: |
+          npm run typecheck
+          npm run build
+          node --test tests/a555-a565-network.test.mjs tests/physical-colours-network-ramps.test.mjs
+          python -m unittest discover -s scripts/tests -v
+      - name: Prepare mobile browser JavaScript from compiled output
+        run: cp dist/*.js .
+      - name: Commit verified OSM data and compiled UI back to development branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/a555-a565-bonn-osm.json data/extension-junctions.json src/network-extensions.ts src/extension-detours-data.ts index.html ./*.js
+          git diff --cached --quiet && exit 0
+          git commit -m "build: publish verified A555 A565 Bonn OSM network and reroute alternatives [skip ci]"
+          git push origin HEAD:feature/a555-a565-bonn-north-network
