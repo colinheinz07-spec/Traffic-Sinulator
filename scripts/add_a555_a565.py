@@ -109,8 +109,10 @@ def collect_historic():
     The Bonn-Nord bridge/approaches are currently closed and under replacement.
     """
     if HISTORIC.exists():return json.loads(HISTORIC.read_text())['elements']
-    bbox='50.740,7.070,50.768,7.139'
-    query='[out:json][timeout:170][date:"2026-05-15T12:00:00Z"];(way["highway"~"^(motorway|motorway_link)$"]('+bbox+');node["highway"="motorway_junction"]('+bbox+'););out body geom;'
+    # Only the former left-bank approach and Rhine bridge gap need history.
+    # Historic Overpass queries for the entire Bonn motorway system time out.
+    bbox='50.743,7.065,50.758,7.102'
+    query='[out:json][timeout:95][date:"2026-05-15T12:00:00Z"];way["highway"="motorway"]["ref"~"A ?565"]('+bbox+');out body geom;'
     mirrors=['https://overpass-api.de/api/interpreter','https://overpass.kumi.systems/api/interpreter',
              'https://overpass.private.coffee/api/interpreter']
     error=None;data=None
@@ -118,7 +120,7 @@ def collect_historic():
         try:
             url=mirror+'?'+urllib.parse.urlencode({'data':query})
             req=urllib.request.Request(url,headers={'User-Agent':'Traffic-Sinulator-Bonn-OSM-Historical/1.0'})
-            with urllib.request.urlopen(req,timeout=190) as response:data=json.load(response)
+            with urllib.request.urlopen(req,timeout=110) as response:data=json.load(response)
             print('Historical A565 OSM',mirror,len(data['elements']),flush=True)
             break
         except Exception as e:
@@ -126,7 +128,7 @@ def collect_historic():
     if not data:raise RuntimeError('Cannot verify historic Bonn-Nord bridge geometry: '+str(error))
     elements=[e for e in data['elements'] if e['type']=='node' and e.get('tags',{}).get('highway')=='motorway_junction'
         or e['type']=='way' and e.get('geometry') and e.get('tags',{}).get('highway') in ('motorway','motorway_link')]
-    assert sum('A565' in e.get('tags',{}).get('ref','').replace(' ','') for e in elements)>=6
+    assert sum('A565' in e.get('tags',{}).get('ref','').replace(' ','') for e in elements)>=2
     HISTORIC.write_text(json.dumps({'source':'OSM historical snapshot 2026-05-15 / ODbL',
        'historical_not_currently_open':True,'elements':elements},separators=(',',':')))
     return elements
