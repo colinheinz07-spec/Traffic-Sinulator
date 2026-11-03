@@ -10,7 +10,6 @@ import json, urllib.request, urllib.parse, heapq, time
 
 ROOT=Path(__file__).resolve().parents[1]
 SOURCE=ROOT/'data/a555-a565-bonn-osm.json'
-CENTRES=((50.884,-0.0),)
 SOUTH=[(50.866,6.969),(50.850,6.971),(50.833,6.984),(50.813,7.000),
        (50.793,7.023),(50.777,7.045),(50.759,7.063),(50.7464,7.0739)]
 EAST=[(50.7464,7.0739),(50.748,7.088),(50.754,7.106),(50.763,7.123),(50.765,7.134)]
@@ -253,10 +252,6 @@ def build():
                 goals={p for p in t if metres(p,geo)<span}
                 options=[]
                 for start in starts:
-                    try:
-                        edges=shortest(g_link,start,geo,0,2400,0) # replaced with exact goal search below
-                    except ValueError:
-                        edges=None
                     # A true candidate must end exactly on a target motorway vertex.
                     todo=[(0,start)];best={start:0};prev={};end=None
                     while todo:
