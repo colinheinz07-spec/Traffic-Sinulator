@@ -2,7 +2,7 @@ export type Point = [number, number]; // [latitude, longitude]
 export type RoadId = 'A3-koeln'|'A3-frankfurt'|'A48-dernbach'|'A48-koblenz';
 export type Road = {id:string;wayId:number;road:RoadId;lanes:number;normalLaneCount?:number;km:number;posKm:number;points:Point[];tags?:Record<string,string>};
 export type Ramp = {id:string;name:string;from:RoadId;to:RoadId;lanes:number;wayIds:number[];points:Point[]};
-export type Exit = {road:'A3'|'A4'|'A48'|'A59'|'A559'|'A560'|'A562'|'A555'|'A1';ref:string;name:string;position:Point;source:string;sharedRoad?:'A3';
+export type Exit = {road:'A3'|'A4'|'A48'|'A59'|'A559'|'A560'|'A562'|'A555'|'A565'|'A1';ref:string;name:string;position:Point;source:string;sharedRoad?:'A3';
  access?:Partial<Record<string,{entry:boolean;exit:boolean}>>;
  directional?:Partial<Record<string,{position:Point;nodeId:number}>>};
 /** A junction may have different off-ramp nodes in each direction. */
