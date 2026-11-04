@@ -7,8 +7,8 @@ import {initialiseCells,advanceCells,cellSpeedBands,assertCellConservation} from
 
 const routes=makeCorridors(networkData.roads,networkData.ramps);
 for(const [path,demand,capacity] of [
- ['A3-koeln',5700,6000],['A3-frankfurt',5700,6000],
- ['A48-dernbach',3800,4000],['A48-koblenz',3800,4000]
+ ['A3-koeln',5700,6300],['A3-frankfurt',5700,6300],
+ ['A48-dernbach',3800,4200],['A48-koblenz',3800,4200]
 ])test(`${path}: unrestricted traffic above the former base capacity flows without artificial congestion`,()=>{
  const route=routes[path],defaults=defaultDemands();let state=initialiseCells(route,demand);
  assert.equal(baselineCapacity(path),capacity);

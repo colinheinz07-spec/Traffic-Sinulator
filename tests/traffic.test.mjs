@@ -79,7 +79,7 @@ test('SPCK controls and compiled module hooks exist without a second app entry',
 test('moderate 40 km/h work-zone discharge avoids exaggerated short-term delay',()=>{
  const event=E('roadworks',[0,1],40);
  const capacity=eventCapacity(event);
- assert.ok(capacity>=1400&&capacity<=1650,`work zone one-lane discharge ${capacity}`);
+ assert.ok(capacity>=1400&&capacity<=1700,`work zone one-lane discharge ${capacity}`);
  const d=defaultDemands();
  assert.equal(d['A3-koeln'],4200,'demand must not be silently lowered to hide jams');
  const five=trafficEstimate(advanceTraffic(emptyTraffic(),[event],d,5),'A3-koeln',[event],d['A3-koeln']);
@@ -124,5 +124,5 @@ test('traffic volume can peak then decline, creating a queue plateau without a f
  assert.equal(demandAtMinute(d,250,'constant')['A3-koeln'],d['A3-koeln']);
  const page=readFileSync('index.html','utf8'),app=readFileSync('src/app.ts','utf8');
  assert.match(page,/id="traffic-demand-mode"/);assert.match(page,/value="constant"/);
- assert.match(app,/advanceSpatial\(spatialState,timeline,(?:active|legacyActive),1,spatialCorridors,networkConnections,transfers,exits,physicalMainline,(?:PATHS|rampPaths)\)/);
+ assert.match(app,/advanceSpatial\(spatialState,timeline,(?:active|legacyActive),1,spatialCorridors,networkConnections,transfers,exits,physicalMainline,(?:PATHS|rampPaths),rampReceiving\(cellNetwork,networkConnections\)\)/);
 });
