@@ -30,14 +30,18 @@ test('all four Sankt Augustin turns and the real Heumar mainline connection are 
  for(const [key,point] of [['extra-a59-koeln',routes['extra-a59-koeln'].points.at(-1)],['extra-a59-bonn',routes['extra-a59-bonn'].points[0]]])assert.ok(['A3-koeln','A3-frankfurt'].some(k=>positionM(routes[k],point,1)!==null),key);
 });
 test('all regular A59/A560 exits have a connected local departure and all alternatives follow directed OSM edges',()=>{
+ const missing=[];
  for(const key of mainKeys.filter(k=>k.startsWith('extra-'))){
   for(const j of diversionJunctions(key,exits,routes[key]).filter(j=>!j.isInterchange&&j.access?.[key]?.exit!==false)){
-   const found=extensionDetours.some(r=>r.path===key&&r.fromRef===j.ref);
+   if(extensionDetours.some(r=>r.path===key&&r.fromRef===j.ref))continue;
    const anchor=j.directional?.[key]?.position??j.position;
-   const attached=extensionRoutes.filter(r=>r.kind==='ramp'&&r.points.some(p=>p[0]===anchor?.[0]&&p[1]===anchor?.[1])).map(r=>({id:r.id,first:r.points[0],last:r.points.at(-1),metres:Math.round(r.laneSegments.at(-1).toM)}));
-   assert.ok(found,key+' exit '+j.ref+' at '+JSON.stringify(anchor)+'; attached ramps='+JSON.stringify(attached.slice(0,12))+'; exits with alternatives='+[...new Set(extensionDetours.filter(r=>r.path===key).map(r=>r.fromRef))].join(','));
+   const attached=extensionRoutes.filter(r=>r.kind==='ramp'&&r.points.some(p=>p[0]===anchor?.[0]&&p[1]===anchor?.[1])).map(r=>({
+    id:r.id,first:r.points[0],last:r.points.at(-1),metres:Math.round(r.laneSegments.at(-1).toM)
+   }));
+   missing.push({path:key,exit:j.ref,anchor,attached,otherExits:[...new Set(extensionDetours.filter(r=>r.path===key).map(r=>r.fromRef))]});
   }
  }
+ assert.deepEqual(missing,[],'all advertised off-ramps must have a directed OSM alternative');
  const sources=['a3-heumar-camberg-osm.json','a59-a560-osm.json','cologne-triangle-osm.json','bonn-a59-a562-osm.json','a4-koeln-sued-osm.json','a4-koeln-west-osm.json','a555-a565-bonn-osm.json'].flatMap(f=>JSON.parse(readFileSync(new URL('../data/'+f,import.meta.url))).elements);
  const ways=new Map(sources.filter(e=>e.type==='way').map(w=>[w.id,w])),edge=new Set();
  const point=p=>[p.lat,p.lon].map(v=>Number(v.toFixed(7))).join(',');
