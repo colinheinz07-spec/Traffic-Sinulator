@@ -64,8 +64,71 @@ def download_tile(c,half_lat=TILE_LAT,half_lon=TILE_LON,depth=0):
         except Exception as e:error=e
         time.sleep(1+attempt*3)
     raise RuntimeError(f'OSM tile {c} depth={depth}: {error}')
+def supplement_missing_offramps(source):
+    """Recover only exact, independently verified OSM motorway_link ways.
+
+    Some legacy motorway-link routes in extension-junctions.json were imported
+    before the latest selective Overpass snapshot. If that snapshot omits an
+    actual off-ramp, the detour graph must recover its *real way ID and nodes*
+    rather than inventing a connector or silently discarding the exit.
+    """
+    bundle_file=ROOT/'data/extension-junctions.json'
+    if not bundle_file.exists():return source
+    routes=json.loads(bundle_file.read_text())['routes']
+    verified_ids=(4394292,23317769)  # A565 Beuel-Nord / Auerberg directional forks
+    current={w['id']:w for w in source['elements'] if w['type']=='way'}
+    changed=False
+    for way_id in verified_ids:
+        features=[r for r in routes if r['kind']=='ramp' and r['wayIds']==[way_id]]
+        if len(features)!=1:continue
+        expected=list(map(tuple,features[0]['points']))
+        def matches(w):
+            if not w or w.get('tags',{}).get('highway')!='motorway_link':return False
+            geom=w.get('geometry')
+            if not geom:return False
+            points=list(map(point,geom))
+            if w.get('tags',{}).get('oneway')=='-1':points.reverse()
+            return points==expected
+        if matches(current.get(way_id)):continue
+        proven=None;kind=None
+        # Current official OSM way and all of its exact member nodes.
+        try:
+            url=f'https://api.openstreetmap.org/api/0.6/way/{way_id}/full.json'
+            req=urllib.request.Request(url,headers={'User-Agent':'Traffic-Sinulator-OSM-Exit-Audit/1.0'})
+            with urllib.request.urlopen(req,timeout=30) as response:data=json.load(response)
+            way=next(e for e in data['elements'] if e['type']=='way' and e['id']==way_id)
+            nodes={e['id']:e for e in data['elements'] if e['type']=='node'}
+            way=dict(way,geometry=[{'lat':nodes[n]['lat'],'lon':nodes[n]['lon']}
+                  for n in way['nodes']])
+            if matches(way):proven=way;kind='current'
+        except Exception as exc:
+            print('OSM way unavailable',way_id,str(exc)[:160],flush=True)
+        if proven is None:
+            # Historic data can be used only for the explicitly named
+            # normal-state simulation; it is NOT a currently open road.
+            query=f'[out:json][timeout:60][date:"2026-05-15T12:00:00Z"];way({way_id});out body geom;'
+            try:
+                url='https://overpass-api.de/api/interpreter?'+urllib.parse.urlencode({'data':query})
+                req=urllib.request.Request(url,headers={'User-Agent':'Traffic-Sinulator-Historical-Exit-Audit/1.0'})
+                with urllib.request.urlopen(req,timeout=80) as response:data=json.load(response)
+                way=next((e for e in data['elements'] if e['type']=='way' and e['id']==way_id),None)
+                if matches(way):proven=way;kind='historical-normal-state'
+            except Exception as exc:
+                print('Historical exit verification unavailable',way_id,str(exc)[:160],flush=True)
+        if proven is None:
+            print('OSM EXPLICIT EXIT SOURCE MISSING',way_id,'no geometry added',flush=True)
+            continue
+        source['elements']=[e for e in source['elements']
+            if not (e['type']=='way' and e['id']==way_id)]
+        source['elements'].append(proven)
+        source.setdefault('supplemental_verified_links',{})[str(way_id)]=kind
+        changed=True
+        print('VERIFIED OSM EXIT',way_id,kind,'segments',len(proven['geometry'])-1,flush=True)
+    if changed:SOURCE.write_text(json.dumps(source,separators=(',',':')))
+    return source
+
 def collect():
-    if SOURCE.exists():return json.loads(SOURCE.read_text())['elements']
+    if SOURCE.exists():return supplement_missing_offramps(json.loads(SOURCE.read_text()))['elements']
     # Two selective, geometrically bounded requests. Unlike OSM map tiles,
     # this does not retrieve hundreds of thousands of unrelated building nodes.
     bboxes=[(50.739,6.951,50.877,7.088),(50.737,7.059,50.778,7.151)]
