@@ -29,7 +29,7 @@ test('all four Sankt Augustin turns and the real Heumar mainline connection are 
  for(const [from,to] of [['extra-a59-koeln','extra-a560-hennef'],['extra-a59-bonn','extra-a560-hennef'],['extra-a560-bonn','extra-a59-koeln'],['extra-a560-bonn','extra-a59-bonn']])assert.ok(links.some(l=>l.from===from&&l.to===to),from+' > '+to);
  for(const [key,point] of [['extra-a59-koeln',routes['extra-a59-koeln'].points.at(-1)],['extra-a59-bonn',routes['extra-a59-bonn'].points[0]]])assert.ok(['A3-koeln','A3-frankfurt'].some(k=>positionM(routes[k],point,1)!==null),key);
 });
-test('all regular A59/A560 exits have a connected local departure and all alternatives follow directed OSM edges',()=>{
+test('all extension exits including A555/A565 historic-normal ramps have verified directed OSM detours',()=>{
  const missing=[];
  for(const key of mainKeys.filter(k=>k.startsWith('extra-'))){
   for(const j of diversionJunctions(key,exits,routes[key]).filter(j=>!j.isInterchange&&j.access?.[key]?.exit!==false)){
