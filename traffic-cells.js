@@ -843,6 +843,9 @@ export function cellSpeedBands(state) {
         // Only actual dense queues or an occupied, physically blocked face
         // belong to the JAM layer. An uncongested 40-km/h worksite belongs to
         // the separate measured-speed restriction layer, not the queue length.
+        // Display the actual *minute-integrated* flow, rather than the last
+        // 2-second movement sample. It is still derived from conserved vehicles;
+        // this prevents a packet in motion looking frozen due to substep aliasing.
         const speed = c.minuteFlowVph !== undefined && c.densityVehKm >= .05 ?
             Math.max(0, Math.min(c.limitKmh ?? freeSpeedKmh(state.pathKey), c.minuteFlowVph / c.densityVehKm)) :
             c.speedKmh;
