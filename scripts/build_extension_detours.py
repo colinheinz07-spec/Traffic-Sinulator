@@ -34,7 +34,12 @@ speed={'motorway':110,'motorway_link':55,'trunk':70,'primary':60,'secondary':50,
 # the 2026 Bonn bridge construction. This app explicitly models a roadworks-
 # free NORMAL-STATE scenario, not the live traffic situation. Keep the OSM
 # one-way geometry and all other legal restrictions intact.
-NORMAL_STATE_A565_EXIT_WAYS={4394292,23317769}
+NORMAL_STATE_A565_EXIT_WAYS={
+    # A565 → Siegburg: Beuel-Nord, real directed link chain to Niederkasseler Str.
+    4394292,208933050,4965304,
+    # A565 → Koblenz: Auerberg, real directed bridge-side exit link chain.
+    23317769,242768458,1550205181,235377396,4370543,4370544
+}
 graphs={}
 for key in trunks:
  for mode in ['local','network']:
