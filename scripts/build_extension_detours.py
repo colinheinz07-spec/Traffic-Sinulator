@@ -130,6 +130,31 @@ for key,items in anchors.items():
   if j['name'].startswith(('AK ','AD ')) or j.get('access',{}).get(key,{}).get('exit') is False:continue
   if (key,j['ref']) in existing:continue
   edges,finish=shortest(graphs[key,'local'],start,streets)
+  boundary_only=False
+  if not edges:
+   # Preserve only genuinely directed OSM motorway_link edges. An exit
+   # may leave our mapped local-road coverage before the receiving road
+   # appears. No invented continuation or fictitious return is allowed.
+   g=graphs[key,'local'];todo=[(0,start)];seen={start:0};prev={}
+   terminals=[]
+   motorway_nodes={p for main,vertices in positions.items() for p in vertices if main!=key}
+   while todo:
+    d,p=heapq.heappop(todo)
+    if d>seen[p]+1e-7:continue
+    next_links=[(b,w,l) for b,w,l,c in g.get(p,[])
+      if w['tags'].get('highway')=='motorway_link' and b not in motorway_nodes and d+l<=3500]
+    if not next_links and d>40:terminals.append((d,p))
+    for b,w,l in next_links:
+     nd=d+l
+     if nd<seen.get(b,1e99)-1e-7:
+      seen[b]=nd;prev[b]=(p,w,l);heapq.heappush(todo,(nd,b))
+   if terminals:
+    _,finish=max(terminals)
+    edges=[];p=finish
+    while p!=start:
+     a,w,l=prev[p];edges.append((a,p,w,l));p=a
+    edges.reverse()
+    boundary_only=True
   if not edges:continue
   length=sum(l for a,b,w,l in edges)
   if length<10:continue
@@ -138,7 +163,7 @@ for key,items in anchors.items():
    fromRef=j['ref'],toRef='end',fromPoint=start,toPoint=trunks[key][-1],
    points=[edges[0][0]]+[b for a,b,w,l in edges],
    wayIds=list(dict.fromkeys(w['id'] for a,b,w,l in edges)),lengthKm=length/1000,
-   freeMinutes=minutes,motorway=False,exitIsInterchange=False,legs=[]))
+   freeMinutes=minutes,motorway=False,exitIsInterchange=False,legs=[],unmappedBoundary=boundary_only))
   existing.add((key,j['ref']))
 print('Bundled alternatives' ,len(records),'; motorway alternatives',sum(r['motorway'] for r in records),flush=True)
 # Deduplicate vertices and compact route indices; hundreds of alternatives
@@ -152,7 +177,7 @@ for r in records:
   ids.append(indices[point])
  assert len(pool)<65536
  r['vertexIds']=base64.b64encode(struct.pack('<'+'H'*len(ids),*ids)).decode()
-header="import type {Point} from './core.js';\nexport interface ExtensionDetour {id:string;path:string;targetPath:string;fromRef:string;toRef:string;fromPoint:Point;toPoint:Point;points:Point[];wayIds:number[];lengthKm:number;freeMinutes:number;motorway:boolean;exitIsInterchange:boolean;motorwayBypass?:boolean;capacityVph?:number;legs:{path:string;fromPoint:Point;toPoint:Point}[]}\n"
+header="import type {Point} from './core.js';\nexport interface ExtensionDetour {id:string;path:string;targetPath:string;fromRef:string;toRef:string;fromPoint:Point;toPoint:Point;points:Point[];wayIds:number[];lengthKm:number;freeMinutes:number;motorway:boolean;exitIsInterchange:boolean;motorwayBypass?:boolean;unmappedBoundary?:boolean;capacityVph?:number;legs:{path:string;fromPoint:Point;toPoint:Point}[]}\n"
 text=header+'const vertices:Point[]='+json.dumps(pool,separators=(',',':'))+';\nconst packed='+json.dumps(records,separators=(',',':'))+";\nexport const extensionDetours:ExtensionDetour[]=packed.map(({vertexIds,...record})=>{const bytes=atob(vertexIds);return {...record,fromPoint:record.fromPoint as Point,toPoint:record.toPoint as Point,legs:record.legs.map(l=>({...l,fromPoint:l.fromPoint as Point,toPoint:l.toPoint as Point})),points:Array.from({length:bytes.length/2},(_,i)=>vertices[bytes.charCodeAt(i*2)+256*bytes.charCodeAt(i*2+1)]!)};});\n"
 (ROOT/'src/extension-detours-data.ts').write_text(text)
 print('Vertices',len(pool),'module bytes',len(text),flush=True)

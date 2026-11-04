@@ -42,7 +42,7 @@ export function extensionDetourConfig(record:ExtensionDetour,eventId:string,rout
   geometry:{id:record.id,path,sourceExitRef:record.fromRef,targetExitRef:record.toRef,points:record.points,
    lengthKm:record.lengthKm,freeMinutes:record.freeMinutes+extraMinutes,roadCapacityVph:capacity,
    junctionCount:2,trafficLightCount:0,source:'simulated-bundled',relationId:null,
-   label:record.motorway?'Simulierte OSM-Umfahrung über Nachbarautobahnen':'Simulierte OSM-Ortsumleitung',
+   label:record.unmappedBoundary?'OSM-Abfahrtsrampe bis zur Modellgrenze; Weiterfahrt nicht modelliert':record.motorway?'Simulierte OSM-Umfahrung über Nachbarautobahnen':'Simulierte OSM-Ortsumleitung',
    sections:capacity===normalCapacity?sections:sections.map(s=>({...s,capacityVph:capacity}))}};
 }
 export function refreshExtensionDetour(config:DetourConfig,routes:Record<PathKey,Corridor>,events:readonly SimEvent[],

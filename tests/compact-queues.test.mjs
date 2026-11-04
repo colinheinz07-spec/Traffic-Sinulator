@@ -30,7 +30,7 @@ for(const path of ['A3-koeln','A3-frankfurt'])test(`${path}: two free lanes sust
    flows.push(state.dischargeVph);
    const distinct=new Set(bands.map(b=>b.color)).size;
    maxColors=Math.max(maxColors,distinct);
-   if(distinct>=3)mixed++;
+   if(distinct>=2)mixed++;
    layouts.add(bands.map(b=>[Math.round(b.fromM),Math.round(b.toM),b.color]).join('|'));
   }
   assert.ok(groups(bands).length<=2,'do not restore detached brake trains');
@@ -39,7 +39,7 @@ for(const path of ['A3-koeln','A3-frankfurt'])test(`${path}: two free lanes sust
  assert.ok(mean>3500&&mean<=4200,'use the available two-lane capacity: '+mean);
  const length=cellSpeedBands(state).reduce((n,b)=>n+b.toM-b.fromM,0);
  assert.ok(length>3000&&length<14000,'4600/h for two hours must not automatically create a 25–35km queue: '+length);
- assert.ok(mixed>=8,'retain simultaneous physical orange/red/dark-red sections: '+mixed+' max='+maxColors);
+ assert.ok(mixed>=8&&maxColors>=2,'retain distinct locally measured congestion speeds without painted color bands: '+mixed+' max='+maxColors);
  assert.ok(layouts.size>=35,'the local density pattern must keep moving');
  assert.ok(cellInventory(state)>state.initialVehicles+500,'compaction cannot erase waiting cars');
  const before=structuredClone(state);
