@@ -79,8 +79,10 @@ def supplement_missing_offramps(source):
     current={w['id']:w for w in source['elements'] if w['type']=='way'}
     changed=False
     for way_id in verified_ids:
-        features=[r for r in routes if r['kind']=='ramp' and r['wayIds']==[way_id]]
-        if len(features)!=1:continue
+        features=[r for r in routes if r['kind']=='ramp' and r['id']=='extra-bonn-ramp-'+str(way_id)]
+        if len(features)!=1:
+            print('OSM exit bundle unavailable',way_id,'matching routes',len(features),flush=True)
+            continue
         expected=list(map(tuple,features[0]['points']))
         def matches(w):
             if not w or w.get('tags',{}).get('highway')!='motorway_link':return False
