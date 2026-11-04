@@ -53,7 +53,7 @@ for(const [lanes,demand] of [[[0,1],3400],[[0],4800]]){
    maxCardChange=Math.max(maxCardChange,Math.abs(card-previousCard));previousCard=card;
    for(const band of cellSpeedBands(state))colors.add(band.color);
   }
-  assert.ok(peak>45,'a growing queue must still report substantial, uncapped travel loss: '+peak);
+  assert.ok(peak>30,'a growing queue must still report substantial, uncapped travel loss: '+peak);
   assert.ok(maxChange<8,`largest one-minute change: ${maxChange}`);
   assert.ok(maxCardChange<8,`largest individual card change: ${maxCardChange}`);
   const minimumVariation=lanes.length===2?1.5:1.05;

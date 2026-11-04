@@ -1,0 +1,18 @@
+name: Gezielt zweispurige Stauwellen und Umleitungen prüfen
+on:
+  push:
+    branches: [feature/a555-a565-bonn-north-network]
+  pull_request:
+    branches: [main]
+jobs:
+  traffic-critical-regressions:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm ci --no-audit --no-fund
+      - run: npm run build
+      - run: node --test tests/a59-network.test.mjs tests/compact-queues.test.mjs tests/delay-stability.test.mjs tests/distributed-motion.test.mjs tests/two-lane-calibration.test.mjs tests/two-lane-motion.test.mjs

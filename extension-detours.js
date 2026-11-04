@@ -1,11 +1,11 @@
-import { ringDetours } from './ring-detours-data.js?build=aaaf1444372c77a3';
-import { extensionDetours as baseDetours } from './extension-detours-data.js?build=aaaf1444372c77a3';
-import { eventCapacity } from './traffic.js?build=aaaf1444372c77a3';
-import { closureGate, positionM } from './spatial.js?build=aaaf1444372c77a3';
-import { cellQueueSpans } from './traffic-cells.js?build=aaaf1444372c77a3';
-import { diversionJunctions } from './diversions.js?build=aaaf1444372c77a3';
-import { junctionAccess } from './road-controls.js?build=aaaf1444372c77a3';
-import { speedDelayInCells } from './speed-delay.js?build=aaaf1444372c77a3';
+import { ringDetours } from './ring-detours-data.js';
+import { extensionDetours as baseDetours } from './extension-detours-data.js';
+import { eventCapacity } from './traffic.js';
+import { closureGate, positionM } from './spatial.js';
+import { cellQueueSpans } from './traffic-cells.js';
+import { diversionJunctions } from './diversions.js';
+import { junctionAccess } from './road-controls.js';
+import { speedDelayInCells } from './speed-delay.js';
 const extensionDetours = [...baseDetours, ...ringDetours];
 const sectionCache = new WeakMap();
 const indexed = new Map(extensionDetours.map(r => [r.id, r]));
@@ -49,7 +49,7 @@ export function extensionDetourConfig(record, eventId, routes, events, exits, ce
         geometry: { id: record.id, path, sourceExitRef: record.fromRef, targetExitRef: record.toRef, points: record.points,
             lengthKm: record.lengthKm, freeMinutes: record.freeMinutes + extraMinutes, roadCapacityVph: capacity,
             junctionCount: 2, trafficLightCount: 0, source: 'simulated-bundled', relationId: null,
-            label: record.motorway ? 'Simulierte OSM-Umfahrung über Nachbarautobahnen' : 'Simulierte OSM-Ortsumleitung',
+            label: record.unmappedBoundary ? 'OSM-Abfahrtsrampe bis zur Modellgrenze; Weiterfahrt nicht modelliert' : record.motorway ? 'Simulierte OSM-Umfahrung über Nachbarautobahnen' : 'Simulierte OSM-Ortsumleitung',
             sections: capacity === normalCapacity ? sections : sections.map(s => ({ ...s, capacityVph: capacity })) } };
 }
 export function refreshExtensionDetour(config, routes, events, exits, cells) {

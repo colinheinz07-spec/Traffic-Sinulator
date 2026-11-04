@@ -5,7 +5,7 @@ import json,collections,heapq,math
 from extend_heumar_camberg import ROOT,read_data,pt,dist
 bundle=json.loads((ROOT/'data/extension-junctions.json').read_text());core=read_data()
 features=bundle['routes'];junctions=core['exits']+bundle['junctions']
-sources=[json.loads((ROOT/p).read_text())['elements'] for p in ['data/a3-heumar-camberg-osm.json','data/a59-a560-osm.json','data/cologne-triangle-osm.json','data/bonn-a59-a562-osm.json', 'data/a4-koeln-sued-osm.json','data/a4-koeln-west-osm.json']]
+sources=[json.loads((ROOT/p).read_text())['elements'] for p in ['data/a3-heumar-camberg-osm.json','data/a59-a560-osm.json','data/cologne-triangle-osm.json','data/bonn-a59-a562-osm.json', 'data/a4-koeln-sued-osm.json','data/a4-koeln-west-osm.json','data/a555-a565-bonn-osm.json']]
 ways=list({e['id']:e for source in sources for e in source if e['type']=='way' and e.get('geometry') and any(50.65<p['lat']<50.97 and 6.80<p['lon']<7.4 for p in e['geometry'])}.values())
 # Build core directional chains by exact endpoint topology.
 trunks={f['id']:list(map(tuple,f['points'])) for f in features if f['kind']=='motorway'}
@@ -30,13 +30,25 @@ for w in ways:
  if t.get('oneway')=='-1':ps.reverse()
  incoming[ps[-1]].add(ps[0])
 speed={'motorway':110,'motorway_link':55,'trunk':70,'primary':60,'secondary':50,'tertiary':40,'residential':25,'unclassified':35,'primary_link':30,'secondary_link':25,'tertiary_link':20,'trunk_link':40}
+# These two original A565 exit ramps are currently tagged access=no due to
+# the 2026 Bonn bridge construction. This app explicitly models a roadworks-
+# free NORMAL-STATE scenario, not the live traffic situation. Keep the OSM
+# one-way geometry and all other legal restrictions intact.
+NORMAL_STATE_A565_EXIT_WAYS={
+    # A565 → Siegburg: Beuel-Nord, real directed link chain to Niederkasseler Str.
+    4394292,208933050,4965304,
+    # A565 → Koblenz: Auerberg, real directed bridge-side exit link chain.
+    23317769,242768458,1550205181,235377396,4370543,4370544
+}
 graphs={}
 for key in trunks:
  for mode in ['local','network']:
   g=collections.defaultdict(list);own=set(trunks[key])
   for w in ways:
    t=w.get('tags',{});h=t.get('highway');ref=t.get('ref','').replace(' ','')
-   if h not in speed or t.get('access') in ['private','no','agricultural','forestry'] or t.get('motor_vehicle') in ['private','no'] or t.get('motorcar') in ['private','no']:continue
+   if h not in speed or t.get('motor_vehicle') in ['private','no'] or t.get('motorcar') in ['private','no']:continue
+   historic_normal_exit=(w['id'] in NORMAL_STATE_A565_EXIT_WAYS and h=='motorway_link' and t.get('access')=='no')
+   if t.get('access') in ['private','no','agricultural','forestry'] and not historic_normal_exit:continue
    ps=list(map(pt,w['geometry']))
    retained=any(any(p in positions[k] for p in ps) for k in trunks) if h=='motorway' else False
    if h=='motorway' and mode=='local' and retained:continue
@@ -52,7 +64,7 @@ for key in trunks:
   graphs[key,mode]=g
 anchors={}
 for key,ps in trunks.items():
- road=next(road for prefix,road in [('A3-','A3'),('extra-a4-','A4'),('extra-a559-','A559'),('extra-a59-','A59'),('extra-a560-','A560'),('extra-a562-','A562'),('extra-a555-','A555'),('extra-a1-','A1')] if key.startswith(prefix));anchors[key]=[]
+ road=next(road for prefix,road in [('A3-','A3'),('extra-a4-','A4'),('extra-a559-','A559'),('extra-a59-','A59'),('extra-a560-','A560'),('extra-a562-','A562'),('extra-a555-','A555'),('extra-a565-','A565'),('extra-a1-','A1')] if key.startswith(prefix));anchors[key]=[]
  for j in junctions:
   if j['road']!=road or key not in j.get('directional',{}):continue
   p=tuple(j['directional'][key]['position'])
@@ -119,6 +131,58 @@ for key,items in anchors.items():
   if not edges:continue
   length=sum(l for a,b,w,l in edges);minutes=sum(l/1000/speed[w['tags']['highway']]*60 for a,b,w,l in edges)
   records.append(dict(id='EXT-'+key+'-'+j['ref']+'-end',path=key,targetPath=key,fromRef=j['ref'],toRef='end',fromPoint=start,toPoint=trunks[key][-1],points=[edges[0][0]]+[b for a,b,w,l in edges],wayIds=list(dict.fromkeys(w['id'] for a,b,w,l in edges)),lengthKm=length/1000,freeMinutes=minutes,motorway=False,exitIsInterchange=False,legs=[]))
+# Some correctly directed exits lead to a local road but cannot rejoin the
+# same motorway before the mapped boundary. Keep their genuine *exit-network*
+# alternative instead of inventing a rejoining connection.
+existing={(r['path'],r['fromRef']) for r in records}
+streets={p for w in ways if w['tags'].get('highway') not in ['motorway','motorway_link']
+ for p in map(pt,w['geometry'])}
+for key,items in anchors.items():
+ for index,j,start in items:
+  if j['name'].startswith(('AK ','AD ')) or j.get('access',{}).get(key,{}).get('exit') is False:continue
+  if (key,j['ref']) in existing:continue
+  edges,finish=shortest(graphs[key,'local'],start,streets)
+  boundary_only=False
+  if not edges:
+   # Preserve only genuinely directed OSM motorway_link edges. An exit
+   # may leave our mapped local-road coverage before the receiving road
+   # appears. No invented continuation or fictitious return is allowed.
+   g=graphs[key,'local'];todo=[(0,start)];seen={start:0};prev={}
+   terminals=[]
+   motorway_nodes={p for main,vertices in positions.items() for p in vertices if main!=key}
+   while todo:
+    d,p=heapq.heappop(todo)
+    if d>seen[p]+1e-7:continue
+    next_links=[(b,w,l) for b,w,l,c in g.get(p,[])
+      if w['tags'].get('highway')=='motorway_link' and b not in motorway_nodes and d+l<=3500]
+    if not next_links and d>=10:terminals.append((d,p))
+    for b,w,l in next_links:
+     nd=d+l
+     if nd<seen.get(b,1e99)-1e-7:
+      seen[b]=nd;prev[b]=(p,w,l);heapq.heappush(todo,(nd,b))
+   if terminals:
+    _,finish=max(terminals)
+    edges=[];p=finish
+    while p!=start:
+     a,w,l=prev[p];edges.append((a,p,w,l));p=a
+    edges.reverse()
+    boundary_only=True
+  if not edges:
+   # A genuine junction without a mapped onward connection is a coverage
+   # defect, not permission to invent a road or reverse a one-way ramp.
+   nearby=[(str(w['id']),w['tags'].get('highway'),round(l),b in motorway_nodes)
+           for b,w,l,_ in graphs[key,'local'].get(start,[])][:8]
+   print('UNCONNECTED OSM EXIT',key,j['ref'],start,'outgoing',nearby,flush=True)
+   continue
+  length=sum(l for a,b,w,l in edges)
+  if length<10:continue
+  minutes=sum(l/1000/speed[w['tags']['highway']]*60 for a,b,w,l in edges)
+  records.append(dict(id='EXT-'+key+'-'+j['ref']+'-end',path=key,targetPath=key,
+   fromRef=j['ref'],toRef='end',fromPoint=start,toPoint=trunks[key][-1],
+   points=[edges[0][0]]+[b for a,b,w,l in edges],
+   wayIds=list(dict.fromkeys(w['id'] for a,b,w,l in edges)),lengthKm=length/1000,
+   freeMinutes=minutes,motorway=False,exitIsInterchange=False,legs=[],unmappedBoundary=boundary_only))
+  existing.add((key,j['ref']))
 print('Bundled alternatives' ,len(records),'; motorway alternatives',sum(r['motorway'] for r in records),flush=True)
 # Deduplicate vertices and compact route indices; hundreds of alternatives
 # reuse the same streets. Decode once at module load, never on a timer tick.
@@ -131,7 +195,7 @@ for r in records:
   ids.append(indices[point])
  assert len(pool)<65536
  r['vertexIds']=base64.b64encode(struct.pack('<'+'H'*len(ids),*ids)).decode()
-header="import type {Point} from './core.js';\nexport interface ExtensionDetour {id:string;path:string;targetPath:string;fromRef:string;toRef:string;fromPoint:Point;toPoint:Point;points:Point[];wayIds:number[];lengthKm:number;freeMinutes:number;motorway:boolean;exitIsInterchange:boolean;motorwayBypass?:boolean;capacityVph?:number;legs:{path:string;fromPoint:Point;toPoint:Point}[]}\n"
+header="import type {Point} from './core.js';\nexport interface ExtensionDetour {id:string;path:string;targetPath:string;fromRef:string;toRef:string;fromPoint:Point;toPoint:Point;points:Point[];wayIds:number[];lengthKm:number;freeMinutes:number;motorway:boolean;exitIsInterchange:boolean;motorwayBypass?:boolean;unmappedBoundary?:boolean;capacityVph?:number;legs:{path:string;fromPoint:Point;toPoint:Point}[]}\n"
 text=header+'const vertices:Point[]='+json.dumps(pool,separators=(',',':'))+';\nconst packed='+json.dumps(records,separators=(',',':'))+";\nexport const extensionDetours:ExtensionDetour[]=packed.map(({vertexIds,...record})=>{const bytes=atob(vertexIds);return {...record,fromPoint:record.fromPoint as Point,toPoint:record.toPoint as Point,legs:record.legs.map(l=>({...l,fromPoint:l.fromPoint as Point,toPoint:l.toPoint as Point})),points:Array.from({length:bytes.length/2},(_,i)=>vertices[bytes.charCodeAt(i*2)+256*bytes.charCodeAt(i*2+1)]!)};});\n"
 (ROOT/'src/extension-detours-data.ts').write_text(text)
 print('Vertices',len(pool),'module bytes',len(text),flush=True)

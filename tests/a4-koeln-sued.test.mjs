@@ -25,14 +25,16 @@ test('A4 extends in both OSM-directed carriageways from Gremberg across Rodenkir
 });
 
 test('A555 connects both directions to AK Köln-Süd and Rodenkirchen without fictitious straight segments',()=>{
- const raw=JSON.parse(readFileSync('data/a4-koeln-sued-osm.json','utf8'));
- const edges=new Set(raw.elements.filter(e=>e.type==='way'&&e.tags?.highway==='motorway')
+ // Extended A555 edges are verified against both actual OSM source snapshots.
+ const elements=['data/a4-koeln-sued-osm.json','data/a555-a565-bonn-osm.json']
+  .flatMap(file=>JSON.parse(readFileSync(file,'utf8')).elements);
+ const edges=new Set(elements.filter(e=>e.type==='way'&&e.tags?.highway==='motorway')
   .flatMap(w=>{const pts=w.geometry.map(p=>[p.lat,p.lon]);
    if(w.tags.oneway==='-1')pts.reverse();
    return pts.slice(1).map((p,i)=>JSON.stringify([pts[i],p]));}));
  for(const id of ['extra-a555-bonn','extra-a555-koeln']){
   const f=feature(id);assert.ok(f&&f.points.length>8);
-  assert.ok(routes[id].lengthM>2700&&routes[id].lengthM<11000);
+  assert.ok(routes[id].lengthM>14000&&routes[id].lengthM<26000);
   assert.equal(networkRoad(id),'A555');
   for(let i=1;i<f.points.length;i++)assert.ok(edges.has(JSON.stringify([f.points[i-1],f.points[i]])),id+' missing exact OSM way edge '+i);
  }

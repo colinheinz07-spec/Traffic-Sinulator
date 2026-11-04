@@ -1,6 +1,6 @@
-import { exitPosition } from './core.js?build=aaaf1444372c77a3';
-import { positionM, closureGate } from './spatial.js?build=aaaf1444372c77a3';
-import { profileFactor, REFERENCE_PEAKS } from './traffic-profiles.js?build=aaaf1444372c77a3';
+import { exitPosition } from './core.js';
+import { positionM, closureGate } from './spatial.js';
+import { profileFactor, REFERENCE_PEAKS } from './traffic-profiles.js';
 const anchorCache = new WeakMap();
 function anchor(route, exits, ref) {
     let cached = anchorCache.get(route);
