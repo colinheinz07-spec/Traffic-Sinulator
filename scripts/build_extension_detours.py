@@ -119,6 +119,27 @@ for key,items in anchors.items():
   if not edges:continue
   length=sum(l for a,b,w,l in edges);minutes=sum(l/1000/speed[w['tags']['highway']]*60 for a,b,w,l in edges)
   records.append(dict(id='EXT-'+key+'-'+j['ref']+'-end',path=key,targetPath=key,fromRef=j['ref'],toRef='end',fromPoint=start,toPoint=trunks[key][-1],points=[edges[0][0]]+[b for a,b,w,l in edges],wayIds=list(dict.fromkeys(w['id'] for a,b,w,l in edges)),lengthKm=length/1000,freeMinutes=minutes,motorway=False,exitIsInterchange=False,legs=[]))
+# Some correctly directed exits lead to a local road but cannot rejoin the
+# same motorway before the mapped boundary. Keep their genuine *exit-network*
+# alternative instead of inventing a rejoining connection.
+existing={(r['path'],r['fromRef']) for r in records}
+streets={p for w in ways if w['tags'].get('highway') not in ['motorway','motorway_link']
+ for p in map(pt,w['geometry'])}
+for key,items in anchors.items():
+ for index,j,start in items:
+  if j['name'].startswith(('AK ','AD ')) or j.get('access',{}).get(key,{}).get('exit') is False:continue
+  if (key,j['ref']) in existing:continue
+  edges,finish=shortest(graphs[key,'local'],start,streets)
+  if not edges:continue
+  length=sum(l for a,b,w,l in edges)
+  if length<10:continue
+  minutes=sum(l/1000/speed[w['tags']['highway']]*60 for a,b,w,l in edges)
+  records.append(dict(id='EXT-'+key+'-'+j['ref']+'-end',path=key,targetPath=key,
+   fromRef=j['ref'],toRef='end',fromPoint=start,toPoint=trunks[key][-1],
+   points=[edges[0][0]]+[b for a,b,w,l in edges],
+   wayIds=list(dict.fromkeys(w['id'] for a,b,w,l in edges)),lengthKm=length/1000,
+   freeMinutes=minutes,motorway=False,exitIsInterchange=False,legs=[]))
+  existing.add((key,j['ref']))
 print('Bundled alternatives' ,len(records),'; motorway alternatives',sum(r['motorway'] for r in records),flush=True)
 # Deduplicate vertices and compact route indices; hundreds of alternatives
 # reuse the same streets. Decode once at module load, never on a timer tick.
