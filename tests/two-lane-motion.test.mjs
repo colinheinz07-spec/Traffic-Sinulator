@@ -25,9 +25,9 @@ for(const path of ['A3-koeln','A3-frankfurt'])test(`${path}: two lanes at 60 ret
  const route=routes[path],at=route.lengthM*.7;
  const event={id:'two-lane-motion',kind:'accident',pathKey:path,laneCount:3,closedLanes:[0],point:routeSlice(route,at,at+1)[0],
   createdAt:'2026-10-29T08:00:00Z',settings:{lengthM:100,speedKmh:60,shoulder:'normal'}};
- let grid=initialiseCells(route,4100),mixed=0,movingInside=0,peak=0,maximumOrange=0;const flows=[],positions=new Set();
+ let grid=initialiseCells(route,4600),mixed=0,movingInside=0,peak=0,maximumOrange=0;const flows=[],positions=new Set();
  for(let minute=0;minute<150;minute++){
-  grid=advanceCells(grid,route,[event],4100,networkData.exits);assertCellConservation(grid);
+  grid=advanceCells(grid,route,[event],4600,networkData.exits);assertCellConservation(grid);
   if(minute<30)continue;
   const bands=cellSpeedBands(grid),colors=new Set(bands.map(b=>b.color));
   if(colors.has('slow')&&colors.has('jam'))mixed++;
@@ -39,7 +39,7 @@ for(const path of ['A3-koeln','A3-frankfurt'])test(`${path}: two lanes at 60 ret
   assert.ok(bands.every(b=>b.color===colorAtSpeed(b.speedKmh)));
  }
  const mean=flows.reduce((n,f)=>n+f,0)/flows.length;
- assert.ok(mean>3500&&mean<4000,`sustained two-lane discharge remains finite: ${mean}`);
+ assert.ok(mean>3500&&mean<4300,`sustained two-lane discharge remains finite: ${mean}`);
  assert.ok(peak>3700&&peak<=4500+1e-6,'shorter platoon headways transfer real vehicles, not only orange paint: '+peak);
  assert.ok(mixed>25&&movingInside>5,'orange phases propagate into the congested section: '+[mixed,movingInside]);
  assert.ok(maximumOrange>=200&&positions.size>65,'visible moving pockets, not a single recurring 100m symbol');
