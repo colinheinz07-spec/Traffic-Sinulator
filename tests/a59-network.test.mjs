@@ -34,8 +34,8 @@ test('all regular A59/A560 exits have a connected local departure and all altern
   for(const j of diversionJunctions(key,exits,routes[key]).filter(j=>!j.isInterchange&&j.access?.[key]?.exit!==false)){
    const found=extensionDetours.some(r=>r.path===key&&r.fromRef===j.ref);
    const anchor=j.directional?.[key]?.position??j.position;
-   const attached=extensionRoutes.filter(r=>r.kind==='ramp'&&r.points.some(p=>p[0]===anchor?.[0]&&p[1]===anchor?.[1])).map(r=>r.id);
-   assert.ok(found,key+' exit '+j.ref+' at '+JSON.stringify(anchor)+'; attached ramps='+attached.slice(0,12).join(',')+'; exits with alternatives='+[...new Set(extensionDetours.filter(r=>r.path===key).map(r=>r.fromRef))].join(','));
+   const attached=extensionRoutes.filter(r=>r.kind==='ramp'&&r.points.some(p=>p[0]===anchor?.[0]&&p[1]===anchor?.[1])).map(r=>({id:r.id,first:r.points[0],last:r.points.at(-1),metres:Math.round(r.laneSegments.at(-1).toM)}));
+   assert.ok(found,key+' exit '+j.ref+' at '+JSON.stringify(anchor)+'; attached ramps='+JSON.stringify(attached.slice(0,12))+'; exits with alternatives='+[...new Set(extensionDetours.filter(r=>r.path===key).map(r=>r.fromRef))].join(','));
   }
  }
  const sources=['a3-heumar-camberg-osm.json','a59-a560-osm.json','cologne-triangle-osm.json','bonn-a59-a562-osm.json','a4-koeln-sued-osm.json','a4-koeln-west-osm.json','a555-a565-bonn-osm.json'].flatMap(f=>JSON.parse(readFileSync(new URL('../data/'+f,import.meta.url))).elements);
