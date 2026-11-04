@@ -1,9 +1,9 @@
-import { regionalFlowAt, regionalJunctionDemands } from './regional-traffic.js';
-import { networkRoad } from './network-road.js';
-import { junctionAccess } from './road-controls.js';
-import { localRoadAvailability } from './calendar-traffic.js';
-import { applyJunctionRampLimits } from './junction-ramp-bindings.js';
-import { diversionJunctions } from './diversions.js';
+import { regionalFlowAt, regionalJunctionDemands } from './regional-traffic.js?build=e7ddf73fa373408b';
+import { networkRoad } from './network-road.js?build=e7ddf73fa373408b';
+import { junctionAccess } from './road-controls.js?build=e7ddf73fa373408b';
+import { localRoadAvailability } from './calendar-traffic.js?build=e7ddf73fa373408b';
+import { applyJunctionRampLimits } from './junction-ramp-bindings.js?build=e7ddf73fa373408b';
+import { diversionJunctions } from './diversions.js?build=e7ddf73fa373408b';
 // No surveyed AS signal plans or local off-ramp lengths are bundled. These
 // are explicit defaults: roughly one 300 m queue lane, and ~39% effective
 // green at 1800 veh/h/lane. They are not measured AS-specific capacities.
