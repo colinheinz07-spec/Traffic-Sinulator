@@ -33,7 +33,7 @@ test('all regular A59/A560 exits have a connected local departure and all altern
  for(const key of mainKeys.filter(k=>k.startsWith('extra-'))){
   for(const j of diversionJunctions(key,exits,routes[key]).filter(j=>!j.isInterchange&&j.access?.[key]?.exit!==false))assert.ok(extensionDetours.some(r=>r.path===key&&r.fromRef===j.ref),key+' exit '+j.ref);
  }
- const sources=['a3-heumar-camberg-osm.json','a59-a560-osm.json','cologne-triangle-osm.json','bonn-a59-a562-osm.json','a4-koeln-sued-osm.json','a4-koeln-west-osm.json'].flatMap(f=>JSON.parse(readFileSync(new URL('../data/'+f,import.meta.url))).elements);
+ const sources=['a3-heumar-camberg-osm.json','a59-a560-osm.json','cologne-triangle-osm.json','bonn-a59-a562-osm.json','a4-koeln-sued-osm.json','a4-koeln-west-osm.json','a555-a565-bonn-osm.json'].flatMap(f=>JSON.parse(readFileSync(new URL('../data/'+f,import.meta.url))).elements);
  const ways=new Map(sources.filter(e=>e.type==='way').map(w=>[w.id,w])),edge=new Set();
  const point=p=>[p.lat,p.lon].map(v=>Number(v.toFixed(7))).join(',');
  for(const w of ways.values()){
