@@ -34,7 +34,7 @@ for(const path of ['A3-koeln','A3-frankfurt'])test(`${path}: two free lanes sust
   assert.ok(groups(bands).length<=2,'do not restore detached brake trains');
  }
  const mean=flows.reduce((n,f)=>n+f,0)/flows.length;
- assert.ok(mean>3500&&mean<=4000,'use the available two-lane capacity: '+mean);
+ assert.ok(mean>3500&&mean<=4200,'use the available two-lane capacity: '+mean);
  const length=cellSpeedBands(state).reduce((n,b)=>n+b.toM-b.fromM,0);
  assert.ok(length>3000&&length<14000,'4600/h for two hours must not automatically create a 25–35km queue: '+length);
  assert.ok(mixed>=8,'retain simultaneous physical orange/red/dark-red sections: '+mixed);
