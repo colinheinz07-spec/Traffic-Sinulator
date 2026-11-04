@@ -143,7 +143,7 @@ for key,items in anchors.items():
     if d>seen[p]+1e-7:continue
     next_links=[(b,w,l) for b,w,l,c in g.get(p,[])
       if w['tags'].get('highway')=='motorway_link' and b not in motorway_nodes and d+l<=3500]
-    if not next_links and d>40:terminals.append((d,p))
+    if not next_links and d>=10:terminals.append((d,p))
     for b,w,l in next_links:
      nd=d+l
      if nd<seen.get(b,1e99)-1e-7:
@@ -155,7 +155,13 @@ for key,items in anchors.items():
      a,w,l=prev[p];edges.append((a,p,w,l));p=a
     edges.reverse()
     boundary_only=True
-  if not edges:continue
+  if not edges:
+   # A genuine junction without a mapped onward connection is a coverage
+   # defect, not permission to invent a road or reverse a one-way ramp.
+   nearby=[(str(w['id']),w['tags'].get('highway'),round(l),b in motorway_nodes)
+           for b,w,l,_ in graphs[key,'local'].get(start,[])][:8]
+   print('UNCONNECTED OSM EXIT',key,j['ref'],start,'outgoing',nearby,flush=True)
+   continue
   length=sum(l for a,b,w,l in edges)
   if length<10:continue
   minutes=sum(l/1000/speed[w['tags']['highway']]*60 for a,b,w,l in edges)
