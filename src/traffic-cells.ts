@@ -806,22 +806,16 @@ export function cellSpeedBands(state:CellRouteState):CellSpeedBand[]{
   // Only actual dense queues or an occupied, physically blocked face
   // belong to the JAM layer. An uncongested 40-km/h worksite belongs to
   // the separate measured-speed restriction layer, not the queue length.
-  // Display the actual *minute-integrated* flow, rather than the last
-  // 2-second movement sample. It is still derived from conserved vehicles;
-  // this prevents a packet in motion looking frozen due to substep aliasing.
-  const speed=c.minuteFlowVph!==undefined&&c.densityVehKm>=.05?
-   Math.max(0,Math.min(c.limitKmh??freeSpeedKmh(state.pathKey),c.minuteFlowVph/c.densityVehKm)):
-   c.speedKmh;
   const physicallyBlocked=c.blockedAtM!==undefined&&c.vehicles>=.75;
-  const actuallyStopped=c.vehicles>=.75&&speed<=10;
-  if(speed>65||(!physicallyBlocked&&!actuallyStopped&&
+  const actuallyStopped=c.vehicles>=.75&&c.speedKmh<=10;
+  if(c.speedKmh>65||(!physicallyBlocked&&!actuallyStopped&&
    c.densityVehKm<(c.criticalDensityVehKm??critical)*1.10&&c.approachLimitKmh===undefined))continue;
-  const color=colorAtSpeed(speed);
+  const color=colorAtSpeed(c.speedKmh);
   if(color==='free')continue;
   const last=bands.at(-1);
   if(last?.color===color&&Math.abs(last.toM-c.fromM)<.1){
-   last.toM=c.toM;last.speedKmh=Math.min(last.speedKmh,speed);
-  }else bands.push({fromM:c.fromM,toM:c.toM,speedKmh:speed,color,source:'cell'});
+   last.toM=c.toM;last.speedKmh=Math.min(last.speedKmh,c.speedKmh);
+  }else bands.push({fromM:c.fromM,toM:c.toM,speedKmh:c.speedKmh,color,source:'cell'});
  }
  return bands;
 }
