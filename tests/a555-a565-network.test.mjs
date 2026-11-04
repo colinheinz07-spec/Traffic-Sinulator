@@ -119,3 +119,14 @@ test('real downstream congestion propagates into A555/A565/A59 connectors and ba
     'Queue beyond ramp storage should occupy the source motorway '+link.from);
  }
 });
+
+test('named off-ramp anchors follow exact directional OSM forks, not the nearest arbitrary motorway vertex',()=>{
+ for(const [road,ref,key,point] of [["A555","3","extra-a555-bonn",[50.863634,6.9692339]],["A555","6","extra-a555-bonn",[50.7638566,7.0314272]],["A555","6","extra-a555-koeln",[50.7648596,7.0305814]]]){
+  const junction=extensionJunctions.find(j=>j.road===road&&j.ref===ref);
+  assert.deepEqual(junction.directional[key].position,point,road+' '+ref+' '+key);
+  assert.ok(extensionRoutes.some(r=>r.kind==='ramp'&&r.points[0][0]===point[0]&&r.points[0][1]===point[1]),
+   'exit anchor must lead to an actual OSM ramp: '+key+'/'+ref);
+ }
+ assert.equal(extensionJunctions.find(j=>j.road==='A565'&&j.ref==='3')
+  .access['extra-a565-siegburg'].exit,false,'do not invent an absent directional exit');
+});

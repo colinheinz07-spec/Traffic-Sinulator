@@ -310,6 +310,17 @@ def build():
             if key in j.get('directional',{}):continue
             route=byid[key];p=min(map(tuple,route['points']),key=lambda x:metres(x,j['position']))
             j.setdefault('directional',{})[key]={'position':list(p),'nodeId':0}
+    # AS anchors must be the exact OSM fork node, not an arbitrary nearby
+    # motorway vertex: otherwise no legal ramp can receive departing traffic.
+    for road,ref,key,pos in [["A555","3","extra-a555-bonn",[50.863634,6.9692339]],["A555","6","extra-a555-bonn",[50.7638566,7.0314272]],["A555","6","extra-a555-koeln",[50.7648596,7.0305814]]]:
+        j=next(j for j in junctions if j['road']==road and j['ref']==ref)
+        assert list(pos) in byid[key]['points'],(key,ref,'missing OSM fork')
+        j['directional'][key]['position']=list(pos)
+        if key=='extra-a555-bonn':j['position']=list(pos)
+    # At Bonn-Auerberg, the mapped Siegburg carriageway has no verified
+    # local departure. It must not create vehicles on a nonexistent ramp.
+    j=next(j for j in junctions if j['road']=='A565' and j['ref']=='3')
+    j.setdefault('access',{})['extra-a565-siegburg']={'entry':True,'exit':False}
     # Link chains are constructed as genuine directed OSM walks. Existing A4
     # and A59 ramps stay untouched, and attached ramps acquire their new
     # connections automatically when the A555/A565 trunks are installed.
