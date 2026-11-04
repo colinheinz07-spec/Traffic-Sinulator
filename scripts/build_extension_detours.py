@@ -30,13 +30,20 @@ for w in ways:
  if t.get('oneway')=='-1':ps.reverse()
  incoming[ps[-1]].add(ps[0])
 speed={'motorway':110,'motorway_link':55,'trunk':70,'primary':60,'secondary':50,'tertiary':40,'residential':25,'unclassified':35,'primary_link':30,'secondary_link':25,'tertiary_link':20,'trunk_link':40}
+# These two original A565 exit ramps are currently tagged access=no due to
+# the 2026 Bonn bridge construction. This app explicitly models a roadworks-
+# free NORMAL-STATE scenario, not the live traffic situation. Keep the OSM
+# one-way geometry and all other legal restrictions intact.
+NORMAL_STATE_A565_EXIT_WAYS={4394292,23317769}
 graphs={}
 for key in trunks:
  for mode in ['local','network']:
   g=collections.defaultdict(list);own=set(trunks[key])
   for w in ways:
    t=w.get('tags',{});h=t.get('highway');ref=t.get('ref','').replace(' ','')
-   if h not in speed or t.get('access') in ['private','no','agricultural','forestry'] or t.get('motor_vehicle') in ['private','no'] or t.get('motorcar') in ['private','no']:continue
+   if h not in speed or t.get('motor_vehicle') in ['private','no'] or t.get('motorcar') in ['private','no']:continue
+   historic_normal_exit=(w['id'] in NORMAL_STATE_A565_EXIT_WAYS and h=='motorway_link' and t.get('access')=='no')
+   if t.get('access') in ['private','no','agricultural','forestry'] and not historic_normal_exit:continue
    ps=list(map(pt,w['geometry']))
    retained=any(any(p in positions[k] for p in ps) for k in trunks) if h=='motorway' else False
    if h=='motorway' and mode=='local' and retained:continue
