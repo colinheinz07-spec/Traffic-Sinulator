@@ -86,12 +86,18 @@ def supplement_missing_offramps(source):
         expected=list(map(tuple,features[0]['points']))
         def matches(w):
             if not w or w.get('tags',{}).get('highway')!='motorway_link':return False
+            tags=w.get('tags',{})
+            if tags.get('access') in ('no','private') or tags.get('motor_vehicle') in ('no','private') or tags.get('motorcar') in ('no','private'):
+                return False
             geom=w.get('geometry')
             if not geom:return False
             points=list(map(point,geom))
             if w.get('tags',{}).get('oneway')=='-1':points.reverse()
             return points==expected
-        if matches(current.get(way_id)):continue
+        if matches(current.get(way_id)):
+            print('OSM EXIT ALREADY LEGAL',way_id,flush=True)
+            continue
+        print('OSM EXIT REQUIRES LEGALITY AUDIT',way_id,'tags',current.get(way_id,{}).get('tags',{}),flush=True)
         proven=None;kind=None
         # Current official OSM way and all of its exact member nodes.
         try:
