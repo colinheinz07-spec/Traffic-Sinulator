@@ -20,6 +20,23 @@ nodes=[e for e in items.values() if e['type']=='node']
 point=lambda p: (p['lat'],p['lon'])
 def metres(a,b):
  return 111195*math.hypot(a[0]-b[0],(a[1]-b[1])*math.cos(math.radians((a[0]+b[0])/2)))
+# The A4 already reaches AK Köln-Süd in current generated geometry,
+# while A555 was subsequently extended all the way to AK Bonn-Nord.
+# This importer is a one-time topology construction, NOT an additive update.
+# Replaying it would start at the far end of the completed A4 carriageway,
+# duplicate the A555 routes and falsely report missing A4 OSM connections.
+# Stop only when all four real OSM motorway corridors are already present.
+byid={f['id']:f for f in features}
+centre=(50.88552,6.9683)
+def complete(key,minimum):
+ f=byid.get(key)
+ return bool(f and f['laneSegments'][-1]['toM']>minimum and
+             any(metres(tuple(p),centre)<250 for p in f['points']))
+if all(complete(key,minimum) for key,minimum in (
+ ('extra-a4-aachen',12000),('extra-a4-olpe',12000),
+ ('extra-a555-bonn',14000),('extra-a555-koeln',14000))):
+ print('A4 Köln-Süd/A555 Bonn already present as verified OSM corridors; skipping non-idempotent importer.',flush=True)
+ raise SystemExit(0)
 def norm(s):return s.replace(' ','').replace('BAB','A')
 def allowed(w,ref,kind='motorway'):
  t=w.get('tags',{})
