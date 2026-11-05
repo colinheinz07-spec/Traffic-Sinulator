@@ -6,8 +6,8 @@
  * Adding a generated ExtensionRoute registers it automatically.
  */
 import {networkData} from './geodata.js';
-import {names} from './core.js';
-import {extensionRoutes} from './network-extensions.js';
+import {names,type MapData} from './core.js';
+import {extensionRoutes,type ExtensionRoute} from './network-extensions.js';
 import {normalThroughLanes} from './lane-info.js';
 import {REFERENCE_PEAKS} from './traffic-profiles.js';
 
@@ -15,6 +15,8 @@ export type RouteKind='motorway'|'ramp';
 export interface RouteDescriptor {
  key:string; motorway:string|null; kind:RouteKind; lanes:number;
  freeKmh:number; demandVph:number; label:string; source:'legacy'|'extension';
+ /** Direction of imported legacy OSM chain, if explicitly calibrated. */
+ geometryOrder?:'east'|'west';
 }
 const legacyDemand:Readonly<Record<string,number>>={
  'A3-koeln':4200,'A3-frankfurt':4100,
@@ -38,32 +40,46 @@ function commonLaneCount(values:readonly number[]):number{
  const ordered=[...counts].sort((a,b)=>b[1]-a[1]||a[0]-b[0]);
  return ordered[0]?.[0]??1;
 }
-const legacyMotorways=[...new Set(networkData.roads.map(r=>r.road))].map(key=>{
- const roads=networkData.roads.filter(r=>r.road===key);
- return {key,motorway:motorwayRef(key),kind:'motorway' as const,
-  lanes:commonLaneCount(roads.map(normalThroughLanes)),freeKmh:130,
-  demandVph:legacyDemand[key]??REFERENCE_PEAKS[key]??0,
-  label:names[key],source:'legacy' as const};
-});
-const legacyRamps=networkData.ramps.map(r=>({
- key:r.id,motorway:null,kind:'ramp' as const,lanes:r.lanes,freeKmh:80,
- demandVph:legacyDemand[r.id]??0,label:r.name,source:'legacy' as const
-}));
-const legacy=[...legacyMotorways,...legacyRamps].sort((a,b)=>{
- const ia=preferredLegacyOrder.indexOf(a.key),ib=preferredLegacyOrder.indexOf(b.key);
- return (ia<0?Infinity:ia)-(ib<0?Infinity:ib);
-});
-const extensions=extensionRoutes.map(r=>({
- key:r.id,motorway:r.kind==='motorway'?motorwayRef(r.name)??motorwayRef(r.id.replace(/^extra-/,'').toUpperCase()):null,
- kind:r.kind,lanes:r.lanes,freeKmh:r.freeKmh,
- demandVph:REFERENCE_PEAKS[r.id]??r.demandVph,
- label:r.name,source:'extension' as const
-}));
-export const ROUTE_CATALOG:readonly RouteDescriptor[]=[...legacy,...extensions];
+/** Generate a complete registry from supplied OSM data; no global registry
+ * edits are required to import and validate a newly added motorway. */
+export function createRouteCatalog(
+ data:Pick<MapData,'roads'|'ramps'>,
+ additions:readonly ExtensionRoute[]
+):RouteDescriptor[]{
+ const knownDirections:Readonly<Record<string,'east'|'west'>>={
+  'A3-koeln':'west','A3-frankfurt':'east',
+  'A48-dernbach':'east','A48-koblenz':'west'
+ };
+ const motorways=[...new Set(data.roads.map(r=>r.road))].map(key=>{
+  const roads=data.roads.filter(r=>r.road===key);
+  return {key,motorway:motorwayRef(key),kind:'motorway' as const,
+   lanes:commonLaneCount(roads.map(normalThroughLanes)),freeKmh:130,
+   demandVph:legacyDemand[key]??REFERENCE_PEAKS[key]??0,
+   label:names[key]??key,source:'legacy' as const,
+   geometryOrder:knownDirections[key]};
+ });
+ const ramps=data.ramps.map(r=>({
+  key:r.id,motorway:null,kind:'ramp' as const,lanes:r.lanes,freeKmh:80,
+  demandVph:legacyDemand[r.id]??0,label:r.name,source:'legacy' as const
+ }));
+ const legacy=[...motorways,...ramps].sort((a,b)=>{
+  const ia=preferredLegacyOrder.indexOf(a.key),ib=preferredLegacyOrder.indexOf(b.key);
+  return (ia<0?Infinity:ia)-(ib<0?Infinity:ib);
+ });
+ const extensions=additions.map(r=>({
+  key:r.id,motorway:r.kind==='motorway'
+   ?motorwayRef(r.name)??motorwayRef(r.id.replace(/^extra-/,'').toUpperCase()):null,
+  kind:r.kind,lanes:r.lanes,freeKmh:r.freeKmh,
+  demandVph:REFERENCE_PEAKS[r.id]??r.demandVph,
+  label:r.name,source:'extension' as const
+ }));
+ return [...legacy,...extensions];
+}
+export const ROUTE_CATALOG:readonly RouteDescriptor[]=createRouteCatalog(networkData,extensionRoutes);
 const routes=new Map(ROUTE_CATALOG.map(r=>[r.key,r]));
 /** Lookup is O(1), independent of how many roads are imported. */
 export function routeDescriptor(key:string):RouteDescriptor|undefined{return routes.get(key);}
-export const LEGACY_ROUTE_KEYS:readonly string[]=legacy.map(r=>r.key);
+export const LEGACY_ROUTE_KEYS:readonly string[]=ROUTE_CATALOG.filter(r=>r.source==='legacy').map(r=>r.key);
 export const NETWORK_ROUTE_KEYS:readonly string[]=ROUTE_CATALOG.map(r=>r.key);
 export const MOTORWAY_ROUTE_KEYS:readonly string[]=ROUTE_CATALOG.filter(r=>r.kind==='motorway').map(r=>r.key);
 export const MOTORWAY_REFS:readonly string[]=[...new Set(ROUTE_CATALOG.filter(r=>r.kind==='motorway').map(r=>r.motorway).filter((r):r is string=>r!==null))]
