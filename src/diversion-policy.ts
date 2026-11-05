@@ -285,7 +285,7 @@ function baseDiversionChoice(entry:ChoiceRoute,entries:readonly ChoiceRoute[],
  const eligible=(tail:number,end:number,loss=0)=>{
   const open=accessibleExits(route,events,exits,'exit');
   const nearest=nearestExitBeforeQueue(path,route,open,tail,approachEnd);
-  if(config.fromM>=(nearest?.metre??tail)-25&&config.fromM<=end+25)return true;
+  if(nearest&&Math.abs(config.fromM-nearest.metre)<=25&&config.fromM<=end+25)return true;
   if(!nearest||loss<45)return false;
   // An earlier exit is an overflow alternative, not a shortcut triggered
   // by a remote downstream delay. The nearer, reachable off-ramps must
@@ -297,8 +297,11 @@ function baseDiversionChoice(entry:ChoiceRoute,entries:readonly ChoiceRoute[],
    const ramp=source.junctions?.find(x=>Math.abs(x.metre-j.metre)<25);
    if(!ramp)return false;
    const storage=ramp.exitStorageVehicles??0;
-   return storage>0&&exitRampVehicles(ramp)>=storage*.95&&
-    (ramp.lastExitDemand??0)*60>(ramp.exitTerminalVph??DEFAULT_EXIT_TERMINAL_VPH)*.95;
+   const motorwayBackedUp=cellQueueSpans(source).some(s=>
+     s.fromM<=j.metre+source.cellM&&s.toM>=j.metre-source.cellM);
+    return storage>0&&motorwayBackedUp&&(ramp.exitFullMinutes??0)>=45&&
+     exitRampVehicles(ramp)>=storage*.95&&
+     (ramp.lastExitDemand??0)*60>(ramp.exitTerminalVph??DEFAULT_EXIT_TERMINAL_VPH)*.95;
   });
  };
  const measuredLoss=(grid:CellRouteState,start:number,end:number,rate=service)=>{

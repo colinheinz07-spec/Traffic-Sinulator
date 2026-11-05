@@ -633,7 +633,14 @@ export function advanceCells(previous:CellRouteState,route:Corridor,events:reado
     const serviceRequests=departures.map(p=>Math.min(queue.detours[p.id]??0,
      p.exitCapacityVph*dtMin/60,Math.max(0,p.exitCapacityVph/60-p.left)));
     const serviceTotal=queue.normal+serviceRequests.reduce((s,v)=>s+v,0);
-    const serviceScale=serviceTotal>0?Math.min(1,(local.exitTerminalVph??DEFAULT_EXIT_TERMINAL_VPH)*dtMin/60/serviceTotal):0;
+    const sharedOverflow=local.sharedFeederStorageVehicles===undefined?0:
+      Math.max(0,local.waiting-local.sharedFeederStorageVehicles);
+     // Entry cars beyond the short ramp occupy the shared access road.
+     // Off-ramp vehicles cannot pass through that conserved inventory.
+     const commonFeederRoom=local.sharedFeederStorageVehicles===undefined?1:
+      Math.max(0,1-sharedOverflow/Math.max(1,local.exitStorageVehicles??DEFAULT_EXIT_STORAGE_VEHICLES));
+     const terminalService=(local.exitTerminalVph??DEFAULT_EXIT_TERMINAL_VPH)*commonFeederRoom;
+     const serviceScale=serviceTotal>0?Math.min(1,terminalService*dtMin/60/serviceTotal):0;
     const normalService=queue.normal*serviceScale;queue.normal=Math.max(0,queue.normal-normalService);
     local.lastExited+=normalService;local.exitedTotal+=normalService;exitedTotal+=normalService;
     departures.forEach((p,k)=>{const served=serviceRequests[k]!*serviceScale;
@@ -792,7 +799,13 @@ export function advanceCells(previous:CellRouteState,route:Corridor,events:reado
  const next={...previous,cells,closures,minute:previous.minute+1,backlog,offeredTotal,exitedTotal,
   routedBacklog:Object.fromEntries([...boundaryClasses].filter(([,v])=>v>1e-9)),
   classifiedJourneys:[...classifiedJourneys],
-  junctions:junctions.map(({face:_,entryBlocked:__,...j})=>j),
+  junctions:junctions.map(({face:_,entryBlocked:__,...j})=>{
+    const old=previous.junctions?.find(x=>x.id===j.id);
+    const storage=j.exitStorageVehicles??DEFAULT_EXIT_STORAGE_VEHICLES;
+    const full=exitRampVehicles(j)>=storage*.95&&
+     (j.lastExitDemand??0)*60>(j.exitTerminalVph??DEFAULT_EXIT_TERMINAL_VPH)*.95;
+    return {...j,exitFullMinutes:full?(old?.exitFullMinutes??0)+1:0};
+   }),
   divertedTotal:(previous.divertedTotal??0)+routed.reduce((s,p)=>s+p.left,0),
   rejoinedTotal:(previous.rejoinedTotal??0)+routed.reduce((s,p)=>s+p.joined,0),
   lastTransfers:routed.map(p=>({id:p.id,leaveVpm:p.left,joinVpm:p.joined})),

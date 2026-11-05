@@ -184,9 +184,12 @@ test('A3 Frankfurt: a long Diez–Limburg closure cannot send drivers off at Ran
   'Montabaur reacts once the physical mainline queue reaches its following section');
  grid.junctions=[{id:path+':local:40',ref:'40',metre:montabaur.metre,
   entryVph:0,exitPercent:100,entryCapacityVph:900,exitCapacityVph:1800,
-  exitStorageVehicles:40,exitTerminalVph:700,waiting:0,offeredTotal:0,enteredTotal:0,
+  exitStorageVehicles:40,exitTerminalVph:700,exitFullMinutes:0,waiting:0,offeredTotal:0,enteredTotal:0,
   exitedTotal:0,lastEntered:0,lastExited:0,lastExitDemand:45,
   exitQueue:{normal:40,detours:{}}}];
+ const early=routedDiversionChoice(earlier,entries,{[path]:grid},routes,[event],exits,{[path]:2000});
+ assert.equal(early.percent,0,'a newly full off-ramp cannot immediately divert upstream');
+ grid.junctions[0].exitFullMinutes=45;
  const overflow=routedDiversionChoice(earlier,entries,{[path]:grid},routes,[event],exits,{[path]:2000});
  assert.ok(overflow.percent>0,'Ransbach may become a bypass when the closer ramp is physically full');
  assert.ok(overflow.percent<=8+1e-6,

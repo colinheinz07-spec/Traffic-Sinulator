@@ -19,6 +19,8 @@ export interface JunctionTrafficDemand {
  /** Scenario averages for the ramp terminal (signals / conflicting turns)
   * and its SHORT approach storage, independent of the bypass's length. */
  exitTerminalVph?:number;exitStorageVehicles?:number;
+ /** Available entry-arm space before the shared local approach backs up. */
+ sharedFeederStorageVehicles?:number;
 }
 export interface JunctionTrafficState extends JunctionTrafficDemand {
  waiting:number;offeredTotal:number;enteredTotal:number;exitedTotal:number;
@@ -26,6 +28,8 @@ export interface JunctionTrafficState extends JunctionTrafficDemand {
  /** Exit requests, including drivers waiting for side-road receiving room. */
  lastExitDemand?:number;
  exitQueue?:{normal:number;detours:Record<string,number>};
+ /** Consecutive whole minutes with a full, overloaded off-ramp. */
+ exitFullMinutes?:number;
  /** Actual cars crossing the motorway's diverge, before terminal service. */
  lastExitAdmitted?:number;
  /** New local trips choosing another road before entering the ramp.

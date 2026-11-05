@@ -106,7 +106,11 @@ export function applyJunctionRampLimits(route:Corridor,exits:readonly Exit[],eve
   const entries=bindings.filter(b=>b.ref===d.ref&&b.kind==='entry'),off=bindings.filter(b=>b.ref===d.ref&&b.kind==='exit');
   const row={...d};
   if(entries.length){
-   const limits=entries.map(b=>restriction(b,events));
+    // Montabaur's two access arms can spill into their shared local throat.
+    // The first full entry arm determines when the feeder is obstructed.
+    if(route.key.startsWith('A3-')&&d.ref==='40')
+     row.sharedFeederStorageVehicles=Math.max(1,Math.min(...entries.map(b=>b.lengthM*b.lanes*95/1000)));
+    const limits=entries.map(b=>restriction(b,events));
    row.entryCapacityVph=Math.min(row.entryCapacityVph,limits.reduce((n,c)=>n+c.capacity,0));
    if(limits.every(c=>c.closed))row.entryVph=0;
   }
