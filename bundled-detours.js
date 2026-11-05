@@ -1,14 +1,14 @@
-import { regionalDetours } from './regional-detours.js?build=8e7d92418738db8f';
-import { junctionAccess } from './road-controls.js?build=8e7d92418738db8f';
-import { networkData } from './geodata.js?build=8e7d92418738db8f';
+import { regionalDetours } from './regional-detours.js';
+import { junctionAccess } from './road-controls.js';
+import { networkData } from './geodata.js';
 /** Offline simulator side-road network. These hand-authored corridors are
  * approximate, NOT surveyed OSM ways, official U-routes or navigation advice.
  * Every normal AS has a route in both directions, including network exits.
  * Longer bypasses concatenate the same sections; no routing server is used.
  */
-import { DIRECTIONS, names, exitPosition } from './core.js?build=8e7d92418738db8f';
-import { diversionJunctions } from './diversions.js?build=8e7d92418738db8f';
-import { metres, positionM } from './spatial.js?build=8e7d92418738db8f';
+import { DIRECTIONS, names, exitPosition } from './core.js';
+import { diversionJunctions } from './diversions.js';
+import { metres, positionM } from './spatial.js';
 export const BUNDLED_SECTIONS = [
     { from: 'A3:33', to: 'A3:34', capacity: 820, via: [[50.6840, 7.2697], [50.6760, 7.2745], [50.6679, 7.2812], [50.6597, 7.2930], [50.6550, 7.3070], [50.6509, 7.3215]] },
     { from: 'A3:34', to: 'A3:35', capacity: 820, via: [[50.6450, 7.3414], [50.6379, 7.3547], [50.6268, 7.3675], [50.6212, 7.3900], [50.6087, 7.4115], [50.5986, 7.4184]] },
@@ -46,7 +46,11 @@ if (networkData.exits.some(e => e.road === 'A3' && e.ref === '28')) {
 }
 export function isNetworkDestination(exit) { return exit.source === 'simulation-boundary'; }
 export function bundledTargets(path, exits, route) {
-    const normal = diversionJunctions(path, exits, route).filter(x => !x.isInterchange);
+    // Northern A3 AS 24–26 have their own OSM-verified local alternatives.
+    // Do not splice them into the older approximate A3/A48 side-road graph:
+    // there is no verified link between these two route catalogues.
+    const normal = diversionJunctions(path, exits, route).filter(x => !x.isInterchange &&
+        !(path.startsWith('A3') && ['23', '24', '25', '26'].includes(x.ref)));
     return [...normal, { road: path.startsWith('A3') ? 'A3' : 'A48', ref: 'end-' + path,
             name: 'Weiterfahrt außerhalb des Netzes · ' + names[path], position: ends[path].point,
             source: 'simulation-boundary', metre: route.lengthM, isInterchange: false }];

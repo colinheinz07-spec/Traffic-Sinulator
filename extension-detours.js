@@ -1,12 +1,13 @@
-import { ringDetours } from './ring-detours-data.js?build=8e7d92418738db8f';
-import { extensionDetours as baseDetours } from './extension-detours-data.js?build=8e7d92418738db8f';
-import { eventCapacity } from './traffic.js?build=8e7d92418738db8f';
-import { closureGate, positionM } from './spatial.js?build=8e7d92418738db8f';
-import { cellQueueSpans } from './traffic-cells.js?build=8e7d92418738db8f';
-import { diversionJunctions } from './diversions.js?build=8e7d92418738db8f';
-import { junctionAccess } from './road-controls.js?build=8e7d92418738db8f';
-import { speedDelayInCells } from './speed-delay.js?build=8e7d92418738db8f';
-const extensionDetours = [...baseDetours, ...ringDetours];
+import { ringDetours } from './ring-detours-data.js';
+import { leverkusenDetours } from './leverkusen-detours-data.js';
+import { extensionDetours as baseDetours } from './extension-detours-data.js';
+import { eventCapacity } from './traffic.js';
+import { closureGate, positionM } from './spatial.js';
+import { cellQueueSpans } from './traffic-cells.js';
+import { diversionJunctions } from './diversions.js';
+import { junctionAccess } from './road-controls.js';
+import { speedDelayInCells } from './speed-delay.js';
+const extensionDetours = [...baseDetours, ...ringDetours, ...leverkusenDetours];
 const sectionCache = new WeakMap();
 const indexed = new Map(extensionDetours.map(r => [r.id, r]));
 /** Real directed geometry; route selection and capacities are simulator assumptions. */
@@ -66,7 +67,7 @@ export function planExtensionDetours(events, routes, exits, cells, connections) 
         const path = record.path, target = record.targetPath;
         // Ordinary A3 local routes already have their bundled planner. Add its
         // neighbouring-motorway alternatives to that SAME exit decision family.
-        if (path.startsWith('A3') && path === target && !record.motorway)
+        if (path.startsWith('A3') && path === target && !record.motorway && !record.id.startsWith('LEV-'))
             continue;
         const route = routes[path];
         if (!route)

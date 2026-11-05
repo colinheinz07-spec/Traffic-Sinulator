@@ -1,15 +1,15 @@
-import { regionalBoundaryFlow } from './regional-traffic.js?build=8e7d92418738db8f';
-import { extensionRoute } from './network-extensions.js?build=8e7d92418738db8f';
-import { localRoadAvailability } from './calendar-traffic.js?build=8e7d92418738db8f';
+import { regionalBoundaryFlow } from './regional-traffic.js';
+import { extensionRoute } from './network-extensions.js';
+import { localRoadAvailability } from './calendar-traffic.js';
 /** Motorway cells and multiple local simulator routes share ONE vehicle budget.
  * Side-road admission is limited by cars reaching the real exit cell; cars
  * return only after their local journey and when the merge accepts them.
  */
-import { advanceCells, cellInventory } from './traffic-cells.js?build=8e7d92418738db8f';
-import { advanceDetour, detourVehicles, detourStorage } from './detour-flow.js?build=8e7d92418738db8f';
-import { routedDiversionChoice, requiredDiversionGate } from './diversion-policy.js?build=8e7d92418738db8f';
-import { journeyRampCapacity, journeyTrafficShare } from './interchange-journeys.js?build=8e7d92418738db8f';
-import { normalJunctionTraffic } from './junction-traffic.js?build=8e7d92418738db8f';
+import { advanceCells, cellInventory } from './traffic-cells.js';
+import { advanceDetour, detourVehicles, detourStorage } from './detour-flow.js';
+import { routedDiversionChoice, requiredDiversionGate } from './diversion-policy.js';
+import { journeyRampCapacity, journeyTrafficShare } from './interchange-journeys.js';
+import { normalJunctionTraffic } from './junction-traffic.js';
 /** The remaining legacy turn solver must not offer a second copy of trips
  * that chose a side-road/alternate-ramp journey. Existing ramp inventories
  * remain in that solver and finish normally when their control permits it. */

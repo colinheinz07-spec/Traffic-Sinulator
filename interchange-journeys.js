@@ -1,12 +1,12 @@
-import { INTERCHANGE_DIVERSION_START_MIN, interchangeTrafficShare } from './interchange.js?build=8e7d92418738db8f';
-import { baselineCapacity, eventCapacity, defaultDemand } from './traffic.js?build=8e7d92418738db8f';
-import { positionM, closureGate, metres } from './spatial.js?build=8e7d92418738db8f';
-import { cellQueueSpans } from './traffic-cells.js?build=8e7d92418738db8f';
-import { diversionJunctions } from './diversions.js?build=8e7d92418738db8f';
-import { bundledTargets, bundledDetourGeometry, isNetworkDestination } from './bundled-detours.js?build=8e7d92418738db8f';
-import { accessibleExits, physicalEvents } from './road-controls.js?build=8e7d92418738db8f';
-import { speedDelayInCells } from './speed-delay.js?build=8e7d92418738db8f';
-import { queueFundamentalDiagram, colorAtSpeed } from './traffic-physics.js?build=8e7d92418738db8f';
+import { INTERCHANGE_DIVERSION_START_MIN, interchangeTrafficShare } from './interchange.js';
+import { baselineCapacity, eventCapacity, defaultDemand } from './traffic.js';
+import { positionM, closureGate, metres } from './spatial.js';
+import { cellQueueSpans } from './traffic-cells.js';
+import { diversionJunctions } from './diversions.js';
+import { bundledTargets, bundledDetourGeometry, isNetworkDestination } from './bundled-detours.js';
+import { accessibleExits, physicalEvents } from './road-controls.js';
+import { speedDelayInCells } from './speed-delay.js';
+import { queueFundamentalDiagram, colorAtSpeed } from './traffic-physics.js';
 /** A detour of one configured turn cannot acquire the entire A48's
  * destination mix when its mainline reference volume is larger. */
 export function journeyTrafficShare(config, demands) {

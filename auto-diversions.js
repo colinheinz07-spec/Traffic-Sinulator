@@ -2,15 +2,15 @@
  * boundaries. Every choice has an offline simulated side-road corridor.
  * This planner itself never removes vehicles.
  */
-import { DIRECTIONS } from './core.js?build=8e7d92418738db8f';
-import { positionM, closureGate } from './spatial.js?build=8e7d92418738db8f';
-import { DIVERSION_LINKS, diversionJunctions, nearestExitBeforeQueue } from './diversions.js?build=8e7d92418738db8f';
-import { speedDelayInCells } from './speed-delay.js?build=8e7d92418738db8f';
-import { cellQueueSpans } from './traffic-cells.js?build=8e7d92418738db8f';
-import { bundledTargets, isNetworkDestination } from './bundled-detours.js?build=8e7d92418738db8f';
-import { junctionAccess, accessibleExits } from './road-controls.js?build=8e7d92418738db8f';
-import { interchangeJourneys } from './interchange-journeys.js?build=8e7d92418738db8f';
-import { INTERCHANGE_DIVERSION_START_MIN } from './interchange.js?build=8e7d92418738db8f';
+import { DIRECTIONS } from './core.js';
+import { positionM, closureGate } from './spatial.js';
+import { DIVERSION_LINKS, diversionJunctions, nearestExitBeforeQueue } from './diversions.js';
+import { speedDelayInCells } from './speed-delay.js';
+import { cellQueueSpans } from './traffic-cells.js';
+import { bundledTargets, isNetworkDestination } from './bundled-detours.js';
+import { junctionAccess, accessibleExits } from './road-controls.js';
+import { interchangeJourneys } from './interchange-journeys.js';
+import { INTERCHANGE_DIVERSION_START_MIN } from './interchange.js';
 export function automaticDiversions(events, corridors, exits, cells, connections = [], turnDelays = {}) {
     const plans = new Map();
     const available = (path, access) => accessibleExits(corridors[path], events, exits, access);
@@ -28,7 +28,7 @@ export function automaticDiversions(events, corridors, exits, cells, connections
             // Prepare cross-motorway alternatives before the target queue reaches
             // the AD. The remaining journey's delay controls whether anyone uses it.
             const source = connection.from, to = after[0];
-            const junctions = diversionJunctions(source, available(source, 'exit'), corridors[source]).filter(x => !x.isInterchange);
+            const junctions = diversionJunctions(source, available(source, 'exit'), corridors[source]).filter(x => !x.isInterchange && !(source.startsWith('A3') && ['23', '24', '25', '26'].includes(x.ref)));
             const sources = source === 'A3-koeln' && path === 'A48-koblenz'
                 ? junctions.filter(x => x.metre > connection.rampEntryM).slice(0, 1)
                 : junctions.filter(x => x.metre < connection.rampEntryM - 50);
@@ -90,7 +90,7 @@ export function automaticDiversions(events, corridors, exits, cells, connections
                 const from = source === 'A3-koeln' && path === 'A48-koblenz'
                     ? diversionJunctions(source, available(source, 'exit'), sourceRoute).find(j => !j.isInterchange && j.metre > connection.rampEntryM)
                     : nearestExitBeforeQueue(source, sourceRoute, available(source, 'exit'), approach?.fromM ?? connection.rampEntryM, connection.rampEntryM);
-                if (!from || !to || plans.has(source + ':' + from.ref + ':' + path))
+                if (!from || source.startsWith('A3') && ['23', '24', '25', '26'].includes(from.ref) || !to || plans.has(source + ':' + from.ref + ':' + path))
                     continue;
                 const link = { id: source + '-BUNDLED-' + from.ref + '-to-' + path, code: 'SIM', path: source,
                     fromRoad: from.road, fromRef: from.ref, toRoad: to.road, toRef: to.ref, evidence: 'partial',
@@ -112,7 +112,7 @@ export function automaticDiversions(events, corridors, exits, cells, connections
         let end = connection.downstreamMergeM;
         const relevant = cells[target] ? cellQueueSpans(cells[target]).filter(s => s.fromM <= first.metre + 1 &&
             s.toM > connection.downstreamMergeM) : [];
-        const sourceExits = diversionJunctions(source, available(source, 'exit'), sourceRoute).filter(j => !j.isInterchange);
+        const sourceExits = diversionJunctions(source, available(source, 'exit'), sourceRoute).filter(j => !j.isInterchange && !(source.startsWith('A3') && ['23', '24', '25', '26'].includes(j.ref)));
         const lastSource = sourceExits.filter(j => j.metre < connection.rampEntryM - 1).at(-1);
         const sourceQueue = cells[source] && cellQueueSpans(cells[source]).some(s => s.toM >= (lastSource?.metre ?? connection.rampEntryM) - 1 && s.fromM < connection.rampEntryM);
         const sourceEvent = events.some(e => e.pathKey === source && (() => {

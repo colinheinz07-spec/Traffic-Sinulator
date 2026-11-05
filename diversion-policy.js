@@ -1,14 +1,14 @@
-import { networkRoad } from './network-road.js?build=8e7d92418738db8f';
-import { cellQueueSpans } from './traffic-cells.js?build=8e7d92418738db8f';
-import { closureGate } from './spatial.js?build=8e7d92418738db8f';
-import { diversionJunctions, nearestExitBeforeQueue, potentialDiversionPercent } from './diversions.js?build=8e7d92418738db8f';
-import { speedDelayInCells } from './speed-delay.js?build=8e7d92418738db8f';
-import { eventCapacity, defaultDemand } from './traffic.js?build=8e7d92418738db8f';
-import { freeSpeedKmh } from './traffic-physics.js?build=8e7d92418738db8f';
-import { INTERCHANGE_DIVERSION_START_MIN, interchangeTrafficShare } from './interchange.js?build=8e7d92418738db8f';
-import { closedMovementEvent, viaJourneyUsable, journeyRampCapacity, journeyTrafficShare } from './interchange-journeys.js?build=8e7d92418738db8f';
-import { accessibleExits, junctionAccess } from './road-controls.js?build=8e7d92418738db8f';
-import { exitRampVehicles, DEFAULT_EXIT_TERMINAL_VPH } from './junction-traffic.js?build=8e7d92418738db8f';
+import { networkRoad } from './network-road.js';
+import { cellQueueSpans } from './traffic-cells.js';
+import { closureGate } from './spatial.js';
+import { diversionJunctions, nearestExitBeforeQueue, potentialDiversionPercent } from './diversions.js';
+import { speedDelayInCells } from './speed-delay.js';
+import { eventCapacity, defaultDemand } from './traffic.js';
+import { freeSpeedKmh } from './traffic-physics.js';
+import { INTERCHANGE_DIVERSION_START_MIN, interchangeTrafficShare } from './interchange.js';
+import { closedMovementEvent, viaJourneyUsable, journeyRampCapacity, journeyTrafficShare } from './interchange-journeys.js';
+import { accessibleExits, junctionAccess } from './road-controls.js';
+import { exitRampVehicles, DEFAULT_EXIT_TERMINAL_VPH } from './junction-traffic.js';
 function exitTerminalWait(source, metre) {
     const ramp = source.junctions?.find(j => Math.abs(j.metre - metre) < 25);
     return ramp ? exitRampVehicles(ramp) / Math.max(1, ramp.exitTerminalVph ?? DEFAULT_EXIT_TERMINAL_VPH) * 60 : 0;

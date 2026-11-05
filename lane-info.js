@@ -1,6 +1,6 @@
-import { normalLaneOverrides } from './normal-lanes.js?build=8e7d92418738db8f';
-import { nearestPolyline } from './core.js?build=8e7d92418738db8f';
-import { rampLaneWays, unverifiedRoadWays } from './lane-profiles.js?build=8e7d92418738db8f';
+import { normalLaneOverrides } from './normal-lanes.js';
+import { nearestPolyline } from './core.js';
+import { rampLaneWays, unverifiedRoadWays } from './lane-profiles.js';
 /** OSM lanes includes acceleration/diverging lanes and sometimes temporary
  * construction layouts. A3's verified normal corridor has three through
  * lanes. A48 auxiliary turn/merge-only lanes are excluded explicitly. */

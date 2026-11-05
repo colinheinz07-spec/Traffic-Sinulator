@@ -1,11 +1,11 @@
 /** Local ramps render the SAME vehicles held by the junction solver.
  * A downstream incident alone never creates a second ramp inventory. */
-import { networkData } from './geodata.js?build=8e7d92418738db8f';
-import { extensionRoutes, extensionRampBoundaryPoints } from './network-extensions.js?build=8e7d92418738db8f';
-import { exitPosition, nearestPolyline } from './core.js?build=8e7d92418738db8f';
-import { networkRoad } from './network-road.js?build=8e7d92418738db8f';
-import { eventCapacity } from './traffic.js?build=8e7d92418738db8f';
-import { queueFundamentalDiagram, colorAtSpeed } from './traffic-physics.js?build=8e7d92418738db8f';
+import { networkData } from './geodata.js';
+import { extensionRoutes, extensionRampBoundaryPoints } from './network-extensions.js';
+import { exitPosition, nearestPolyline } from './core.js';
+import { networkRoad } from './network-road.js';
+import { eventCapacity } from './traffic.js';
+import { queueFundamentalDiagram, colorAtSpeed } from './traffic-physics.js';
 const pointKey = (p) => p.join(',');
 const distance = (a, b) => Math.hypot((b[0] - a[0]) * 111195, (b[1] - a[1]) * 111195 * Math.cos((a[0] + b[0]) * Math.PI / 360));
 const rampLength = (r) => r.points.slice(1).reduce((n, p, i) => n + distance(r.points[i], p), 0);
@@ -55,7 +55,16 @@ export function junctionRampBindings(route, exits) {
                     indices.reverse();
                 const boundaryIndex = indices.slice(1).find(i => boundaries.has(pointKey(last.points[i])) && !trunks.has(pointKey(last.points[i])));
                 const end = pointKey(at(last, true));
-                if (sequence.length > 8 || boundaryIndex === undefined && trunks.has(end))
+                // A signed local exit can follow a real OSM motorway_link
+                // collector/distributor path and merge back onto the same carriageway
+                // before the signed surface-road diverge (e.g. AS26 Dellbrück/B506).
+                // The motorway_link stays physically mapped: display its queued vehicles
+                // instead of discarding it as a fictitious dead-end. Do not permit an
+                // arbitrary U-turn or unsigned motorway-to-motorway link as a local AS.
+                const signedCollector = boundaryIndex === undefined && trunks.has(end) &&
+                    vertices.has(end) && sequence[0].destinationRef !== undefined &&
+                    sequence[0].destinationRef.length > 0;
+                if (sequence.length > 24 || boundaryIndex === undefined && trunks.has(end) && !signedCollector)
                     return;
                 const following = (graph.get(end) ?? []).filter(r => !sequence.includes(r));
                 if (boundaryIndex === undefined && following.length) {

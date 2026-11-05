@@ -2,7 +2,7 @@
 export function exitPosition(exit, path) { return exit.directional?.[path]?.position ?? exit.position; }
 export const DIRECTIONS = ['A3-koeln', 'A3-frankfurt', 'A48-dernbach', 'A48-koblenz'];
 export const names = { 'A3-koeln': 'A3 Richtung Köln', 'A3-frankfurt': 'A3 Richtung Frankfurt', 'A48-dernbach': 'A48 Richtung Dernbach', 'A48-koblenz': 'A48 Richtung Koblenz' };
-export const exitRefs = { A3: ['27', '28', '29', '30a', '30b', '31', '44', '32', '33', '34', '35', '36', '37', '38', '39', '40', '41', '42', '43'], A48: ['9', '10', '11', '12', '13'] };
+export const exitRefs = { A3: ['23', '24', '25', '26', '27', '28', '29', '30a', '30b', '31', '44', '32', '33', '34', '35', '36', '37', '38', '39', '40', '41', '42', '43'], A48: ['9', '10', '11', '12', '13'] };
 export function validateMap(data) {
     const errors = [];
     if (data.version !== 2 || !data.audit?.complete)
@@ -30,6 +30,8 @@ export function validateMap(data) {
             errors.push('A3 bis Limburg-Süd unvollständig: ' + road);
         if (!data.roads.some(r => r.road === road && r.points.some(p => p[0] >= 50.785)))
             errors.push('A3 bis Bonn/Siegburg unvollständig: ' + road);
+        if (!data.roads.some(r => r.road === road && r.points.some(p => p[0] >= 51.02)))
+            errors.push('A3 bis Leverkusen unvollständig: ' + road);
     }
     for (const r of data.roads) {
         if (!r.points || r.points.length < 2 || r.lanes < 1 || r.km <= 0)
