@@ -288,16 +288,26 @@ function baseDiversionChoice(entry, entries, cells, routes, events, exits, deman
         (state.waitingRoad + state.waitingMerge) / service * 60 + exitTerminalWait(source, config.fromM);
     const spans = cellQueueSpans(source);
     const eligible = (tail, end, loss = 0) => {
-        const nearest = nearestExitBeforeQueue(path, route, accessibleExits(route, events, exits, 'exit'), tail, approachEnd);
+        const open = accessibleExits(route, events, exits, 'exit');
+        const nearest = nearestExitBeforeQueue(path, route, open, tail, approachEnd);
         if (config.fromM >= (nearest?.metre ?? tail) - 25 && config.fromM <= end + 25)
             return true;
-        if (cross || !nearest || nearest.metre - config.fromM > 35000)
+        if (cross || !nearest || loss < 45)
             return false;
-        const earlier = diversionJunctions(path, accessibleExits(route, events, exits, 'exit'), route)
-            .filter(j => !j.isInterchange && j.metre > config.fromM + 25 && j.metre <= nearest.metre + 25).length;
-        // The first choice stays local. Only extreme remaining waits justify
-        // leaving one or two junctions earlier on an otherwise free approach.
-        return earlier >= 1 && earlier <= 2 && loss >= 150 + (earlier - 1) * 90;
+        // An earlier exit is an overflow alternative, not a shortcut triggered
+        // by a remote downstream delay. The nearer, reachable off-ramps must
+        // actually be full and still receive more exit demand than they serve.
+        // Evaluate every intervening AS: never jump over a usable open ramp.
+        const closer = diversionJunctions(path, open, route)
+            .filter(j => !j.isInterchange && j.metre > config.fromM + 25 && j.metre <= nearest.metre + 25);
+        return closer.length > 0 && closer.every(j => {
+            const ramp = source.junctions?.find(x => Math.abs(x.metre - j.metre) < 25);
+            if (!ramp)
+                return false;
+            const storage = ramp.exitStorageVehicles ?? 0;
+            return storage > 0 && exitRampVehicles(ramp) >= storage * .95 &&
+                (ramp.lastExitDemand ?? 0) * 60 > (ramp.exitTerminalVph ?? DEFAULT_EXIT_TERMINAL_VPH) * .95;
+        });
     };
     const measuredLoss = (grid, start, end, rate = service) => {
         const loss = speedDelayInCells(grid, start, end, end + grid.cellM);
