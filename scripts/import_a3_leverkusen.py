@@ -278,8 +278,8 @@ def import_links(data,new_exits,vertices,doc):
   both=tags.get('oneway')=='no'
   for reverse in ((False,True) if both else (False,)):
    points=ps[::-1] if reverse else ps
-   raw=tags.get('lanes:backward' if reverse else 'lanes:forward',tags.get('lanes','1'))
-   lane=int(raw) if raw.isdigit() else 1
+   lane_text=tags.get('lanes:backward' if reverse else 'lanes:forward',tags.get('lanes','1'))
+   lane=int(lane_text) if lane_text.isdigit() else 1
    lane=max(1,min(4,lane))
    direction='-reverse' if reverse else ''
    new.append({'id':'extra-a3-lev-ramp-'+str(w['id'])+direction,
