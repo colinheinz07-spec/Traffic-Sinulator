@@ -45,15 +45,20 @@ export function createRouteCatalog(data, additions) {
     };
     const motorways = [...new Set(data.roads.map(r => r.road))].map(key => {
         const roads = data.roads.filter(r => r.road === key);
+        const lanes = commonLaneCount(roads.map(normalThroughLanes));
+        const input = roads.find(r => r.referenceDemandVph !== undefined)?.referenceDemandVph;
+        // Uncalibrated imports use a declared scenario assumption; never present
+        // these figures as measured flows or silently simulate an empty road.
+        const initialDemand = legacyDemand[key] ?? REFERENCE_PEAKS[key] ?? input ?? Math.min(8000, lanes * 1050);
         return { key, motorway: motorwayRef(key), kind: 'motorway',
-            lanes: commonLaneCount(roads.map(normalThroughLanes)), freeKmh: 130,
-            demandVph: legacyDemand[key] ?? REFERENCE_PEAKS[key] ?? 0,
+            lanes, freeKmh: 130,
+            demandVph: initialDemand,
             label: names[key] ?? key, source: 'legacy', heavyShare: heavy(motorwayRef(key)),
             geometryOrder: knownDirections[key] };
     });
     const ramps = data.ramps.map(r => ({
         key: r.id, motorway: null, kind: 'ramp', lanes: r.lanes, freeKmh: 80,
-        demandVph: legacyDemand[r.id] ?? 0, label: r.name, heavyShare: .15, source: 'legacy'
+        demandVph: legacyDemand[r.id] ?? r.referenceDemandVph ?? r.lanes * 400, label: r.name, heavyShare: .15, source: 'legacy'
     }));
     const legacy = [...motorways, ...ramps].sort((a, b) => {
         const ia = preferredLegacyOrder.indexOf(a.key), ib = preferredLegacyOrder.indexOf(b.key);
