@@ -124,6 +124,23 @@ def main():
  start='export const extensionJunctions:Exit[]='
  original=text.split(start,1)[1].split(';\nexport const extensionRampBoundaryPoints',1)[0]
  text=text.replace(start+original+';',start+json.dumps(junctions,ensure_ascii=False,separators=(',',':'))+';')
+ # The existing ramp-painting solver needs the *actual* first shared
+ # nodes between motorway links and public surface streets. Otherwise an
+ # AS ramp returning to the opposing A3 carriageway can look like a closed
+ # loop and never receive its own queue/traffic-light colour.
+ street_kinds={'trunk','trunk_link','primary','primary_link','secondary','secondary_link',
+  'tertiary','tertiary_link','residential','unclassified','living_street'}
+ public_vertices={pt(p) for w in ways if w.get('tags',{}).get('highway') in street_kinds
+  and w.get('tags',{}).get('access') not in ('no','private')
+  and w.get('tags',{}).get('motor_vehicle') not in ('no','private') for p in w['geometry']}
+ ramp_vertices={tuple(p) for r in routes if r['kind']=='ramp' for p in r['points']}
+ head='export const extensionRampBoundaryPoints:Point[]='
+ previous=json.loads(text.split(head,1)[1].split(';\nconst byId',1)[0])
+ boundaries=sorted(set(map(tuple,previous))|(public_vertices&ramp_vertices))
+ before=text.split(head,1)[1].split(';\nconst byId',1)[0]
+ text=text.replace(head+before+';',head+json.dumps(boundaries,separators=(',',':'))+';')
+ print('Added verified Leverkusen surface-road ramp boundaries',
+  len(boundaries)-len(previous),flush=True)
  path.write_text(text)
  cache=ROOT/'data/extension-junctions.json'
  cache.write_text(json.dumps({'routes':routes,'junctions':junctions},ensure_ascii=False,separators=(',',':')))
