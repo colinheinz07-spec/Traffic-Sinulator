@@ -2,8 +2,8 @@ export type Point = [number, number]; // [latitude, longitude]
 /** Legacy A3/A48 route IDs remain stable; newly imported directed roads use
  * their own non-empty keys without changing the TypeScript unions. */
 export type RoadId = string;
-export type Road = {id:string;wayId:number;road:RoadId;lanes:number;normalLaneCount?:number;km:number;posKm:number;points:Point[];tags?:Record<string,string>};
-export type Ramp = {id:string;name:string;from:RoadId;to:RoadId;lanes:number;wayIds:number[];points:Point[]};
+export type Road = {id:string;wayId:number;road:RoadId;lanes:number;normalLaneCount?:number;referenceDemandVph?:number;km:number;posKm:number;points:Point[];tags?:Record<string,string>};
+export type Ramp = {id:string;name:string;from:RoadId;to:RoadId;lanes:number;referenceDemandVph?:number;wayIds:number[];points:Point[]};
 export type Exit = {road:string;ref:string;name:string;position:Point;source:string;sharedRoad?:string;
  access?:Partial<Record<string,{entry:boolean;exit:boolean}>>;
  directional?:Partial<Record<string,{position:Point;nodeId:number}>>};

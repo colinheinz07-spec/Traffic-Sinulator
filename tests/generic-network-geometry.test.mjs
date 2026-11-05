@@ -26,6 +26,7 @@ test('new autobahn carriageways are stitched independently and retain OSM vertic
  assert.deepEqual(validateRouteCatalog(catalog),[]);
  assert.deepEqual(catalog.map(c=>c.key).sort(),['A61-nord','A61-sued']);
  assert.ok(catalog.every(c=>c.motorway==='A61'&&c.kind==='motorway'&&c.lanes===2));
+ assert.ok(catalog.every(c=>c.demandVph===2100),'an uncalibrated two-lane motorway must still carry scenario traffic');
  const corridors=makeCorridors([...north,...south],[]);
  for(const key of ['A61-nord','A61-sued']){
   assert.equal(corridors[key].points.length,3,'the new road must be usable by the shared flow solver');
@@ -48,6 +49,13 @@ test('four-lane imported motorways keep four through lanes, while old A3 calibra
  future.lanes=4;future.tags.lanes='4';
  assert.equal(normalThroughLanes(future),4);
  assert.equal(createRouteCatalog({roads:[future],ramps:[]},[])[0].lanes,4);
+ assert.equal(createRouteCatalog({roads:[future],ramps:[]},[])[0].demandVph,4200);
  const a3={...future,road:'A3-frankfurt'};
  assert.equal(normalThroughLanes(a3),3);
+});
+
+test('explicit traffic reference overrides the generic scenario when imported',()=>{
+ const road=way(611,'A61-nord',[[50,7],[50.005,7]]);
+ road.referenceDemandVph=1740;
+ assert.equal(createRouteCatalog({roads:[road],ramps:[]},[])[0].demandVph,1740);
 });
