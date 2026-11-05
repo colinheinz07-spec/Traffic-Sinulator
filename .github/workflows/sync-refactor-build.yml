@@ -1,0 +1,30 @@
+name: Sync refactor browser build
+on:
+  push:
+    branches: [refactor/generic-motorway-engine]
+    paths: ['src/**', '.github/workflows/sync-refactor-build.yml']
+permissions:
+  contents: write
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci --no-audit --no-fund
+      - run: npm run build
+      - run: cp dist/*.js ./
+      - name: Sync browser modules
+        run: |
+          git add index.html ./*.js
+          if ! git diff --cached --quiet; then
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git commit -m 'build: update browser scripts for universal motorway engine'
+            git push origin HEAD:refactor/generic-motorway-engine
+          fi
