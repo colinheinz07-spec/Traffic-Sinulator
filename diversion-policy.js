@@ -313,9 +313,24 @@ function baseDiversionChoice(entry, entries, cells, routes, events, exits, deman
         const loss = speedDelayInCells(grid, start, end, end + grid.cellM);
         return loss.blocked ? Math.max(loss.delayMin, excessQueue(grid, start, end, demands[grid.pathKey] ?? 0) / rate * 60) : loss.delayMin;
     };
+    // A distant upstream exit can provide an anticipatory minority route,
+    // but a full closer ramp cannot divert every driver onto an otherwise
+    // uncongested motorway section. Allow more upstream uptake only as the
+    // motorway approach BETWEEN these exits actually becomes congested.
+    // The 8% base is a scenario assumption, not a measured AS turning rate.
+    const earlierExitLimit = (tail) => {
+        const nearest = nearestExitBeforeQueue(path, route, accessibleExits(route, events, exits, 'exit'), tail, approachEnd);
+        if (!nearest || config.fromM >= nearest.metre - 25)
+            return 100;
+        const approach = speedDelayInCells(source, config.fromM, nearest.metre, nearest.metre);
+        if (approach.blocked)
+            return 100;
+        const ratio = Math.min(1, Math.max(0, approach.delayMin) / 45);
+        return 8 + 92 * ratio * ratio;
+    };
     let delayMin = 0, desired = 0;
-    const consider = (loss) => {
-        const percent = voluntaryDiversionPercent(loss, extra);
+    const consider = (loss, tail) => {
+        const percent = Math.min(voluntaryDiversionPercent(loss, extra), earlierExitLimit(tail));
         if (percent > desired || percent === desired && loss > delayMin) {
             desired = percent;
             delayMin = loss;
@@ -331,7 +346,7 @@ function baseDiversionChoice(entry, entries, cells, routes, events, exits, deman
             loss += (normal ? normal.state.waitingRoad + normal.state.waitingMerge : 0) / gateService * 60;
         }
         if (eligible(span.fromM, end, loss))
-            consider(loss);
+            consider(loss, span.fromM);
     }
     if (cross) {
         // Each approaching motorway has its own nearest exit. A queue on A3
@@ -344,7 +359,7 @@ function baseDiversionChoice(entry, entries, cells, routes, events, exits, deman
                 if (start >= end || config.toM < span.toM - 1)
                     continue;
                 const sourceLoss = approach ? measuredLoss(source, Math.max(config.fromM, approach.fromM), sourceEnd) : 0;
-                consider(sourceLoss + measuredLoss(destination, start, end));
+                consider(sourceLoss + measuredLoss(destination, start, end), tail);
             }
     }
     // A newly selected exit adopts a high target gradually. Remember this
