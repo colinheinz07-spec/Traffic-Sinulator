@@ -1,12 +1,12 @@
-import { extensionJunctions } from './network-extensions.js?build=a2413d3bf8be14e7';
-import { networkRoad } from './network-road.js?build=a2413d3bf8be14e7';
-import { networkData } from './geodata.js?build=a2413d3bf8be14e7';
-import { junctionRampAccess } from './junction-ramp-bindings.js?build=a2413d3bf8be14e7';
+import { extensionJunctions } from './network-extensions.js';
+import { networkRoad } from './network-road.js';
+import { networkData } from './geodata.js';
+import { junctionRampAccess } from './junction-ramp-bindings.js';
 /** Physical lane restrictions and directional AS access on actual road
  * intervals. Administrative closures keep their separate exit-gate rule. */
-import { exitPosition } from './core.js?build=a2413d3bf8be14e7';
-import { suggestedSpeed } from './events.js?build=a2413d3bf8be14e7';
-import { positionM } from './spatial.js?build=a2413d3bf8be14e7';
+import { exitPosition } from './core.js';
+import { suggestedSpeed } from './events.js';
+import { positionM } from './spatial.js';
 export function roadSections(route, events) {
     const located = events.filter(e => e.pathKey === route.key && e.kind !== 'closure').flatMap(event => {
         const fromM = positionM(route, event.point);

@@ -1,1 +1,6 @@
-export function networkRoad(key) { return key.startsWith('A3-') ? 'A3' : key.startsWith('A48-') ? 'A48' : key.startsWith('extra-a4-') ? 'A4' : key.startsWith('extra-a559-') ? 'A559' : key.startsWith('extra-a59-') ? 'A59' : key.startsWith('extra-a560-') ? 'A560' : key.startsWith('extra-a562-') ? 'A562' : key.startsWith('extra-a555-') ? 'A555' : key.startsWith('extra-a565-') ? 'A565' : key.startsWith('extra-a1-') ? 'A1' : null; }
+import { routeDescriptor } from './network-catalog.js';
+/** All motorway numbers come from network metadata; adding an A61, A7 or
+ * A100 corridor needs no additional conditional here. Ramps are not roads. */
+export function networkRoad(key) {
+    return routeDescriptor(key)?.motorway ?? null;
+}
