@@ -3,6 +3,9 @@ on:
   push:
     branches: [refactor/generic-motorway-engine]
     paths: ['src/**', '.github/workflows/sync-refactor-build.yml']
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [main]
 permissions:
   contents: write
 jobs:
@@ -12,6 +15,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: refactor/generic-motorway-engine
           persist-credentials: true
       - uses: actions/setup-node@v4
         with:
