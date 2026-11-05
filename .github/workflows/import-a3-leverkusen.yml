@@ -8,7 +8,7 @@ on:
       - .github/workflows/import-a3-leverkusen.yml
   workflow_dispatch:
 permissions:
-  contents: write
+  contents: read
 jobs:
   import:
     runs-on: ubuntu-latest
@@ -27,15 +27,6 @@ jobs:
         run: python -m py_compile scripts/import_a3_leverkusen.py scripts/build_a3_leverkusen_detours.py
       - name: Download exact OpenStreetMap ways and junction nodes
         run: python scripts/import_a3_leverkusen.py --fetch-only
-      - name: Retain the reproducible OSM source snapshot
-        run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add data/a3-leverkusen-osm.json
-          git diff --cached --quiet || {
-            git commit -m 'data: retain OSM source for A3 Leverkusen [skip ci]'
-            git push origin HEAD:feature/a3-leverkusen-network-20261105
-          }
       - name: Extend actual A3 ways, motorway-link inventory and AS 23–26
         run: python scripts/import_a3_leverkusen.py
       - name: Generate legal OSM local detours between Leverkusen exits
@@ -45,15 +36,18 @@ jobs:
         run: |
           npm run check
           python -m unittest discover -s scripts/tests -v
-      - name: Publish the exact tested browser modules
-        run: cp dist/*.js .
-      - name: Commit proven geometry and browser build to feature branch
-        run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add src/geodata.ts src/network-extensions.ts src/leverkusen-detours-data.ts data/extension-junctions.json index.html '*.js'
-          git diff --cached --stat
-          git diff --cached --quiet || {
-            git commit -m 'build: verified A3 to AK Leverkusen, all OSM-connected ramps and local detours'
-            git push origin HEAD:feature/a3-leverkusen-network-20261105
-          }
+      - name: Export OSM source, geometry and browser build for review
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: leverkusen-osm-import-snapshot
+          path: |
+            data/a3-leverkusen-osm.json
+            data/extension-junctions.json
+            src/geodata.ts
+            src/network-extensions.ts
+            src/leverkusen-detours-data.ts
+            index.html
+            '*.js'
+          retention-days: 5
+          if-no-files-found: error
