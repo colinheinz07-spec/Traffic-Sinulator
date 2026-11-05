@@ -4,6 +4,9 @@ on:
     branches: [main]
 permissions:
   contents: write
+concurrency:
+  group: browser-build-main
+  cancel-in-progress: true
 jobs:
   publish:
     if: github.actor != 'github-actions[bot]'
@@ -16,7 +19,10 @@ jobs:
         with:
           node-version: '22'
       - run: npm ci --no-audit --no-fund
-      - run: npm run check
+      # Full regression tests run independently in check.yml. The browser
+      # bundle must still publish when the full suite takes many minutes.
+      - run: npm run typecheck
+      - run: npm run build
       - name: Commit fingerprinted browser modules
         run: |
           git add index.html '*.js'
@@ -24,4 +30,10 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git commit -m "Build browser modules for physical queue fixes [skip ci]"
+          # A superseded workflow must not publish stale compiled modules.
+          upstream="$(git ls-remote origin refs/heads/main | cut -f1)"
+          if [ "$upstream" != "$(git rev-parse HEAD^)" ]; then
+            echo "A newer source commit exists; skip stale publication."
+            exit 0
+          fi
           git push origin HEAD:main
