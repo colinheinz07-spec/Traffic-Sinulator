@@ -15,6 +15,10 @@ export function cellLanes(path) {
 export function cellCriticalDensity(path) {
     return Math.min(baselineCapacity(path) / freeSpeedKmh(path), JAM_PER_LANE * cellLanes(path) * WAVE_KMH / (freeSpeedKmh(path) + WAVE_KMH));
 }
+/** Demand is an offered arrival rate, not a service capacity. A heavy surge
+ * may be larger than the cross section can discharge. The excess stays in
+ * the conserved upstream boundary backlog, never deleted or artificially
+ * clamped to a fixed vehicle-per-hour threshold. */
 export function initialiseCells(route, initialDemandVph, localDemandAt) {
     if (!Number.isFinite(initialDemandVph) || initialDemandVph < 0)
         throw Error('Ungültiger Zufluss für Zellmodell');
