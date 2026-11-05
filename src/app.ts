@@ -7,6 +7,7 @@ import {MOTORWAY_PATHS,MOTORWAY_GROUPS,junctionDirectory,junctionRoute,trafficOv
 import type {DetourGeometry} from './detour-routing.js';
 import {planExtensionDetours,refreshExtensionDetour,extensionDetours} from './extension-detours.js';
 import {networkRoad} from './network-road.js';
+import {routeDescriptor} from './network-catalog.js';
 import {buildExtensionConnections} from './extension-connections.js';
 import {extensionRoutes,extensionRoute,extensionJunctions} from './network-extensions.js';
 import {worldGeometry} from './map-geometry.js';
@@ -43,7 +44,6 @@ const canvas=$<HTMLCanvasElement>('map'),wrapper=canvas.parentElement!;
 const context=canvas.getContext('2d');if(!context)throw Error('Canvas 2D wird nicht unterstützt');
 const status=$('status'),hint=$('hint');
 let focus:Point=[50.507,7.63],zoom=10,needsDraw=true;
-const roadColors={'A3-koeln':'#26bb7c','A3-frankfurt':'#26bb7c','A48-dernbach':'#26bb7c','A48-koblenz':'#26bb7c'};
 const mapReady=validateMap(networkData);const allRoads=networkData.roads,ramps=networkData.ramps,exits:Exit[]=[...networkData.exits,...extensionJunctions];
 const drawnRoads=buildContinuousRoads(allRoads);
 const spatialCorridors=makeCorridors(allRoads,ramps);
@@ -319,7 +319,7 @@ function removeExistingEvent(){
 // AD ramp turn-demand dynamics still use the separate spatial solver.
 
 let spatialState=emptySpatial();
-const CELL_PATHS=PATHS.filter(key=>DIRECTIONS.includes(key as RoadId)||extensionRoute(key)?.kind==='motorway');
+const CELL_PATHS=MOTORWAY_PATHS;
 let cellNetwork:Partial<Record<PathKey,CellRouteState>>={};
 const trafficDemands=defaultDemands();
 type ActiveDetour=RoutedDetour;
@@ -891,7 +891,7 @@ function initializeTraffic(){
   for(const key of group.paths){const option=document.createElement('option');option.value=key;option.textContent=trafficRouteLabel(key);host.append(option)}
   select.append(host);
  }
- select.value='A3-koeln';selectTrafficRoute(select.value);
+ select.value=MOTORWAY_PATHS[0]??PATHS[0]??'';selectTrafficRoute(select.value);
  select.addEventListener('change',()=>selectTrafficRoute(select.value));
  const pattern=$<HTMLSelectElement>('traffic-demand-mode');
  pattern.value=demandMode;
@@ -1092,11 +1092,7 @@ function drawSpatialJams(){
   if(!mid.length)continue;
   const [x,y]=toScreen(mid[0]!);
   const event=timeline.find(e=>e.id===jam.eventId),sign=event?eventSymbols[event.kind]:'🚗';
-  const shortDirection=jam.pathKey==='A3-koeln'?'A3 Köln':jam.pathKey==='A3-frankfurt'?'A3 Frankfurt'
-   :jam.pathKey==='A48-dernbach'?'A48 Dernbach':jam.pathKey==='A48-koblenz'?'A48 Koblenz'
-   :extensionRoute(jam.pathKey)?extensionRoute(jam.pathKey)!.name
-   :jam.pathKey==='ramp-a48-to-koeln'?'A48→A3 Köln'
-   :jam.pathKey==='ramp-a48-to-frankfurt'?'A48→A3 Ffm':'AD Dernbach Rampe';
+  const shortDirection=routeDescriptor(jam.pathKey)?.label??jam.pathKey;
   const delay=speedDelayLabel(jam.delay,1,true);
   const first=`${sign} ${shortDirection} · ${delay}`;
   const second=`${trafficNumber(jam.queueM/1000,1)} km · Ø ${trafficNumber(jam.meanSpeedKmh)} km/h`;
@@ -1145,7 +1141,7 @@ function draw(){
  const lines=lineWidths(zoom);
  for(const road of drawnRoads)stroke(road.points,lines.motorwayCasing,'#083348');
  for(const feature of extensionRoutes)for(const range of visibleRanges(feature.id,feature.points)){stroke(range.points,feature.kind==='ramp'?lines.rampCasing:lines.motorwayCasing,'#061927');stroke(range.points,feature.kind==='ramp'?lines.ramp:lines.motorway,'#26bb7c');}
- for(const road of drawnRoads)stroke(road.points,lines.motorway,roadColors[road.road]);
+ for(const road of drawnRoads)stroke(road.points,lines.motorway,'#26bb7c');
  for(const ramp of ramps)stroke(ramp.points,lines.rampCasing,'#273b4c');
  for(const ramp of ramps)stroke(ramp.points,lines.ramp,'#26bb7c');
  drawSpatialJams();drawClosureSections();
