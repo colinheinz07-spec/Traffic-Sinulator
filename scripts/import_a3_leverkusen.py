@@ -20,7 +20,7 @@ def ref_tokens(w):
  return [r.replace(' ','').upper() for r in re.split('[;,]',w.get('tags',{}).get('ref',''))]
 def download_tile(arg):
  lat,lon=arg
- box=f'{lon-.021},{lat-.011},{lon+.021},{lat+.011}'
+ box=f'{lon-.015},{lat-.008},{lon+.015},{lat+.008}'
  url='https://api.openstreetmap.org/api/0.6/map.json?'+urllib.parse.urlencode({'bbox':box})
  for attempt in range(5):
   try:
@@ -41,8 +41,8 @@ def download_overpass():
  bounds=f'{south},{west},{north},{east}'
  query=(f'[out:json][timeout:240];(way["highway"~"^({highway})$"]({bounds});'
         f'node["highway"="motorway_junction"]({bounds}););out body geom;')
- endpoints=['https://overpass.private.coffee/api/interpreter',
-  'https://overpass-api.de/api/interpreter',
+ endpoints=['https://overpass-api.de/api/interpreter',
+  'https://overpass.private.coffee/api/interpreter',
   'https://overpass.osm.ch/api/interpreter',
   'https://overpass.kumi.systems/api/interpreter']
  errors=[]
@@ -72,11 +72,18 @@ def load_source():
  if SOURCE.exists():
   result=json.loads(SOURCE.read_text()); print('Using retained OSM source',len(result['elements']),flush=True)
   return result
+ try:
+  result=download_overpass()
+  SOURCE.parent.mkdir(parents=True,exist_ok=True)
+  SOURCE.write_text(json.dumps(result,ensure_ascii=False,separators=(',',':')))
+  return result
+ except Exception as exc:
+  print('Overpass unreachable; attempting rate-limited smaller tiles:',str(exc),flush=True)
  # Twelve overlapping, rate-limited OSM API cells cover the A3 between Köln-Ost and the
  # Leverkusener Kreuz, along with connected surface roads and motorway links.
  # Keep the ORIGINAL OSM nodes/ways; no spatial interpolation of road lines.
- tiles=[(round(50.953+row*.018,4),round(7.014+col*.034,4))
-        for row in range(6) for col in range(2)]
+ tiles=[(round(50.952+row*.013,4),round(6.990+col*.028,4))
+        for row in range(8) for col in range(4)]
  items={}
  with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
   for chunk in pool.map(download_tile,tiles):
