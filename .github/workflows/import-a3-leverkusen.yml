@@ -5,10 +5,11 @@ on:
     paths:
       - scripts/import_a3_leverkusen.py
       - scripts/build_a3_leverkusen_detours.py
+      - scripts/publish_a3_leverkusen_objects.py
       - .github/workflows/import-a3-leverkusen.yml
   workflow_dispatch:
 permissions:
-  contents: read
+  contents: write
 jobs:
   import:
     runs-on: ubuntu-latest
@@ -36,6 +37,10 @@ jobs:
         run: |
           npm run check
           python -m unittest discover -s scripts/tests -v
+      - name: Create inspected Git objects without touching protected refs
+        env:
+          GH_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python scripts/publish_a3_leverkusen_objects.py
       - name: Export OSM source, geometry and browser build for review
         if: always()
         uses: actions/upload-artifact@v4
