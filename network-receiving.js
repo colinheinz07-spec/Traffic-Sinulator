@@ -50,7 +50,7 @@ export function downstreamReceiving(cells, merges) {
         const lanes = cell.openLanes?.length ?? Math.max(1, Math.round((cell.jamDensityVehKm ?? 390) / QUEUE_JAM_DENSITY_PER_LANE));
         const jam = cell.jamDensityVehKm ?? QUEUE_JAM_DENSITY_PER_LANE * lanes;
         const formal = target.closures?.some(g => link.mergeM >= g.fromM - 1 && link.mergeM < g.toM - 1);
-        if (!formal && (cell.speedKmh > 65 || cell.densityVehKm <= (cell.criticalDensityVehKm ?? 20 * lanes) * 1.1))
+        if (!formal && (cell.speedKmh > 65 && cell.densityVehKm <= (cell.criticalDensityVehKm ?? 20 * lanes) * 1.1))
             continue;
         const supply = formal || lanes === 0 ? 0 : Math.max(0, CONGESTION_WAVE_KMH * (jam - cell.densityVehKm));
         output[link.from] = Math.min(output[link.from] ?? Infinity, supply);
