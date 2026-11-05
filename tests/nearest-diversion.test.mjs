@@ -162,3 +162,31 @@ test('a natural queue on the target motorway recruits only the nearest approachi
  });
  assert.ok(routedDiversionChoice(entries[0],entries,cells,routes,[],exits,{[source]:2000,[path]:2000}).percent>0);
 });
+
+test('A3 Frankfurt: a long Diez–Limburg closure cannot send drivers off at Ransbach before Montabaur fills',()=>{
+ const path='A3-frankfurt',route=routes[path],js=diversionJunctions(path,exits,route);
+ const ransbach=js.find(j=>j.ref==='38'),montabaur=js.find(j=>j.ref==='40'),
+  diez=js.find(j=>j.ref==='41'),limburg=js.find(j=>j.ref==='42');
+ assert.ok(ransbach&&montabaur&&diez&&limburg);
+ assert.ok(ransbach.metre<montabaur.metre&&montabaur.metre<diez.metre&&diez.metre<limburg.metre);
+ const at=diez.metre+(limburg.metre-diez.metre)/3;
+ const event={id:'a3-f-closure',kind:'closure',pathKey:path,point:routeSlice(route,at,at+1)[0],
+  laneCount:3,closedLanes:[0,1,2],createdAt:'2026-11-05T00:00:00Z',
+  settings:{lengthM:100,speedKmh:0,shoulder:'blocked'}};
+ const grid=queue(path,montabaur.metre+250,diez.metre-150,200);
+ const entries=prepare([event],{[path]:grid});
+ const earlier=entries.find(e=>e.config.geometry.sourceExitRef==='38');
+ const near=entries.find(e=>e.config.geometry.sourceExitRef==='40');
+ assert.ok(earlier&&near,'both exits are present as possible routes');
+ const initial=routedDiversionChoice(earlier,entries,{[path]:grid},routes,[event],exits,{[path]:2000});
+ assert.equal(initial.percent,0,'200-minute delay does not justify skipping a still-open Montabaur exit');
+ assert.ok(routedDiversionChoice(near,entries,{[path]:grid},routes,[event],exits,{[path]:2000}).percent>0,
+  'Montabaur reacts once the physical mainline queue reaches its following section');
+ grid.junctions=[{id:path+':local:40',ref:'40',metre:montabaur.metre,
+  entryVph:0,exitPercent:100,entryCapacityVph:900,exitCapacityVph:1800,
+  exitStorageVehicles:40,exitTerminalVph:700,waiting:0,offeredTotal:0,enteredTotal:0,
+  exitedTotal:0,lastEntered:0,lastExited:0,lastExitDemand:45,
+  exitQueue:{normal:40,detours:{}}}];
+ const overflow=routedDiversionChoice(earlier,entries,{[path]:grid},routes,[event],exits,{[path]:2000});
+ assert.ok(overflow.percent>0,'Ransbach may become a bypass when the closer ramp is physically full');
+});
