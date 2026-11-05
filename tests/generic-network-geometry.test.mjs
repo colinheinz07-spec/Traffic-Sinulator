@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {buildContinuousRoads} from '../dist/cartography.js';
 import {closestJunction} from '../dist/selection.js';
-import {motorwayRef} from '../dist/network-catalog.js';
+import {motorwayRef,createRouteCatalog,validateRouteCatalog} from '../dist/network-catalog.js';
+import {makeCorridors} from '../dist/spatial.js';
 
 /** A new A61 must not require edits in drawing, hit testing or core physics. */
 function way(id,road,points){
@@ -20,6 +21,15 @@ test('new autobahn carriageways are stitched independently and retain OSM vertic
  assert.equal(drawings.find(r=>r.road==='A61-nord').points.length,3);
  assert.equal(drawings.find(r=>r.road==='A61-sued').points.length,3);
  assert.deepEqual(drawings.flatMap(r=>r.wayIds).sort((a,b)=>a-b),[200,201,202,203]);
+ const catalog=createRouteCatalog({roads:[...north,...south],ramps:[]},[]);
+ assert.deepEqual(validateRouteCatalog(catalog),[]);
+ assert.deepEqual(catalog.map(c=>c.key).sort(),['A61-nord','A61-sued']);
+ assert.ok(catalog.every(c=>c.motorway==='A61'&&c.kind==='motorway'&&c.lanes===2));
+ const corridors=makeCorridors([...north,...south],[]);
+ for(const key of ['A61-nord','A61-sued']){
+  assert.equal(corridors[key].points.length,3,'the new road must be usable by the shared flow solver');
+  assert.ok(corridors[key].lengthM>200);
+ }
 });
 test('nearest exit on an unregistered future A61 road uses the OSM motorway reference',()=>{
  const road=way(210,'A61-nord',[[50,7],[50.005,7]]);
