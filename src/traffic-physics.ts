@@ -222,7 +222,7 @@ export function stopAndGoBands(jam:MovingQueue,simMinute:number):SpeedBand[]{
   const signalTime=simMinute-upstreamM/WAVE_UPSTREAM_M_PER_MIN;
   const source=propagatedBaseSpeed(jam.speedHistory,simMinute,upstreamM,jam.speedKmh);
   const kmh=localWaveSpeed(source,signalTime,jam.id??jam.pathKey,jam.queueM/1000,free,
-   jam.pathKey.startsWith('ramp-')||extensionRoute(jam.pathKey)?.kind==='ramp'||jam.offsetBackM!==undefined?'ramp':'motorway');
+   routeDescriptor(jam.pathKey)?.kind==='ramp'||jam.offsetBackM!==undefined?'ramp':'motorway');
   const color=colorAtSpeed(kmh);
   const last=out.at(-1);
   if(last&&last.color===color&&Math.abs(last.toM-fromM)<.01){
