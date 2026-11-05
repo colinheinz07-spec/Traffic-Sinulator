@@ -297,8 +297,8 @@ function baseDiversionChoice(entry:ChoiceRoute,entries:readonly ChoiceRoute[],
    const ramp=source.junctions?.find(x=>Math.abs(x.metre-j.metre)<25);
    if(!ramp)return false;
    const storage=ramp.exitStorageVehicles??0;
-   const motorwayBackedUp=cellQueueSpans(source).some(s=>
-     s.fromM<=j.metre+source.cellM&&s.toM>=j.metre-source.cellM);
+   const motorwayBackedUp=spans.some(s=>
+     s.fromM<=j.metre+500&&s.toM>=j.metre-500);
     return storage>0&&motorwayBackedUp&&(ramp.exitFullMinutes??0)>=45&&
      exitRampVehicles(ramp)>=storage*.95&&
      (ramp.lastExitDemand??0)*60>(ramp.exitTerminalVph??DEFAULT_EXIT_TERMINAL_VPH)*.95;
