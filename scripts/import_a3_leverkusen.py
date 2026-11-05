@@ -236,7 +236,9 @@ def import_links(data,new_exits,vertices,doc):
  return new
 
 def main():
+ import sys
  doc=load_source()
+ if '--fetch-only' in sys.argv:return
  data,exits,vertices,_=import_core(doc)
  links=import_links(data,exits,vertices,doc)
  # Ensure all four required newly imported junctions have a directional
