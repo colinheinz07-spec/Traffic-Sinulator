@@ -187,3 +187,16 @@ test('real OSM closure, reopening and final clearing keep all displayed extents 
  assert.equal(view(state).reports[path].queueKm,0);
  assert.ok(state.cells.every(c=>c.speedKmh>freeSpeedKmh(path)*.8));
 });
+
+test('free one-minute flow cannot paint a long orange ribbon from a single low substep',()=>{
+ const state=initialiseCells(route,1300),free=freeSpeedKmh(path);
+ for(const cell of state.cells.slice(5,95)){
+  cell.speedKmh=44;
+  cell.flowVph=44*cell.densityVehKm;
+  cell.minuteFlowVph=free*cell.densityVehKm;
+ }
+ const result=view(state);
+ assert.equal(unionLength(result.bands.get(path)),0,
+  'subcritical free-flow cars must not render a long orange traffic jam');
+ assert.equal(result.reports[path].queueKm,0);
+});

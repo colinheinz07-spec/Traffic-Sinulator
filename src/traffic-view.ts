@@ -132,6 +132,13 @@ export function trafficView(
   if(state)for(const cell of state.cells){
    if(cell.vehicles<.75||cell.speedKmh>65||cell.speedKmh<=10||
     cell.densityVehKm>=(cell.criticalDensityVehKm??cellCriticalDensity(path))*1.10)continue;
+   // A free, lightly occupied cell can have a near-zero final two-second
+   // outflow at the snapshot boundary. Do not paint a kilometre-long orange
+   // ribbon if the whole-minute accepted flow remained at free speed.
+   // Keep genuine braking at a physical queue tail and dense queue bands.
+   const minuteSpeed=(cell.minuteFlowVph??cell.flowVph)/
+    Math.max(.05,cell.densityVehKm);
+   if(cell.approachLimitKmh===undefined&&minuteSpeed>65)continue;
    restrictions.push({fromM:cell.fromM,toM:cell.toM,speedKmh:cell.speedKmh,
     color:colorAtSpeed(cell.speedKmh),source:'restriction'});
   }
