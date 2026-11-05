@@ -28,22 +28,64 @@ def download_tile(arg):
    with urllib.request.urlopen(request,timeout=80) as response:
     doc=json.load(response)
    print('OSM tile',arg,'elements',len(doc['elements']),flush=True)
+   time.sleep(5)
    return doc['elements']
   except Exception as err:
    print('retry',arg,attempt,str(err),flush=True)
    time.sleep(min(20,2**attempt*2))
  raise RuntimeError('Missing OSM tile: '+str(arg))
+def download_overpass():
+ """A single selective highway query avoids hammering the public OSM tile API."""
+ south,west,north,east=50.943,6.972,51.053,7.091
+ highway='motorway|motorway_link|trunk|trunk_link|primary|primary_link|secondary|secondary_link|tertiary|tertiary_link|residential|unclassified|living_street'
+ bounds=f'{south},{west},{north},{east}'
+ query=(f'[out:json][timeout:240];(way["highway"~"^({highway})$"]({bounds});'
+        f'node["highway"="motorway_junction"]({bounds}););out body geom;')
+ endpoints=['https://overpass.private.coffee/api/interpreter',
+  'https://overpass-api.de/api/interpreter',
+  'https://overpass.osm.ch/api/interpreter',
+  'https://overpass.kumi.systems/api/interpreter']
+ errors=[]
+ for endpoint in endpoints:
+  try:
+   post=urllib.parse.urlencode({'data':query}).encode()
+   request=urllib.request.Request(endpoint,data=post,
+    headers={'User-Agent':'Traffic-Sinulator-OSM-study/1.0 (github.com/colinheinz07-spec/Traffic-Sinulator)',
+             'Content-Type':'application/x-www-form-urlencoded','Accept':'application/json'})
+   print('Requesting filtered Leverkusen road network from',endpoint,flush=True)
+   with urllib.request.urlopen(request,timeout=270) as response:
+    result=json.load(response)
+   if not result.get('elements') or len(result['elements'])<150:
+    raise ValueError('Overpass response missing most highway elements')
+   result={'source':'© OpenStreetMap contributors (ODbL); Overpass API '+endpoint,
+    'fetchedAt':time.strftime('%Y-%m-%dT%H:%M:%SZ',time.gmtime()),
+    'elements':[e for e in result['elements'] if e['type']=='node' or e['type']=='way' and e.get('geometry')]}
+   assert any(e.get('tags',{}).get('ref')=='23' and e.get('tags',{}).get('highway')=='motorway_junction' for e in result['elements']), 'Missing AK Leverkusen node'
+   print('Overpass returned',len(result['elements']),'road objects',flush=True)
+   return result
+  except Exception as exc:
+   errors.append(endpoint+': '+str(exc))
+   print('Overpass mirror failed:',str(exc),flush=True)
+ raise RuntimeError('No Overpass mirror available: '+'; '.join(errors))
+
 def load_source():
  if SOURCE.exists():
   result=json.loads(SOURCE.read_text()); print('Using retained OSM source',len(result['elements']),flush=True)
   return result
+ try:
+  result=download_overpass()
+  SOURCE.parent.mkdir(parents=True,exist_ok=True)
+  SOURCE.write_text(json.dumps(result,ensure_ascii=False,separators=(',',':')))
+  return result
+ except Exception as e:
+  print('Filtered Overpass import failed; slowing down the original OSM API:',str(e),flush=True)
  # 32 overlapping API map cells cover the A3 between Köln-Ost and the
  # Leverkusener Kreuz, along with connected surface roads and motorway links.
  # Keep the ORIGINAL OSM nodes/ways; no spatial interpolation of road lines.
  tiles=[(round(50.952+row*.013,4),round(6.990+col*.028,4))
         for row in range(8) for col in range(4)]
  items={}
- with concurrent.futures.ThreadPoolExecutor(max_workers=3) as pool:
+ with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
   for chunk in pool.map(download_tile,tiles):
    for e in chunk: items[(e['type'],e['id'])]=e
  nodes={e['id']:e for e in items.values() if e['type']=='node'}
