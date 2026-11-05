@@ -77,9 +77,12 @@ test('one free lane need not create a jam at very low demand',()=>{
  for(let i=0;i<70;i++)state=advanceCells(state,road,[work],450);
  assert.equal(cellSpeedBands(state).length,0,'low inflow should not build a queue');
 });
-test('cell network couples verified detours and retains the separate ramp projection',()=>{
+test('cell network couples verified detours and retains the separate ramp projection',async()=>{
  const src=readFileSync('src/app.ts','utf8');
- assert.match(src,/CELL_PATHS=PATHS\.filter\(key=>DIRECTIONS\.includes\(key as RoadId\)\|\|extensionRoute\(key\)\?\.kind==='motorway'\)/);
+ assert.match(src,/CELL_PATHS=MOTORWAY_PATHS/);
+ const {MOTORWAY_ROUTE_KEYS}=await import('../dist/network-catalog.js');
+ const {MOTORWAY_PATHS}=await import('../dist/network-presentation.js');
+ assert.deepEqual(MOTORWAY_PATHS,MOTORWAY_ROUTE_KEYS);
  assert.match(src,/advanceRoutedNetwork\(cellNetwork/);
  const view=readFileSync('src/traffic-view.ts','utf8');
  assert.match(view,/state\?cellSpeedBands\(state\):own\.flatMap/);

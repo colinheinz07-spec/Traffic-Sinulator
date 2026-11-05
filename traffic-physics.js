@@ -1,16 +1,16 @@
-import { extensionRoute } from './network-extensions.js?build=a2413d3bf8be14e7';
+import { routeDescriptor } from './network-catalog.js?build=ce3e105ecde00d7b';
 /** Unrestricted base service before event-specific reductions. These are
  * simulator assumptions, not measured capacities for every A3/A48 section.
  * Motorway lanes receive +100 vehicles/hour (2000 → 2100);\n * one-lane interchange ramps retain 1500 and stay distinct. */
 export function baseLaneCapacity(path) {
-    return extensionRoute(path)?.kind === 'ramp' || path.startsWith('ramp-') ? 1500 : 2100;
+    return routeDescriptor(path)?.kind === 'ramp' ? 1500 : 2100;
 }
 /** Standstill storage and backward relaxation are simulator assumptions.
  * 130 vehicles/km/lane corresponds to about 7.7 m per stored vehicle. */
 export const QUEUE_JAM_DENSITY_PER_LANE = 130, CONGESTION_WAVE_KMH = 22;
 const RANK = { free: 0, slow: 1, jam: 2, standstill: 3 };
 export function freeSpeedKmh(path) {
-    return extensionRoute(path)?.freeKmh ?? (path.startsWith('ramp-') ? 80 : 130);
+    return routeDescriptor(path)?.freeKmh ?? 130;
 }
 /** One consistent definition for UI, queues, ramps and OSM map overlays. */
 export function colorAtSpeed(speedKmh) {
@@ -215,7 +215,7 @@ export function stopAndGoBands(jam, simMinute) {
         const upstreamM = (jam.offsetBackM ?? 0) + jam.anchorM - (fromM + toM) / 2;
         const signalTime = simMinute - upstreamM / WAVE_UPSTREAM_M_PER_MIN;
         const source = propagatedBaseSpeed(jam.speedHistory, simMinute, upstreamM, jam.speedKmh);
-        const kmh = localWaveSpeed(source, signalTime, jam.id ?? jam.pathKey, jam.queueM / 1000, free, jam.pathKey.startsWith('ramp-') || extensionRoute(jam.pathKey)?.kind === 'ramp' || jam.offsetBackM !== undefined ? 'ramp' : 'motorway');
+        const kmh = localWaveSpeed(source, signalTime, jam.id ?? jam.pathKey, jam.queueM / 1000, free, routeDescriptor(jam.pathKey)?.kind === 'ramp' || jam.offsetBackM !== undefined ? 'ramp' : 'motorway');
         const color = colorAtSpeed(kmh);
         const last = out.at(-1);
         if (last && last.color === color && Math.abs(last.toM - fromM) < .01) {

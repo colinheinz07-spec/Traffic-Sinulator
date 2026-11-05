@@ -1,8 +1,10 @@
 export type Point = [number, number]; // [latitude, longitude]
-export type RoadId = 'A3-koeln'|'A3-frankfurt'|'A48-dernbach'|'A48-koblenz';
-export type Road = {id:string;wayId:number;road:RoadId;lanes:number;normalLaneCount?:number;km:number;posKm:number;points:Point[];tags?:Record<string,string>};
-export type Ramp = {id:string;name:string;from:RoadId;to:RoadId;lanes:number;wayIds:number[];points:Point[]};
-export type Exit = {road:'A3'|'A4'|'A48'|'A59'|'A559'|'A560'|'A562'|'A555'|'A565'|'A1';ref:string;name:string;position:Point;source:string;sharedRoad?:'A3';
+/** Legacy A3/A48 route IDs remain stable; newly imported directed roads use
+ * their own non-empty keys without changing the TypeScript unions. */
+export type RoadId = string;
+export type Road = {id:string;wayId:number;road:RoadId;lanes:number;normalLaneCount?:number;referenceDemandVph?:number;km:number;posKm:number;points:Point[];tags?:Record<string,string>};
+export type Ramp = {id:string;name:string;from:RoadId;to:RoadId;lanes:number;referenceDemandVph?:number;wayIds:number[];points:Point[]};
+export type Exit = {road:string;ref:string;name:string;position:Point;source:string;sharedRoad?:string;
  access?:Partial<Record<string,{entry:boolean;exit:boolean}>>;
  directional?:Partial<Record<string,{position:Point;nodeId:number}>>};
 /** A junction may have different off-ramp nodes in each direction. */
@@ -30,7 +32,11 @@ export function validateMap(data:MapData):{valid:boolean;errors:string[]}{
   if(!data.roads.some(r=>r.road===road&&r.points.some(p=>p[0]>=50.785)))errors.push('A3 bis Bonn/Siegburg unvollständig: '+road);
  }
  for(const r of data.roads){if(!r.points || r.points.length<2||r.lanes<1||r.km<=0)errors.push('Straßenabschnitt ungültig: '+r.id);
-  else if(!r.tags?.ref?.replaceAll(' ','').includes(r.road.startsWith('A3-')?'A3':'A48'))errors.push('Fremde Straße: '+r.id);
+  else {
+   const expected=r.road.match(/^A\d{1,3}(?!\d)/i)?.[0]?.toUpperCase();
+   const refs=(r.tags?.ref??'').toUpperCase().replaceAll(' ','').split(/[;,]/);
+   if(!expected||!refs.includes(expected))errors.push('Fremde Straße: '+r.id);
+  }
  }
  for(const ramp of data.ramps)if(ramp.points.length<12 || ramp.wayIds.length<2)errors.push('Rampengeometrie fehlt: '+ramp.id);
  return{valid:errors.length===0,errors};
@@ -56,4 +62,4 @@ export function nearestPolyline(points:Point[],pixel:[number,number],project:(p:
  }
  return best;
 }
-export function roadIdName(id:RoadId){return names[id];}
+export function roadIdName(id:RoadId){return names[id]??id;}

@@ -1,9 +1,10 @@
 /** Endpoint-connected mainlines exchange a receiving signal. This limits
  * actual discharge in the feeder CTM, rather than painting a second queue.
  * Aggregate motorway demands remain calibrated independently (not OD trips). */
-import {extensionRoutes} from './network-extensions.js';
+import {MOTORWAY_ROUTE_KEYS} from './network-catalog.js';
+import {motorwayEndpointIndex} from './network-topology.js';
 import type {PathKey} from './traffic.js';
-import {positionM,metres,type Corridor} from './spatial.js';
+import type {Corridor} from './spatial.js';
 import type {CellRouteState} from './traffic-cells.js';
 import {CONGESTION_WAVE_KMH,QUEUE_JAM_DENSITY_PER_LANE} from './traffic-physics.js';
 /** Share downstream CTM receiving capacity with a physically connected
@@ -31,11 +32,19 @@ export function rampReceiving(
 }
 export interface MainlineMerge {from:PathKey;to:PathKey;mergeM:number}
 export function mainlineMerges(routes:Readonly<Record<PathKey,Corridor>>):MainlineMerge[]{
- const mains:PathKey[]=['A3-koeln','A3-frankfurt','A48-dernbach','A48-koblenz',...extensionRoutes.filter(r=>r.kind==='motorway').map(r=>r.id)];
- return mains.flatMap(from=>{const end=routes[from].points.at(-1)!;return mains.filter(to=>to!==from).flatMap(to=>{
-  const route=routes[to],at=route.points.findIndex(p=>metres(p,end)<.05);if(at<0)return [];
-  const mergeM=positionM(route,end,1)!;return mergeM<route.lengthM-1?[{from,to,mergeM}]:[];
- });});
+ const index=motorwayEndpointIndex(routes,MOTORWAY_ROUTE_KEYS),result:MainlineMerge[]=[];
+ for(const from of MOTORWAY_ROUTE_KEYS){
+  const source=routes[from];if(!source)continue;
+  const end=source.points.at(-1)!;
+  const seen=new Set<string>();
+  for(const target of index.at(end)){
+   if(target.key===from||seen.has(target.key))continue;
+   seen.add(target.key);
+   if(target.metre>=routes[target.key]!.lengthM-1)continue;
+   result.push({from,to:target.key,mergeM:target.metre});
+  }
+ }
+ return result;
 }
 export function downstreamReceiving(cells:Readonly<Partial<Record<PathKey,CellRouteState>>>,merges:readonly MainlineMerge[]):Partial<Record<PathKey,number>>{
  const output:Partial<Record<PathKey,number>>={};

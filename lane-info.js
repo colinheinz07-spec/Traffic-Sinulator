@@ -1,19 +1,21 @@
-import { normalLaneOverrides } from './normal-lanes.js?build=a2413d3bf8be14e7';
-import { nearestPolyline } from './core.js?build=a2413d3bf8be14e7';
-import { rampLaneWays, unverifiedRoadWays } from './lane-profiles.js?build=a2413d3bf8be14e7';
+import { normalLaneOverrides, motorwayLaneCalibration } from './normal-lanes.js?build=ce3e105ecde00d7b';
+import { nearestPolyline } from './core.js?build=ce3e105ecde00d7b';
+import { rampLaneWays, unverifiedRoadWays } from './lane-profiles.js?build=ce3e105ecde00d7b';
 /** OSM lanes includes acceleration/diverging lanes and sometimes temporary
  * construction layouts. A3's verified normal corridor has three through
  * lanes. A48 auxiliary turn/merge-only lanes are excluded explicitly. */
 export function normalThroughLanes(road) {
     if (road.normalLaneCount !== undefined)
         return road.normalLaneCount;
-    if (road.road.startsWith('A3'))
-        return 3;
+    const motorway = road.road.match(/^A\d{1,3}(?!\d)/i)?.[0]?.toUpperCase();
+    const calibration = motorway ? motorwayLaneCalibration[motorway] : undefined;
+    if (calibration?.fixed !== undefined)
+        return calibration.fixed;
     if (normalLaneOverrides[road.wayId] !== undefined)
         return normalLaneOverrides[road.wayId];
     const turns = road.tags?.['turn:lanes']?.split('|');
     const through = turns?.filter(t => !t.includes('merge_to_') && !/^(slight_right|slight_left|right|left)$/.test(t)).length;
-    return Math.max(1, Math.min(road.lanes, 3, through && through >= 2 ? through : road.lanes));
+    return Math.max(1, Math.min(road.lanes, calibration?.maximum ?? 7, through && through >= 2 ? through : road.lanes));
 }
 export function roadLaneInfo(road) {
     const count = normalThroughLanes(road);

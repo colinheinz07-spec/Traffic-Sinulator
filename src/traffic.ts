@@ -1,21 +1,16 @@
-import {REFERENCE_PEAKS,profileFactor,profileIdentity} from './traffic-profiles.js';
-import {EXTENSION_IDS,extensionRoutes,extensionRoute} from './network-extensions.js';
+import {profileFactor,profileIdentity} from './traffic-profiles.js';
+import {LEGACY_ROUTE_KEYS,NETWORK_ROUTE_KEYS,ROUTE_CATALOG,routeDescriptor} from './network-catalog.js';
 /** Deliberately isolated, macroscopic first-pass traffic-flow simulation.
  * Traffic volumes, capacities, and queue density are modelling assumptions,
  * NOT measured flows, road regulations, official diversion routes, or observed jams.
  * One controlling bottleneck per directional path; no A3/A48 ramp transfer yet.
  */
 import {flowPolicy,type SimEvent} from './events.js';
-import type {RoadId} from './core.js';
 import {baseLaneCapacity,QUEUE_JAM_DENSITY_PER_LANE} from './traffic-physics.js';
 
-export const PATHS=[
- 'A3-koeln','A3-frankfurt','A48-dernbach','A48-koblenz',
- 'ramp-a3-to-a48-from-frankfurt','ramp-a48-to-koeln',
- 'ramp-a3-to-a48-from-koeln','ramp-a48-to-frankfurt'
-] as const;
-export const NETWORK_PATHS=[...PATHS,...EXTENSION_IDS] as const;
-export type PathKey=typeof NETWORK_PATHS[number];
+export const PATHS:readonly string[]=LEGACY_ROUTE_KEYS;
+export const NETWORK_PATHS:readonly string[]=NETWORK_ROUTE_KEYS;
+export type PathKey=string;
 export type TrafficColor='free'|'slow'|'jam'|'standstill';
 export type TrafficState={minute:number;vehiclesWaiting:Record<PathKey,number>};
 export interface TrafficEstimate {
@@ -32,21 +27,14 @@ export interface TrafficEstimate {
  eventCount:number;
  officiallyClosed:boolean;
 }
-const demandDefaults:Record<PathKey,number>={
- ...Object.fromEntries(extensionRoutes.map(r=>[r.id,r.demandVph])) as Record<typeof EXTENSION_IDS[number],number>,
- ...REFERENCE_PEAKS,
- 'A3-koeln':4200,'A3-frankfurt':4100,
- 'A48-dernbach':2400,'A48-koblenz':1700,
- 'ramp-a3-to-a48-from-frankfurt':1000,'ramp-a48-to-koeln':1000,
- 'ramp-a3-to-a48-from-koeln':700,'ramp-a48-to-frankfurt':1400
-};
-const motorwayBaseLanes:Record<RoadId,number>={
- 'A3-koeln':3,'A3-frankfurt':3,'A48-dernbach':2,'A48-koblenz':2
-};
-const defaultKmH=(key:PathKey)=>extensionRoute(key)?.freeKmh??(key.startsWith('ramp-')?80:130);
-export function defaultDemand(key:PathKey):number{return demandDefaults[key]}
+const demandDefaults:Record<PathKey,number>=Object.fromEntries(
+ ROUTE_CATALOG.map(r=>[r.key,r.demandVph]));
+const defaultKmH=(key:PathKey)=>routeDescriptor(key)?.freeKmh??130;
+export function defaultDemand(key:PathKey):number{return demandDefaults[key]??0}
 export function baselineCapacity(key:PathKey):number{
- return baseLaneCapacity(key)*(extensionRoute(key)?.lanes??(key.startsWith('ramp-')?1:motorwayBaseLanes[key as RoadId]));
+ const route=routeDescriptor(key);
+ if(!route)throw Error('Fahrweg unbekannt: '+key);
+ return baseLaneCapacity(key)*route.lanes;
 }
 export function emptyTraffic():TrafficState{
  return {minute:0,vehiclesWaiting:Object.fromEntries(NETWORK_PATHS.map(p=>[p,0])) as Record<PathKey,number>};
@@ -55,7 +43,7 @@ export function emptyTraffic():TrafficState{
  * composition can be supplied by subsequent route/time-based demand models.
  */
 export function defaultHeavyShare(key:PathKey):number{
- return key.startsWith('A3')?.23:key.startsWith('A48')?.16:.15;
+ return routeDescriptor(key)?.heavyShare??.15;
 }
 /** Shares ordered RIGHT -> LEFT, from car- and HGV-specific lane choices.
  * Heavy trucks are predominantly right; cars are more evenly distributed.
@@ -136,7 +124,7 @@ export function trafficEstimate(state:TrafficState,key:PathKey,events:readonly S
  const bn=pathBottleneck(key,events,inputVph),queue=Math.max(0,state.vehiclesWaiting[key]);
  const capacity=bn.capacityVph;
  // Long queues spread across available approach lanes, using a declared illustrative density.
- const approachLanes=key.startsWith('ramp-')?1:motorwayBaseLanes[key as RoadId];
+ const approachLanes=routeDescriptor(key)?.lanes??1;
  const queueKm=queue/(QUEUE_JAM_DENSITY_PER_LANE*approachLanes);
  // Queue delay is unknowable when a closure has zero discharge; never display a finite prediction.
  const physicalWait=capacity===0?null:queue/capacity*60;

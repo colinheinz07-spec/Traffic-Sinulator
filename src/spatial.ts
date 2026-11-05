@@ -1,5 +1,6 @@
 import {networkRoad} from './network-road.js';
 import {extensionRoutes,extensionRoute} from './network-extensions.js';
+import {routeDescriptor,LEGACY_ROUTE_KEYS} from './network-catalog.js';
 import {normalThroughLanes} from './lane-info.js';
 /** Georeferenced, per-event queue model on the exact OSM motorway carriageway curves.
  * A first-pass conservation model (not a calibrated traffic forecast).
@@ -34,16 +35,22 @@ function corridor(key:PathKey,points:readonly Point[]):Corridor{
 }
 export function makeCorridors(roads:readonly Road[],ramps:readonly Ramp[]):Record<PathKey,Corridor>{
  const chains=buildContinuousRoads(roads),result=new Map<string,Corridor>();
- for(const key of PATHS){
-  const source=key.startsWith('ramp-')?ramps.filter(x=>x.id===key).map(x=>x.points):chains.filter(x=>x.road===key).map(x=>x.points);
+ const mainlines=[...new Set(roads.map(r=>r.road))];
+ const rampIds=[...new Set(ramps.map(r=>r.id))];
+ const discovered=[...mainlines,...rampIds];
+ const keys=[...LEGACY_ROUTE_KEYS.filter(key=>discovered.includes(key)),
+  ...discovered.filter(key=>!LEGACY_ROUTE_KEYS.includes(key))];
+ for(const key of keys){
+  const isRamp=rampIds.includes(key);
+  const source=isRamp?ramps.filter(x=>x.id===key).map(x=>x.points):chains.filter(x=>x.road===key).map(x=>x.points);
   if(source.length!==1)throw Error(`Keine eindeutige durchgehende OSM-Fahrbahn für ${key}: ${source.length}`);
   const points=[...source[0]!];
-  if(!key.startsWith('ramp-')){
-   const headingEast=key==='A3-frankfurt'||key==='A48-dernbach';
-   if((points.at(-1)![1]>points[0]![1])!==headingEast)points.reverse();
-  }
+  // Orientation is supplied by the route's data, not a hard-coded A3/A48
+  // condition. Fresh imports must provide a travel-direction-consistent chain.
+  const order=routeDescriptor(key)?.geometryOrder;
+  if(!isRamp&&order&&(points.at(-1)![1]>points[0]![1])!==(order==='east'))points.reverse();
   const route=corridor(key,points);
-  if(!key.startsWith('ramp-')){
+  if(!isRamp){
    const positions=new Map(route.points.map((p,i)=>[p.join(','),route.metres[i]!]));
    route.normalLanes=roads.filter(r=>r.road===key).map(r=>{
     const a=positions.get(r.points[0]!.join(','))!,b=positions.get(r.points.at(-1)!.join(','))!;

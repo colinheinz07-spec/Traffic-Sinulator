@@ -1,15 +1,16 @@
-import { networkRoad } from './network-road.js?build=a2413d3bf8be14e7';
-import { extensionRoutes, extensionRoute } from './network-extensions.js?build=a2413d3bf8be14e7';
-import { normalThroughLanes } from './lane-info.js?build=a2413d3bf8be14e7';
+import { networkRoad } from './network-road.js?build=ce3e105ecde00d7b';
+import { extensionRoutes, extensionRoute } from './network-extensions.js?build=ce3e105ecde00d7b';
+import { routeDescriptor, LEGACY_ROUTE_KEYS } from './network-catalog.js?build=ce3e105ecde00d7b';
+import { normalThroughLanes } from './lane-info.js?build=ce3e105ecde00d7b';
 /** Georeferenced, per-event queue model on the exact OSM motorway carriageway curves.
  * A first-pass conservation model (not a calibrated traffic forecast).
  * No vehicle sprites, hidden road connectors, A3/A48 transfers, or invented detours.
  */
-import { buildContinuousRoads } from './cartography.js?build=a2413d3bf8be14e7';
-import { exitPosition } from './core.js?build=a2413d3bf8be14e7';
-import { PATHS, baselineCapacity, eventCapacity, defaultDemand } from './traffic.js?build=a2413d3bf8be14e7';
-import { baseLaneCapacity, colorAtSpeed, queueFundamentalDiagram, freeSpeedKmh } from './traffic-physics.js?build=a2413d3bf8be14e7';
-import { physicalEvents, accessibleExits } from './road-controls.js?build=a2413d3bf8be14e7';
+import { buildContinuousRoads } from './cartography.js?build=ce3e105ecde00d7b';
+import { exitPosition } from './core.js?build=ce3e105ecde00d7b';
+import { PATHS, baselineCapacity, eventCapacity, defaultDemand } from './traffic.js?build=ce3e105ecde00d7b';
+import { baseLaneCapacity, colorAtSpeed, queueFundamentalDiagram, freeSpeedKmh } from './traffic-physics.js?build=ce3e105ecde00d7b';
+import { physicalEvents, accessibleExits } from './road-controls.js?build=ce3e105ecde00d7b';
 const rad = Math.PI / 180;
 export function metres(a, b) {
     const dx = (b[1] - a[1]) * 111195 * Math.cos((a[0] + b[0]) / 2 * rad);
@@ -26,18 +27,24 @@ function corridor(key, points) {
 }
 export function makeCorridors(roads, ramps) {
     const chains = buildContinuousRoads(roads), result = new Map();
-    for (const key of PATHS) {
-        const source = key.startsWith('ramp-') ? ramps.filter(x => x.id === key).map(x => x.points) : chains.filter(x => x.road === key).map(x => x.points);
+    const mainlines = [...new Set(roads.map(r => r.road))];
+    const rampIds = [...new Set(ramps.map(r => r.id))];
+    const discovered = [...mainlines, ...rampIds];
+    const keys = [...LEGACY_ROUTE_KEYS.filter(key => discovered.includes(key)),
+        ...discovered.filter(key => !LEGACY_ROUTE_KEYS.includes(key))];
+    for (const key of keys) {
+        const isRamp = rampIds.includes(key);
+        const source = isRamp ? ramps.filter(x => x.id === key).map(x => x.points) : chains.filter(x => x.road === key).map(x => x.points);
         if (source.length !== 1)
             throw Error(`Keine eindeutige durchgehende OSM-Fahrbahn für ${key}: ${source.length}`);
         const points = [...source[0]];
-        if (!key.startsWith('ramp-')) {
-            const headingEast = key === 'A3-frankfurt' || key === 'A48-dernbach';
-            if ((points.at(-1)[1] > points[0][1]) !== headingEast)
-                points.reverse();
-        }
+        // Orientation is supplied by the route's data, not a hard-coded A3/A48
+        // condition. Fresh imports must provide a travel-direction-consistent chain.
+        const order = routeDescriptor(key)?.geometryOrder;
+        if (!isRamp && order && (points.at(-1)[1] > points[0][1]) !== (order === 'east'))
+            points.reverse();
         const route = corridor(key, points);
-        if (!key.startsWith('ramp-')) {
+        if (!isRamp) {
             const positions = new Map(route.points.map((p, i) => [p.join(','), route.metres[i]]));
             route.normalLanes = roads.filter(r => r.road === key).map(r => {
                 const a = positions.get(r.points[0].join(',')), b = positions.get(r.points.at(-1).join(','));

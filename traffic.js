@@ -1,33 +1,22 @@
-import { REFERENCE_PEAKS, profileFactor, profileIdentity } from './traffic-profiles.js?build=a2413d3bf8be14e7';
-import { EXTENSION_IDS, extensionRoutes, extensionRoute } from './network-extensions.js?build=a2413d3bf8be14e7';
+import { profileFactor, profileIdentity } from './traffic-profiles.js?build=ce3e105ecde00d7b';
+import { LEGACY_ROUTE_KEYS, NETWORK_ROUTE_KEYS, ROUTE_CATALOG, routeDescriptor } from './network-catalog.js?build=ce3e105ecde00d7b';
 /** Deliberately isolated, macroscopic first-pass traffic-flow simulation.
  * Traffic volumes, capacities, and queue density are modelling assumptions,
  * NOT measured flows, road regulations, official diversion routes, or observed jams.
  * One controlling bottleneck per directional path; no A3/A48 ramp transfer yet.
  */
-import { flowPolicy } from './events.js?build=a2413d3bf8be14e7';
-import { baseLaneCapacity, QUEUE_JAM_DENSITY_PER_LANE } from './traffic-physics.js?build=a2413d3bf8be14e7';
-export const PATHS = [
-    'A3-koeln', 'A3-frankfurt', 'A48-dernbach', 'A48-koblenz',
-    'ramp-a3-to-a48-from-frankfurt', 'ramp-a48-to-koeln',
-    'ramp-a3-to-a48-from-koeln', 'ramp-a48-to-frankfurt'
-];
-export const NETWORK_PATHS = [...PATHS, ...EXTENSION_IDS];
-const demandDefaults = {
-    ...Object.fromEntries(extensionRoutes.map(r => [r.id, r.demandVph])),
-    ...REFERENCE_PEAKS,
-    'A3-koeln': 4200, 'A3-frankfurt': 4100,
-    'A48-dernbach': 2400, 'A48-koblenz': 1700,
-    'ramp-a3-to-a48-from-frankfurt': 1000, 'ramp-a48-to-koeln': 1000,
-    'ramp-a3-to-a48-from-koeln': 700, 'ramp-a48-to-frankfurt': 1400
-};
-const motorwayBaseLanes = {
-    'A3-koeln': 3, 'A3-frankfurt': 3, 'A48-dernbach': 2, 'A48-koblenz': 2
-};
-const defaultKmH = (key) => extensionRoute(key)?.freeKmh ?? (key.startsWith('ramp-') ? 80 : 130);
-export function defaultDemand(key) { return demandDefaults[key]; }
+import { flowPolicy } from './events.js?build=ce3e105ecde00d7b';
+import { baseLaneCapacity, QUEUE_JAM_DENSITY_PER_LANE } from './traffic-physics.js?build=ce3e105ecde00d7b';
+export const PATHS = LEGACY_ROUTE_KEYS;
+export const NETWORK_PATHS = NETWORK_ROUTE_KEYS;
+const demandDefaults = Object.fromEntries(ROUTE_CATALOG.map(r => [r.key, r.demandVph]));
+const defaultKmH = (key) => routeDescriptor(key)?.freeKmh ?? 130;
+export function defaultDemand(key) { return demandDefaults[key] ?? 0; }
 export function baselineCapacity(key) {
-    return baseLaneCapacity(key) * (extensionRoute(key)?.lanes ?? (key.startsWith('ramp-') ? 1 : motorwayBaseLanes[key]));
+    const route = routeDescriptor(key);
+    if (!route)
+        throw Error('Fahrweg unbekannt: ' + key);
+    return baseLaneCapacity(key) * route.lanes;
 }
 export function emptyTraffic() {
     return { minute: 0, vehiclesWaiting: Object.fromEntries(NETWORK_PATHS.map(p => [p, 0])) };
@@ -36,7 +25,7 @@ export function emptyTraffic() {
  * composition can be supplied by subsequent route/time-based demand models.
  */
 export function defaultHeavyShare(key) {
-    return key.startsWith('A3') ? .23 : key.startsWith('A48') ? .16 : .15;
+    return routeDescriptor(key)?.heavyShare ?? .15;
 }
 /** Shares ordered RIGHT -> LEFT, from car- and HGV-specific lane choices.
  * Heavy trucks are predominantly right; cars are more evenly distributed.
@@ -123,7 +112,7 @@ export function trafficEstimate(state, key, events, inputVph) {
     const bn = pathBottleneck(key, events, inputVph), queue = Math.max(0, state.vehiclesWaiting[key]);
     const capacity = bn.capacityVph;
     // Long queues spread across available approach lanes, using a declared illustrative density.
-    const approachLanes = key.startsWith('ramp-') ? 1 : motorwayBaseLanes[key];
+    const approachLanes = routeDescriptor(key)?.lanes ?? 1;
     const queueKm = queue / (QUEUE_JAM_DENSITY_PER_LANE * approachLanes);
     // Queue delay is unknowable when a closure has zero discharge; never display a finite prediction.
     const physicalWait = capacity === 0 ? null : queue / capacity * 60;

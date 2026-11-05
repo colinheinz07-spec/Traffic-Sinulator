@@ -1,6 +1,6 @@
 /** Demand curves are model assumptions. DTV anchors are two-way DAILY
  * counts, never hourly inputs. See docs/Regional-demand.md for evidence. */
-import { extensionRoute } from './network-extensions.js?build=a2413d3bf8be14e7';
+import { extensionRoute } from './network-extensions.js?build=ce3e105ecde00d7b';
 const weekday = {
     transit: [[0, .14], [4, .09], [5, .20], [6, .52], [7, .86], [8, 1], [9, .79], [10, .66], [12, .68], [14, .72], [15, .82], [16, 1], [17, 1.05], [18, .82], [19, .58], [21, .32], [23, .19], [24, .14]],
     koblenz: [[0, .12], [4, .08], [4.5, .12], [5, .24], [6, .62], [7.25, 1], [8, .94], [9, .64], [10, .55], [12, .58], [14, .68], [15.5, .94], [16.5, 1], [17.5, .92], [19, .52], [21, .28], [23, .16], [24, .12]],
@@ -25,26 +25,25 @@ export const REFERENCE_PEAKS = {
     'extra-a562-bonn': 2800, 'extra-a562-bonn-ost': 2700
 };
 const cache = new Map();
+const familiesByMotorway = {
+    A3: 'transit', A48: 'koblenz', A59: 'airport', A4: 'ring', A555: 'ring',
+    A1: 'ring', A559: 'urban', A562: 'urban', A560: 'siegtal'
+};
 export function profileFamily(key) {
     const cached = cache.get(key);
     if (cached)
         return cached;
+    const match = key.match(/^(?:extra-)?(A\d{1,3})(?:-|$)/i);
+    const motorway = match?.[1]?.toUpperCase();
     let family;
-    if (key.startsWith('A3-'))
-        family = 'transit';
-    else if (key.startsWith('A48-') || key.startsWith('ramp-'))
+    if (motorway)
+        family = familiesByMotorway[motorway] ?? 'transit';
+    else if (key.startsWith('ramp-'))
         family = 'koblenz';
-    else if (key.startsWith('extra-a59-'))
-        family = 'airport';
-    else if (key.startsWith('extra-a4-') || key.startsWith('extra-a555-') || key.startsWith('extra-a1-'))
-        family = 'ring';
-    else if (key.startsWith('extra-a559-') || key.startsWith('extra-a562-'))
-        family = 'urban';
-    else if (key.startsWith('extra-a560-'))
-        family = 'siegtal';
     else {
         const feature = extensionRoute(key);
-        family = feature && feature.points.some(p => p[0] > 50.78 && p[1] < 7.17) ? 'ring' : feature?.zone.startsWith('A48') ? 'koblenz' : 'transit';
+        family = feature && feature.points.some(p => p[0] > 50.78 && p[1] < 7.17) ? 'ring' :
+            feature?.zone.startsWith('A48') ? 'koblenz' : 'transit';
     }
     cache.set(key, family);
     return family;
