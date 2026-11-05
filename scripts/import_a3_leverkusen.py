@@ -167,7 +167,10 @@ def import_core(doc):
     for b,w in edges:road_graph[b].append((a,w))
   edges,at=walk(road_graph,start,lambda p:p in ak23,minimum=2500)
   # Give the crossing actual exit/entry room beyond the 23 diverge.
-  extra,finish=walk(road_graph,at,lambda p:dist(p,at)>=300,minimum=300)
+  # Preserve the full north-side interchange weaving and all A1
+  # joining ramps, not just 300 m after the sign of AK Leverkusen.
+  # The OSM source ends near 51.053 N, so use exact OSM vertices there.
+  extra,finish=walk(road_graph,at,lambda p:p[0]>=51.052,minimum=300)
   edges+=extra
   if len(edges)<12:raise ValueError('A3 Leverkusen continuation is unexpectedly short: '+road)
   new_roads[road]=edges
