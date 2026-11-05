@@ -215,6 +215,17 @@ def import_core(doc):
    'wayIds':sorted(set(added)), 'method':'directed OSM way-node walks, no constructed connector',
    'junctionRefs':[23,24,25,26]}
  path.write_text(raw[:match.start(1)]+json.dumps(data,ensure_ascii=False,separators=(',',':'))+';\n')
+ # Audit every original directional OSM junction node on the added A3.
+ audit_path=ROOT/'data/junction-audit.json'
+ audit=json.loads(audit_path.read_text())
+ for exit in new_exits:
+  for direction,anchor in exit['directional'].items():
+   node=next(n for n in junctions if n['id']==anchor['nodeId'])
+   audit['junctions'].append({**node,'paths':[direction]})
+  audit['selected'].append({key:exit[key] for key in ('road','ref','name','directional')})
+ audit['wayIds']=sorted(set(audit['wayIds'])|set(added))
+ audit['leverkusenExtension']=data['audit']['leverkusenExtension']
+ audit_path.write_text(json.dumps(audit,ensure_ascii=False,indent=2)+'\n')
  return data,new_exits,vertices,doc
 
 def import_links(data,new_exits,vertices,doc):

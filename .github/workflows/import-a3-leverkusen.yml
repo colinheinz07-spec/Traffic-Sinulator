@@ -48,6 +48,7 @@ jobs:
           name: leverkusen-osm-import-snapshot
           path: |
             data/a3-leverkusen-osm.json
+            data/junction-audit.json
             data/extension-junctions.json
             src/geodata.ts
             src/network-extensions.ts

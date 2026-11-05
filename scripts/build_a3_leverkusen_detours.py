@@ -85,7 +85,7 @@ def main():
     # Only the next two junctions; distant arrivals require separate choices.
     if sum(1 for k,_,_ in anchors if idx<k<=ti)>2:continue
     targets={p for p in entrances if positions[p]>idx and
-      abs(positions[p]-ti)<250 and dist(p,nominal)<1800}
+      dist(p,nominal)<900}
     if not targets:continue
     edges=shortest(graph,start,targets)
     if not edges:continue

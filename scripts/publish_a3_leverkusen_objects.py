@@ -22,7 +22,7 @@ def main():
  head=subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip()
  parent=api('GET','/git/commits/'+head)
  paths=[
-  'data/a3-leverkusen-osm.json','data/extension-junctions.json',
+  'data/a3-leverkusen-osm.json','data/extension-junctions.json','data/junction-audit.json',
   'src/geodata.ts','src/network-extensions.ts','src/leverkusen-detours-data.ts','index.html',
   *[Path(f).name for f in sorted(glob.glob(str(ROOT/'*.js')))]]
  entries=[]

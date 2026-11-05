@@ -43,7 +43,7 @@ test('all 38 regular directional off-ramps match audited OSM nodes on their own 
    assert.notEqual(positionM(routes[path],node.position,2),null,path+' / AS '+exit.ref);
   }
  }
- assert.equal(count,38);
+ assert.equal(count,44);
 });
 
 test('Limburg uses the actual OSM off-ramp node on each carriageway',()=>{
