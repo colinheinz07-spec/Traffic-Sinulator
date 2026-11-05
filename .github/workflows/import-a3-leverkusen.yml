@@ -7,6 +7,10 @@ on:
       - scripts/build_a3_leverkusen_detours.py
       - scripts/publish_a3_leverkusen_objects.py
       - scripts/extend_a1_leverkusen.py
+      - tests/a3-leverkusen-network.test.mjs
+      - tests/network-presentation.test.mjs
+      - src/auto-diversions.ts
+      - src/bundled-detours.ts
       - .github/workflows/import-a3-leverkusen.yml
   workflow_dispatch:
 permissions:
