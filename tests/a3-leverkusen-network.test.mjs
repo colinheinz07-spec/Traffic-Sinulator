@@ -5,7 +5,9 @@ import {networkData} from '../dist/geodata.js';
 import {extensionRoutes,extensionJunctions} from '../dist/network-extensions.js';
 import {makeCorridors,metres} from '../dist/spatial.js';
 import {buildExtensionConnections} from '../dist/extension-connections.js';
-import {junctionRampBindings} from '../dist/junction-ramp-bindings.js';
+import {junctionRampBindings,junctionRampJams} from '../dist/junction-ramp-bindings.js';
+import {initialiseCells,advanceCells,assertCellConservation} from '../dist/traffic-cells.js';
+import {normalJunctionTraffic} from '../dist/junction-traffic.js';
 const core=makeCorridors(networkData.roads,networkData.ramps);
 const ways=JSON.parse(readFileSync('data/a3-leverkusen-osm.json','utf8')).elements.filter(e=>e.type==='way');
 const edges=new Set();
@@ -60,4 +62,18 @@ test('each new regular A3 Leverkusen AS has real entry and exit ramp chains on b
    }
   }
  }
+});
+
+test('a blocked Leverkusen off-ramp becomes physically red and retains queue vehicles',()=>{
+ const path='A3-koeln',route=core[path],exits=[...networkData.exits,...extensionJunctions];
+ const row=normalJunctionTraffic(route,exits,4000).find(j=>j.ref==='25');
+ assert.ok(row);
+ const blocked={...row,entryVph:0,exitPercent:100,exitCapacityVph:2200,
+  exitTerminalVph:0,exitStorageVehicles:80};
+ let cells=initialiseCells(route,4000);
+ for(let i=0;i<10;i++)cells=advanceCells(cells,route,[],4000,exits,[],[blocked]);
+ assertCellConservation(cells);
+ const jams=junctionRampJams({[path]:cells},core,exits,[]).filter(j=>j.id.includes(':25:exit:'));
+ assert.ok(jams.length>0,'the overloaded AS25 off-ramp must have a visible queue');
+ assert.ok(jams.every(j=>j.queueVehicles>0&&j.speedKmh<20&&j.queueM>0));
 });
