@@ -189,4 +189,8 @@ test('A3 Frankfurt: a long Diez–Limburg closure cannot send drivers off at Ran
   exitQueue:{normal:40,detours:{}}}];
  const overflow=routedDiversionChoice(earlier,entries,{[path]:grid},routes,[event],exits,{[path]:2000});
  assert.ok(overflow.percent>0,'Ransbach may become a bypass when the closer ramp is physically full');
+ assert.ok(overflow.percent<=8+1e-6,
+  'a free-flow Ransbach–Montabaur approach gets at most an 8% anticipatory diversion share, not all vehicles');
+ const montabaurChoice=routedDiversionChoice(near,entries,{[path]:grid},routes,[event],exits,{[path]:2000});
+ assert.ok(montabaurChoice.percent>0,'the nearest reachable exit remains the primary diversion option');
 });
