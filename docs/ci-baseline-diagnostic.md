@@ -1,0 +1,1 @@
+Temporary diagnostic branch to run the existing main version through its unchanged CI suite. No application source changes.
