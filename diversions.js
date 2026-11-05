@@ -1,5 +1,5 @@
-import { networkRoad } from './network-road.js?build=e895813246c2db66';
-import { junctionAccess } from './road-controls.js?build=e895813246c2db66';
+import { networkRoad } from './network-road.js?build=8e7d92418738db8f';
+import { junctionAccess } from './road-controls.js?build=8e7d92418738db8f';
 /** Publicly documented emergency diversion (Bedarfsumleitung) INVENTORY.
  * Sources:
  *  - OSM Wiki Germany/Bedarfsumleitung/Rheinland-Pfalz and Hessen (Oct 2026)
@@ -8,8 +8,8 @@ import { junctionAccess } from './road-controls.js?build=e895813246c2db66';
  * This module produces ROUTE PLANNING PREVIEWS only. It must never silently
  * subtract or teleport vehicles from the conserved A3/A48 motorway queues.
  */
-import { exitPosition } from './core.js?build=e895813246c2db66';
-import { positionM, closureGate } from './spatial.js?build=e895813246c2db66';
+import { exitPosition } from './core.js?build=8e7d92418738db8f';
+import { positionM, closureGate } from './spatial.js?build=8e7d92418738db8f';
 const r = (code, path, fromRef, toRef, evidence = 'named-endpoints') => ({
     id: path + '-' + code, code, path, fromRoad: path.startsWith('A3') ? 'A3' : 'A48', fromRef,
     toRoad: toRef ? (networkRoad(path)) : null, toRef, evidence,
