@@ -6,6 +6,7 @@
  * Adding a generated ExtensionRoute registers it automatically.
  */
 import {networkData} from './geodata.js';
+import {names} from './core.js';
 import {extensionRoutes} from './network-extensions.js';
 import {normalThroughLanes} from './lane-info.js';
 import {REFERENCE_PEAKS} from './traffic-profiles.js';
@@ -42,7 +43,7 @@ const legacyMotorways=[...new Set(networkData.roads.map(r=>r.road))].map(key=>{
  return {key,motorway:motorwayRef(key),kind:'motorway' as const,
   lanes:commonLaneCount(roads.map(normalThroughLanes)),freeKmh:130,
   demandVph:legacyDemand[key]??REFERENCE_PEAKS[key]??0,
-  label:key,source:'legacy' as const};
+  label:names[key],source:'legacy' as const};
 });
 const legacyRamps=networkData.ramps.map(r=>({
  key:r.id,motorway:null,kind:'ramp' as const,lanes:r.lanes,freeKmh:80,
