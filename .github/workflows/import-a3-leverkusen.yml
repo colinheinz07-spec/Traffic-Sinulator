@@ -6,6 +6,7 @@ on:
       - scripts/import_a3_leverkusen.py
       - scripts/build_a3_leverkusen_detours.py
       - scripts/publish_a3_leverkusen_objects.py
+      - scripts/extend_a1_leverkusen.py
       - .github/workflows/import-a3-leverkusen.yml
   workflow_dispatch:
 permissions:
@@ -25,7 +26,7 @@ jobs:
         with:
           node-version: '22'
       - name: Validate local importer syntax
-        run: python -m py_compile scripts/import_a3_leverkusen.py scripts/build_a3_leverkusen_detours.py
+        run: python -m py_compile scripts/import_a3_leverkusen.py scripts/build_a3_leverkusen_detours.py scripts/extend_a1_leverkusen.py
       - name: Download exact OpenStreetMap ways and junction nodes
         run: python scripts/import_a3_leverkusen.py --fetch-only
       - name: Extend actual A3 ways, motorway-link inventory and AS 23–26

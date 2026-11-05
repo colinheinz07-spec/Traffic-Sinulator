@@ -60,8 +60,8 @@ def main():
  for ref,name in [('98','AK Leverkusen'),('99','AK Leverkusen-West')]:
   directional={}
   for n in document['elements']:
-   if n['type']!='node' or n.get('tags',{}).get('ref')!=ref or
-      n.get('tags',{}).get('highway')!='motorway_junction':continue
+   if (n['type']!='node' or n.get('tags',{}).get('ref')!=ref or
+      n.get('tags',{}).get('highway')!='motorway_junction'):continue
    for key,vertices in trunks.items():
     if not key.startswith('extra-a1-leverkusen-') or pt(n) not in vertices:continue
     directional[key]={'position':list(pt(n)),'nodeId':n['id']}
@@ -74,8 +74,8 @@ def main():
  links=collections.defaultdict(list)
  for w in ways:
   tags=w.get('tags',{})
-  if tags.get('highway')!='motorway_link' or tags.get('access') in ('no','private') or
-      tags.get('motor_vehicle') in ('no','private'):continue
+  if (tags.get('highway')!='motorway_link' or tags.get('access') in ('no','private') or
+      tags.get('motor_vehicle') in ('no','private')):continue
   points=directed(w)
   for p,q in zip(points,points[1:]):links[p].append((q,w))
  names={'A3-koeln':'A3 Köln','A3-frankfurt':'A3 Frankfurt',

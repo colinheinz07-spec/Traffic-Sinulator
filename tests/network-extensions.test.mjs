@@ -14,7 +14,7 @@ const routes=makeCorridors(networkData.roads,networkData.ramps);
 test('both A560 directions, all eight Siegburg turns and Heumar paths have unique selectable exact geometry',()=>{
  assert.equal(EXTENSION_IDS.length,new Set(EXTENSION_IDS).size);
  assert.equal(extensionRoutes.filter(r=>r.zone==='AK Bonn/Siegburg'&&r.kind==='ramp').length,8);
- assert.equal(extensionRoutes.filter(r=>r.kind==='motorway').length,16);
+ assert.equal(extensionRoutes.filter(r=>r.kind==='motorway').length,18);
  assert.ok(extensionRoutes.some(r=>r.zone==='AD Köln-Heumar'));
  for(const feature of extensionRoutes){
   const point=feature.points[Math.floor(feature.points.length/2)],scale=100000;
