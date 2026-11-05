@@ -1,0 +1,59 @@
+name: Import A3 Koeln-Ost to AK Leverkusen and local OSM bypasses
+on:
+  push:
+    branches: [feature/a3-leverkusen-network-20261105]
+    paths:
+      - scripts/import_a3_leverkusen.py
+      - scripts/build_a3_leverkusen_detours.py
+      - .github/workflows/import-a3-leverkusen.yml
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate local importer syntax
+        run: python -m py_compile scripts/import_a3_leverkusen.py scripts/build_a3_leverkusen_detours.py
+      - name: Download exact OpenStreetMap ways and junction nodes
+        run: python scripts/import_a3_leverkusen.py --fetch-only
+      - name: Retain the reproducible OSM source snapshot
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add data/a3-leverkusen-osm.json
+          git diff --cached --quiet || {
+            git commit -m 'data: retain OSM source for A3 Leverkusen [skip ci]'
+            git push origin HEAD:feature/a3-leverkusen-network-20261105
+          }
+      - name: Extend actual A3 ways, motorway-link inventory and AS 23–26
+        run: python scripts/import_a3_leverkusen.py
+      - name: Generate legal OSM local detours between Leverkusen exits
+        run: python scripts/build_a3_leverkusen_detours.py
+      - run: npm ci --no-audit --no-fund
+      - name: Build and regression tests
+        run: |
+          npm run check
+          python -m unittest discover -s scripts/tests -v
+      - name: Publish the exact tested browser modules
+        run: cp dist/*.js .
+      - name: Commit proven geometry and browser build to feature branch
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/geodata.ts src/network-extensions.ts src/leverkusen-detours-data.ts data/extension-junctions.json index.html '*.js'
+          git diff --cached --stat
+          git diff --cached --quiet || {
+            git commit -m 'build: verified A3 to AK Leverkusen, all OSM-connected ramps and local detours'
+            git push origin HEAD:feature/a3-leverkusen-network-20261105
+          }
