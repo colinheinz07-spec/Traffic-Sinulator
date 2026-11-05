@@ -1,5 +1,7 @@
 export type Point = [number, number]; // [latitude, longitude]
-export type RoadId = 'A3-koeln'|'A3-frankfurt'|'A48-dernbach'|'A48-koblenz';
+/** Legacy A3/A48 route IDs remain stable; newly imported directed roads use
+ * their own non-empty keys without changing the TypeScript unions. */
+export type RoadId = string;
 export type Road = {id:string;wayId:number;road:RoadId;lanes:number;normalLaneCount?:number;km:number;posKm:number;points:Point[];tags?:Record<string,string>};
 export type Ramp = {id:string;name:string;from:RoadId;to:RoadId;lanes:number;wayIds:number[];points:Point[]};
 export type Exit = {road:string;ref:string;name:string;position:Point;source:string;sharedRoad?:string;
@@ -56,4 +58,4 @@ export function nearestPolyline(points:Point[],pixel:[number,number],project:(p:
  }
  return best;
 }
-export function roadIdName(id:RoadId){return names[id];}
+export function roadIdName(id:RoadId){return names[id]??id;}
