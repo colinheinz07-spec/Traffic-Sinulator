@@ -31,6 +31,8 @@ jobs:
         run: python scripts/import_a3_leverkusen.py --fetch-only
       - name: Extend actual A3 ways, motorway-link inventory and AS 23–26
         run: python scripts/import_a3_leverkusen.py
+      - name: Attach exact A1 Leverkusen arms and A3-to-A1 motorway turns
+        run: python scripts/extend_a1_leverkusen.py
       - name: Generate legal OSM local detours between Leverkusen exits
         run: python scripts/build_a3_leverkusen_detours.py
       - run: npm ci --no-audit --no-fund
