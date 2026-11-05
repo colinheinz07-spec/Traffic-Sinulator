@@ -30,6 +30,8 @@ export interface JunctionTrafficState extends JunctionTrafficDemand {
  exitQueue?:{normal:number;detours:Record<string,number>};
  /** Consecutive whole minutes with a full, overloaded off-ramp. */
  exitFullMinutes?:number;
+ /** Actual terminal service after occupancy of a common local feeder. */
+ lastExitServiceCapacityVph?:number;
  /** Actual cars crossing the motorway's diverge, before terminal service. */
  lastExitAdmitted?:number;
  /** New local trips choosing another road before entering the ramp.

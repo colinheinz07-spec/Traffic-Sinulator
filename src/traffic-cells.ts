@@ -375,12 +375,11 @@ export function advanceCells(previous:CellRouteState,route:Corridor,events:reado
   const face=Math.max(1,Math.min(n-1,Math.round(d.metre/previous.cellM)));
   const access=junctionAccess(route,events,d.metre,d.ref);
   const entryBlocked=!access.entry||closedEntries.some(c=>d.metre>=c.fromM&&d.metre<c.toM),exitBlocked=!access.exit;
-  // Apply the SAME delay-based route choice to new local trips. This is
-  // demand avoided before entering our network, not cars deleted from an
-  // existing ramp queue. Actual ramp/side-road capacities do not set it.
-  const entryAvoidancePercent=entryBlocked?0:Math.min(100,routed.filter(p=>p.from===face&&!p.vehicleClass)
-   .reduce((sum,p)=>sum+p.interestPercent,0));
-  return {...d,entryVph:d.entryVph*(1-entryAvoidancePercent/100),entryAvoidancePercent,
+  // Independent local ramp arrivals are not motorway drivers changing
+  // their through route at this face. Never erase them because of a
+  // freeway detour: physical receiving space determines their merge.
+  const entryAvoidancePercent=0;
+  return {...d,entryVph:d.entryVph,entryAvoidancePercent,
    waiting:old?.waiting??0,offeredTotal:old?.offeredTotal??0,
    enteredTotal:old?.enteredTotal??0,exitedTotal:old?.exitedTotal??0,lastEntered:0,lastExited:0,lastExitDemand:0,lastExitAdmitted:0,
    exitQueue:{normal:old?.exitQueue?.normal??0,detours:{...old?.exitQueue?.detours}},
@@ -802,9 +801,15 @@ export function advanceCells(previous:CellRouteState,route:Corridor,events:reado
   junctions:junctions.map(({face:_,entryBlocked:__,...j})=>{
     const old=previous.junctions?.find(x=>x.id===j.id);
     const storage=j.exitStorageVehicles??DEFAULT_EXIT_STORAGE_VEHICLES;
+    const feederOverflow=j.sharedFeederStorageVehicles===undefined?0:
+     Math.max(0,j.waiting-j.sharedFeederStorageVehicles);
+    const terminalRoom=j.sharedFeederStorageVehicles===undefined?1:
+     Math.max(0,1-feederOverflow/Math.max(1,storage));
+    const actualServiceCapacity=(j.exitTerminalVph??DEFAULT_EXIT_TERMINAL_VPH)*terminalRoom;
     const full=exitRampVehicles(j)>=storage*.95&&
-     (j.lastExitDemand??0)*60>(j.exitTerminalVph??DEFAULT_EXIT_TERMINAL_VPH)*.95;
-    return {...j,exitFullMinutes:full?(old?.exitFullMinutes??0)+1:0};
+     (j.lastExitDemand??0)*60>actualServiceCapacity*.95;
+    return {...j,lastExitServiceCapacityVph:actualServiceCapacity,
+     exitFullMinutes:full?(old?.exitFullMinutes??0)+1:0};
    }),
   divertedTotal:(previous.divertedTotal??0)+routed.reduce((s,p)=>s+p.left,0),
   rejoinedTotal:(previous.rejoinedTotal??0)+routed.reduce((s,p)=>s+p.joined,0),

@@ -157,3 +157,34 @@ test('local entry interest is not silently capped at 700/h; merge capacity makes
  assert.ok(ramp.offeredTotal>70&&ramp.waiting>40,'high local demand remains stored for later release');
  assert.ok(Math.abs(cellInventory(state)+state.exitedTotal-state.offeredTotal-initial)<1e-5);
 });
+
+test('Montabaur local on-ramp demand is not erased by a 100% through-motorway diversion',()=>{
+ const path='A3-frankfurt',route=routes[path],as=anchor(path,'40');
+ const demand=normalJunctionTraffic(route,exits,2500).find(j=>j.ref==='40');
+ assert.ok(demand);
+ const diversion={id:'through-traffic-only',fromM:as.metre,toM:null,
+  interestPercent:100,exitCapacityVph:0,returnVehicles:0};
+ const state=advanceCells(initialiseCells(route,0),route,[],0,exits,[diversion],[demand]);
+ const local=state.junctions.find(j=>j.ref==='40');
+ assert.equal(local.entryAvoidancePercent,0);
+ assert.ok(Math.abs(local.offeredTotal-demand.entryVph/60)<1e-6,'local arrivals remain in the system');
+ assert.ok(Math.abs(local.offeredTotal-local.enteredTotal-local.waiting)<1e-6);
+ assertCellConservation(state);
+});
+
+test('Montabaur filled entry feeder physically throttles the off-ramp while preserving all cars',()=>{
+ const path='A3-frankfurt',route=routes[path],as=anchor(path,'40');
+ const junction={id:path+':local:40',ref:'40',metre:as.metre,entryVph:0,exitPercent:100,
+  entryCapacityVph:600,exitCapacityVph:1500,exitTerminalVph:1000,exitStorageVehicles:40,
+  sharedFeederStorageVehicles:10};
+ const initial=initialiseCells(route,0);
+ const before={...initial,junctions:[{...junction,waiting:100,offeredTotal:100,enteredTotal:0,
+  exitedTotal:0,lastEntered:0,lastExited:0,lastExitDemand:0,exitQueue:{normal:40,detours:{}}}],
+  offeredTotal:140};
+ const next=advanceCells(before,route,[],0,exits,[],[junction]);
+ const local=next.junctions.find(j=>j.ref==='40');
+ assert.equal(local.lastExited,0,'cars cannot pass an occupied local access throat');
+ assert.ok(local.exitQueue.normal>=40-1e-6,'already waiting off-ramp vehicles cannot disappear');
+ assert.equal(local.lastExitServiceCapacityVph,0);
+ assertCellConservation(next);
+});
