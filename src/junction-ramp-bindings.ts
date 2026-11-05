@@ -56,7 +56,16 @@ export function junctionRampBindings(route:Corridor,exits:readonly Exit[]):Junct
     if(reverse)indices.reverse();
     const boundaryIndex=indices.slice(1).find(i=>boundaries.has(pointKey(last.points[i]!))&&!trunks.has(pointKey(last.points[i]!)));
     const end=pointKey(at(last,true));
-    if(sequence.length>8||boundaryIndex===undefined&&trunks.has(end))return;
+    // A signed local exit can follow a real OSM motorway_link
+    // collector/distributor path and merge back onto the same carriageway
+    // before the signed surface-road diverge (e.g. AS26 Dellbrück/B506).
+    // The motorway_link stays physically mapped: display its queued vehicles
+    // instead of discarding it as a fictitious dead-end. Do not permit an
+    // arbitrary U-turn or unsigned motorway-to-motorway link as a local AS.
+    const signedCollector=boundaryIndex===undefined&&trunks.has(end)&&
+     vertices.has(end)&&sequence[0]!.destinationRef!==undefined&&
+     sequence[0]!.destinationRef!.length>0;
+    if(sequence.length>24||boundaryIndex===undefined&&trunks.has(end)&&!signedCollector)return;
     const following=(graph.get(end)??[]).filter(r=>!sequence.includes(r));
     if(boundaryIndex===undefined&&following.length){for(const r of following)visit([...sequence,r]);return;}
     const ordered=reverse?[...sequence].reverse():sequence;let lengthM=0;

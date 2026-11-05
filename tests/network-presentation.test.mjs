@@ -5,9 +5,9 @@ import {networkData} from '../dist/geodata.js';
 import {extensionJunctions,extensionRoutes} from '../dist/network-extensions.js';
 import {networkRoad} from '../dist/network-road.js';
 const exits=[...networkData.exits,...extensionJunctions];
-test('every modelled motorway has two permanent directions in the same overview and registry',()=>{
- assert.equal(MOTORWAY_PATHS.length,20);
- assert.deepEqual(MOTORWAY_GROUPS.map(g=>[g.road,g.paths.length]),[['A1',2],['A3',2],['A4',2],['A48',2],['A59',2],['A555',2],['A565',2],['A559',2],['A560',2],['A562',2]]);
+test('every modelled motorway section stays in the overview including the two separate A1 regions',()=>{
+ assert.equal(MOTORWAY_PATHS.length,22);
+ assert.deepEqual(MOTORWAY_GROUPS.map(g=>[g.road,g.paths.length]),[['A1',4],['A3',2],['A4',2],['A48',2],['A59',2],['A555',2],['A565',2],['A559',2],['A560',2],['A562',2]]);
  const rows=trafficOverviewPaths('A3-koeln',new Set(),new Set());
  for(const path of MOTORWAY_PATHS)assert.ok(rows.includes(path));
  const ramp=extensionRoutes.find(r=>r.kind==='ramp').id;

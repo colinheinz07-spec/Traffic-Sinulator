@@ -45,7 +45,11 @@ if(networkData.exits.some(e=>e.road==='A3'&&e.ref==='28')){
 }
 export function isNetworkDestination(exit:Exit):boolean{return exit.source==='simulation-boundary';}
 export function bundledTargets(path:RoadId,exits:readonly Exit[],route:Corridor):JunctionAnchor[]{
- const normal=diversionJunctions(path,exits,route).filter(x=>!x.isInterchange);
+ // Northern A3 AS 24–26 have their own OSM-verified local alternatives.
+ // Do not splice them into the older approximate A3/A48 side-road graph:
+ // there is no verified link between these two route catalogues.
+ const normal=diversionJunctions(path,exits,route).filter(x=>!x.isInterchange&&
+  !(path.startsWith('A3')&&['23','24','25','26'].includes(x.ref)));
  return [...normal,{road:path.startsWith('A3')?'A3':'A48',ref:'end-'+path,
   name:'Weiterfahrt außerhalb des Netzes · '+names[path],position:ends[path].point,
   source:'simulation-boundary',metre:route.lengthM,isInterchange:false}];
