@@ -32,7 +32,11 @@ export function validateMap(data:MapData):{valid:boolean;errors:string[]}{
   if(!data.roads.some(r=>r.road===road&&r.points.some(p=>p[0]>=50.785)))errors.push('A3 bis Bonn/Siegburg unvollständig: '+road);
  }
  for(const r of data.roads){if(!r.points || r.points.length<2||r.lanes<1||r.km<=0)errors.push('Straßenabschnitt ungültig: '+r.id);
-  else if(!r.tags?.ref?.replaceAll(' ','').includes(r.road.startsWith('A3-')?'A3':'A48'))errors.push('Fremde Straße: '+r.id);
+  else {
+   const expected=r.road.match(/^A\\d{1,3}(?!\\d)/i)?.[0]?.toUpperCase();
+   const refs=(r.tags?.ref??'').toUpperCase().replaceAll(' ','').split(/[;,]/);
+   if(!expected||!refs.includes(expected))errors.push('Fremde Straße: '+r.id);
+  }
  }
  for(const ramp of data.ramps)if(ramp.points.length<12 || ramp.wayIds.length<2)errors.push('Rampengeometrie fehlt: '+ramp.id);
  return{valid:errors.length===0,errors};

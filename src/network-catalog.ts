@@ -17,6 +17,8 @@ export interface RouteDescriptor {
  freeKmh:number; demandVph:number; label:string; source:'legacy'|'extension';
  /** Direction of imported legacy OSM chain, if explicitly calibrated. */
  geometryOrder?:'east'|'west';
+ /** A scenario parameter, not a measured or universal truck fraction. */
+ heavyShare?:number;
 }
 const legacyDemand:Readonly<Record<string,number>>={
  'A3-koeln':4200,'A3-frankfurt':4100,
@@ -46,6 +48,8 @@ export function createRouteCatalog(
  data:Pick<MapData,'roads'|'ramps'>,
  additions:readonly ExtensionRoute[]
 ):RouteDescriptor[]{
+ const heavyByMotorway:Readonly<Record<string,number>>={'A3':.23,'A48':.16};
+ const heavy=(road:string|null):number=>road===null?.15:(heavyByMotorway[road]??.15);
  const knownDirections:Readonly<Record<string,'east'|'west'>>={
   'A3-koeln':'west','A3-frankfurt':'east',
   'A48-dernbach':'east','A48-koblenz':'west'
@@ -55,12 +59,12 @@ export function createRouteCatalog(
   return {key,motorway:motorwayRef(key),kind:'motorway' as const,
    lanes:commonLaneCount(roads.map(normalThroughLanes)),freeKmh:130,
    demandVph:legacyDemand[key]??REFERENCE_PEAKS[key]??0,
-   label:names[key]??key,source:'legacy' as const,
+   label:names[key]??key,source:'legacy' as const,heavyShare:heavy(motorwayRef(key)),
    geometryOrder:knownDirections[key]};
  });
  const ramps=data.ramps.map(r=>({
   key:r.id,motorway:null,kind:'ramp' as const,lanes:r.lanes,freeKmh:80,
-  demandVph:legacyDemand[r.id]??0,label:r.name,source:'legacy' as const
+  demandVph:legacyDemand[r.id]??0,label:r.name,heavyShare:.15,source:'legacy' as const
  }));
  const legacy=[...motorways,...ramps].sort((a,b)=>{
   const ia=preferredLegacyOrder.indexOf(a.key),ib=preferredLegacyOrder.indexOf(b.key);
@@ -71,7 +75,7 @@ export function createRouteCatalog(
    ?motorwayRef(r.name)??motorwayRef(r.id.replace(/^extra-/,'').toUpperCase()):null,
   kind:r.kind,lanes:r.lanes,freeKmh:r.freeKmh,
   demandVph:REFERENCE_PEAKS[r.id]??r.demandVph,
-  label:r.name,source:'extension' as const
+  label:r.name,heavyShare:heavy(r.kind==='motorway'?motorwayRef(r.name):null),source:'extension' as const
  }));
  return [...legacy,...extensions];
 }

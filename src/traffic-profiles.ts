@@ -27,16 +27,22 @@ export const REFERENCE_PEAKS:Readonly<Record<string,number>>={
  'extra-a562-bonn':2800,'extra-a562-bonn-ost':2700
 };
 const cache=new Map<string,ProfileFamily>();
+const familiesByMotorway:Readonly<Record<string,ProfileFamily>>={
+ A3:'transit',A48:'koblenz',A59:'airport',A4:'ring',A555:'ring',
+ A1:'ring',A559:'urban',A562:'urban',A560:'siegtal'
+};
 export function profileFamily(key:string):ProfileFamily{
  const cached=cache.get(key);if(cached)return cached;
+ const match=key.match(/^(?:extra-)?(A\\d{1,3})(?:-|$)/i);
+ const motorway=match?.[1]?.toUpperCase();
  let family:ProfileFamily;
- if(key.startsWith('A3-'))family='transit';
- else if(key.startsWith('A48-')||key.startsWith('ramp-'))family='koblenz';
- else if(key.startsWith('extra-a59-'))family='airport';
- else if(key.startsWith('extra-a4-')||key.startsWith('extra-a555-')||key.startsWith('extra-a1-'))family='ring';
- else if(key.startsWith('extra-a559-')||key.startsWith('extra-a562-'))family='urban';
- else if(key.startsWith('extra-a560-'))family='siegtal';
- else{const feature=extensionRoute(key);family=feature&&feature.points.some(p=>p[0]>50.78&&p[1]<7.17)?'ring':feature?.zone.startsWith('A48')?'koblenz':'transit';}
+ if(motorway)family=familiesByMotorway[motorway]??'transit';
+ else if(key.startsWith('ramp-'))family='koblenz';
+ else{
+  const feature=extensionRoute(key);
+  family=feature&&feature.points.some(p=>p[0]>50.78&&p[1]<7.17)?'ring':
+   feature?.zone.startsWith('A48')?'koblenz':'transit';
+ }
  cache.set(key,family);return family;
 }
 function interpolate(points:Curve,hour:number):number{
