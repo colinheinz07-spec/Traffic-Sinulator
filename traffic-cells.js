@@ -16,7 +16,7 @@ export function cellCriticalDensity(path) {
     return Math.min(baselineCapacity(path) / freeSpeedKmh(path), JAM_PER_LANE * cellLanes(path) * WAVE_KMH / (freeSpeedKmh(path) + WAVE_KMH));
 }
 export function initialiseCells(route, initialDemandVph, localDemandAt) {
-    if (!Number.isFinite(initialDemandVph) || initialDemandVph < 0 || initialDemandVph > 8000)
+    if (!Number.isFinite(initialDemandVph) || initialDemandVph < 0)
         throw Error('Ungültiger Zufluss für Zellmodell');
     const count = Math.ceil(route.lengthM / TARGET_CELL_M);
     const cellM = route.lengthM / count, dx = cellM / 1000;
@@ -295,7 +295,7 @@ export function platoonServiceFactor(id, minute, ceiling = Infinity) {
  * Outflow is discharged at the far end. No arbitrary time-loss surcharges.
  */
 export function advanceCells(previous, route, events, demandVph, exits = [], ports = [], junctionDemand = normalJunctionTraffic(route, exits, demandVph), downstreamCapacityVph = Infinity) {
-    if (previous.pathKey !== route.key || !Number.isFinite(demandVph) || demandVph < 0 || demandVph > 16000)
+    if (previous.pathKey !== route.key || !Number.isFinite(demandVph) || demandVph < 0)
         throw Error('Zellmodell: Richtung oder Zufluss ungültig');
     const n = previous.cells.length, dx = previous.cellM / 1000;
     const substeps = Math.max(30, Math.ceil(freeSpeedKmh(route.key) * 1000 / (60 * previous.cellM))), dtMin = 1 / substeps;
