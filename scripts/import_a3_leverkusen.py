@@ -114,7 +114,7 @@ def import_core(doc):
      and n.get('tags',{}).get('highway')=='motorway_junction']
  ak23={pt(n) for n in junctions if n.get('tags',{}).get('ref','').strip()=='23'}
  if not ak23: raise ValueError('OSM dataset lacks AK Leverkusen (AS 23) motorway junction')
- added=[],{}
+ added=[]
  new_roads,vertices={},{}
  for road in ('A3-koeln','A3-frankfurt'):
   old=[r for r in data['roads'] if r['road']==road]
@@ -211,8 +211,8 @@ def import_links(data,new_exits,vertices,doc):
   nearest=min(new_exits,key=lambda x:min(dist(p,tuple(x['position'])) for p in (ps[0],ps[-1])))
   near_m=min(dist(p,tuple(nearest['position'])) for p in (ps[0],ps[-1]))
   if near_m>3700:continue
-  zone=nearest['name'] if nearest['ref']=='23' else
-    'A3 AS '+nearest['ref']+' '+nearest['name']
+  zone=(nearest['name'] if nearest['ref']=='23' else
+    'A3 AS '+nearest['ref']+' '+nearest['name'])
   count=w.get('tags',{}).get('lanes','1')
   lane=int(count) if count.isdigit() else 1
   lane=max(1,min(4,lane))
