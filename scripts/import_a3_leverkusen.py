@@ -20,7 +20,7 @@ def ref_tokens(w):
  return [r.replace(' ','').upper() for r in re.split('[;,]',w.get('tags',{}).get('ref',''))]
 def download_tile(arg):
  lat,lon=arg
- box=f'{lon-.015},{lat-.009},{lon+.015},{lat+.009}'
+ box=f'{lon-.021},{lat-.011},{lon+.021},{lat+.011}'
  url='https://api.openstreetmap.org/api/0.6/map.json?'+urllib.parse.urlencode({'bbox':box})
  for attempt in range(5):
   try:
@@ -28,11 +28,11 @@ def download_tile(arg):
    with urllib.request.urlopen(request,timeout=80) as response:
     doc=json.load(response)
    print('OSM tile',arg,'elements',len(doc['elements']),flush=True)
-   time.sleep(5)
+   time.sleep(10)
    return doc['elements']
   except Exception as err:
    print('retry',arg,attempt,str(err),flush=True)
-   time.sleep(min(20,2**attempt*2))
+   time.sleep(min(90,15*(attempt+1)))
  raise RuntimeError('Missing OSM tile: '+str(arg))
 def download_overpass():
  """A single selective highway query avoids hammering the public OSM tile API."""
@@ -72,18 +72,11 @@ def load_source():
  if SOURCE.exists():
   result=json.loads(SOURCE.read_text()); print('Using retained OSM source',len(result['elements']),flush=True)
   return result
- try:
-  result=download_overpass()
-  SOURCE.parent.mkdir(parents=True,exist_ok=True)
-  SOURCE.write_text(json.dumps(result,ensure_ascii=False,separators=(',',':')))
-  return result
- except Exception as e:
-  print('Filtered Overpass import failed; slowing down the original OSM API:',str(e),flush=True)
- # 32 overlapping API map cells cover the A3 between Köln-Ost and the
+ # Twelve overlapping, rate-limited OSM API cells cover the A3 between Köln-Ost and the
  # Leverkusener Kreuz, along with connected surface roads and motorway links.
  # Keep the ORIGINAL OSM nodes/ways; no spatial interpolation of road lines.
- tiles=[(round(50.952+row*.013,4),round(6.990+col*.028,4))
-        for row in range(8) for col in range(4)]
+ tiles=[(round(50.953+row*.018,4),round(7.014+col*.034,4))
+        for row in range(6) for col in range(2)]
  items={}
  with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
   for chunk in pool.map(download_tile,tiles):
