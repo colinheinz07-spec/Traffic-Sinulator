@@ -286,7 +286,7 @@ function baseDiversionChoice(entry:ChoiceRoute,entries:readonly ChoiceRoute[],
   const open=accessibleExits(route,events,exits,'exit');
   const nearest=nearestExitBeforeQueue(path,route,open,tail,approachEnd);
   if(config.fromM>=(nearest?.metre??tail)-25&&config.fromM<=end+25)return true;
-  if(cross||!nearest||loss<45)return false;
+  if(!nearest||loss<45)return false;
   // An earlier exit is an overflow alternative, not a shortcut triggered
   // by a remote downstream delay. The nearer, reachable off-ramps must
   // actually be full and still receive more exit demand than they serve.
