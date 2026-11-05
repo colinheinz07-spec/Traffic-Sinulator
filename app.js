@@ -6,6 +6,7 @@ import { regionalFlowAt, regionalBoundaryFlow, regionalDescription } from './reg
 import { MOTORWAY_PATHS, MOTORWAY_GROUPS, junctionDirectory, junctionRoute, trafficOverviewPaths } from './network-presentation.js';
 import { planExtensionDetours, refreshExtensionDetour, extensionDetours } from './extension-detours.js';
 import { networkRoad } from './network-road.js';
+import { routeDescriptor } from './network-catalog.js';
 import { buildExtensionConnections } from './extension-connections.js';
 import { extensionRoutes, extensionRoute, extensionJunctions } from './network-extensions.js';
 import { worldGeometry } from './map-geometry.js';
@@ -35,7 +36,7 @@ import { buildContinuousRoads, lineWidths, rampBadges, layoutJunctionLabels } fr
 import { placeJamCallout } from './map-callouts.js';
 import { installScheduleForm } from './schedule-form.js';
 import { roadSections, physicalEvents } from './road-controls.js';
-import { DIRECTIONS, validateMap, names, mercator, inverse, nearestPolyline, exitPosition } from './core.js';
+import { validateMap, names, mercator, inverse, nearestPolyline, exitPosition } from './core.js';
 const $ = (id) => { const element = document.getElementById(id); if (!element)
     throw Error(`Element fehlt: ${id}`); return element; };
 const canvas = $('map'), wrapper = canvas.parentElement;
@@ -44,7 +45,6 @@ if (!context)
     throw Error('Canvas 2D wird nicht unterstützt');
 const status = $('status'), hint = $('hint');
 let focus = [50.507, 7.63], zoom = 10, needsDraw = true;
-const roadColors = { 'A3-koeln': '#26bb7c', 'A3-frankfurt': '#26bb7c', 'A48-dernbach': '#26bb7c', 'A48-koblenz': '#26bb7c' };
 const mapReady = validateMap(networkData);
 const allRoads = networkData.roads, ramps = networkData.ramps, exits = [...networkData.exits, ...extensionJunctions];
 const drawnRoads = buildContinuousRoads(allRoads);
@@ -456,7 +456,7 @@ function removeExistingEvent() {
 // Mainline and verified local detours share their cell vehicle inventory.
 // AD ramp turn-demand dynamics still use the separate spatial solver.
 let spatialState = emptySpatial();
-const CELL_PATHS = PATHS.filter(key => DIRECTIONS.includes(key) || extensionRoute(key)?.kind === 'motorway');
+const CELL_PATHS = MOTORWAY_PATHS;
 let cellNetwork = {};
 const trafficDemands = defaultDemands();
 const mappedDetours = new Map(readCachedDetours().map(c => [c.id, c]));
@@ -1184,7 +1184,7 @@ function initializeTraffic() {
         }
         select.append(host);
     }
-    select.value = 'A3-koeln';
+    select.value = MOTORWAY_PATHS[0] ?? PATHS[0] ?? '';
     selectTrafficRoute(select.value);
     select.addEventListener('change', () => selectTrafficRoute(select.value));
     const pattern = $('traffic-demand-mode');
@@ -1512,11 +1512,7 @@ function drawSpatialJams() {
             continue;
         const [x, y] = toScreen(mid[0]);
         const event = timeline.find(e => e.id === jam.eventId), sign = event ? eventSymbols[event.kind] : '🚗';
-        const shortDirection = jam.pathKey === 'A3-koeln' ? 'A3 Köln' : jam.pathKey === 'A3-frankfurt' ? 'A3 Frankfurt'
-            : jam.pathKey === 'A48-dernbach' ? 'A48 Dernbach' : jam.pathKey === 'A48-koblenz' ? 'A48 Koblenz'
-                : extensionRoute(jam.pathKey) ? extensionRoute(jam.pathKey).name
-                    : jam.pathKey === 'ramp-a48-to-koeln' ? 'A48→A3 Köln'
-                        : jam.pathKey === 'ramp-a48-to-frankfurt' ? 'A48→A3 Ffm' : 'AD Dernbach Rampe';
+        const shortDirection = routeDescriptor(jam.pathKey)?.label ?? jam.pathKey;
         const delay = speedDelayLabel(jam.delay, 1, true);
         const first = `${sign} ${shortDirection} · ${delay}`;
         const second = `${trafficNumber(jam.queueM / 1000, 1)} km · Ø ${trafficNumber(jam.meanSpeedKmh)} km/h`;
@@ -1589,7 +1585,7 @@ function draw() {
             stroke(range.points, feature.kind === 'ramp' ? lines.ramp : lines.motorway, '#26bb7c');
         }
     for (const road of drawnRoads)
-        stroke(road.points, lines.motorway, roadColors[road.road]);
+        stroke(road.points, lines.motorway, '#26bb7c');
     for (const ramp of ramps)
         stroke(ramp.points, lines.rampCasing, '#273b4c');
     for (const ramp of ramps)

@@ -1,3 +1,4 @@
+const cache = new WeakMap();
 const SCALE = 1e6;
 function bucket(p) {
     return [Math.round(p[0] * SCALE), Math.round(p[1] * SCALE)];
@@ -7,6 +8,9 @@ function distance(a, b) {
     return Math.hypot(x, (a[0] - b[0]) * 111195);
 }
 export function motorwayEndpointIndex(routes, mainlines) {
+    const cached = cache.get(routes)?.get(mainlines);
+    if (cached)
+        return cached;
     const buckets = new Map();
     for (const key of mainlines) {
         const route = routes[key];
@@ -19,7 +23,7 @@ export function motorwayEndpointIndex(routes, mainlines) {
             buckets.set(k, list);
         }
     }
-    return {
+    const index = {
         at(point) {
             const [x, y] = bucket(point), matched = [];
             for (let dx = -1; dx <= 1; dx++)
@@ -31,4 +35,11 @@ export function motorwayEndpointIndex(routes, mainlines) {
             return matched;
         }
     };
+    let perRoute = cache.get(routes);
+    if (!perRoute) {
+        perRoute = new WeakMap();
+        cache.set(routes, perRoute);
+    }
+    perRoute.set(mainlines, index);
+    return index;
 }
