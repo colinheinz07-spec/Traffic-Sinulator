@@ -4,6 +4,7 @@
 The mainline stubs end at the OSM coverage boundary; they are not a claim
 that the A1 is already connected to Cologne-West or the entire Ruhrgebiet.
 No connector between nearby but non-shared road vertices is created.
+Only tested, directed shared-node motorway turns are admitted to the network.
 """
 import collections,json
 from pathlib import Path
