@@ -1,0 +1,26 @@
+name: Allgemeine Autobahn-Engine prüfen
+on:
+  push:
+    branches: [main, refactor/generic-motorway-engine]
+    paths:
+      - 'src/network-catalog.ts'
+      - 'src/network-topology.ts'
+      - 'src/network-road.ts'
+      - 'src/traffic.ts'
+      - 'src/core.ts'
+      - 'tests/generic-network-*.test.mjs'
+      - '.github/workflows/generic-network.yml'
+  pull_request:
+    branches: [main]
+jobs:
+  generic-network:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci --no-audit --no-fund
+      - run: npm run build
+      - run: node --test tests/generic-network-*.test.mjs
