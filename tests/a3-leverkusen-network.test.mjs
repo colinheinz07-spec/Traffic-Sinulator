@@ -5,6 +5,7 @@ import {networkData} from '../dist/geodata.js';
 import {extensionRoutes,extensionJunctions} from '../dist/network-extensions.js';
 import {makeCorridors,metres} from '../dist/spatial.js';
 import {buildExtensionConnections} from '../dist/extension-connections.js';
+import {junctionRampBindings} from '../dist/junction-ramp-bindings.js';
 const core=makeCorridors(networkData.roads,networkData.ramps);
 const ways=JSON.parse(readFileSync('data/a3-leverkusen-osm.json','utf8')).elements.filter(e=>e.type==='way');
 const edges=new Set();
@@ -43,4 +44,20 @@ test('both A1 Leverkusen carriageways and AK turn paths use only original direct
   assert.ok(row.from.startsWith('A3-')!==row.to.startsWith('A3-'));
  }
  assert.ok(extensionJunctions.some(e=>e.road==='A1'&&e.ref==='98'));
+});
+
+test('each new regular A3 Leverkusen AS has real entry and exit ramp chains on both carriageways',()=>{
+ const exits=[...networkData.exits,...extensionJunctions];
+ for(const direction of ['A3-koeln','A3-frankfurt']){
+  const bindings=junctionRampBindings(core[direction],exits);
+  for(const ref of ['24','25','26']){
+   const matching=bindings.filter(b=>b.ref===ref);
+   assert.ok(matching.some(b=>b.kind==='exit'),direction+' AS'+ref+' must have an OSM exit ramp');
+   assert.ok(matching.some(b=>b.kind==='entry'),direction+' AS'+ref+' must have an OSM entry ramp');
+   for(const b of matching){
+    assert.ok(b.lengthM>10&&b.lanes>=1);
+    for(const segment of b.segments)assert.ok(segment.ramp.points.length>1);
+   }
+  }
+ }
 });
