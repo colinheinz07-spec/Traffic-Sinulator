@@ -4,6 +4,8 @@ import { extensionRoutes } from './network-extensions.js';
  * All snapped positions are interpolated ONLY on verified OSM road geometries.
  */
 import { nearestPolyline, exitPosition } from './core.js';
+import { motorwayRef } from './network-catalog.js';
+import { networkRoad } from './network-road.js';
 /** Reduce hundreds of OSM ways to one candidate for each motorway direction and each ramp. */
 export function mapCandidates(roads, ramps, tap, project, tolerance = 18) {
     const hits = new Map();
@@ -44,7 +46,9 @@ export function airDistanceMetres(a, b) {
 export function closestJunction(hit, exits) {
     if (hit.kind !== 'road')
         return null; // AD Dernbach is the known junction of every ramp.
-    const motorway = hit.road.road.startsWith('A3') ? 'A3' : 'A48';
+    const motorway = networkRoad(hit.key) ?? motorwayRef(hit.road.tags?.ref ?? hit.road.road);
+    if (!motorway)
+        return null;
     let best = null;
     for (const exit of exits) {
         if (exit.road !== motorway)

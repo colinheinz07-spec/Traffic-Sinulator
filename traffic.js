@@ -25,8 +25,7 @@ export function emptyTraffic() {
  * composition can be supplied by subsequent route/time-based demand models.
  */
 export function defaultHeavyShare(key) {
-    const motorway = routeDescriptor(key)?.motorway;
-    return motorway === 'A3' ? .23 : motorway === 'A48' ? .16 : .15;
+    return routeDescriptor(key)?.heavyShare ?? .15;
 }
 /** Shares ordered RIGHT -> LEFT, from car- and HGV-specific lane choices.
  * Heavy trucks are predominantly right; cars are more evenly distributed.

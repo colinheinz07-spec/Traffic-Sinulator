@@ -1,8 +1,15 @@
 const key = (p) => `${p[0].toFixed(7)}|${p[1].toFixed(7)}`;
 export function buildContinuousRoads(roads) {
     const output = [];
-    for (const road of ['A3-koeln', 'A3-frankfurt', 'A48-dernbach', 'A48-koblenz']) {
-        const entries = roads.filter(r => r.road === road);
+    // Network geometry is data: A61, A7 or any other imported motorway
+    // goes through the identical stitching algorithm without new branches.
+    const byDirection = new Map();
+    for (const piece of roads) {
+        const group = byDirection.get(piece.road) ?? [];
+        group.push(piece);
+        byDirection.set(piece.road, group);
+    }
+    for (const [road, entries] of byDirection) {
         const ends = new Map();
         entries.forEach((entry, i) => {
             for (const p of [entry.points[0], entry.points[entry.points.length - 1]]) {
