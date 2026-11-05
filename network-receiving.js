@@ -1,9 +1,9 @@
 /** Endpoint-connected mainlines exchange a receiving signal. This limits
  * actual discharge in the feeder CTM, rather than painting a second queue.
  * Aggregate motorway demands remain calibrated independently (not OD trips). */
-import { MOTORWAY_ROUTE_KEYS } from './network-catalog.js';
-import { motorwayEndpointIndex } from './network-topology.js';
-import { CONGESTION_WAVE_KMH, QUEUE_JAM_DENSITY_PER_LANE } from './traffic-physics.js';
+import { MOTORWAY_ROUTE_KEYS } from './network-catalog.js?build=ce3e105ecde00d7b';
+import { motorwayEndpointIndex } from './network-topology.js?build=ce3e105ecde00d7b';
+import { CONGESTION_WAVE_KMH, QUEUE_JAM_DENSITY_PER_LANE } from './traffic-physics.js?build=ce3e105ecde00d7b';
 /** Share downstream CTM receiving capacity with a physically connected
  * on-ramp. No incident or over-saturation -> no artificial restriction.
  * A ramp's own conserved queue is then handled by advanceSpatial. */

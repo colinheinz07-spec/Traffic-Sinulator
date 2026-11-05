@@ -1,11 +1,11 @@
-import { extensionRoute } from './network-extensions.js';
-import { baseLaneCapacity } from './traffic-physics.js';
-import { positionM, closureGate } from './spatial.js';
-import { baselineCapacity, eventCapacity } from './traffic.js';
-import { flowPolicy, DEFAULT_CLEARANCE_MIN } from './events.js';
-import { colorAtSpeed, freeSpeedKmh, QUEUE_JAM_DENSITY_PER_LANE, CONGESTION_WAVE_KMH } from './traffic-physics.js';
-import { normalJunctionTraffic, exitRampVehicles, DEFAULT_EXIT_TERMINAL_VPH, DEFAULT_EXIT_STORAGE_VEHICLES } from './junction-traffic.js';
-import { roadSections, physicalEvents, junctionAccess } from './road-controls.js';
+import { extensionRoute } from './network-extensions.js?build=ce3e105ecde00d7b';
+import { baseLaneCapacity } from './traffic-physics.js?build=ce3e105ecde00d7b';
+import { positionM, closureGate } from './spatial.js?build=ce3e105ecde00d7b';
+import { baselineCapacity, eventCapacity } from './traffic.js?build=ce3e105ecde00d7b';
+import { flowPolicy, DEFAULT_CLEARANCE_MIN } from './events.js?build=ce3e105ecde00d7b';
+import { colorAtSpeed, freeSpeedKmh, QUEUE_JAM_DENSITY_PER_LANE, CONGESTION_WAVE_KMH } from './traffic-physics.js?build=ce3e105ecde00d7b';
+import { normalJunctionTraffic, exitRampVehicles, DEFAULT_EXIT_TERMINAL_VPH, DEFAULT_EXIT_STORAGE_VEHICLES } from './junction-traffic.js?build=ce3e105ecde00d7b';
+import { roadSections, physicalEvents, junctionAccess } from './road-controls.js?build=ce3e105ecde00d7b';
 const TARGET_CELL_M = 100, WAVE_KMH = CONGESTION_WAVE_KMH, JAM_PER_LANE = QUEUE_JAM_DENSITY_PER_LANE;
 // One observation per MODEL minute; repainting/pause never advances this.
 const TRAVEL_ALPHA = 1 - Math.exp(-1 / 6);

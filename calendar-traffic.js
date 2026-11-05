@@ -1,6 +1,6 @@
 /** Explicit scenario assumptions, not measured local road counts. */
-import { effectiveEventsAt } from './events.js';
-import { NETWORK_PATHS as PATHS } from './traffic.js';
+import { effectiveEventsAt } from './events.js?build=ce3e105ecde00d7b';
+import { NETWORK_PATHS as PATHS } from './traffic.js?build=ce3e105ecde00d7b';
 /** Availability relative to the existing busy-weekday calibration.
  * A quiet road cannot exceed its geometric/signal maximum: the ramp
  * terminal remains bounded by its junction-specific maximum. No holiday assumptions. */

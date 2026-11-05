@@ -2,15 +2,15 @@
  * boundaries. Every choice has an offline simulated side-road corridor.
  * This planner itself never removes vehicles.
  */
-import { DIRECTIONS } from './core.js';
-import { positionM, closureGate } from './spatial.js';
-import { DIVERSION_LINKS, diversionJunctions, nearestExitBeforeQueue } from './diversions.js';
-import { speedDelayInCells } from './speed-delay.js';
-import { cellQueueSpans } from './traffic-cells.js';
-import { bundledTargets, isNetworkDestination } from './bundled-detours.js';
-import { junctionAccess, accessibleExits } from './road-controls.js';
-import { interchangeJourneys } from './interchange-journeys.js';
-import { INTERCHANGE_DIVERSION_START_MIN } from './interchange.js';
+import { DIRECTIONS } from './core.js?build=ce3e105ecde00d7b';
+import { positionM, closureGate } from './spatial.js?build=ce3e105ecde00d7b';
+import { DIVERSION_LINKS, diversionJunctions, nearestExitBeforeQueue } from './diversions.js?build=ce3e105ecde00d7b';
+import { speedDelayInCells } from './speed-delay.js?build=ce3e105ecde00d7b';
+import { cellQueueSpans } from './traffic-cells.js?build=ce3e105ecde00d7b';
+import { bundledTargets, isNetworkDestination } from './bundled-detours.js?build=ce3e105ecde00d7b';
+import { junctionAccess, accessibleExits } from './road-controls.js?build=ce3e105ecde00d7b';
+import { interchangeJourneys } from './interchange-journeys.js?build=ce3e105ecde00d7b';
+import { INTERCHANGE_DIVERSION_START_MIN } from './interchange.js?build=ce3e105ecde00d7b';
 export function automaticDiversions(events, corridors, exits, cells, connections = [], turnDelays = {}) {
     const plans = new Map();
     const available = (path, access) => accessibleExits(corridors[path], events, exits, access);
