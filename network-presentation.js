@@ -1,7 +1,7 @@
-import { DIRECTIONS } from './core.js?build=bf089c90fbdf3c9d';
-import { extensionRoutes } from './network-extensions.js?build=bf089c90fbdf3c9d';
-import { networkRoad } from './network-road.js?build=bf089c90fbdf3c9d';
-import { NETWORK_PATHS, PATHS } from './traffic.js?build=bf089c90fbdf3c9d';
+import { DIRECTIONS } from './core.js?build=8e65cc0a0534362f';
+import { extensionRoutes } from './network-extensions.js?build=8e65cc0a0534362f';
+import { networkRoad } from './network-road.js?build=8e65cc0a0534362f';
+import { NETWORK_PATHS, PATHS } from './traffic.js?build=8e65cc0a0534362f';
 export const MOTORWAY_PATHS = [...DIRECTIONS, ...extensionRoutes.filter(r => r.kind === 'motorway').map(r => r.id)];
 export const MOTORWAY_GROUPS = ['A1', 'A3', 'A4', 'A48', 'A59', 'A555', 'A565', 'A559', 'A560', 'A562'].map(road => ({ road, paths: MOTORWAY_PATHS.filter(key => networkRoad(key) === road) }));
 export function junctionDirectory(exits) {

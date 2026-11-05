@@ -1,16 +1,16 @@
-import { extensionRoute } from './network-extensions.js?build=bf089c90fbdf3c9d';
+import { extensionRoute } from './network-extensions.js?build=8e65cc0a0534362f';
 /** One snapshot for map geometry, jam cards and direction summaries.
  * Mainline queues are measured on the same congested CTM cells as the map.
  * Legacy queues remain the simulation input for the separate ramp ledger;
  * their synthetic lengths never truncate a mainline display queue.
  */
-import { NETWORK_PATHS as PATHS, baselineCapacity } from './traffic.js?build=bf089c90fbdf3c9d';
-import { routeSlice } from './spatial.js?build=bf089c90fbdf3c9d';
-import { cellSpeedBands, cellQueueSpans, cellCriticalDensity } from './traffic-cells.js?build=bf089c90fbdf3c9d';
-import { physicalSpeedBands, stopAndGoBands, resolveSpeedBands, freeSpeedKmh, colorAtSpeed } from './traffic-physics.js?build=bf089c90fbdf3c9d';
-import { speedDelayInCells, speedDelayInBands, queueTravelHeads } from './speed-delay.js?build=bf089c90fbdf3c9d';
-import { routeReport } from './network-report.js?build=bf089c90fbdf3c9d';
-import { positionM } from './spatial.js?build=bf089c90fbdf3c9d';
+import { NETWORK_PATHS as PATHS, baselineCapacity } from './traffic.js?build=8e65cc0a0534362f';
+import { routeSlice } from './spatial.js?build=8e65cc0a0534362f';
+import { cellSpeedBands, cellQueueSpans, cellCriticalDensity } from './traffic-cells.js?build=8e65cc0a0534362f';
+import { physicalSpeedBands, stopAndGoBands, resolveSpeedBands, freeSpeedKmh, colorAtSpeed } from './traffic-physics.js?build=8e65cc0a0534362f';
+import { speedDelayInCells, speedDelayInBands, queueTravelHeads } from './speed-delay.js?build=8e65cc0a0534362f';
+import { routeReport } from './network-report.js?build=8e65cc0a0534362f';
+import { positionM } from './spatial.js?build=8e65cc0a0534362f';
 function extents(bands) {
     const groups = [];
     for (const b of bands) {
@@ -87,9 +87,15 @@ export function trafficView(legacy, cells, corridors, events, spills, minute) {
         const state = cells[path], route = corridors[path], own = legacy.filter(j => j.pathKey === path);
         const queueSpans = state ? cellQueueSpans(state) : [];
         const serviceHeads = state ? queueTravelHeads(state) : undefined;
+        const rampPath = path.startsWith('ramp-') || extensionRoute(path)?.kind === 'ramp';
         const queueBands = resolveSpeedBands(state ? cellSpeedBands(state) : own.flatMap(jam => [
             ...physicalSpeedBands(jam).filter(b => b.source === 'approach'),
-            ...stopAndGoBands(jam, minute)
+            // A ramp's occupied queue is a single physical stock. Do not project an
+            // old speed history as free-flow islands into still-occupied queue segments.
+            ...(rampPath ? (jam.queueVehicles > 0 && jam.speedKmh <= 65 && jam.visibleQueueM > .5 ?
+                [{ fromM: Math.max(0, jam.anchorM - jam.visibleQueueM), toM: jam.anchorM,
+                        speedKmh: jam.speedKmh, color: colorAtSpeed(jam.speedKmh), source: 'queue' }] : [])
+                : stopAndGoBands(jam, minute))
         ]));
         // A posted limit is not a speed observation. An empty worksite or a
         // blocked road without vehicles must not create a static red ribbon.

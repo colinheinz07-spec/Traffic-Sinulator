@@ -89,7 +89,7 @@ test('independent short exit queues do not inherit the main incident delay and r
  assert.deepEqual(selected.map(e=>e.config.geometry.sourceExitRef),['42']);
 });
 
-test('a short detached queue keeps its own delay while a severe onward journey permits an earlier exit',()=>{
+test('a short detached queue retains its delay while a severe onward wait cannot skip a free closer exit',()=>{
  const path='A3-koeln',route=routes[path],js=diversionJunctions(path,exits,route);
  const at=(js.find(j=>j.ref==='40').metre+js.find(j=>j.ref==='39').metre)/2;
  const event={id:'forecast-scope',kind:'accident',pathKey:path,point:routeSlice(route,at,at+1)[0],laneCount:3,
@@ -107,8 +107,8 @@ test('a short detached queue keeps its own delay while a severe onward journey p
  assert.ok(speedDelayInCells(grid,local.fromM,local.toM,local.toM+grid.cellM).delayMin<45);
  const entries=prepare([event]);
  const nord=entries.find(e=>e.config.geometry.sourceExitRef==='42');
- assert.ok(routedDiversionChoice(nord,entries,{[path]:grid},routes,[event],exits,{[path]:2000}).percent>0,
-  'drivers can now avoid the real five-hour onward wait before reaching the short local queue');
+ assert.equal(routedDiversionChoice(nord,entries,{[path]:grid},routes,[event],exits,{[path]:2000}).percent,0,
+  'a remote five-hour wait cannot force a premature departure while a closer exit remains usable');
  const view=trafficView([],{[path]:grid},routes,[event],[],grid.minute);
  const card=view.jams.find(j=>j.anchorM<diez);
  assert.ok(card&&card.delay.delayMin<45&&card.delay.forecastWaitMin===undefined);
@@ -161,4 +161,32 @@ test('a natural queue on the target motorway recruits only the nearest approachi
   return {config,state:emptyDetour(config)};
  });
  assert.ok(routedDiversionChoice(entries[0],entries,cells,routes,[],exits,{[source]:2000,[path]:2000}).percent>0);
+});
+
+test('A3 Frankfurt: a long Diez–Limburg closure cannot send drivers off at Ransbach before Montabaur fills',()=>{
+ const path='A3-frankfurt',route=routes[path],js=diversionJunctions(path,exits,route);
+ const ransbach=js.find(j=>j.ref==='38'),montabaur=js.find(j=>j.ref==='40'),
+  diez=js.find(j=>j.ref==='41'),limburg=js.find(j=>j.ref==='42');
+ assert.ok(ransbach&&montabaur&&diez&&limburg);
+ assert.ok(ransbach.metre<montabaur.metre&&montabaur.metre<diez.metre&&diez.metre<limburg.metre);
+ const at=diez.metre+(limburg.metre-diez.metre)/3;
+ const event={id:'a3-f-closure',kind:'closure',pathKey:path,point:routeSlice(route,at,at+1)[0],
+  laneCount:3,closedLanes:[0,1,2],createdAt:'2026-11-05T00:00:00Z',
+  settings:{lengthM:100,speedKmh:0,shoulder:'blocked'}};
+ const grid=queue(path,montabaur.metre+250,diez.metre-150,200);
+ const entries=prepare([event],{[path]:grid});
+ const earlier=entries.find(e=>e.config.geometry.sourceExitRef==='38');
+ const near=entries.find(e=>e.config.geometry.sourceExitRef==='40');
+ assert.ok(earlier&&near,'both exits are present as possible routes');
+ const initial=routedDiversionChoice(earlier,entries,{[path]:grid},routes,[event],exits,{[path]:2000});
+ assert.equal(initial.percent,0,'200-minute delay does not justify skipping a still-open Montabaur exit');
+ assert.ok(routedDiversionChoice(near,entries,{[path]:grid},routes,[event],exits,{[path]:2000}).percent>0,
+  'Montabaur reacts once the physical mainline queue reaches its following section');
+ grid.junctions=[{id:path+':local:40',ref:'40',metre:montabaur.metre,
+  entryVph:0,exitPercent:100,entryCapacityVph:900,exitCapacityVph:1800,
+  exitStorageVehicles:40,exitTerminalVph:700,waiting:0,offeredTotal:0,enteredTotal:0,
+  exitedTotal:0,lastEntered:0,lastExited:0,lastExitDemand:45,
+  exitQueue:{normal:40,detours:{}}}];
+ const overflow=routedDiversionChoice(earlier,entries,{[path]:grid},routes,[event],exits,{[path]:2000});
+ assert.ok(overflow.percent>0,'Ransbach may become a bypass when the closer ramp is physically full');
 });

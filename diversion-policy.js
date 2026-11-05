@@ -1,14 +1,14 @@
-import { networkRoad } from './network-road.js?build=bf089c90fbdf3c9d';
-import { cellQueueSpans } from './traffic-cells.js?build=bf089c90fbdf3c9d';
-import { closureGate } from './spatial.js?build=bf089c90fbdf3c9d';
-import { diversionJunctions, nearestExitBeforeQueue, potentialDiversionPercent } from './diversions.js?build=bf089c90fbdf3c9d';
-import { speedDelayInCells } from './speed-delay.js?build=bf089c90fbdf3c9d';
-import { eventCapacity, defaultDemand } from './traffic.js?build=bf089c90fbdf3c9d';
-import { freeSpeedKmh } from './traffic-physics.js?build=bf089c90fbdf3c9d';
-import { INTERCHANGE_DIVERSION_START_MIN, interchangeTrafficShare } from './interchange.js?build=bf089c90fbdf3c9d';
-import { closedMovementEvent, viaJourneyUsable, journeyRampCapacity, journeyTrafficShare } from './interchange-journeys.js?build=bf089c90fbdf3c9d';
-import { accessibleExits, junctionAccess } from './road-controls.js?build=bf089c90fbdf3c9d';
-import { exitRampVehicles, DEFAULT_EXIT_TERMINAL_VPH } from './junction-traffic.js?build=bf089c90fbdf3c9d';
+import { networkRoad } from './network-road.js?build=8e65cc0a0534362f';
+import { cellQueueSpans } from './traffic-cells.js?build=8e65cc0a0534362f';
+import { closureGate } from './spatial.js?build=8e65cc0a0534362f';
+import { diversionJunctions, nearestExitBeforeQueue, potentialDiversionPercent } from './diversions.js?build=8e65cc0a0534362f';
+import { speedDelayInCells } from './speed-delay.js?build=8e65cc0a0534362f';
+import { eventCapacity, defaultDemand } from './traffic.js?build=8e65cc0a0534362f';
+import { freeSpeedKmh } from './traffic-physics.js?build=8e65cc0a0534362f';
+import { INTERCHANGE_DIVERSION_START_MIN, interchangeTrafficShare } from './interchange.js?build=8e65cc0a0534362f';
+import { closedMovementEvent, viaJourneyUsable, journeyRampCapacity, journeyTrafficShare } from './interchange-journeys.js?build=8e65cc0a0534362f';
+import { accessibleExits, junctionAccess } from './road-controls.js?build=8e65cc0a0534362f';
+import { exitRampVehicles, DEFAULT_EXIT_TERMINAL_VPH } from './junction-traffic.js?build=8e65cc0a0534362f';
 function exitTerminalWait(source, metre) {
     const ramp = source.junctions?.find(j => Math.abs(j.metre - metre) < 25);
     return ramp ? exitRampVehicles(ramp) / Math.max(1, ramp.exitTerminalVph ?? DEFAULT_EXIT_TERMINAL_VPH) * 60 : 0;
@@ -288,16 +288,26 @@ function baseDiversionChoice(entry, entries, cells, routes, events, exits, deman
         (state.waitingRoad + state.waitingMerge) / service * 60 + exitTerminalWait(source, config.fromM);
     const spans = cellQueueSpans(source);
     const eligible = (tail, end, loss = 0) => {
-        const nearest = nearestExitBeforeQueue(path, route, accessibleExits(route, events, exits, 'exit'), tail, approachEnd);
+        const open = accessibleExits(route, events, exits, 'exit');
+        const nearest = nearestExitBeforeQueue(path, route, open, tail, approachEnd);
         if (config.fromM >= (nearest?.metre ?? tail) - 25 && config.fromM <= end + 25)
             return true;
-        if (cross || !nearest || nearest.metre - config.fromM > 35000)
+        if (!nearest || loss < 45)
             return false;
-        const earlier = diversionJunctions(path, accessibleExits(route, events, exits, 'exit'), route)
-            .filter(j => !j.isInterchange && j.metre > config.fromM + 25 && j.metre <= nearest.metre + 25).length;
-        // The first choice stays local. Only extreme remaining waits justify
-        // leaving one or two junctions earlier on an otherwise free approach.
-        return earlier >= 1 && earlier <= 2 && loss >= 150 + (earlier - 1) * 90;
+        // An earlier exit is an overflow alternative, not a shortcut triggered
+        // by a remote downstream delay. The nearer, reachable off-ramps must
+        // actually be full and still receive more exit demand than they serve.
+        // Evaluate every intervening AS: never jump over a usable open ramp.
+        const closer = diversionJunctions(path, open, route)
+            .filter(j => !j.isInterchange && j.metre > config.fromM + 25 && j.metre <= nearest.metre + 25);
+        return closer.length > 0 && closer.every(j => {
+            const ramp = source.junctions?.find(x => Math.abs(x.metre - j.metre) < 25);
+            if (!ramp)
+                return false;
+            const storage = ramp.exitStorageVehicles ?? 0;
+            return storage > 0 && exitRampVehicles(ramp) >= storage * .95 &&
+                (ramp.lastExitDemand ?? 0) * 60 > (ramp.exitTerminalVph ?? DEFAULT_EXIT_TERMINAL_VPH) * .95;
+        });
     };
     const measuredLoss = (grid, start, end, rate = service) => {
         const loss = speedDelayInCells(grid, start, end, end + grid.cellM);

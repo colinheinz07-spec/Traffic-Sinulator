@@ -1,9 +1,9 @@
 /** Endpoint-connected mainlines exchange a receiving signal. This limits
  * actual discharge in the feeder CTM, rather than painting a second queue.
  * Aggregate motorway demands remain calibrated independently (not OD trips). */
-import { extensionRoutes } from './network-extensions.js?build=bf089c90fbdf3c9d';
-import { positionM, metres } from './spatial.js?build=bf089c90fbdf3c9d';
-import { CONGESTION_WAVE_KMH, QUEUE_JAM_DENSITY_PER_LANE } from './traffic-physics.js?build=bf089c90fbdf3c9d';
+import { extensionRoutes } from './network-extensions.js?build=8e65cc0a0534362f';
+import { positionM, metres } from './spatial.js?build=8e65cc0a0534362f';
+import { CONGESTION_WAVE_KMH, QUEUE_JAM_DENSITY_PER_LANE } from './traffic-physics.js?build=8e65cc0a0534362f';
 /** Share downstream CTM receiving capacity with a physically connected
  * on-ramp. No incident or over-saturation -> no artificial restriction.
  * A ramp's own conserved queue is then handled by advanceSpatial. */
@@ -50,7 +50,7 @@ export function downstreamReceiving(cells, merges) {
         const lanes = cell.openLanes?.length ?? Math.max(1, Math.round((cell.jamDensityVehKm ?? 390) / QUEUE_JAM_DENSITY_PER_LANE));
         const jam = cell.jamDensityVehKm ?? QUEUE_JAM_DENSITY_PER_LANE * lanes;
         const formal = target.closures?.some(g => link.mergeM >= g.fromM - 1 && link.mergeM < g.toM - 1);
-        if (!formal && (cell.speedKmh > 65 || cell.densityVehKm <= (cell.criticalDensityVehKm ?? 20 * lanes) * 1.1))
+        if (!formal && (cell.speedKmh > 65 && cell.densityVehKm <= (cell.criticalDensityVehKm ?? 20 * lanes) * 1.1))
             continue;
         const supply = formal || lanes === 0 ? 0 : Math.max(0, CONGESTION_WAVE_KMH * (jam - cell.densityVehKm));
         output[link.from] = Math.min(output[link.from] ?? Infinity, supply);

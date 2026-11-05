@@ -45,15 +45,15 @@ test('a congested first return loses new trips to later returns, without deletin
  assert.ok(choices[0].percent<choices[1].percent&&choices[0].percent<10);
  assert.equal(detourVehicles(first.state),before,'route choice never deletes existing journeys');
 });
-test('extreme remaining delays allow two earlier exits; a normal one-hour queue stays local',()=>{
- for(const [delay,early] of [[60,false],[300,true]]){
+test('remote exits stay inactive until nearer ramp queues are truly full, even with extreme delays',()=>{
+ for(const delay of [60,300]){
   const grid=queued(delay),entries=prepare(grid);
   const nearest=js.filter(j=>j.metre<from.metre-1800).at(-1);
   const before=js.filter(j=>j.metre<nearest.metre-25).slice(-2);
   for(const j of before){
    const family=entries.filter(e=>Math.abs(e.config.fromM-j.metre)<25);
    assert.ok(family.length>0);
-   assert.equal(family.some(e=>choice(e,entries,grid).percent>0),early,'AS '+j.ref+' at '+delay+' minutes');
+   assert.equal(family.some(e=>choice(e,entries,grid).percent>0),false,'free closer exits must not be skipped at AS '+j.ref+' after '+delay+' minutes');
   }
  }
 });

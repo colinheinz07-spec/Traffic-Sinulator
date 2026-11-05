@@ -1,11 +1,11 @@
 /** Local ramps render the SAME vehicles held by the junction solver.
  * A downstream incident alone never creates a second ramp inventory. */
-import { networkData } from './geodata.js?build=bf089c90fbdf3c9d';
-import { extensionRoutes, extensionRampBoundaryPoints } from './network-extensions.js?build=bf089c90fbdf3c9d';
-import { exitPosition, nearestPolyline } from './core.js?build=bf089c90fbdf3c9d';
-import { networkRoad } from './network-road.js?build=bf089c90fbdf3c9d';
-import { eventCapacity } from './traffic.js?build=bf089c90fbdf3c9d';
-import { queueFundamentalDiagram, colorAtSpeed } from './traffic-physics.js?build=bf089c90fbdf3c9d';
+import { networkData } from './geodata.js?build=8e65cc0a0534362f';
+import { extensionRoutes, extensionRampBoundaryPoints } from './network-extensions.js?build=8e65cc0a0534362f';
+import { exitPosition, nearestPolyline } from './core.js?build=8e65cc0a0534362f';
+import { networkRoad } from './network-road.js?build=8e65cc0a0534362f';
+import { eventCapacity } from './traffic.js?build=8e65cc0a0534362f';
+import { queueFundamentalDiagram, colorAtSpeed } from './traffic-physics.js?build=8e65cc0a0534362f';
 const pointKey = (p) => p.join(',');
 const distance = (a, b) => Math.hypot((b[0] - a[0]) * 111195, (b[1] - a[1]) * 111195 * Math.cos((a[0] + b[0]) * Math.PI / 360));
 const rampLength = (r) => r.points.slice(1).reduce((n, p, i) => n + distance(r.points[i], p), 0);
