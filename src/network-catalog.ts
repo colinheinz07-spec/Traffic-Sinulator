@@ -49,7 +49,7 @@ export function createRouteCatalog(
  additions:readonly ExtensionRoute[]
 ):RouteDescriptor[]{
  const heavyByMotorway:Readonly<Record<string,number>>={'A3':.23,'A48':.16};
- const heavy=(road:string|null):number=>road===null?.15:(heavyByMotorway[road]??.15);
+ const heavy=(road:string|null):number=>road===null ? 0.15 : (heavyByMotorway[road]??0.15);
  const knownDirections:Readonly<Record<string,'east'|'west'>>={
   'A3-koeln':'west','A3-frankfurt':'east',
   'A48-dernbach':'east','A48-koblenz':'west'

@@ -33,7 +33,7 @@ const familiesByMotorway:Readonly<Record<string,ProfileFamily>>={
 };
 export function profileFamily(key:string):ProfileFamily{
  const cached=cache.get(key);if(cached)return cached;
- const match=key.match(/^(?:extra-)?(A\\d{1,3})(?:-|$)/i);
+ const match=key.match(/^(?:extra-)?(A\d{1,3})(?:-|$)/i);
  const motorway=match?.[1]?.toUpperCase();
  let family:ProfileFamily;
  if(motorway)family=familiesByMotorway[motorway]??'transit';

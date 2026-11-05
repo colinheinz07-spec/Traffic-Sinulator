@@ -33,7 +33,7 @@ export function validateMap(data:MapData):{valid:boolean;errors:string[]}{
  }
  for(const r of data.roads){if(!r.points || r.points.length<2||r.lanes<1||r.km<=0)errors.push('Straßenabschnitt ungültig: '+r.id);
   else {
-   const expected=r.road.match(/^A\\d{1,3}(?!\\d)/i)?.[0]?.toUpperCase();
+   const expected=r.road.match(/^A\d{1,3}(?!\d)/i)?.[0]?.toUpperCase();
    const refs=(r.tags?.ref??'').toUpperCase().replaceAll(' ','').split(/[;,]/);
    if(!expected||!refs.includes(expected))errors.push('Fremde Straße: '+r.id);
   }
