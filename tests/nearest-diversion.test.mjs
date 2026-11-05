@@ -89,7 +89,7 @@ test('independent short exit queues do not inherit the main incident delay and r
  assert.deepEqual(selected.map(e=>e.config.geometry.sourceExitRef),['42']);
 });
 
-test('a short detached queue keeps its own delay while a severe onward journey permits an earlier exit',()=>{
+test('a short detached queue retains its delay while a severe onward wait cannot skip a free closer exit',()=>{
  const path='A3-koeln',route=routes[path],js=diversionJunctions(path,exits,route);
  const at=(js.find(j=>j.ref==='40').metre+js.find(j=>j.ref==='39').metre)/2;
  const event={id:'forecast-scope',kind:'accident',pathKey:path,point:routeSlice(route,at,at+1)[0],laneCount:3,
@@ -107,8 +107,8 @@ test('a short detached queue keeps its own delay while a severe onward journey p
  assert.ok(speedDelayInCells(grid,local.fromM,local.toM,local.toM+grid.cellM).delayMin<45);
  const entries=prepare([event]);
  const nord=entries.find(e=>e.config.geometry.sourceExitRef==='42');
- assert.ok(routedDiversionChoice(nord,entries,{[path]:grid},routes,[event],exits,{[path]:2000}).percent>0,
-  'drivers can now avoid the real five-hour onward wait before reaching the short local queue');
+ assert.equal(routedDiversionChoice(nord,entries,{[path]:grid},routes,[event],exits,{[path]:2000}).percent,0,
+  'a remote five-hour wait cannot force a premature departure while a closer exit remains usable');
  const view=trafficView([],{[path]:grid},routes,[event],[],grid.minute);
  const card=view.jams.find(j=>j.anchorM<diez);
  assert.ok(card&&card.delay.delayMin<45&&card.delay.forecastWaitMin===undefined);
