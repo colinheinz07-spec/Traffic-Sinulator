@@ -4,6 +4,7 @@ on:
     branches: [feature/a3-leverkusen-network-20261105]
     paths:
       - scripts/import_a3_leverkusen.py
+      - data/a3-leverkusen-osm.json
       - scripts/build_a3_leverkusen_detours.py
       - scripts/publish_a3_leverkusen_objects.py
       - scripts/extend_a1_leverkusen.py
