@@ -56,7 +56,12 @@ export function junctionRampBindings(route:Corridor,exits:readonly Exit[]):Junct
     if(reverse)indices.reverse();
     const boundaryIndex=indices.slice(1).find(i=>boundaries.has(pointKey(last.points[i]!))&&!trunks.has(pointKey(last.points[i]!)));
     const end=pointKey(at(last,true));
-    if(sequence.length>8||boundaryIndex===undefined&&trunks.has(end))return;
+    // Signed local collector can rejoin the same motorway and still have
+    // a real off-ramp diverge. Only preserve verified, signed topology.
+    const signedCollector=boundaryIndex===undefined&&trunks.has(end)&&
+     vertices.has(end)&&sequence[0]!.destinationRef!==undefined&&
+     sequence[0]!.destinationRef!.length>0;
+    if(sequence.length>24||boundaryIndex===undefined&&trunks.has(end)&&!signedCollector)return;
     const following=(graph.get(end)??[]).filter(r=>!sequence.includes(r));
     if(boundaryIndex===undefined&&following.length){for(const r of following)visit([...sequence,r]);return;}
     const ordered=reverse?[...sequence].reverse():sequence;let lengthM=0;

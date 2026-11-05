@@ -57,14 +57,14 @@ for(const [path,earlierRef,nearRef] of [['A3-koeln','40','38'],['A3-frankfurt','
     const baseline=normalJunctionTraffic(route,exits,2000).find(j=>j.ref===selectedRef);
     assert.equal(actual.desiredPercent,choice.percent);
     if(delay>=45)assert.ok(actual.state.lastDeparture>0);
-    assert.ok(Math.abs(local.entryVph-baseline.entryVph*(1-choice.percent/100))<1e-6);
+    assert.ok(Math.abs(local.entryVph-baseline.entryVph)<1e-6);
     assertCellConservation(next.cells);
    }
   });
  }
 }
 
-test('entrance avoidance follows the requested share, even when the side road cannot admit more cars',()=>{
+test('independent on-ramp arrivals persist even when a motorway bypass has no available capacity',()=>{
  const path='A3-koeln',route=routes[path],as=junction(path,'40');
  const demand=normalJunctionTraffic(route,exits,2000).find(j=>j.ref==='40');
  for(const percent of [0,2,30,60,100]){
@@ -73,13 +73,13 @@ test('entrance avoidance follows the requested share, even when the side road ca
   }],[demand]);
   const local=state.junctions[0];
   assert.equal(state.lastTransfers[0].leaveVpm,0);
-  assert.ok(Math.abs(local.entryVph-demand.entryVph*(1-percent/100))<1e-6);
+  assert.ok(Math.abs(local.entryVph-demand.entryVph)<1e-6);
   assert.ok(Math.abs(local.lastEntered*60-local.entryVph)<1e-6);
   assertCellConservation(state);
  }
 });
 
-test('avoiding new entry never deletes an existing on-ramp queue or inhibits returners beyond the incident',()=>{
+test('mainline diversion never deletes local arrival demand, an existing queue or returners beyond the incident',()=>{
  const path='A3-frankfurt',route=routes[path],as=junction(path,'40');
  const demand=normalJunctionTraffic(route,exits,2000).find(j=>j.ref==='40');
  const grid=initialiseCells(route,2000);
@@ -88,10 +88,10 @@ test('avoiding new entry never deletes an existing on-ramp queue or inhibits ret
  const state=advanceCells(grid,route,[],2000,exits,[{
   id:'avoid',fromM:as.metre,toM:as.metre+2000,interestPercent:100,exitCapacityVph:1200,returnVehicles:5
  }],[demand]);
- assert.equal(state.junctions[0].entryVph,0);
- assert.equal(state.junctions[0].offeredTotal,10);
+ assert.equal(state.junctions[0].entryVph,demand.entryVph);
+ assert.ok(Math.abs(state.junctions[0].offeredTotal-(10+demand.entryVph/60))<1e-6);
  assert.ok(state.junctions[0].lastEntered>0);
- assert.ok(Math.abs(state.junctions[0].waiting+state.junctions[0].enteredTotal-10)<1e-6);
+ assert.ok(Math.abs(state.junctions[0].waiting+state.junctions[0].enteredTotal-state.junctions[0].offeredTotal)<1e-6);
  assert.ok(state.lastTransfers[0].joinVpm>0,'returning cars still rejoin beyond the jam');
  assertCellConservation(state);
 });
@@ -110,7 +110,7 @@ for(const nearRef of ['38','40']){
     const before=old.find(e=>e.config.id===entry.config.id),local=state.junctions.find(j=>j.ref===entry.config.geometry.sourceExitRef);
     const baseline=normalJunctionTraffic(route,exits,demand).find(j=>j.ref===local.ref);
     assert.ok(entry.desiredPercent<=(before.state.choicePercent??0)+5+1e-6,'handoff cannot jump to a high share in one minute');
-    assert.ok(Math.abs(local.entryVph-baseline.entryVph*(1-entry.desiredPercent/100))<1e-6);
+    assert.ok(Math.abs(local.entryVph-baseline.entryVph)<1e-6);
     if(entry.state.lastDeparture>0){
      departed++;
      const choices=diversionJunctions(path,exits,route).filter(j=>!j.isInterchange&&j.metre>entry.config.fromM+25);

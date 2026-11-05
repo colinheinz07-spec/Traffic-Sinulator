@@ -1,4 +1,5 @@
 import {ringDetours} from './ring-detours-data.js';
+import {leverkusenDetours} from './leverkusen-detours-data.js';
 import {extensionDetours as baseDetours,type ExtensionDetour} from './extension-detours-data.js';
 
 import type {Exit} from './core.js';
@@ -12,7 +13,7 @@ import {diversionJunctions} from './diversions.js';
 import {junctionAccess} from './road-controls.js';
 import {speedDelayInCells} from './speed-delay.js';
 
-const extensionDetours=[...baseDetours,...ringDetours];
+const extensionDetours=[...baseDetours,...ringDetours,...leverkusenDetours];
 const sectionCache=new WeakMap<ExtensionDetour,{id:string;capacityVph:number}[]>();
 const indexed=new Map(extensionDetours.map(r=>[r.id,r]));
 /** Real directed geometry; route selection and capacities are simulator assumptions. */
@@ -59,7 +60,7 @@ export function planExtensionDetours(events:readonly SimEvent[],routes:Record<Pa
   const path=record.path as PathKey,target=record.targetPath as PathKey;
   // Ordinary A3 local routes already have their bundled planner. Add its
   // neighbouring-motorway alternatives to that SAME exit decision family.
-  if(path.startsWith('A3')&&path===target&&!record.motorway)continue;
+  if(path.startsWith('A3')&&path===target&&!record.motorway&&!record.id.startsWith('LEV-'))continue;
   const route=routes[path];if(!route)continue;
   if(path===target&&!events.some(e=>e.pathKey===path)&&!queued.get(path)?.length)continue;
   if(path!==target&&!record.motorwayBypass&&!connections.some(c=>c.from===path&&c.to===target&&events.some(e=>e.pathKey===c.rampId||e.pathKey===target)))continue;
