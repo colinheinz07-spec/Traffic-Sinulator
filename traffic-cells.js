@@ -1,11 +1,11 @@
-import { extensionRoute } from './network-extensions.js?build=8e7d92418738db8f';
-import { baseLaneCapacity } from './traffic-physics.js?build=8e7d92418738db8f';
-import { positionM, closureGate } from './spatial.js?build=8e7d92418738db8f';
-import { baselineCapacity, eventCapacity } from './traffic.js?build=8e7d92418738db8f';
-import { flowPolicy, DEFAULT_CLEARANCE_MIN } from './events.js?build=8e7d92418738db8f';
-import { colorAtSpeed, freeSpeedKmh, QUEUE_JAM_DENSITY_PER_LANE, CONGESTION_WAVE_KMH } from './traffic-physics.js?build=8e7d92418738db8f';
-import { normalJunctionTraffic, exitRampVehicles, DEFAULT_EXIT_TERMINAL_VPH, DEFAULT_EXIT_STORAGE_VEHICLES } from './junction-traffic.js?build=8e7d92418738db8f';
-import { roadSections, physicalEvents, junctionAccess } from './road-controls.js?build=8e7d92418738db8f';
+import { extensionRoute } from './network-extensions.js?build=a2413d3bf8be14e7';
+import { baseLaneCapacity } from './traffic-physics.js?build=a2413d3bf8be14e7';
+import { positionM, closureGate } from './spatial.js?build=a2413d3bf8be14e7';
+import { baselineCapacity, eventCapacity } from './traffic.js?build=a2413d3bf8be14e7';
+import { flowPolicy, DEFAULT_CLEARANCE_MIN } from './events.js?build=a2413d3bf8be14e7';
+import { colorAtSpeed, freeSpeedKmh, QUEUE_JAM_DENSITY_PER_LANE, CONGESTION_WAVE_KMH } from './traffic-physics.js?build=a2413d3bf8be14e7';
+import { normalJunctionTraffic, exitRampVehicles, DEFAULT_EXIT_TERMINAL_VPH, DEFAULT_EXIT_STORAGE_VEHICLES } from './junction-traffic.js?build=a2413d3bf8be14e7';
+import { roadSections, physicalEvents, junctionAccess } from './road-controls.js?build=a2413d3bf8be14e7';
 const TARGET_CELL_M = 100, WAVE_KMH = CONGESTION_WAVE_KMH, JAM_PER_LANE = QUEUE_JAM_DENSITY_PER_LANE;
 // One observation per MODEL minute; repainting/pause never advances this.
 const TRAVEL_ALPHA = 1 - Math.exp(-1 / 6);
@@ -352,12 +352,11 @@ export function advanceCells(previous, route, events, demandVph, exits = [], por
         const face = Math.max(1, Math.min(n - 1, Math.round(d.metre / previous.cellM)));
         const access = junctionAccess(route, events, d.metre, d.ref);
         const entryBlocked = !access.entry || closedEntries.some(c => d.metre >= c.fromM && d.metre < c.toM), exitBlocked = !access.exit;
-        // Apply the SAME delay-based route choice to new local trips. This is
-        // demand avoided before entering our network, not cars deleted from an
-        // existing ramp queue. Actual ramp/side-road capacities do not set it.
-        const entryAvoidancePercent = entryBlocked ? 0 : Math.min(100, routed.filter(p => p.from === face && !p.vehicleClass)
-            .reduce((sum, p) => sum + p.interestPercent, 0));
-        return { ...d, entryVph: d.entryVph * (1 - entryAvoidancePercent / 100), entryAvoidancePercent,
+        // Independent local ramp arrivals are not motorway drivers changing
+        // their through route at this face. Never erase them because of a
+        // freeway detour: physical receiving space determines their merge.
+        const entryAvoidancePercent = 0;
+        return { ...d, entryVph: d.entryVph, entryAvoidancePercent,
             waiting: old?.waiting ?? 0, offeredTotal: old?.offeredTotal ?? 0,
             enteredTotal: old?.enteredTotal ?? 0, exitedTotal: old?.exitedTotal ?? 0, lastEntered: 0, lastExited: 0, lastExitDemand: 0, lastExitAdmitted: 0,
             exitQueue: { normal: old?.exitQueue?.normal ?? 0, detours: { ...old?.exitQueue?.detours } },
@@ -640,7 +639,14 @@ export function advanceCells(previous, route, events, demandVph, exits = [], por
                 const queue = local.exitQueue;
                 const serviceRequests = departures.map(p => Math.min(queue.detours[p.id] ?? 0, p.exitCapacityVph * dtMin / 60, Math.max(0, p.exitCapacityVph / 60 - p.left)));
                 const serviceTotal = queue.normal + serviceRequests.reduce((s, v) => s + v, 0);
-                const serviceScale = serviceTotal > 0 ? Math.min(1, (local.exitTerminalVph ?? DEFAULT_EXIT_TERMINAL_VPH) * dtMin / 60 / serviceTotal) : 0;
+                const sharedOverflow = local.sharedFeederStorageVehicles === undefined ? 0 :
+                    Math.max(0, local.waiting - local.sharedFeederStorageVehicles);
+                // Entry cars beyond the short ramp occupy the shared access road.
+                // Off-ramp vehicles cannot pass through that conserved inventory.
+                const commonFeederRoom = local.sharedFeederStorageVehicles === undefined ? 1 :
+                    Math.max(0, 1 - sharedOverflow / Math.max(1, local.exitStorageVehicles ?? DEFAULT_EXIT_STORAGE_VEHICLES));
+                const terminalService = (local.exitTerminalVph ?? DEFAULT_EXIT_TERMINAL_VPH) * commonFeederRoom;
+                const serviceScale = serviceTotal > 0 ? Math.min(1, terminalService * dtMin / 60 / serviceTotal) : 0;
                 const normalService = queue.normal * serviceScale;
                 queue.normal = Math.max(0, queue.normal - normalService);
                 local.lastExited += normalService;
@@ -828,7 +834,19 @@ export function advanceCells(previous, route, events, demandVph, exits = [], por
     const next = { ...previous, cells, closures, minute: previous.minute + 1, backlog, offeredTotal, exitedTotal,
         routedBacklog: Object.fromEntries([...boundaryClasses].filter(([, v]) => v > 1e-9)),
         classifiedJourneys: [...classifiedJourneys],
-        junctions: junctions.map(({ face: _, entryBlocked: __, ...j }) => j),
+        junctions: junctions.map(({ face: _, entryBlocked: __, ...j }) => {
+            const old = previous.junctions?.find(x => x.id === j.id);
+            const storage = j.exitStorageVehicles ?? DEFAULT_EXIT_STORAGE_VEHICLES;
+            const feederOverflow = j.sharedFeederStorageVehicles === undefined ? 0 :
+                Math.max(0, j.waiting - j.sharedFeederStorageVehicles);
+            const terminalRoom = j.sharedFeederStorageVehicles === undefined ? 1 :
+                Math.max(0, 1 - feederOverflow / Math.max(1, storage));
+            const actualServiceCapacity = (j.exitTerminalVph ?? DEFAULT_EXIT_TERMINAL_VPH) * terminalRoom;
+            const full = exitRampVehicles(j) >= storage * .95 &&
+                (j.lastExitDemand ?? 0) * 60 > actualServiceCapacity * .95;
+            return { ...j, lastExitServiceCapacityVph: actualServiceCapacity,
+                exitFullMinutes: full ? (old?.exitFullMinutes ?? 0) + 1 : 0 };
+        }),
         divertedTotal: (previous.divertedTotal ?? 0) + routed.reduce((s, p) => s + p.left, 0),
         rejoinedTotal: (previous.rejoinedTotal ?? 0) + routed.reduce((s, p) => s + p.joined, 0),
         lastTransfers: routed.map(p => ({ id: p.id, leaveVpm: p.left, joinVpm: p.joined })),

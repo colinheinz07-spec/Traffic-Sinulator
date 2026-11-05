@@ -1,11 +1,11 @@
 /** Local ramps render the SAME vehicles held by the junction solver.
  * A downstream incident alone never creates a second ramp inventory. */
-import { networkData } from './geodata.js?build=8e7d92418738db8f';
-import { extensionRoutes, extensionRampBoundaryPoints } from './network-extensions.js?build=8e7d92418738db8f';
-import { exitPosition, nearestPolyline } from './core.js?build=8e7d92418738db8f';
-import { networkRoad } from './network-road.js?build=8e7d92418738db8f';
-import { eventCapacity } from './traffic.js?build=8e7d92418738db8f';
-import { queueFundamentalDiagram, colorAtSpeed } from './traffic-physics.js?build=8e7d92418738db8f';
+import { networkData } from './geodata.js?build=a2413d3bf8be14e7';
+import { extensionRoutes, extensionRampBoundaryPoints } from './network-extensions.js?build=a2413d3bf8be14e7';
+import { exitPosition, nearestPolyline } from './core.js?build=a2413d3bf8be14e7';
+import { networkRoad } from './network-road.js?build=a2413d3bf8be14e7';
+import { eventCapacity } from './traffic.js?build=a2413d3bf8be14e7';
+import { queueFundamentalDiagram, colorAtSpeed } from './traffic-physics.js?build=a2413d3bf8be14e7';
 const pointKey = (p) => p.join(',');
 const distance = (a, b) => Math.hypot((b[0] - a[0]) * 111195, (b[1] - a[1]) * 111195 * Math.cos((a[0] + b[0]) * Math.PI / 360));
 const rampLength = (r) => r.points.slice(1).reduce((n, p, i) => n + distance(r.points[i], p), 0);
@@ -131,6 +131,10 @@ export function applyJunctionRampLimits(route, exits, events, demands) {
         const entries = bindings.filter(b => b.ref === d.ref && b.kind === 'entry'), off = bindings.filter(b => b.ref === d.ref && b.kind === 'exit');
         const row = { ...d };
         if (entries.length) {
+            // Montabaur's two access arms can spill into their shared local throat.
+            // The first full entry arm determines when the feeder is obstructed.
+            if (route.key.startsWith('A3-') && d.ref === '40')
+                row.sharedFeederStorageVehicles = Math.max(1, Math.min(...entries.map(b => b.lengthM * b.lanes * 95 / 1000)));
             const limits = entries.map(b => restriction(b, events));
             row.entryCapacityVph = Math.min(row.entryCapacityVph, limits.reduce((n, c) => n + c.capacity, 0));
             if (limits.every(c => c.closed))
