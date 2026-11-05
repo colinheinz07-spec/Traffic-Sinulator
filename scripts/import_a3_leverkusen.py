@@ -269,16 +269,26 @@ def import_links(data,new_exits,vertices,doc):
   if near_m>3700:continue
   zone=(nearest['name'] if nearest['ref']=='23' else
     'A3 AS '+nearest['ref']+' '+nearest['name'])
-  count=w.get('tags',{}).get('lanes','1')
-  lane=int(count) if count.isdigit() else 1
-  lane=max(1,min(4,lane))
-  new.append({'id':'extra-a3-lev-ramp-'+str(w['id']),
-    'name':zone+' · OSM-Verbindungsfahrbahn '+str(w['id']),
-    'zone':zone,'kind':'ramp','lanes':lane,
-    'laneSegments':[{'fromM':0,'toM':span,'lanes':lane}],
-    'points':[list(p) for p in ps],'wayIds':[w['id']],
-    'demandVph':min(1100,450*lane),'freeKmh':70,
-    **({'destinationRef':w['tags']['destination:ref']} if w.get('tags',{}).get('destination:ref') else {})})
+  tags=w.get('tags',{})
+  # Explicit OSM oneway=no motorway_link means BOTH movements exist.
+  # Köln-Dellbrück has precisely this connector (OSM way 254177418);
+  # omitting the reverse direction stranded the Frankfurt-side exit.
+  # Keep two directed queue edges, carrying their surveyed per-direction
+  # lane counts, instead of inventing or snapping a missing turn.
+  both=tags.get('oneway')=='no'
+  for reverse in ((False,True) if both else (False,)):
+   points=ps[::-1] if reverse else ps
+   raw=tags.get('lanes:backward' if reverse else 'lanes:forward',tags.get('lanes','1'))
+   lane=int(raw) if raw.isdigit() else 1
+   lane=max(1,min(4,lane))
+   direction='-reverse' if reverse else ''
+   new.append({'id':'extra-a3-lev-ramp-'+str(w['id'])+direction,
+     'name':zone+' · OSM-Verbindungsfahrbahn '+str(w['id'])+direction,
+     'zone':zone,'kind':'ramp','lanes':lane,
+     'laneSegments':[{'fromM':0,'toM':span,'lanes':lane}],
+     'points':[list(p) for p in points],'wayIds':[w['id']],
+     'demandVph':min(1100,450*lane),'freeKmh':70,
+     **({'destinationRef':tags['destination:ref']} if tags.get('destination:ref') else {})})
  if len(new)<12:raise ValueError('Too few connected OSM A3 motorway_link sections '+str(len(new)))
  routes+=new
  path.write_text(raw.replace('export const EXTENSION_IDS='+raw.split('export const EXTENSION_IDS=',1)[1].split(' as const;',1)[0]+' as const;',

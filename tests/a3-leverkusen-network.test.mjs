@@ -14,7 +14,7 @@ const edges=new Set();
 const key=p=>p[0].toFixed(7)+','+p[1].toFixed(7);
 for(const w of ways)if(w.geometry?.length){
  const ps=w.geometry.map(p=>[p.lat,p.lon]);if(w.tags.oneway==='-1')ps.reverse();
- for(let i=1;i<ps.length;i++)edges.add(key(ps[i-1])+'>'+key(ps[i]));
+ for(let i=1;i<ps.length;i++){edges.add(key(ps[i-1])+'>'+key(ps[i]));if(w.tags.oneway==='no')edges.add(key(ps[i])+'>'+key(ps[i-1]));}
 }
 test('A3 mainlines extend to AK Leverkusen with four genuine directional A3 junction anchors',()=>{
  const refs=['23','24','25','26'];
@@ -76,4 +76,16 @@ test('a blocked Leverkusen off-ramp becomes physically red and retains queue veh
  const jams=junctionRampJams({[path]:cells},core,exits,[]).filter(j=>j.id.includes(':25:exit:'));
  assert.ok(jams.length>0,'the overloaded AS25 off-ramp must have a visible queue');
  assert.ok(jams.every(j=>j.queueVehicles>0&&j.speedKmh<20&&j.queueM>0));
+});
+
+test('Köln-Dellbrück Frankfurt exit follows the actual OSM two-way link in reverse',()=>{
+ const w=ways.find(w=>w.id===254177418);
+ assert.equal(w?.tags?.oneway,'no');
+ const reverse=extensionRoutes.find(r=>r.id==='extra-a3-lev-ramp-254177418-reverse');
+ assert.ok(reverse,'explicit bidirectional connector must generate both directed ramp edges');
+ assert.equal(reverse.lanes,2);
+ assert.deepEqual(reverse.points[0],[w.geometry.at(-1).lat,w.geometry.at(-1).lon]);
+ assert.deepEqual(reverse.points.at(-1),[w.geometry[0].lat,w.geometry[0].lon]);
+ const bindings=junctionRampBindings(core['A3-frankfurt'],[...networkData.exits,...extensionJunctions]);
+ assert.ok(bindings.some(b=>b.ref==='26'&&b.kind==='exit'&&b.segments.some(s=>s.ramp.id===reverse.id)));
 });

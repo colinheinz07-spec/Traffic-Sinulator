@@ -55,7 +55,7 @@ def main():
      w.get('tags',{}).get('motorcar') not in ('private','no')]
  graph=collections.defaultdict(list)
  for w in ways:
-  ps=directed(w);oneway=w['tags'].get('oneway') in ('yes','1','-1') or w['tags']['highway'].endswith('_link') or w['tags'].get('junction')=='roundabout'
+  ps=directed(w);oneway=w['tags'].get('oneway')!='no' and (w['tags'].get('oneway') in ('yes','1','-1') or w['tags']['highway'].endswith('_link') or w['tags'].get('junction')=='roundabout')
   for a,b in zip(ps,ps[1:]):
    graph[a].append((b,w))
    if not oneway:graph[b].append((a,w))
