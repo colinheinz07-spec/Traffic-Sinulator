@@ -1,12 +1,12 @@
-import { REFERENCE_PEAKS, profileFactor, profileIdentity } from './traffic-profiles.js?build=e895813246c2db66';
-import { EXTENSION_IDS, extensionRoutes, extensionRoute } from './network-extensions.js?build=e895813246c2db66';
+import { REFERENCE_PEAKS, profileFactor, profileIdentity } from './traffic-profiles.js?build=8e7d92418738db8f';
+import { EXTENSION_IDS, extensionRoutes, extensionRoute } from './network-extensions.js?build=8e7d92418738db8f';
 /** Deliberately isolated, macroscopic first-pass traffic-flow simulation.
  * Traffic volumes, capacities, and queue density are modelling assumptions,
  * NOT measured flows, road regulations, official diversion routes, or observed jams.
  * One controlling bottleneck per directional path; no A3/A48 ramp transfer yet.
  */
-import { flowPolicy } from './events.js?build=e895813246c2db66';
-import { baseLaneCapacity, QUEUE_JAM_DENSITY_PER_LANE } from './traffic-physics.js?build=e895813246c2db66';
+import { flowPolicy } from './events.js?build=8e7d92418738db8f';
+import { baseLaneCapacity, QUEUE_JAM_DENSITY_PER_LANE } from './traffic-physics.js?build=8e7d92418738db8f';
 export const PATHS = [
     'A3-koeln', 'A3-frankfurt', 'A48-dernbach', 'A48-koblenz',
     'ramp-a3-to-a48-from-frankfurt', 'ramp-a48-to-koeln',

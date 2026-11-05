@@ -122,3 +122,34 @@ test('ordinary A3/A48 exits have individual finite terminal models; AD/AK motorw
   assert.throws(()=>advanceCells(initialiseCells(route,0),route,[],0,exits,[],[j]),/Anschlussstellenzufluss/);
  }
 });
+
+test('A3 Montabaur: 10000/h offered vehicles do not vanish at a 1500/h signal; the jam can cross Ransbach',()=>{
+ const {route,j}=localFixture(1500,120),ransbach=diversionJunctions('A3-frankfurt',exits,route).find(x=>x.ref==='38');
+ assert.ok(ransbach&&ransbach.metre<j.metre);
+ // Every arriving car is committed to the Montabaur exit. Physical demand
+ // may be much greater than the ramp's discharge. It is not silently capped
+ // to the motorway's throughput or the 1500/h traffic-light service.
+ j.exitCapacityVph=3000;
+ let state=initialiseCells(route,10000),initial=cellInventory(state);
+ let crossedRansbach=false,maximumRampStock=0;
+ for(let minute=0;minute<100;minute++){
+  state=advanceCells(state,route,[],10000,exits,[],[j]);
+  const exit=state.junctions.find(x=>x.ref==='40');
+  maximumRampStock=Math.max(maximumRampStock,exitRampVehicles(exit));
+  assert.ok(exit.lastExited*60<=1500+1e-6,'signal governs actual discharge, not the desire to exit');
+  assert.ok(exitRampVehicles(exit)<=120+1e-6,'finite ramp storage does not swallow unserved cars');
+  if(minute%10===0)assertCellConservation(state);
+  if(state.cells.some(c=>c.toM<ransbach.metre&&c.speedKmh<=30))crossedRansbach=true;
+ }
+ assertCellConservation(state);
+ assert.ok(state.offeredTotal>16000,'all offered arrivals remain counted above the former 8000/h guard');
+ assert.ok(maximumRampStock>119,'the ramp fills before the motorway takes the excess');
+ assert.ok(crossedRansbach,'a Montabaur ramp bottleneck can propagate beyond Ransbach without a preset queue-length cutoff');
+ assert.ok(state.backlog>0,'additional vehicles waiting outside the model boundary remain in the conserved ledger');
+ assert.ok(Math.abs(cellInventory(state)+state.exitedTotal-initial-state.offeredTotal)<1e-5);
+ // Even a much bigger finite demand is accepted as pressure, not mistaken
+ // for an attainable hourly motorway/ramp flow.
+ const further=advanceCells(state,route,[],25000,exits,[],[j]);
+ assertCellConservation(further);
+ assert.ok(further.offeredTotal-state.offeredTotal>400,'25000/h demand enters the ledger, not the ramp in one minute');
+});

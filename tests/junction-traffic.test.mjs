@@ -137,3 +137,23 @@ test('the mobile AS UI labels normal flows, additional diversion, returners and 
  assert.match(app,/warten auf der Auffahrt/);assert.match(html,/ab 45 Minuten/i);
  assert.doesNotMatch(app,/normale Ein-\/Ausfahrten noch nicht/);
 });
+
+test('local entry interest is not silently capped at 700/h; merge capacity makes a real retained queue',()=>{
+ const route=routes['A3-frankfurt'];
+ const montabaur=normalJunctionTraffic(route,exits,10000).find(j=>j.ref==='40');
+ assert.ok(montabaur.entryVph>1000,'the catchment offers more than the old artificial 700/h demand cap');
+ // Limit the actual on-ramp admission, not the number of vehicles arriving.
+ const demand={...montabaur,entryCapacityVph:300,exitPercent:0};
+ let state=initialiseCells(route,0);const initial=cellInventory(state);
+ for(let minute=0;minute<4;minute++){
+  state=advanceCells(state,route,[],0,exits,[],[demand]);
+  assertCellConservation(state);
+  const ramp=state.junctions.find(j=>j.ref==='40');
+  assert.ok(ramp.lastEntered*60<=300+1e-6);
+  assert.ok(ramp.waiting>0,'drivers who cannot merge must remain queued on the on-ramp');
+  assert.ok(Math.abs(ramp.offeredTotal-ramp.enteredTotal-ramp.waiting)<1e-5);
+ }
+ const ramp=state.junctions.find(j=>j.ref==='40');
+ assert.ok(ramp.offeredTotal>70&&ramp.waiting>40,'high local demand remains stored for later release');
+ assert.ok(Math.abs(cellInventory(state)+state.exitedTotal-state.offeredTotal-initial)<1e-5);
+});
