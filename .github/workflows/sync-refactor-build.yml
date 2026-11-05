@@ -1,0 +1,32 @@
+name: Synchronize versioned browser modules
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, reopened, synchronize]
+permissions:
+  contents: write
+jobs:
+  sync:
+    if: github.head_ref == 'refactor/generic-motorway-engine'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: refactor/generic-motorway-engine
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci --no-audit --no-fund
+      - run: npm run build
+      # build.mjs deliberately rewrites ROOT JavaScript import fingerprints.
+      # Never copy unhashed dist files over those published browser assets.
+      - name: Publish root browser files
+        run: |
+          git add index.html ./*.js
+          if ! git diff --cached --quiet; then
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git commit -m 'build: synchronize fingerprinted browser modules'
+            git push origin HEAD:refactor/generic-motorway-engine
+          fi
