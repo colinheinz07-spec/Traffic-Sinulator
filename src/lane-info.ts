@@ -1,4 +1,4 @@
-import {normalLaneOverrides} from './normal-lanes.js';
+import {normalLaneOverrides,motorwayLaneCalibration} from './normal-lanes.js';
 import {nearestPolyline,type Point,type Road,type Ramp} from './core.js';
 import {rampLaneWays,unverifiedRoadWays} from './lane-profiles.js';
 
@@ -9,11 +9,13 @@ export interface LaneInfo {count:number;label:string;source:'osm'|'normal'|'stal
  * lanes. A48 auxiliary turn/merge-only lanes are excluded explicitly. */
 export function normalThroughLanes(road:Road):number{
  if(road.normalLaneCount!==undefined)return road.normalLaneCount;
- if(road.road.startsWith('A3'))return 3;
+ const motorway=road.road.match(/^A\d{1,3}(?!\d)/i)?.[0]?.toUpperCase();
+ const calibration=motorway?motorwayLaneCalibration[motorway]:undefined;
+ if(calibration?.fixed!==undefined)return calibration.fixed;
  if(normalLaneOverrides[road.wayId]!==undefined)return normalLaneOverrides[road.wayId]!;
  const turns=road.tags?.['turn:lanes']?.split('|');
  const through=turns?.filter(t=>!t.includes('merge_to_')&&!/^(slight_right|slight_left|right|left)$/.test(t)).length;
- return Math.max(1,Math.min(road.lanes,3,through&&through>=2?through:road.lanes));
+ return Math.max(1,Math.min(road.lanes,calibration?.maximum??7,through&&through>=2?through:road.lanes));
 }
 export function roadLaneInfo(road:Road):LaneInfo{
  const count=normalThroughLanes(road);

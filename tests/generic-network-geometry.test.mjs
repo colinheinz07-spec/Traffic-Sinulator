@@ -4,6 +4,7 @@ import {buildContinuousRoads} from '../dist/cartography.js';
 import {closestJunction} from '../dist/selection.js';
 import {motorwayRef,createRouteCatalog,validateRouteCatalog} from '../dist/network-catalog.js';
 import {makeCorridors} from '../dist/spatial.js';
+import {normalThroughLanes} from '../dist/lane-info.js';
 
 /** A new A61 must not require edits in drawing, hit testing or core physics. */
 function way(id,road,points){
@@ -40,4 +41,13 @@ test('nearest exit on an unregistered future A61 road uses the OSM motorway refe
  ];
  assert.equal(closestJunction(candidate,exits)?.exit.ref,'22');
  assert.equal(motorwayRef('A 61'),'A61');
+});
+
+test('four-lane imported motorways keep four through lanes, while old A3 calibration remains',()=>{
+ const future=way(600,'A61-nord',[[50,7],[50.002,7]]);
+ future.lanes=4;future.tags.lanes='4';
+ assert.equal(normalThroughLanes(future),4);
+ assert.equal(createRouteCatalog({roads:[future],ramps:[]},[])[0].lanes,4);
+ const a3={...future,road:'A3-frankfurt'};
+ assert.equal(normalThroughLanes(a3),3);
 });
