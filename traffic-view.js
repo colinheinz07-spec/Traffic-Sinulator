@@ -87,9 +87,15 @@ export function trafficView(legacy, cells, corridors, events, spills, minute) {
         const state = cells[path], route = corridors[path], own = legacy.filter(j => j.pathKey === path);
         const queueSpans = state ? cellQueueSpans(state) : [];
         const serviceHeads = state ? queueTravelHeads(state) : undefined;
+        const rampPath = path.startsWith('ramp-') || extensionRoute(path)?.kind === 'ramp';
         const queueBands = resolveSpeedBands(state ? cellSpeedBands(state) : own.flatMap(jam => [
             ...physicalSpeedBands(jam).filter(b => b.source === 'approach'),
-            ...stopAndGoBands(jam, minute)
+            // A ramp's occupied queue is a single physical stock. Do not project an
+            // old speed history as free-flow islands into still-occupied queue segments.
+            ...(rampPath ? (jam.queueVehicles > 0 && jam.speedKmh <= 65 && jam.visibleQueueM > .5 ?
+                [{ fromM: Math.max(0, jam.anchorM - jam.visibleQueueM), toM: jam.anchorM,
+                        speedKmh: jam.speedKmh, color: colorAtSpeed(jam.speedKmh), source: 'queue' }] : [])
+                : stopAndGoBands(jam, minute))
         ]));
         // A posted limit is not a speed observation. An empty worksite or a
         // blocked road without vehicles must not create a static red ribbon.
