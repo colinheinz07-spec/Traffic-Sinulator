@@ -1,0 +1,29 @@
+name: Sync ramp queue browser build
+on:
+  push:
+    branches: [fix/ramp-junction-queue-stability]
+    paths:
+      - '.github/workflows/sync-ramp-fix-build.yml'
+permissions:
+  contents: write
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/ramp-junction-queue-stability
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci --no-audit --no-fund
+      - run: npm run build
+      - name: Commit fingerprinted published JS
+        run: |
+          git add index.html '*.js'
+          if git diff --cached --quiet; then exit 0; fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'build: sync ramp-merge queue JS fingerprints'
+          git push origin HEAD:fix/ramp-junction-queue-stability
