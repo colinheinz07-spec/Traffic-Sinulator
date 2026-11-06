@@ -59,6 +59,15 @@ export function closedNetworkSpans(
    const ramp=routes[link.rampId];if(!ramp)continue;
    add(event.id,link.rampId,0,ramp.lengthM,'interchange-entry');
   }
+  // Exit to the LOCAL road network: one endpoint belongs to the closed
+  // motorway and the other lies outside our Autobahn simulation. A fork
+  // leading to another *mapped motorway* is an open escape route instead.
+  for(const link of connections){
+   if(link.from!==route.key||link.to!==link.rampId)continue;
+   if(!inClosed(link.rampEntryM,gate.metre,gate.endM,false))continue;
+   const ramp=routes[link.rampId];if(!ramp)continue;
+   add(event.id,link.rampId,0,ramp.lengthM,'local-exit');
+  }
   // Ordinary directional AS ramps. Last upstream off-ramp remains open;
   // its paired on-ramp is barred from entering the closed section.
   for(const binding of junctionRampBindings(route,exits)){
