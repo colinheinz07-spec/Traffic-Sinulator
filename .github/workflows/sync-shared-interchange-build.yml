@@ -1,0 +1,29 @@
+name: Sync shared-interchange receiving browser build
+on:
+  push:
+    branches: [fix/shared-interchange-receiving-budget]
+    paths: ['.github/workflows/sync-shared-interchange-build.yml']
+permissions:
+  contents: write
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/shared-interchange-receiving-budget
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci --no-audit --no-fund
+      - run: npm run build
+      - name: Publish exactly the generated, fingerprinted browser files
+        run: |
+          git add index.html '*.js'
+          if git diff --cached --quiet; then exit 0; fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'build: sync shared-receiving browser modules'
+          git push origin HEAD:fix/shared-interchange-receiving-budget
