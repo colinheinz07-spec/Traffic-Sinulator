@@ -1,16 +1,16 @@
 /** 05_Umleitungen: Zugeordnetes Fachmodul routed-traffic. */
-import { regionalBoundaryFlow } from '../regional-traffic.js?build=bd958533e4972c3f';
-import { extensionRoute } from '../network-extensions.js?build=bd958533e4972c3f';
-import { localRoadAvailability } from '../calendar-traffic.js?build=bd958533e4972c3f';
+import { regionalBoundaryFlow } from '../regional-traffic.js?build=59eec1e279fe4b93';
+import { extensionRoute } from '../network-extensions.js?build=59eec1e279fe4b93';
+import { localRoadAvailability } from '../calendar-traffic.js?build=59eec1e279fe4b93';
 /** Motorway cells and multiple local simulator routes share ONE vehicle budget.
  * Side-road admission is limited by cars reaching the real exit cell; cars
  * return only after their local journey and when the merge accepts them.
  */
-import { advanceCells, cellInventory } from '../traffic-cells.js?build=bd958533e4972c3f';
-import { advanceDetour, detourVehicles, detourStorage } from '../detour-flow.js?build=bd958533e4972c3f';
-import { routedDiversionChoice, requiredDiversionGate } from '../diversion-policy.js?build=bd958533e4972c3f';
-import { journeyRampCapacity, journeyTrafficShare } from '../interchange-journeys.js?build=bd958533e4972c3f';
-import { normalJunctionTraffic } from '../junction-traffic.js?build=bd958533e4972c3f';
+import { advanceCells, cellInventory } from '../traffic-cells.js?build=59eec1e279fe4b93';
+import { advanceDetour, detourVehicles, detourStorage } from '../detour-flow.js?build=59eec1e279fe4b93';
+import { routedDiversionChoice, requiredDiversionGate } from '../diversion-policy.js?build=59eec1e279fe4b93';
+import { journeyRampCapacity, journeyTrafficShare } from '../interchange-journeys.js?build=59eec1e279fe4b93';
+import { normalJunctionTraffic } from '../junction-traffic.js?build=59eec1e279fe4b93';
 /** The remaining legacy turn solver must not offer a second copy of trips
  * that chose a side-road/alternate-ramp journey. Existing ramp inventories
  * remain in that solver and finish normally when their control permits it. */

@@ -1,5 +1,5 @@
 /** 06_Karte: Zugeordnetes Fachmodul map-geometry. */
-import { mercator } from '../core.js?build=bd958533e4972c3f';
+import { mercator } from '../core.js?build=59eec1e279fe4b93';
 const cache = new WeakMap();
 /** Reuse exact road paths during pan/zoom. Store relative coordinates to
  * avoid magnifying large-coordinate rounding at street-level zoom. */
