@@ -1,5 +1,6 @@
 /** 02_Verkehr: Zugeordnetes Fachmodul junction-traffic. */
 import {regionalFlowAt,regionalJunctionDemands} from '../regional-traffic.js';
+import {junctionLocalProfile} from './anschlussstellen-nachfrage.js';
 import type {SimEvent} from '../events.js';
 import {networkRoad} from '../network-road.js';
 import {junctionAccess} from '../road-controls.js';
@@ -67,10 +68,17 @@ export function normalJunctionTraffic(route:Corridor,exits:readonly Exit[],deman
   // Explicit local catchment assumptions, independent of AS numbering.
   // Montabaur is a stronger distributor than rural Dierdorf.
   const localShares:Record<string,number>={'A3:40':12,'A3:43':7,'A3:37':5,'A3:36':7,'A3:38':8,'A48:12':10,'A48:11':11,'A48:10':12};
-  const share=localShares[road+':'+j.ref]??(road==='A559'||road==='A59'?9:6),profile=junctionCapacityProfile(road,j.ref);
+  const legacyShare=localShares[road+':'+j.ref]??(road==='A559'||road==='A59'?9:6);
+  // Calendar mode uses explicit local source/destination shares. Synthetic
+  // test modes deliberately preserve the balanced legacy baseline.
+  const local=regional&&moment?junctionLocalProfile(road,j.ref):undefined;
+  const entryShare=local?.entryPercent??legacyShare;
+  const exitShare=local?.exitPercent??legacyShare;
+  const profile=junctionCapacityProfile(road,j.ref);
   const access=junctionAccess(route,events,j.metre,j.ref);
   return {id:route.key+':local:'+j.ref,ref:j.ref,metre:j.metre,
-   entryVph:access.entry?(regional&&moment?regionalFlowAt(route,exits,demandVph,j.metre+.1,moment):demandVph)*share/100:0,exitPercent:access.exit?share:0,
+   entryVph:access.entry?(regional&&moment?regionalFlowAt(route,exits,demandVph,j.metre+.1,moment):demandVph)*entryShare/100:0,
+   exitPercent:access.exit?exitShare:0,
    entryCapacityVph:profile.entry,exitCapacityVph:profile.exit,
    exitTerminalVph:Math.min(profile.exit,profile.terminal*localRoadAvailability(moment)),exitStorageVehicles:profile.storage};
  });
