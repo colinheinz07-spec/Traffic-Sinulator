@@ -31,3 +31,7 @@ Die großen Datenmodule `src/geodata.ts`, `src/network-extensions.ts`, `src/exte
 5. Änderung nach erfolgreicher Prüfung in `main` übernehmen.
 
 **SPCK/iPhone:** Die TypeScript-Dateien sind die Quellen. `scripts/build.mjs` veröffentlicht daraus zusammenhängende JavaScript-Dateien in Unterordnern. Bearbeite nicht die generierten JS-Dateien.
+
+
+## Neues Tagesprofil im Simulator (Freitag)
+Im Bereich **🚗 Verkehrsfluss** gibt es jetzt die aufklappbare Funktion **„📊 Verkehrsprofil ansehen und anpassen“**. Du kannst dort Tageskurven auswählen, Uhrzeiten vergleichen, den Referenzzufluss ändern und einen Tag als Simulationsstart übernehmen. Die Wochentagskurven stehen zentral in `src/02_Verkehr.ts`, die grafische Vorschau in `src/02_Verkehr/verkehrsprofil-editor.ts`. Die Freitagsspitze liegt im Modell bereits am frühen Nachmittag. Die Werte sind synthetische Szenarioannahmen; sie sind weder Live-Daten noch automatisch empirisch kalibriert.

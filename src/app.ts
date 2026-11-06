@@ -2,6 +2,7 @@ import {visibleRanges,canonicalPhysicalEvent} from './physical-paths.js';
 import {junctionRampBindings,junctionRampJams,junctionRampFlows} from './junction-ramp-bindings.js';
 import {mainlineMerges,sharedNetworkReceiving} from './network-receiving.js';
 import {profileDescription} from './traffic-profiles.js';
+import {mountTrafficProfileEditor} from './02_Verkehr/verkehrsprofil-editor.js';
 import {regionalFlowAt,regionalBoundaryFlow,regionalDescription} from './regional-traffic.js';
 import {MOTORWAY_PATHS,MOTORWAY_GROUPS,junctionDirectory,junctionRoute,trafficOverviewPaths} from './network-presentation.js';
 import type {DetourGeometry} from './detour-routing.js';
@@ -323,6 +324,7 @@ let spatialState=emptySpatial();
 const CELL_PATHS=MOTORWAY_PATHS;
 let cellNetwork:Partial<Record<PathKey,CellRouteState>>={};
 const trafficDemands=defaultDemands();
+let refreshTrafficProfile:()=>void=()=>{};
 type ActiveDetour=RoutedDetour;
 const mappedDetours=new Map<string,DetourConfig>(readCachedDetours().map(c=>[c.id,c]));
 const activeDetours=new Map<string,ActiveDetour>();
@@ -747,9 +749,10 @@ function renderTraffic(){
   flow.enter+=entry.state.lastDeparture*60;flow.leave+=entry.state.lastRejoined*60;extraRampFlow.set(j.rampId,flow);
  }
  if(key.startsWith('ramp-'))activeDemands[key]+=extraRampFlow.get(key)?.enter??0;
+ refreshTrafficProfile();
  $('traffic-demand').textContent=trafficNumber(demandMode==='clock'&&networkRoad(key)?regionalBoundaryFlow(spatialCorridors[key],exits,activeDemands[key],simulatedClock()):activeDemands[key]);
  $('traffic-demand-hint').textContent=demandMode==='clock'
-  ?profileDescription(key)+'. Anstieg ab etwa 5 Uhr, Morgenspitze je Strecke um 7–8 Uhr, danach Rückgang; eigene Abend- und Wochenendprofile. '+regionalDescription(key)+' Der Eingabewert ist eine Modellreferenz pro Richtung, keine DTV-Zahl oder Live-Messung. Feiertage/Ferien sind nicht berücksichtigt.'
+  ?profileDescription(key)+'. Anstieg ab etwa 5 Uhr, Morgenspitze je Strecke um 7–8 Uhr. Freitag frühere Nachmittagsspitze (je nach Strecke etwa 13–15 Uhr); Samstag und Sonntag andere Tageskurven. '+regionalDescription(key)+' Der Eingabewert ist eine Modellreferenz pro Richtung, keine DTV-Zahl oder Live-Messung. Feiertage/Ferien sind nicht berücksichtigt.'
   :demandMode==='wave'?'Testmodus: Abklingende Stoßzeit ab Simulationsstart; der Zufluss sinkt über ca. 100 Minuten.'
   :'Testmodus: Konstanter Zufluss unabhängig von Datum und Uhrzeit.';
  let shownCapacity=result.capacityVph;
@@ -934,6 +937,28 @@ function initializeTraffic(){
   if(!Number.isInteger(val)||val<0||val>8000){$('traffic-issue').textContent='Zufluss: nur ganze Zahlen zwischen 0 und 8.000 Fahrzeugen/h.';input.value=String(trafficDemands[key]);return;}
   $('traffic-issue').textContent='';trafficDemands[key]=val;renderTraffic();
  });
+ refreshTrafficProfile=mountTrafficProfileEditor({
+  getRoute:()=>select.value,
+  getReference:()=>trafficDemands[select.value as PathKey]??0,
+  setReference:value=>{
+   const key=select.value as PathKey;
+   trafficDemands[key]=value;
+   input.value=String(value);
+   $('traffic-issue').textContent='';
+   renderTrafficSafely();
+  },
+  getMoment:simulatedClock,
+  useMoment:value=>{
+   stopTraffic();
+   // Die Auswahl eines Tages aktiviert das zeitabhängige statt des konstanten Testprofils.
+   demandMode='clock';pattern.value='clock';
+   simulationStartMs=value.getTime();
+   spatialState=emptySpatial();cellNetwork={};resetDetourFlow();
+   startInput.value=dateTimeInputValue(value);
+   $('traffic-issue').textContent='';
+   renderTrafficSafely();
+  }
+ }).refresh;
  // An emulated click after a map tap must not toggle playback merely
  // because the direction dialog moved underneath the finger.
  let playbackPointerStartedHere=false;

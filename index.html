@@ -134,6 +134,18 @@
 
 #event-shoulder-only{width:100%;white-space:normal;text-align:left;margin:8px 0}#event-junctions label{display:block;margin:10px 0}#event-junctions select{width:100%;margin-top:5px}
 .junction-motorway{margin:14px 0}.junction-motorway h3{font-size:1rem;margin:0 0 8px;color:var(--text,#dcecf4)}
+
+.traffic-profile-editor{margin:12px 0}
+.traffic-profile-controls{display:grid;grid-template-columns:1fr 1fr;gap:11px;margin:13px 0}
+.traffic-profile-controls label{font-size:.77rem;color:#c7e0eb;display:grid;gap:6px}
+.traffic-profile-controls select{min-height:44px;min-width:0;background:#19384d;border:1px solid #54778d;border-radius:9px;color:#fff;padding:7px;font:inherit}
+.traffic-profile-controls input[type=range],.traffic-profile-slider{width:100%;accent-color:#55caee;min-height:34px}
+.traffic-profile-scale{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-top:10px;font-size:.77rem;color:#cbe7f5}
+.traffic-profile-scale output{color:#8ae3ff;font-weight:800;font-variant-numeric:tabular-nums}
+#traffic-profile-graph{display:block;width:100%;max-width:640px;height:auto;margin-top:8px;border:1px solid #395a6c;background:#0c2234;border-radius:10px}
+#traffic-profile-info{font-size:.74rem;line-height:1.5;margin:10px 0!important;color:#bad7e6}
+#traffic-profile-apply-day{background:#155576;border-color:#3998bb;width:100%;min-height:43px}
+@media(max-width:490px){.traffic-profile-controls{grid-template-columns:1fr}}
 </style></head><body><main>
 <header><div><div class="eyebrow">Stausimulator · Kartenfundament</div><h1>A3 · A4 · A48 · A59 · A559 · A560 · A562</h1></div><span class="phase">TRAFFIC 1.23.0</span></header>
 <div class="toolbar"><button id="heumar">AD Köln-Heumar</button><button id="bad-camberg">AS Bad Camberg</button><button id="fit" class="primary">Gesamtes Netz</button><button id="dernbach">AD Dernbach</button><button id="koblenz">AK Koblenz</button><button id="diez">AS Diez</button><button id="limburg-nord">AS Limburg-Nord</button><button id="limburg-sued">AS Limburg-Süd</button><button id="honnef">AS Bad Honnef/Linz</button><button id="siebengebirge">AS Siebengebirge</button><button id="bonn-siegburg">AK Bonn/Siegburg</button></div>
@@ -160,7 +172,24 @@
 <input type="number" id="traffic-inflow" inputmode="numeric" min="0" max="8000" step="100" value="4200"></label><label for="traffic-demand-mode">Verkehrsverlauf
 <select id="traffic-demand-mode"><option value="clock" selected>Datum &amp; Uhrzeit (automatisch)</option><option value="wave">Abklingende Stoßzeit (Test)</option><option value="constant">Konstanter Zufluss (Dauertest)</option></select></label><label for="traffic-start-datetime">Simulationsstart · Datum &amp; Uhrzeit
 <input type="datetime-local" id="traffic-start-datetime" step="60"></label></div><p class="traffic-datetime-note">Geräte-Ortszeit · Die Simulation zählt die Minuten ab dem eingestellten Start fort. Änderungen an Datum und Uhrzeit setzen bestehende Rückstaus zurück. <button id="traffic-now" type="button">Jetzt einsetzen</button></p>
-<p id="traffic-demand-hint" class="settings-note">Modellannahme: Die Stoßzeit lässt allmählich nach. Keine Echtzeit-Verkehrsdaten.</p>
+ <details id="traffic-profile-editor" class="model-info traffic-profile-editor">
+ <summary>📊 Verkehrsprofil ansehen und anpassen</summary>
+ <p>Mo–Do und Freitag sind getrennt: <b>Freitags beginnt der Nachmittagsschub früher</b>, mit einer modellierten Spitze etwa zwischen 13 und 15 Uhr. Das tatsächliche Verkehrsprofil richtet sich nach Simulationsdatum und Fahrtrichtung.</p>
+ <div class="traffic-profile-controls">
+ <label for="traffic-profile-day">Tageskurve ansehen
+ <select id="traffic-profile-day"><option value="1">Mo–Do (Montag als Beispiel)</option><option value="5">Freitag</option><option value="6">Samstag</option><option value="0">Sonntag</option></select></label>
+ <label for="traffic-profile-hour">Stunde für Vergleich
+ <input id="traffic-profile-hour" type="range" min="0" max="23" step="1" value="14"></label>
+ </div>
+ <div class="traffic-profile-scale"><label for="traffic-profile-peak">Referenzzufluss dieser Fahrtrichtung</label><output id="traffic-profile-peak-value">– Fzg/h</output></div>
+ <input id="traffic-profile-peak" class="traffic-profile-slider" type="range" min="0" max="8000" step="100" value="4200" aria-label="Referenzzufluss einstellen">
+ <svg id="traffic-profile-graph" viewBox="0 0 640 201" role="img" aria-label="Modelliertes Verkehrsaufkommen im Tagesverlauf"></svg>
+ <p id="traffic-profile-info" aria-live="polite"></p>
+ <button type="button" id="traffic-profile-apply-day">Diesen Tag simulieren</button>
+ <p class="settings-note">Der Referenzzufluss wird beim Loslassen des Reglers übernommen und beeinflusst nachfolgende Fahrzeugzuflüsse. Die Kurven sind Modellannahmen. Der Tageswechsel-Knopf setzt die laufende Simulation und vorhandene Rückstaus zurück; eine reine Kurvenvorschau verändert die Simulation nicht.</p>
+ </details>
+
+ <p id="traffic-demand-hint" class="settings-note">Modellannahme: Die Stoßzeit lässt allmählich nach. Keine Echtzeit-Verkehrsdaten.</p>
 
 <div id="traffic-issue" role="alert" class="traffic-issue"></div>
 <p id="traffic-shared" class="event-info">Keine Rampenfahrzeuge auf diesem Abschnitt</p><div class="traffic-stat-grid"><div>Zufluss<strong id="traffic-demand">–</strong><small>Fzg/h</small></div><div>Kapazität<strong id="traffic-capacity">–</strong><small>Fzg/h</small></div><div>Durchfluss<strong id="traffic-outflow">–</strong><small>Fzg/h</small></div><div>Wartende Fahrzeuge<strong id="traffic-queue">–</strong></div><div>Staulänge auf der Karte<strong id="traffic-queue-km">–</strong></div><div>Geschätzter Zeitverlust<strong id="traffic-delay">–</strong></div><div>Geschätzte mittlere Geschwindigkeit<strong id="traffic-speed">–</strong><small>Momentaner Ø im betroffenen Abschnitt</small></div><div>Langsamster Bereich<strong id="traffic-state" class="traffic-state">–</strong></div></div>
