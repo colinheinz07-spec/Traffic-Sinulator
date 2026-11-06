@@ -1,16 +1,16 @@
-import { extensionRoute } from './network-extensions.js?build=78f2cf56b5451479';
+import { extensionRoute } from './network-extensions.js?build=bea2f2f4f6fb2e9b';
 /** One snapshot for map geometry, jam cards and direction summaries.
  * Mainline queues are measured on the same congested CTM cells as the map.
  * Legacy queues remain the simulation input for the separate ramp ledger;
  * their synthetic lengths never truncate a mainline display queue.
  */
-import { NETWORK_PATHS as PATHS, baselineCapacity } from './traffic.js?build=78f2cf56b5451479';
-import { routeSlice } from './spatial.js?build=78f2cf56b5451479';
-import { cellSpeedBands, cellQueueSpans, cellCriticalDensity } from './traffic-cells.js?build=78f2cf56b5451479';
-import { physicalSpeedBands, stopAndGoBands, resolveSpeedBands, freeSpeedKmh, colorAtSpeed } from './traffic-physics.js?build=78f2cf56b5451479';
-import { speedDelayInCells, speedDelayInBands, queueTravelHeads } from './speed-delay.js?build=78f2cf56b5451479';
-import { routeReport } from './network-report.js?build=78f2cf56b5451479';
-import { positionM } from './spatial.js?build=78f2cf56b5451479';
+import { NETWORK_PATHS as PATHS, baselineCapacity } from './traffic.js?build=bea2f2f4f6fb2e9b';
+import { routeSlice } from './spatial.js?build=bea2f2f4f6fb2e9b';
+import { cellSpeedBands, cellQueueSpans, cellCriticalDensity } from './traffic-cells.js?build=bea2f2f4f6fb2e9b';
+import { physicalSpeedBands, stopAndGoBands, resolveSpeedBands, freeSpeedKmh, colorAtSpeed } from './traffic-physics.js?build=bea2f2f4f6fb2e9b';
+import { speedDelayInCells, speedDelayInBands, queueTravelHeads } from './speed-delay.js?build=bea2f2f4f6fb2e9b';
+import { routeReport } from './network-report.js?build=bea2f2f4f6fb2e9b';
+import { positionM } from './spatial.js?build=bea2f2f4f6fb2e9b';
 function extents(bands) {
     const groups = [];
     for (const b of bands) {

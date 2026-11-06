@@ -1,16 +1,16 @@
-import { networkRoad } from './network-road.js?build=78f2cf56b5451479';
-import { extensionRoutes, extensionRoute } from './network-extensions.js?build=78f2cf56b5451479';
-import { routeDescriptor, LEGACY_ROUTE_KEYS } from './network-catalog.js?build=78f2cf56b5451479';
-import { normalThroughLanes } from './lane-info.js?build=78f2cf56b5451479';
+import { networkRoad } from './network-road.js?build=bea2f2f4f6fb2e9b';
+import { extensionRoutes, extensionRoute } from './network-extensions.js?build=bea2f2f4f6fb2e9b';
+import { routeDescriptor, LEGACY_ROUTE_KEYS } from './network-catalog.js?build=bea2f2f4f6fb2e9b';
+import { normalThroughLanes } from './lane-info.js?build=bea2f2f4f6fb2e9b';
 /** Georeferenced, per-event queue model on the exact OSM motorway carriageway curves.
  * A first-pass conservation model (not a calibrated traffic forecast).
  * No vehicle sprites, hidden road connectors, A3/A48 transfers, or invented detours.
  */
-import { buildContinuousRoads } from './cartography.js?build=78f2cf56b5451479';
-import { exitPosition } from './core.js?build=78f2cf56b5451479';
-import { PATHS, baselineCapacity, eventCapacity, defaultDemand } from './traffic.js?build=78f2cf56b5451479';
-import { baseLaneCapacity, colorAtSpeed, queueFundamentalDiagram, freeSpeedKmh } from './traffic-physics.js?build=78f2cf56b5451479';
-import { physicalEvents, accessibleExits } from './road-controls.js?build=78f2cf56b5451479';
+import { buildContinuousRoads } from './cartography.js?build=bea2f2f4f6fb2e9b';
+import { exitPosition } from './core.js?build=bea2f2f4f6fb2e9b';
+import { PATHS, baselineCapacity, eventCapacity, defaultDemand } from './traffic.js?build=bea2f2f4f6fb2e9b';
+import { baseLaneCapacity, colorAtSpeed, queueFundamentalDiagram, freeSpeedKmh } from './traffic-physics.js?build=bea2f2f4f6fb2e9b';
+import { physicalEvents, accessibleExits } from './road-controls.js?build=bea2f2f4f6fb2e9b';
 const rad = Math.PI / 180;
 export function metres(a, b) {
     const dx = (b[1] - a[1]) * 111195 * Math.cos((a[0] + b[0]) / 2 * rad);
@@ -253,7 +253,13 @@ export function advanceSpatial(prev, events, demands, minutes, corridors, links 
                         const measured = receivingVph[key];
                         const targetCapacity = Math.min(measured ?? Infinity, ...blocked.map(j => j.capacityVph));
                         if (Number.isFinite(targetCapacity)) {
-                            const cap = mergeSupplyVph(key, targetCapacity, demands[link.to], volume, current['merge:' + key]?.vehicles ?? 0);
+                            // A shared CTM receiver already allocated this ramp's physical
+                            // capacity after accounting for other motorway and ramp feeders.
+                            // Applying a second target-demand ratio here would starve the ramp and
+                            // make a conserved queue grow despite spare allocated discharge space.
+                            const cap = measured !== undefined
+                                ? Math.min(baselineCapacity(key), targetCapacity)
+                                : mergeSupplyVph(key, targetCapacity, demands[link.to], volume, current['merge:' + key]?.vehicles ?? 0);
                             if (cap < baselineCapacity(key))
                                 nodes.push({ id: 'merge:' + key, event: null,
                                     place: Math.max(0, route.lengthM - .5), point: route.points.at(-1), limitVph: cap });

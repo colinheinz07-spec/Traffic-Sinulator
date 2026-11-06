@@ -1,43 +1,43 @@
-import { visibleRanges, canonicalPhysicalEvent } from './physical-paths.js?build=78f2cf56b5451479';
-import { junctionRampBindings, junctionRampJams, junctionRampFlows } from './junction-ramp-bindings.js?build=78f2cf56b5451479';
-import { mainlineMerges, downstreamReceiving, rampReceiving } from './network-receiving.js?build=78f2cf56b5451479';
-import { profileDescription } from './traffic-profiles.js?build=78f2cf56b5451479';
-import { regionalFlowAt, regionalBoundaryFlow, regionalDescription } from './regional-traffic.js?build=78f2cf56b5451479';
-import { MOTORWAY_PATHS, MOTORWAY_GROUPS, junctionDirectory, junctionRoute, trafficOverviewPaths } from './network-presentation.js?build=78f2cf56b5451479';
-import { planExtensionDetours, refreshExtensionDetour, extensionDetours } from './extension-detours.js?build=78f2cf56b5451479';
-import { networkRoad } from './network-road.js?build=78f2cf56b5451479';
-import { closedNetworkSpans } from './closure-network.js?build=78f2cf56b5451479';
-import { routeDescriptor } from './network-catalog.js?build=78f2cf56b5451479';
-import { buildExtensionConnections } from './extension-connections.js?build=78f2cf56b5451479';
-import { extensionRoutes, extensionRoute, extensionJunctions } from './network-extensions.js?build=78f2cf56b5451479';
-import { worldGeometry } from './map-geometry.js?build=78f2cf56b5451479';
-import { announcedClosureDemands } from './calendar-traffic.js?build=78f2cf56b5451479';
-import { bindMapGestures } from './map-gestures.js?build=78f2cf56b5451479';
-import { NETWORK_PATHS as PATHS, pathBottleneck, defaultDemands, demandAtMinute, demandAtClock } from './traffic.js?build=78f2cf56b5451479';
-import { networkData } from './geodata.js?build=78f2cf56b5451479';
-import { routeReport } from './network-report.js?build=78f2cf56b5451479';
-import { makeCorridors, routeSlice, positionM, closureGate, advanceSpatial, emptySpatial, jamsAt } from './spatial.js?build=78f2cf56b5451479';
-import { initialiseCells } from './traffic-cells.js?build=78f2cf56b5451479';
-import { speedDelayLabel } from './speed-delay.js?build=78f2cf56b5451479';
-import { trafficView } from './traffic-view.js?build=78f2cf56b5451479';
-import { resolveSpeedBands } from './traffic-physics.js?build=78f2cf56b5451479';
-import { advanceRoutedNetwork, remainingInterchangeDemands } from './routed-traffic.js?build=78f2cf56b5451479';
-import { routedDiversionChoice, requiredDiversionGate } from './diversion-policy.js?build=78f2cf56b5451479';
-import { automaticDiversions } from './auto-diversions.js?build=78f2cf56b5451479';
-import { buildRampConnections, rampSpillbacks, interchangeDelays, interchangeTrafficShare } from './interchange.js?build=78f2cf56b5451479';
-import { journeyRampCapacity, journeyRampJams, rampCapacity } from './interchange-journeys.js?build=78f2cf56b5451479';
-import { diversionJunctions, planDiversion } from './diversions.js?build=78f2cf56b5451479';
-import { junctionMovements, junctionMovementHint } from './junction-movements.js?build=78f2cf56b5451479';
-import { bundledDetourGeometry, bundledExitRoutes, bundledTargets, isNetworkDestination, BUNDLED_NETWORK_SERVICE_VPH } from './bundled-detours.js?build=78f2cf56b5451479';
-import { emptyDetour, detourVehicles } from './detour-flow.js?build=78f2cf56b5451479';
-import { decodeEvents, eventFromHit, updatedEvent, eventNames, eventSymbols, eventSummary, flowPolicy, defaultLengthM, maxLengthM, suggestedSpeed, DEFAULT_CLEARANCE_MIN, STORAGE_KEY, isEventKind, validEvent, effectiveEventsAt, eventScheduleStatus } from './events.js?build=78f2cf56b5451479';
-import { roadLaneInfo, rampLaneInfo } from './lane-info.js?build=78f2cf56b5451479';
-import { mapCandidates, chooseMapHits, closestJunction, lanePositions, hitLabel, extensionCandidates } from './selection.js?build=78f2cf56b5451479';
-import { buildContinuousRoads, lineWidths, rampBadges, layoutJunctionLabels } from './cartography.js?build=78f2cf56b5451479';
-import { placeJamCallout } from './map-callouts.js?build=78f2cf56b5451479';
-import { installScheduleForm } from './schedule-form.js?build=78f2cf56b5451479';
-import { roadSections, physicalEvents } from './road-controls.js?build=78f2cf56b5451479';
-import { validateMap, names, mercator, inverse, nearestPolyline, exitPosition } from './core.js?build=78f2cf56b5451479';
+import { visibleRanges, canonicalPhysicalEvent } from './physical-paths.js?build=bea2f2f4f6fb2e9b';
+import { junctionRampBindings, junctionRampJams, junctionRampFlows } from './junction-ramp-bindings.js?build=bea2f2f4f6fb2e9b';
+import { mainlineMerges, sharedNetworkReceiving } from './network-receiving.js?build=bea2f2f4f6fb2e9b';
+import { profileDescription } from './traffic-profiles.js?build=bea2f2f4f6fb2e9b';
+import { regionalFlowAt, regionalBoundaryFlow, regionalDescription } from './regional-traffic.js?build=bea2f2f4f6fb2e9b';
+import { MOTORWAY_PATHS, MOTORWAY_GROUPS, junctionDirectory, junctionRoute, trafficOverviewPaths } from './network-presentation.js?build=bea2f2f4f6fb2e9b';
+import { planExtensionDetours, refreshExtensionDetour, extensionDetours } from './extension-detours.js?build=bea2f2f4f6fb2e9b';
+import { networkRoad } from './network-road.js?build=bea2f2f4f6fb2e9b';
+import { closedNetworkSpans } from './closure-network.js?build=bea2f2f4f6fb2e9b';
+import { routeDescriptor } from './network-catalog.js?build=bea2f2f4f6fb2e9b';
+import { buildExtensionConnections } from './extension-connections.js?build=bea2f2f4f6fb2e9b';
+import { extensionRoutes, extensionRoute, extensionJunctions } from './network-extensions.js?build=bea2f2f4f6fb2e9b';
+import { worldGeometry } from './map-geometry.js?build=bea2f2f4f6fb2e9b';
+import { announcedClosureDemands } from './calendar-traffic.js?build=bea2f2f4f6fb2e9b';
+import { bindMapGestures } from './map-gestures.js?build=bea2f2f4f6fb2e9b';
+import { NETWORK_PATHS as PATHS, pathBottleneck, defaultDemands, demandAtMinute, demandAtClock } from './traffic.js?build=bea2f2f4f6fb2e9b';
+import { networkData } from './geodata.js?build=bea2f2f4f6fb2e9b';
+import { routeReport } from './network-report.js?build=bea2f2f4f6fb2e9b';
+import { makeCorridors, routeSlice, positionM, closureGate, advanceSpatial, emptySpatial, jamsAt } from './spatial.js?build=bea2f2f4f6fb2e9b';
+import { initialiseCells } from './traffic-cells.js?build=bea2f2f4f6fb2e9b';
+import { speedDelayLabel } from './speed-delay.js?build=bea2f2f4f6fb2e9b';
+import { trafficView } from './traffic-view.js?build=bea2f2f4f6fb2e9b';
+import { resolveSpeedBands } from './traffic-physics.js?build=bea2f2f4f6fb2e9b';
+import { advanceRoutedNetwork, remainingInterchangeDemands } from './routed-traffic.js?build=bea2f2f4f6fb2e9b';
+import { routedDiversionChoice, requiredDiversionGate } from './diversion-policy.js?build=bea2f2f4f6fb2e9b';
+import { automaticDiversions } from './auto-diversions.js?build=bea2f2f4f6fb2e9b';
+import { buildRampConnections, rampSpillbacks, interchangeDelays, interchangeTrafficShare } from './interchange.js?build=bea2f2f4f6fb2e9b';
+import { journeyRampCapacity, journeyRampJams, rampCapacity } from './interchange-journeys.js?build=bea2f2f4f6fb2e9b';
+import { diversionJunctions, planDiversion } from './diversions.js?build=bea2f2f4f6fb2e9b';
+import { junctionMovements, junctionMovementHint } from './junction-movements.js?build=bea2f2f4f6fb2e9b';
+import { bundledDetourGeometry, bundledExitRoutes, bundledTargets, isNetworkDestination, BUNDLED_NETWORK_SERVICE_VPH } from './bundled-detours.js?build=bea2f2f4f6fb2e9b';
+import { emptyDetour, detourVehicles } from './detour-flow.js?build=bea2f2f4f6fb2e9b';
+import { decodeEvents, eventFromHit, updatedEvent, eventNames, eventSymbols, eventSummary, flowPolicy, defaultLengthM, maxLengthM, suggestedSpeed, DEFAULT_CLEARANCE_MIN, STORAGE_KEY, isEventKind, validEvent, effectiveEventsAt, eventScheduleStatus } from './events.js?build=bea2f2f4f6fb2e9b';
+import { roadLaneInfo, rampLaneInfo } from './lane-info.js?build=bea2f2f4f6fb2e9b';
+import { mapCandidates, chooseMapHits, closestJunction, lanePositions, hitLabel, extensionCandidates } from './selection.js?build=bea2f2f4f6fb2e9b';
+import { buildContinuousRoads, lineWidths, rampBadges, layoutJunctionLabels } from './cartography.js?build=bea2f2f4f6fb2e9b';
+import { placeJamCallout } from './map-callouts.js?build=bea2f2f4f6fb2e9b';
+import { installScheduleForm } from './schedule-form.js?build=bea2f2f4f6fb2e9b';
+import { roadSections, physicalEvents } from './road-controls.js?build=bea2f2f4f6fb2e9b';
+import { validateMap, names, mercator, inverse, nearestPolyline, exitPosition } from './core.js?build=bea2f2f4f6fb2e9b';
 const $ = (id) => { const element = document.getElementById(id); if (!element)
     throw Error(`Element fehlt: ${id}`); return element; };
 const canvas = $('map'), wrapper = canvas.parentElement;
@@ -1140,10 +1140,22 @@ function stepTraffic(minutes) {
             const transfers = [];
             const jams = trafficJams(timeline);
             const spillbacks = rampSpillbacks(jams, networkConnections, spatialCorridors);
-            // Actual departures and returns share the A3/A48 cell inventory.
+            // The target receiving face is shared by direct motorway feeders AND
+            // connected ramps. Allocate it once from the SAME previous-minute CTM
+            // snapshot, or two solvers could each take the entire free capacity.
             for (const key of CELL_PATHS)
                 cellNetwork[key] ??= initialiseCells(spatialCorridors[key], active[key], demandMode === 'clock' ? metre => regionalFlowAt(spatialCorridors[key], exits, active[key], metre, simulatedClock()) : undefined);
-            const next = advanceRoutedNetwork(cellNetwork, spatialCorridors, timeline, active, exits, [...activeDetours.values()], interchangeDelays(jams, timeline), simulatedClock(), demandMode === 'clock', downstreamReceiving(cellNetwork, directMerges));
+            const pendingRampDemand = remainingInterchangeDemands(active, [...activeDetours.values()], timeline);
+            for (const key of localRampPaths)
+                pendingRampDemand[key] = 0;
+            for (const feature of extensionRoutes)
+                if (!visibleRanges(feature.id, feature.points).length)
+                    pendingRampDemand[feature.id] = 0;
+            const queuedRampStock = {};
+            for (const queue of Object.values(spatialState.queues))
+                queuedRampStock[queue.pathKey] = (queuedRampStock[queue.pathKey] ?? 0) + queue.vehicles;
+            const receiving = sharedNetworkReceiving(cellNetwork, networkConnections, directMerges, pendingRampDemand, queuedRampStock);
+            const next = advanceRoutedNetwork(cellNetwork, spatialCorridors, timeline, active, exits, [...activeDetours.values()], interchangeDelays(jams, timeline), simulatedClock(), demandMode === 'clock', receiving.motorways);
             cellNetwork = next.cells;
             for (const entry of next.detours)
                 activeDetours.set(entry.config.id, entry);
@@ -1161,12 +1173,9 @@ function stepTraffic(minutes) {
             const rampPaths = [...new Set([...PATHS, ...connectedRampPaths,
                     ...timeline.filter(e => extensionRoute(e.pathKey)?.kind === 'ramp' && !localRampPaths.has(e.pathKey)).map(e => e.pathKey),
                     ...Object.values(spatialState.queues).filter(q => extensionRoute(q.pathKey)?.kind === 'ramp' && !localRampPaths.has(q.pathKey)).map(q => q.pathKey)])];
-            // Queued vehicles are still real demand even when their ramp's new
-            // arrivals drop to zero (e.g. after a diversion is disabled).
-            const storedRampVehicles = {};
-            for (const queue of Object.values(spatialState.queues))
-                storedRampVehicles[queue.pathKey] = (storedRampVehicles[queue.pathKey] ?? 0) + queue.vehicles;
-            spatialState = advanceSpatial(spatialState, timeline, legacyActive, 1, spatialCorridors, networkConnections, transfers, exits, physicalMainline, rampPaths, rampReceiving(cellNetwork, networkConnections, legacyActive, storedRampVehicles));
+            // Consume the ramp share of the SAME allocation used by mainline CTM.
+            // Existing ramp stock remains counted in this one shared budget.
+            spatialState = advanceSpatial(spatialState, timeline, legacyActive, 1, spatialCorridors, networkConnections, transfers, exits, physicalMainline, rampPaths, receiving.ramps);
         }
     }
     catch (e) {

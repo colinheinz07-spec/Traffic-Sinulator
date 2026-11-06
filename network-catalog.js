@@ -5,11 +5,11 @@
  * Existing A3/A48 observations remain explicitly calibrated legacy DATA.
  * Adding a generated ExtensionRoute registers it automatically.
  */
-import { networkData } from './geodata.js?build=78f2cf56b5451479';
-import { names } from './core.js?build=78f2cf56b5451479';
-import { extensionRoutes } from './network-extensions.js?build=78f2cf56b5451479';
-import { normalThroughLanes } from './lane-info.js?build=78f2cf56b5451479';
-import { REFERENCE_PEAKS } from './traffic-profiles.js?build=78f2cf56b5451479';
+import { networkData } from './geodata.js?build=bea2f2f4f6fb2e9b';
+import { names } from './core.js?build=bea2f2f4f6fb2e9b';
+import { extensionRoutes } from './network-extensions.js?build=bea2f2f4f6fb2e9b';
+import { normalThroughLanes } from './lane-info.js?build=bea2f2f4f6fb2e9b';
+import { REFERENCE_PEAKS } from './traffic-profiles.js?build=bea2f2f4f6fb2e9b';
 const legacyDemand = {
     'A3-koeln': 4200, 'A3-frankfurt': 4100,
     'A48-dernbach': 2400, 'A48-koblenz': 1700,
