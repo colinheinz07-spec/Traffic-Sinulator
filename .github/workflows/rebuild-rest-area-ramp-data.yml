@@ -1,0 +1,37 @@
+name: Rebuild rest-area-free motorway graph
+on:
+  push:
+    branches: [feat/generic-closures-ramp-directions]
+    paths: ['.github/workflows/rebuild-rest-area-ramp-data.yml']
+permissions:
+  contents: write
+jobs:
+  rebuild:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/generic-closures-ramp-directions
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci --no-audit --no-fund
+      - name: Test service-area classifier
+        run: python -m unittest discover -s scripts/tests -p test_service_area_ramps.py -v
+      - name: Rebuild OSM directed junction routes
+        run: python scripts/build_network_extensions.py
+      - name: Rebuild versioned JS browser assets
+        run: npm run build
+      - name: Commit changed graph and browser modules
+        run: |
+          git add src/network-extensions.ts data/extension-junctions.json index.html '*.js'
+          if git diff --cached --quiet; then exit 0; fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'build: remove rest-area-only ramps and update browser artifacts'
+          git push origin HEAD:feat/generic-closures-ramp-directions
