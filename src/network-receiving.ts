@@ -13,7 +13,9 @@ import {CONGESTION_WAVE_KMH,QUEUE_JAM_DENSITY_PER_LANE} from './traffic-physics.
  * A ramp's own conserved queue is then handled by advanceSpatial. */
 export function rampReceiving(
  cells:Readonly<Partial<Record<PathKey,CellRouteState>>>,
- connections:readonly {rampId:PathKey;to:PathKey;downstreamMergeM:number}[]
+ connections:readonly {rampId:PathKey;to:PathKey;downstreamMergeM:number}[],
+ activeVph:Readonly<Partial<Record<PathKey,number>>>={},
+ queuedVehicles:Readonly<Partial<Record<PathKey,number>>>={}
 ):Partial<Record<PathKey,number>>{
  const result:Partial<Record<PathKey,number>>={};
  // Several ramps can enter the SAME target CTM face. That face has one
@@ -39,10 +41,19 @@ export function rampReceiving(
  for(const {supply,ramps} of receivers.values()){
   // Initial fractions are scenario weights, not measured turn ratios.
   // They only allocate the already available supply, never create more.
-  const weights=[...ramps].map(ramp=>({ramp,weight:Math.max(1,defaultDemand(ramp))}));
+  const weights=[...ramps].map(ramp=>{
+   const offered=activeVph[ramp]??defaultDemand(ramp);
+   const stock=queuedVehicles[ramp]??0;
+   // No arrivals and no stored vehicles = no competing merge demand.
+   // Once queued, cars retain a share of receiving service after traffic
+   // upstream stops: closing a ramp does not delete its existing queue.
+   const weight=Math.max(0,Number.isFinite(offered)?offered:0)+
+    60*Math.max(0,Number.isFinite(stock)?stock:0);
+   return {ramp,weight};
+  });
   const total=weights.reduce((n,r)=>n+r.weight,0);
   for(const {ramp,weight} of weights){
-   const share=supply*weight/total;
+   const share=total>0?supply*weight/total:0;
    result[ramp]=Math.min(result[ramp]??Infinity,share);
   }
  }
