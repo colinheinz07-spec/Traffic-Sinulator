@@ -31,7 +31,7 @@ export interface MotorwayLaneSplit {
 export function motorwayLaneSplit(road:Road):MotorwayLaneSplit|null{
  const refs=road.tags?.['destination:ref:lanes']?.split('|');
  if(!refs||refs.length<2)return null;
- const byLane=refs.map(slot=>[...new Set((slot.match(/A\\s*\\d{1,3}/gi)??[])
+ const byLane=refs.map(slot=>[...new Set((slot.match(/A\s*\d{1,3}/gi)??[])
   .map(n=>n.replaceAll(' ','').toUpperCase()))].sort());
  const distinct=[...new Set(byLane.flat())];
  if(distinct.length<2)return null; // AS -> B484 is NOT an AD/AK split.
