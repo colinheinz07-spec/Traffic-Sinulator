@@ -129,14 +129,11 @@ export function closedNetworkSpans(
    const nextSeen=new Set(visiting);nextSeen.add(ramp.key);
    const at=pointId(ramp.points.at(-1)!);
    const mainlineHits=topo.mainlines.get(at)??[];
+   const continuations=(topo.starts.get(at)??[]).filter(next=>next.key!==ramp.key);
    const closed=mainlineHits.length>0?
     mainlineHits.every(hit=>hit.key===route.key&&
      inClosed(hit.metre,gate.metre,gate.endM,true)):
-    (topo.starts.get(at)??[]).filter(next=>next.key!==ramp.key).some(next=>nextSeen.has(next.key))?
-     false:(()=>{
-      const continuations=(topo.starts.get(at)??[]).filter(next=>next.key!==ramp.key);
-      return continuations.length>0&&continuations.every(next=>leadsOnlyIntoClosure(next,nextSeen));
-     })();
+    continuations.length>0&&continuations.every(next=>leadsOnlyIntoClosure(next,nextSeen));
    memo.set(ramp.key,closed);return closed;
   };
   for(const ramp of topo.ramps)if(leadsOnlyIntoClosure(ramp,new Set()))
