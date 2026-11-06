@@ -6,7 +6,7 @@ import {junctionRampAccess} from './junction-ramp-bindings.js';
  * intervals. Administrative closures keep their separate exit-gate rule. */
 import {exitPosition,type Exit,type RoadId} from './core.js';
 import {suggestedSpeed,type SimEvent} from './events.js';
-import {positionM,type Corridor} from './spatial.js';
+import {closureGate,positionM,type Corridor} from './spatial.js';
 export interface RoadSection {fromM:number;toM:number;event:SimEvent;openLanes:number[];shoulderOpen:boolean;queueLanes:number}
 export function roadSections(route:Corridor,events:readonly SimEvent[]):RoadSection[]{
  const located=events.filter(e=>e.pathKey===route.key&&e.kind!=='closure').flatMap(event=>{
@@ -50,6 +50,16 @@ export function junctionAccess(route:Corridor,events:readonly SimEvent[],metre:n
   const from=positionM(route,e.point);if(from===null||metre<from-1||metre>from+e.settings.lengthM+1)continue;
   if(mode==='entry'||mode==='both')entry=false;
   if(mode==='exit'||mode==='both')exit=false;
+ }
+ // Administrative closure: last usable off-ramp remains open to evacuate
+ // through traffic, its own on-ramp is shut, and all internal AS accesses
+ // are shut for new journeys. Other directions / AD bypasses stay open.
+ for(const event of events){
+  if(event.kind!=='closure'||event.pathKey!==route.key)continue;
+  const gate=closureGate(route,event,[...junctionDefinitions.values()],events);
+  if(!gate)continue;
+  if(metre>=gate.metre-2&&metre<gate.endM-1)entry=false;
+  if(metre>gate.metre+2&&metre<gate.endM-1)exit=false;
  }
  return {entry,exit};
 }

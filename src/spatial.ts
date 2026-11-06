@@ -123,7 +123,10 @@ export function closureGate(route:Corridor,event:SimEvent,exits:readonly Exit[],
   .filter((x):x is {exit:Exit;metre:number}=>x.metre!==null).sort((a,b)=>a.metre-b.metre);
  // A marker on or immediately after an off-ramp belongs to that AS.
  // The former 50m exclusion incorrectly moved the gate to the previous AS.
- const allowed=new Set(accessibleExits(route,events,exits,'exit').map(e=>e.road+':'+e.ref));
+ // Choosing the pre-closure exit must not recursively apply the closure
+ // access rule to itself. Other physical roadworks still restrict exits.
+ const allowed=new Set(accessibleExits(route,events.filter(e=>e.kind!=='closure'),exits,'exit')
+  .map(e=>e.road+':'+e.ref));
  const urban=route.key.startsWith('extra-a59-')||route.key.startsWith('extra-a4-')||route.key.startsWith('extra-a559-');
  const closest=junctions.filter(j=>(urban||!/^(AD |AK )/.test(j.exit.name))&&allowed.has(j.exit.road+':'+j.exit.ref)&&j.metre<=at+1).at(-1);
  const physicalEnd=Math.min(route.lengthM,at+event.settings.lengthM);

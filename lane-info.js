@@ -1,6 +1,6 @@
-import { normalLaneOverrides, motorwayLaneCalibration } from './normal-lanes.js?build=0a7c0697f5742cbd';
-import { nearestPolyline } from './core.js?build=0a7c0697f5742cbd';
-import { rampLaneWays, unverifiedRoadWays } from './lane-profiles.js?build=0a7c0697f5742cbd';
+import { normalLaneOverrides, motorwayLaneCalibration } from './normal-lanes.js?build=78f2cf56b5451479';
+import { nearestPolyline } from './core.js?build=78f2cf56b5451479';
+import { rampLaneWays, unverifiedRoadWays } from './lane-profiles.js?build=78f2cf56b5451479';
 /** OSM lanes includes acceleration/diverging lanes and sometimes temporary
  * construction layouts. A3's verified normal corridor has three through
  * lanes. A48 auxiliary turn/merge-only lanes are excluded explicitly. */
@@ -17,8 +17,38 @@ export function normalThroughLanes(road) {
     const through = turns?.filter(t => !t.includes('merge_to_') && !/^(slight_right|slight_left|right|left)$/.test(t)).length;
     return Math.max(1, Math.min(road.lanes, calibration?.maximum ?? 7, through && through >= 2 ? through : road.lanes));
 }
+export function motorwayLaneSplit(road) {
+    const refs = road.tags?.['destination:ref:lanes']?.split('|');
+    if (!refs || refs.length < 2)
+        return null;
+    const byLane = refs.map(slot => [...new Set((slot.match(/A\s*\d{1,3}/gi) ?? [])
+            .map(n => n.replaceAll(' ', '').toUpperCase()))].sort());
+    const distinct = [...new Set(byLane.flat())];
+    if (distinct.length < 2)
+        return null; // AS -> B484 is NOT an AD/AK split.
+    const groups = new Map();
+    for (const motorways of byLane) {
+        if (!motorways.length)
+            continue;
+        const key = motorways.join('|'), item = groups.get(key) ?? { motorways, count: 0 };
+        item.count++;
+        groups.set(key, item);
+    }
+    const dedicated = {};
+    for (const group of groups.values())
+        if (group.motorways.length === 1)
+            dedicated[group.motorways[0]] = (dedicated[group.motorways[0]] ?? 0) + group.count;
+    return { total: refs.length, destinations: [...groups.values()], dedicated,
+        shared: [...groups.values()].filter(g => g.motorways.length > 1).reduce((n, g) => n + g.count, 0) };
+}
 export function roadLaneInfo(road) {
     const count = normalThroughLanes(road);
+    const split = motorwayLaneSplit(road);
+    if (split) {
+        const parts = split.destinations.map(g => g.count + ' × ' + g.motorways.join('/')).join(' · ');
+        return { count, label: `${count} reguläre Durchgangsfahrstreifen · AD/AK-Verzweigung: ${split.total} markierte Spuren (${parts}) · Abbiegespuren getrennt als Rampen`,
+            source: unverifiedRoadWays.includes(road.wayId) ? 'stale' : 'osm', wayId: road.wayId };
+    }
     if (unverifiedRoadWays.includes(road.wayId))
         return { count, label: `${count} reguläre durchgehende Fahrstreifen · Geometrie aus Altbestand`, source: 'stale', wayId: road.wayId };
     return { count, label: `${count} reguläre durchgehende Fahrstreifen · ohne Ein-/Ausfädelstreifen und Baustellen`, source: 'normal', wayId: road.wayId };

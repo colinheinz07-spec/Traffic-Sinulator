@@ -54,10 +54,11 @@ export function voluntaryDiversionPercent(delayMin:number,extraMinutes=0,startsA
  const curveMinute=startsAtMin===45?delayMin:45+Math.max(0,delayMin-startsAtMin)*135/(180-startsAtMin);
  const net=delayMin-Math.max(0,extraMinutes);
  const netMinute=startsAtMin===45?net:45+Math.max(0,net-startsAtMin)*135/(180-startsAtMin);
- // A viable route still saving three hours may attract every traveller.
- // A fixed cost percentage must not make 100% mathematically unreachable.
+ // Voluntary exits must NEVER take every car; only a formal
+ // Vollsperrung may mandate 100% at its last available diversion gate.
+ // Keep a residual through-flow even during exceptionally long delays.
  const netChoice=net<startsAtMin?0:potentialDiversionPercent(netMinute,false)??0;
- return Math.round(Math.max((potentialDiversionPercent(curveMinute,false)??0)*saving,netChoice)*10)/10;
+ return Math.min(95,Math.round(Math.max((potentialDiversionPercent(curveMinute,false)??0)*saving,netChoice)*10)/10);
 }
 function excessQueue(state:CellRouteState,fromM:number,toM:number,demandVph:number):number{
  const freeDensity=demandVph/freeSpeedKmh(state.pathKey);let vehicles=0;

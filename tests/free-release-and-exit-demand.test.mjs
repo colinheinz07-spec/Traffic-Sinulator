@@ -50,15 +50,15 @@ test('full recovery under continuing high A3 demand does not spread a 17km jam i
  assert.equal(cellSpeedBands(state).length,0);
 });
 
-test('three hours of net saving can attract all drivers while the 45-minute onset stays gradual',()=>{
+test('three hours of net saving still leaves through traffic, with gradual 45-minute onset',()=>{
  assert.equal(voluntaryDiversionPercent(44.9),0);assert.equal(voluntaryDiversionPercent(45),2);
  for(const extra of [0,15,60,120]){
-  assert.equal(voluntaryDiversionPercent(180+extra,extra),100);
+  assert.equal(voluntaryDiversionPercent(180+extra,extra),95);
   const values=Array.from({length:240},(_,i)=>voluntaryDiversionPercent(45+i,extra));
   assert.ok(values.every((v,i)=>i===0||v>=values[i-1]));
  }
  assert.equal(voluntaryDiversionPercent(200,240),0,'an even slower alternative is not forced');
- assert.equal(voluntaryDiversionPercent(210,30,85),100,'AD choices retain their 85-minute onset and may also reach 100%');
+ assert.equal(voluntaryDiversionPercent(210,30,85),95,'AD choices also retain some through traffic');
 });
 
 function exitRoute(path,fromRef,toRef){

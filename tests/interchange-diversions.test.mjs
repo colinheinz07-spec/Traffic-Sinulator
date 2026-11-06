@@ -56,7 +56,7 @@ test('AD movements and ordinary queue bypasses start gradually at the same 45-mi
  assert.equal(voluntaryDiversionPercent(44.99,0,INTERCHANGE_DIVERSION_START_MIN),0);
  assert.equal(voluntaryDiversionPercent(45,0,INTERCHANGE_DIVERSION_START_MIN),2);
  const values=[45,60,90,120,180].map(t=>voluntaryDiversionPercent(t,0,INTERCHANGE_DIVERSION_START_MIN));
- assert.ok(values.every((v,i)=>i===0||v>values[i-1]));assert.equal(values.at(-1),100);
+ assert.ok(values.every((v,i)=>i===0||v>values[i-1]));assert.equal(values.at(-1),95);
  assert.equal(voluntaryDiversionPercent(45),2);
 });
 test('each A48 destination uses its own target-arm queue and its configured traffic share',()=>{

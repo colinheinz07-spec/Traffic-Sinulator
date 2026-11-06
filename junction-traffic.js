@@ -1,9 +1,9 @@
-import { regionalFlowAt, regionalJunctionDemands } from './regional-traffic.js?build=0a7c0697f5742cbd';
-import { networkRoad } from './network-road.js?build=0a7c0697f5742cbd';
-import { junctionAccess } from './road-controls.js?build=0a7c0697f5742cbd';
-import { localRoadAvailability } from './calendar-traffic.js?build=0a7c0697f5742cbd';
-import { applyJunctionRampLimits } from './junction-ramp-bindings.js?build=0a7c0697f5742cbd';
-import { diversionJunctions } from './diversions.js?build=0a7c0697f5742cbd';
+import { regionalFlowAt, regionalJunctionDemands } from './regional-traffic.js?build=78f2cf56b5451479';
+import { networkRoad } from './network-road.js?build=78f2cf56b5451479';
+import { junctionAccess } from './road-controls.js?build=78f2cf56b5451479';
+import { localRoadAvailability } from './calendar-traffic.js?build=78f2cf56b5451479';
+import { applyJunctionRampLimits } from './junction-ramp-bindings.js?build=78f2cf56b5451479';
+import { diversionJunctions } from './diversions.js?build=78f2cf56b5451479';
 // No surveyed AS signal plans or local off-ramp lengths are bundled. These
 // are explicit defaults: roughly one 300 m queue lane, and ~39% effective
 // green at 1800 veh/h/lane. They are not measured AS-specific capacities.
@@ -34,7 +34,7 @@ export function normalJunctionTraffic(route, exits, demandVph, moment, regional 
         // Montabaur is a stronger distributor than rural Dierdorf.
         const localShares = { 'A3:40': 12, 'A3:43': 7, 'A3:37': 5, 'A3:36': 7, 'A3:38': 8, 'A48:12': 10, 'A48:11': 11, 'A48:10': 12 };
         const share = localShares[road + ':' + j.ref] ?? (road === 'A559' || road === 'A59' ? 9 : 6), profile = junctionCapacityProfile(road, j.ref);
-        const access = junctionAccess(route, [], j.metre, j.ref);
+        const access = junctionAccess(route, events, j.metre, j.ref);
         return { id: route.key + ':local:' + j.ref, ref: j.ref, metre: j.metre,
             entryVph: access.entry ? (regional && moment ? regionalFlowAt(route, exits, demandVph, j.metre + .1, moment) : demandVph) * share / 100 : 0, exitPercent: access.exit ? share : 0,
             entryCapacityVph: profile.entry, exitCapacityVph: profile.exit,
