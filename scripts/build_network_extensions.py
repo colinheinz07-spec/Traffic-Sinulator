@@ -201,7 +201,9 @@ from extend_heumar_camberg import read_data
 core=read_data();mainpoints.update(tuple(p) for r in core['roads'] for p in r['points'])
 kept=[f for f in features if f['kind']=='motorway' or f['id'].startswith('extra-siegburg-')]
 remaining=[f for f in features if f not in kept]
-for _ in range(12):
+# Follow the OSM endpoint graph to its fixed point; a twelve-hop cap
+# silently dropped otherwise connected, multi-part interchange ramps.
+while remaining:
  endpoints=mainpoints|{tuple(p) for f in kept for p in [f['points'][0],f['points'][-1]]}
  found=[f for f in remaining if tuple(f['points'][0]) in endpoints or tuple(f['points'][-1]) in endpoints]
  if not found:break
