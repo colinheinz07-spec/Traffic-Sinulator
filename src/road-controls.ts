@@ -56,7 +56,7 @@ export function junctionAccess(route:Corridor,events:readonly SimEvent[],metre:n
  // are shut for new journeys. Other directions / AD bypasses stay open.
  for(const event of events){
   if(event.kind!=='closure'||event.pathKey!==route.key)continue;
-  const gate=closureGate(route,event,[],events);
+  const gate=closureGate(route,event,[...junctionDefinitions.values()],events);
   if(!gate)continue;
   if(metre>=gate.metre-2&&metre<gate.endM-1)entry=false;
   if(metre>gate.metre+2&&metre<gate.endM-1)exit=false;
