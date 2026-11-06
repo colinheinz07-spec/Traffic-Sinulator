@@ -1,10 +1,10 @@
 /** Endpoint-connected mainlines exchange a receiving signal. This limits
  * actual discharge in the feeder CTM, rather than painting a second queue.
  * Aggregate motorway demands remain calibrated independently (not OD trips). */
-import { MOTORWAY_ROUTE_KEYS } from './network-catalog.js?build=bea2f2f4f6fb2e9b';
-import { defaultDemand } from './traffic.js?build=bea2f2f4f6fb2e9b';
-import { motorwayEndpointIndex } from './network-topology.js?build=bea2f2f4f6fb2e9b';
-import { CONGESTION_WAVE_KMH, QUEUE_JAM_DENSITY_PER_LANE } from './traffic-physics.js?build=bea2f2f4f6fb2e9b';
+import { MOTORWAY_ROUTE_KEYS } from './network-catalog.js?build=a847bb8010369071';
+import { defaultDemand } from './traffic.js?build=a847bb8010369071';
+import { motorwayEndpointIndex } from './network-topology.js?build=a847bb8010369071';
+import { CONGESTION_WAVE_KMH, QUEUE_JAM_DENSITY_PER_LANE } from './traffic-physics.js?build=a847bb8010369071';
 function receiverAt(cells, to, metre) {
     const target = cells[to];
     if (!target?.cells.length || !Number.isFinite(metre))
