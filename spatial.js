@@ -1,16 +1,16 @@
-import { networkRoad } from './network-road.js?build=ce3e105ecde00d7b';
-import { extensionRoutes, extensionRoute } from './network-extensions.js?build=ce3e105ecde00d7b';
-import { routeDescriptor, LEGACY_ROUTE_KEYS } from './network-catalog.js?build=ce3e105ecde00d7b';
-import { normalThroughLanes } from './lane-info.js?build=ce3e105ecde00d7b';
+import { networkRoad } from './network-road.js?build=0a7c0697f5742cbd';
+import { extensionRoutes, extensionRoute } from './network-extensions.js?build=0a7c0697f5742cbd';
+import { routeDescriptor, LEGACY_ROUTE_KEYS } from './network-catalog.js?build=0a7c0697f5742cbd';
+import { normalThroughLanes } from './lane-info.js?build=0a7c0697f5742cbd';
 /** Georeferenced, per-event queue model on the exact OSM motorway carriageway curves.
  * A first-pass conservation model (not a calibrated traffic forecast).
  * No vehicle sprites, hidden road connectors, A3/A48 transfers, or invented detours.
  */
-import { buildContinuousRoads } from './cartography.js?build=ce3e105ecde00d7b';
-import { exitPosition } from './core.js?build=ce3e105ecde00d7b';
-import { PATHS, baselineCapacity, eventCapacity, defaultDemand } from './traffic.js?build=ce3e105ecde00d7b';
-import { baseLaneCapacity, colorAtSpeed, queueFundamentalDiagram, freeSpeedKmh } from './traffic-physics.js?build=ce3e105ecde00d7b';
-import { physicalEvents, accessibleExits } from './road-controls.js?build=ce3e105ecde00d7b';
+import { buildContinuousRoads } from './cartography.js?build=0a7c0697f5742cbd';
+import { exitPosition } from './core.js?build=0a7c0697f5742cbd';
+import { PATHS, baselineCapacity, eventCapacity, defaultDemand } from './traffic.js?build=0a7c0697f5742cbd';
+import { baseLaneCapacity, colorAtSpeed, queueFundamentalDiagram, freeSpeedKmh } from './traffic-physics.js?build=0a7c0697f5742cbd';
+import { physicalEvents, accessibleExits } from './road-controls.js?build=0a7c0697f5742cbd';
 const rad = Math.PI / 180;
 export function metres(a, b) {
     const dx = (b[1] - a[1]) * 111195 * Math.cos((a[0] + b[0]) / 2 * rad);
@@ -183,7 +183,9 @@ export function mergeSupplyVph(ramp, targetCapacityVph, targetDemandVph, rampDem
         return 0;
     const supplyRatio = Math.min(1, targetCapacityVph / Math.max(targetCapacityVph, targetDemandVph));
     const requested = Math.min(baselineCapacity(ramp), Math.max(defaultDemand(ramp), rampDemandVph + queuedVehicles * 60));
-    return Math.min(baselineCapacity(ramp), Math.round(requested * supplyRatio));
+    // A ramp cannot discharge more vehicles than the destination can
+    // physically receive, even if its queue contains many waiting vehicles.
+    return Math.min(baselineCapacity(ramp), targetCapacityVph, Math.round(requested * supplyRatio));
 }
 export function advanceSpatial(prev, events, demands, minutes, corridors, links = [], transfers = [], exits = [], physicalMainline, paths = PATHS, receivingVph = {}) {
     if (!Number.isInteger(minutes) || minutes < 1 || minutes > 60)

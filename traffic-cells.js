@@ -1,16 +1,17 @@
-import { extensionRoute } from './network-extensions.js?build=ce3e105ecde00d7b';
-import { baseLaneCapacity } from './traffic-physics.js?build=ce3e105ecde00d7b';
-import { positionM, closureGate } from './spatial.js?build=ce3e105ecde00d7b';
-import { baselineCapacity, eventCapacity } from './traffic.js?build=ce3e105ecde00d7b';
-import { flowPolicy, DEFAULT_CLEARANCE_MIN } from './events.js?build=ce3e105ecde00d7b';
-import { colorAtSpeed, freeSpeedKmh, QUEUE_JAM_DENSITY_PER_LANE, CONGESTION_WAVE_KMH } from './traffic-physics.js?build=ce3e105ecde00d7b';
-import { normalJunctionTraffic, exitRampVehicles, DEFAULT_EXIT_TERMINAL_VPH, DEFAULT_EXIT_STORAGE_VEHICLES } from './junction-traffic.js?build=ce3e105ecde00d7b';
-import { roadSections, physicalEvents, junctionAccess } from './road-controls.js?build=ce3e105ecde00d7b';
+import { extensionRoute } from './network-extensions.js?build=0a7c0697f5742cbd';
+import { routeDescriptor } from './network-catalog.js?build=0a7c0697f5742cbd';
+import { baseLaneCapacity } from './traffic-physics.js?build=0a7c0697f5742cbd';
+import { positionM, closureGate } from './spatial.js?build=0a7c0697f5742cbd';
+import { baselineCapacity, eventCapacity } from './traffic.js?build=0a7c0697f5742cbd';
+import { flowPolicy, DEFAULT_CLEARANCE_MIN } from './events.js?build=0a7c0697f5742cbd';
+import { colorAtSpeed, freeSpeedKmh, QUEUE_JAM_DENSITY_PER_LANE, CONGESTION_WAVE_KMH } from './traffic-physics.js?build=0a7c0697f5742cbd';
+import { normalJunctionTraffic, exitRampVehicles, DEFAULT_EXIT_TERMINAL_VPH, DEFAULT_EXIT_STORAGE_VEHICLES } from './junction-traffic.js?build=0a7c0697f5742cbd';
+import { roadSections, physicalEvents, junctionAccess } from './road-controls.js?build=0a7c0697f5742cbd';
 const TARGET_CELL_M = 100, WAVE_KMH = CONGESTION_WAVE_KMH, JAM_PER_LANE = QUEUE_JAM_DENSITY_PER_LANE;
 // One observation per MODEL minute; repainting/pause never advances this.
 const TRAVEL_ALPHA = 1 - Math.exp(-1 / 6);
 export function cellLanes(path) {
-    return extensionRoute(path)?.lanes ?? (path.startsWith('ramp-') ? 1 : path.startsWith('A48') ? 2 : 3);
+    return routeDescriptor(path)?.lanes ?? extensionRoute(path)?.lanes ?? 1;
 }
 export function cellCriticalDensity(path) {
     return Math.min(baselineCapacity(path) / freeSpeedKmh(path), JAM_PER_LANE * cellLanes(path) * WAVE_KMH / (freeSpeedKmh(path) + WAVE_KMH));
@@ -27,15 +28,16 @@ export function initialiseCells(route, initialDemandVph, localDemandAt) {
     const v = freeSpeedKmh(route.key), lanes = cellLanes(route.key);
     const jam = JAM_PER_LANE * lanes;
     const cap = Math.min(baselineCapacity(route.key), v * WAVE_KMH * jam / (v + WAVE_KMH));
-    const equilibriumDensity = Math.min(.96 * jam, Math.min(initialDemandVph, cap) / v);
     const cells = Array.from({ length: count }, (_, i) => {
         const fromM = i * cellM, toM = (i + 1) * cellM;
         const demand = localDemandAt?.((fromM + toM) / 2) ?? initialDemandVph;
         if (!Number.isFinite(demand) || demand < 0)
             throw Error('Ungültiger örtlicher Zufluss');
-        const localLanes = localDemandAt ? (route.normalLanes?.find(s => s.fromM <= fromM && s.toM > fromM)?.lanes ?? lanes) : lanes;
-        const localCap = localDemandAt ? Math.min(baseLaneCapacity(route.key) * localLanes, v * WAVE_KMH * JAM_PER_LANE * localLanes / (v + WAVE_KMH)) : cap;
-        const density = localDemandAt ? Math.min(.96 * JAM_PER_LANE * localLanes, Math.min(demand, localCap) / v) : equilibriumDensity;
+        // Physical lane drops apply also in constant-demand mode. Never
+        // initialise a two-lane section as if three lanes were available.
+        const localLanes = route.normalLanes?.find(s => s.fromM <= fromM && s.toM > fromM)?.lanes ?? lanes;
+        const localCap = Math.min(baseLaneCapacity(route.key) * localLanes, v * WAVE_KMH * JAM_PER_LANE * localLanes / (v + WAVE_KMH));
+        const density = Math.min(.96 * JAM_PER_LANE * localLanes, Math.min(demand, localCap) / v);
         return { fromM, toM, vehicles: density * dx,
             flowVph: Math.min(demand, localCap), speedKmh: v, densityVehKm: density };
     });

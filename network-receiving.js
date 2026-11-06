@@ -1,19 +1,23 @@
 /** Endpoint-connected mainlines exchange a receiving signal. This limits
  * actual discharge in the feeder CTM, rather than painting a second queue.
  * Aggregate motorway demands remain calibrated independently (not OD trips). */
-import { MOTORWAY_ROUTE_KEYS } from './network-catalog.js?build=ce3e105ecde00d7b';
-import { motorwayEndpointIndex } from './network-topology.js?build=ce3e105ecde00d7b';
-import { CONGESTION_WAVE_KMH, QUEUE_JAM_DENSITY_PER_LANE } from './traffic-physics.js?build=ce3e105ecde00d7b';
+import { MOTORWAY_ROUTE_KEYS } from './network-catalog.js?build=0a7c0697f5742cbd';
+import { defaultDemand } from './traffic.js?build=0a7c0697f5742cbd';
+import { motorwayEndpointIndex } from './network-topology.js?build=0a7c0697f5742cbd';
+import { CONGESTION_WAVE_KMH, QUEUE_JAM_DENSITY_PER_LANE } from './traffic-physics.js?build=0a7c0697f5742cbd';
 /** Share downstream CTM receiving capacity with a physically connected
  * on-ramp. No incident or over-saturation -> no artificial restriction.
  * A ramp's own conserved queue is then handled by advanceSpatial. */
-export function rampReceiving(cells, connections) {
+export function rampReceiving(cells, connections, activeVph = {}, queuedVehicles = {}) {
     const result = {};
+    // Several ramps can enter the SAME target CTM face. That face has one
+    // receiving budget, not one independent copy for every ramp.
+    const receivers = new Map();
     for (const link of connections) {
         if (link.to === link.rampId)
             continue;
         const dest = cells[link.to];
-        if (!dest)
+        if (!dest || !dest.cells.length)
             continue;
         const i = Math.min(dest.cells.length - 1, Math.max(0, Math.floor(link.downstreamMergeM / dest.cellM)));
         const cell = dest.cells[i];
@@ -23,7 +27,30 @@ export function rampReceiving(cells, connections) {
         if (!blocked && cell.speedKmh > 65 && cell.densityVehKm <= (cell.criticalDensityVehKm ?? 20 * lanes) * 1.10)
             continue;
         const supply = blocked || lanes === 0 ? 0 : Math.max(0, CONGESTION_WAVE_KMH * (jam - cell.densityVehKm));
-        result[link.rampId] = Math.min(result[link.rampId] ?? Infinity, supply);
+        const key = link.to + ':' + i;
+        const group = receivers.get(key) ?? { supply, ramps: new Set() };
+        group.supply = Math.min(group.supply, supply);
+        group.ramps.add(link.rampId);
+        receivers.set(key, group);
+    }
+    for (const { supply, ramps } of receivers.values()) {
+        // Initial fractions are scenario weights, not measured turn ratios.
+        // They only allocate the already available supply, never create more.
+        const weights = [...ramps].map(ramp => {
+            const offered = activeVph[ramp] ?? defaultDemand(ramp);
+            const stock = queuedVehicles[ramp] ?? 0;
+            // No arrivals and no stored vehicles = no competing merge demand.
+            // Once queued, cars retain a share of receiving service after traffic
+            // upstream stops: closing a ramp does not delete its existing queue.
+            const weight = Math.max(0, Number.isFinite(offered) ? offered : 0) +
+                60 * Math.max(0, Number.isFinite(stock) ? stock : 0);
+            return { ramp, weight };
+        });
+        const total = weights.reduce((n, r) => n + r.weight, 0);
+        for (const { ramp, weight } of weights) {
+            const share = total > 0 ? supply * weight / total : 0;
+            result[ramp] = Math.min(result[ramp] ?? Infinity, share);
+        }
     }
     return result;
 }
