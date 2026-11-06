@@ -162,7 +162,9 @@ export function mergeSupplyVph(ramp:PathKey,targetCapacityVph:number,targetDeman
  if(targetCapacityVph<=0)return 0;
  const supplyRatio=Math.min(1,targetCapacityVph/Math.max(targetCapacityVph,targetDemandVph));
  const requested=Math.min(baselineCapacity(ramp),Math.max(defaultDemand(ramp),rampDemandVph+queuedVehicles*60));
- return Math.min(baselineCapacity(ramp),Math.round(requested*supplyRatio));
+ // A ramp cannot discharge more vehicles than the destination can
+ // physically receive, even if its queue contains many waiting vehicles.
+ return Math.min(baselineCapacity(ramp),targetCapacityVph,Math.round(requested*supplyRatio));
 }
 export function advanceSpatial(prev:SpatialState,events:readonly SimEvent[],demands:Readonly<Record<PathKey,number>>,minutes:number,corridors:Record<PathKey,Corridor>,links:readonly NetworkConnection[]=[],transfers:readonly SpatialTransfer[]=[],exits:readonly Exit[]=[],physicalMainline?:readonly Jam[],paths:readonly PathKey[]=PATHS,receivingVph:Readonly<Partial<Record<PathKey,number>>>={}):SpatialState{
  if(!Number.isInteger(minutes)||minutes<1||minutes>60)throw Error('Ungültiger Simulations-Zeitschritt');

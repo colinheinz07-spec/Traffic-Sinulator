@@ -878,7 +878,13 @@ function stepTraffic(minutes:number){
    const rampPaths:PathKey[]=[...new Set<PathKey>([...PATHS,...connectedRampPaths,
     ...timeline.filter(e=>extensionRoute(e.pathKey)?.kind==='ramp'&&!localRampPaths.has(e.pathKey as PathKey)).map(e=>e.pathKey as PathKey),
     ...Object.values(spatialState.queues).filter(q=>extensionRoute(q.pathKey)?.kind==='ramp'&&!localRampPaths.has(q.pathKey)).map(q=>q.pathKey)])];
-   spatialState=advanceSpatial(spatialState,timeline,legacyActive,1,spatialCorridors,networkConnections,transfers,exits,physicalMainline,rampPaths,rampReceiving(cellNetwork,networkConnections));
+   // Queued vehicles are still real demand even when their ramp's new
+   // arrivals drop to zero (e.g. after a diversion is disabled).
+   const storedRampVehicles:Partial<Record<PathKey,number>>={};
+   for(const queue of Object.values(spatialState.queues))
+    storedRampVehicles[queue.pathKey]=(storedRampVehicles[queue.pathKey]??0)+queue.vehicles;
+   spatialState=advanceSpatial(spatialState,timeline,legacyActive,1,spatialCorridors,networkConnections,transfers,exits,physicalMainline,rampPaths,
+    rampReceiving(cellNetwork,networkConnections,legacyActive,storedRampVehicles));
   }
  }
  catch(e){stopTraffic();$('traffic-issue').textContent=e instanceof Error?e.message:'Simulationsfehler';return;}
