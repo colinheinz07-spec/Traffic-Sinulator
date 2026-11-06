@@ -1,7 +1,31 @@
-import { closureGate, positionM } from './spatial.js?build=bea2f2f4f6fb2e9b';
-import { junctionRampBindings } from './junction-ramp-bindings.js?build=bea2f2f4f6fb2e9b';
-import { routeDescriptor } from './network-catalog.js?build=bea2f2f4f6fb2e9b';
+import { closureGate, positionM } from './spatial.js?build=a847bb8010369071';
+import { junctionRampBindings } from './junction-ramp-bindings.js?build=a847bb8010369071';
+import { routeDescriptor } from './network-catalog.js?build=a847bb8010369071';
 const EPS = 2;
+const endpointCache = new WeakMap();
+const pointId = (p) => p.join(',');
+function endpointTopology(routes) {
+    const cached = endpointCache.get(routes);
+    if (cached)
+        return cached;
+    const ramps = [], starts = new Map(), mainlines = new Map();
+    for (const route of Object.values(routes)) {
+        if (routeDescriptor(route.key)?.kind === 'ramp' || route.key.startsWith('ramp-')) {
+            ramps.push(route);
+            const at = pointId(route.points[0]);
+            starts.set(at, [...(starts.get(at) ?? []), route]);
+        }
+        else {
+            route.points.forEach((point, i) => {
+                const at = pointId(point);
+                mainlines.set(at, [...(mainlines.get(at) ?? []), { key: route.key, metre: route.metres[i] }]);
+            });
+        }
+    }
+    const result = { ramps, starts, mainlines };
+    endpointCache.set(routes, result);
+    return result;
+}
 const inClosed = (at, from, to, atGate = false) => at >= from - (atGate ? EPS : -EPS) && at < to - EPS;
 /** A full closure affects only the selected direction and legal movements
  * actually merging into that section, not every arm of the same interchange.
@@ -75,6 +99,32 @@ export function closedNetworkSpans(events, routes, exits, connections) {
                 add(event.id, segment.ramp.id, segment.rampFromM, segment.rampFromM + segment.toM - segment.fromM, binding.kind === 'entry' ? 'local-entry' : 'local-exit');
             }
         }
+        // Traverse directed ramp chains back from the prohibited receiving road.
+        // A shared feeder at a fork remains OPEN when it can reach an open arm.
+        // Direct connections above remain useful for ramps whose OSM endpoints
+        // differ from the old motorway geometry; this is an additive audit.
+        const topo = endpointTopology(routes), memo = new Map();
+        const leadsOnlyIntoClosure = (ramp, visiting) => {
+            const known = memo.get(ramp.key);
+            if (known !== undefined)
+                return known;
+            if (visiting.has(ramp.key))
+                return false; // cycle/unknown: fail open
+            const nextSeen = new Set(visiting);
+            nextSeen.add(ramp.key);
+            const at = pointId(ramp.points.at(-1));
+            const mainlineHits = topo.mainlines.get(at) ?? [];
+            const continuations = (topo.starts.get(at) ?? []).filter(next => next.key !== ramp.key);
+            const closed = mainlineHits.length > 0 ?
+                mainlineHits.every(hit => hit.key === route.key &&
+                    inClosed(hit.metre, gate.metre, gate.endM, true)) :
+                continuations.length > 0 && continuations.every(next => leadsOnlyIntoClosure(next, nextSeen));
+            memo.set(ramp.key, closed);
+            return closed;
+        };
+        for (const ramp of topo.ramps)
+            if (leadsOnlyIntoClosure(ramp, new Set()))
+                add(event.id, ramp.key, 0, ramp.lengthM, 'interchange-entry');
     }
     // The same segment must not draw multiple overlapping red/white stripes
     // when two closure rules name the identical directed ramp.

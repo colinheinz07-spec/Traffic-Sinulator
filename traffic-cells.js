@@ -1,12 +1,12 @@
-import { extensionRoute } from './network-extensions.js?build=bea2f2f4f6fb2e9b';
-import { routeDescriptor } from './network-catalog.js?build=bea2f2f4f6fb2e9b';
-import { baseLaneCapacity } from './traffic-physics.js?build=bea2f2f4f6fb2e9b';
-import { positionM, closureGate } from './spatial.js?build=bea2f2f4f6fb2e9b';
-import { baselineCapacity, eventCapacity } from './traffic.js?build=bea2f2f4f6fb2e9b';
-import { flowPolicy, DEFAULT_CLEARANCE_MIN } from './events.js?build=bea2f2f4f6fb2e9b';
-import { colorAtSpeed, freeSpeedKmh, QUEUE_JAM_DENSITY_PER_LANE, CONGESTION_WAVE_KMH } from './traffic-physics.js?build=bea2f2f4f6fb2e9b';
-import { normalJunctionTraffic, exitRampVehicles, DEFAULT_EXIT_TERMINAL_VPH, DEFAULT_EXIT_STORAGE_VEHICLES } from './junction-traffic.js?build=bea2f2f4f6fb2e9b';
-import { roadSections, physicalEvents, junctionAccess } from './road-controls.js?build=bea2f2f4f6fb2e9b';
+import { extensionRoute } from './network-extensions.js?build=a847bb8010369071';
+import { routeDescriptor } from './network-catalog.js?build=a847bb8010369071';
+import { baseLaneCapacity } from './traffic-physics.js?build=a847bb8010369071';
+import { positionM, closureGate } from './spatial.js?build=a847bb8010369071';
+import { baselineCapacity, eventCapacity } from './traffic.js?build=a847bb8010369071';
+import { flowPolicy, DEFAULT_CLEARANCE_MIN } from './events.js?build=a847bb8010369071';
+import { colorAtSpeed, freeSpeedKmh, QUEUE_JAM_DENSITY_PER_LANE, CONGESTION_WAVE_KMH } from './traffic-physics.js?build=a847bb8010369071';
+import { normalJunctionTraffic, exitRampVehicles, DEFAULT_EXIT_TERMINAL_VPH, DEFAULT_EXIT_STORAGE_VEHICLES } from './junction-traffic.js?build=a847bb8010369071';
+import { roadSections, physicalEvents, junctionAccess } from './road-controls.js?build=a847bb8010369071';
 const TARGET_CELL_M = 100, WAVE_KMH = CONGESTION_WAVE_KMH, JAM_PER_LANE = QUEUE_JAM_DENSITY_PER_LANE;
 // One observation per MODEL minute; repainting/pause never advances this.
 const TRAVEL_ALPHA = 1 - Math.exp(-1 / 6);

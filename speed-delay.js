@@ -8,8 +8,8 @@
  * actual discharge yields the time loss to that exit, labelled explicitly.
  * This calculation depends on NO clock, event age or queue-created timestamp.
  */
-import { cellCriticalDensity, cellQueueSpans } from './traffic-cells.js?build=bea2f2f4f6fb2e9b';
-import { freeSpeedKmh } from './traffic-physics.js?build=bea2f2f4f6fb2e9b';
+import { cellCriticalDensity, cellQueueSpans } from './traffic-cells.js?build=a847bb8010369071';
+import { freeSpeedKmh } from './traffic-physics.js?build=a847bb8010369071';
 /** A new, empty worksite does not serve a released queue kilometres away.
  * Use an active cross-section only once it belongs to that queue's physical
  * approach. Until then, its former head can still measure the release flow.

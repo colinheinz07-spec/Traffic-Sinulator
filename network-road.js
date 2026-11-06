@@ -1,4 +1,4 @@
-import { routeDescriptor } from './network-catalog.js?build=bea2f2f4f6fb2e9b';
+import { routeDescriptor } from './network-catalog.js?build=a847bb8010369071';
 /** All motorway numbers come from network metadata; adding an A61, A7 or
  * A100 corridor needs no additional conditional here. Ramps are not roads. */
 export function networkRoad(key) {
