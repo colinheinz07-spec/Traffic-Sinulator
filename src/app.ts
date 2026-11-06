@@ -4,6 +4,7 @@ import {mainlineMerges,sharedNetworkReceiving} from './network-receiving.js';
 import {profileDescription} from './traffic-profiles.js';
 import {mountTrafficProfileEditor} from './02_Verkehr/verkehrsprofil-editor.js';
 import {regionalFlowAt,regionalBoundaryFlow,regionalDescription} from './regional-traffic.js';
+import {renderLocalDemandProfiles} from './02_Verkehr/anschlussstellen-uebersicht.js';
 import {MOTORWAY_PATHS,MOTORWAY_GROUPS,junctionDirectory,junctionRoute,trafficOverviewPaths} from './network-presentation.js';
 import type {DetourGeometry} from './detour-routing.js';
 import {planExtensionDetours,refreshExtensionDetour,extensionDetours} from './extension-detours.js';
@@ -751,6 +752,7 @@ function renderTraffic(){
  if(key.startsWith('ramp-'))activeDemands[key]+=extraRampFlow.get(key)?.enter??0;
  refreshTrafficProfile();
  $('traffic-demand').textContent=trafficNumber(demandMode==='clock'&&networkRoad(key)?regionalBoundaryFlow(spatialCorridors[key],exits,activeDemands[key],simulatedClock()):activeDemands[key]);
+ renderLocalDemandProfiles(spatialCorridors[key],exits,activeDemands[key],simulatedClock(),demandMode==='clock',timeline);
  $('traffic-demand-hint').textContent=demandMode==='clock'
   ?profileDescription(key)+'. Anstieg ab etwa 5 Uhr, Morgenspitze je Strecke um 7–8 Uhr. Freitag frühere Nachmittagsspitze (je nach Strecke etwa 13–15 Uhr); Samstag und Sonntag andere Tageskurven. '+regionalDescription(key)+' Der Eingabewert ist eine Modellreferenz pro Richtung, keine DTV-Zahl oder Live-Messung. Feiertage/Ferien sind nicht berücksichtigt.'
   :demandMode==='wave'?'Testmodus: Abklingende Stoßzeit ab Simulationsstart; der Zufluss sinkt über ca. 100 Minuten.'

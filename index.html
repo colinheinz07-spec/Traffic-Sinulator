@@ -146,6 +146,12 @@
 #traffic-profile-info{font-size:.74rem;line-height:1.5;margin:10px 0!important;color:#bad7e6}
 #traffic-profile-apply-day{background:#155576;border-color:#3998bb;width:100%;min-height:43px}
 @media(max-width:490px){.traffic-profile-controls{grid-template-columns:1fr}}
+
+.traffic-local-demand-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,270px),1fr));gap:7px;margin-top:10px}
+.traffic-local-demand-row{border:1px solid #36546a;border-radius:10px;padding:10px;background:#102b3e;display:grid;gap:5px}
+.traffic-local-demand-row strong{color:#edf9ff;font-size:.78rem}
+.traffic-local-demand-row span{color:#9de1fb;font-size:.75rem}
+.traffic-local-demand-row small,.traffic-local-demand-mode{color:#acc2d0;font-size:.69rem}
 </style></head><body><main>
 <header><div><div class="eyebrow">Stausimulator · Kartenfundament</div><h1>A3 · A4 · A48 · A59 · A559 · A560 · A562</h1></div><span class="phase">TRAFFIC 1.23.0</span></header>
 <div class="toolbar"><button id="heumar">AD Köln-Heumar</button><button id="bad-camberg">AS Bad Camberg</button><button id="fit" class="primary">Gesamtes Netz</button><button id="dernbach">AD Dernbach</button><button id="koblenz">AK Koblenz</button><button id="diez">AS Diez</button><button id="limburg-nord">AS Limburg-Nord</button><button id="limburg-sued">AS Limburg-Süd</button><button id="honnef">AS Bad Honnef/Linz</button><button id="siebengebirge">AS Siebengebirge</button><button id="bonn-siegburg">AK Bonn/Siegburg</button></div>
@@ -196,7 +202,14 @@
 <p id="traffic-events" class="event-info"></p><p id="traffic-interchange" class="event-info" aria-live="polite">AD Dernbach: noch keine Rampenüberläufe.</p><p id="traffic-closure-note" class="event-info"></p>
 <h3 class="traffic-subtitle">Einzelne Rückstaus <span id="traffic-jams-count">(0)</span></h3><div class="traffic-summary" id="traffic-jams"></div>
 <h3 class="traffic-subtitle">Alle Fahrwege</h3><div id="traffic-summary" class="traffic-summary"></div>
-<h3 class="traffic-subtitle">↘↗ Anschlussstellen · Abfahrten und Auffahrten</h3>
+ <details id="traffic-local-demand-panel" class="diversion-catalog">
+  <summary>🚘 Örtliche Auffahrten und Abfahrten je Anschlussstelle</summary>
+  <p class="diversion-subtitle">Modellannahmen der ausgewählten Richtung: ↑ gewünschter Auffahrtszufluss, ↓ Anteil der ankommenden Fahrzeuge, die hier abfahren möchten. Tatsächliche Durchfahrten sind durch Rampenkapazitäten und Staus begrenzt. Keine gemessenen Verkehrszählungen.</p>
+  <p id="traffic-local-demand-mode" class="traffic-local-demand-mode"></p>
+  <div id="traffic-local-demand-list" class="traffic-local-demand-list">Werte werden geladen …</div>
+ </details>
+
+ <h3 class="traffic-subtitle">↘↗ Anschlussstellen · Abfahrten und Auffahrten</h3>
 <p class="diversion-subtitle">An jeder regulären AS fahren Fahrzeuge ab und auf. <strong>Ist ↓ / ↑</strong> zählt tatsächlich abgefahrene und eingefädelte Fahrzeuge; regulärer Verkehr, Stauumfahrung und Rückkehr stehen getrennt darunter. <strong>Umfahrung % = Soll-Anteil:</strong> Das Stauende bestimmt den Ort: die nächste nutzbare AS davor. Ab 45 Minuten Zeitverlust dieses Staus beginnen dort erste freiwillige Umfahrungen, auch wenn bis zum Stau noch mehrere Kilometer frei sind. Der Zeitverlust bestimmt den Anteil; weiter entfernte Ausfahrten davor bleiben beim normalen Verkehr. Erreicht der Stau die bisherige Ausfahrt, übernimmt die nächste davor allmählich. Fahrer bereits im Stau können weiterhin an erreichbaren Ausfahrten ausweichen. Das gilt allgemein auch ohne gesetztes Ereignis. Entsprechend weniger neue lokale Fahrzeuge fahren an derselben AS in Richtung Stau auf; bereits auf der Auffahrt Wartende und Rückkehrer werden weiterhin gezählt. Das gilt für Unfälle, Baustellen und andere Engpässe. Bei formaler Vollsperrung müssen 100 % der betroffenen Fahrzeuge an der letzten AS davor abfahren; ein vor der Sperre offener Autobahnabzweig bleibt für dessen Fahrtziel nutzbar.</p>
 <div id="junction-movements" class="junction-movements" aria-live="polite"></div>
 <h3 class="traffic-subtitle">🛣️ Automatische Stauumfahrungen</h3>
