@@ -211,6 +211,15 @@ features=kept
 # complete turn walks supersede their geometry.
 for legacy in json.loads((ROOT/'data/legacy-extension-paths.json').read_text()):
  if not any(f['id']==legacy['id'] for f in features):features.append(legacy)
+# A parking/service area is not a numbered public Anschlussstelle.
+# Filter only links whose access ends at service roads or explicitly carries
+# rest-area labels. Keep every real AK/AD arm and public local-road exit.
+from service_area_ramps import service_access_index,rest_area_only_ramp
+access_index=service_access_index(ways)
+service_ramps=[f['id'] for f in features if rest_area_only_ramp(f,*access_index[:1],mainpoints,*access_index[1:])]
+if service_ramps:
+ features=[f for f in features if f['id'] not in service_ramps]
+ print('Excluded',len(service_ramps),'motorway service/rest-area ramps')
 junctions=[]
 for f in features:
  if f['kind']!='motorway':continue
