@@ -1,16 +1,16 @@
-import { networkRoad } from './network-road.js?build=bea2f2f4f6fb2e9b';
-import { extensionRoutes, extensionRoute } from './network-extensions.js?build=bea2f2f4f6fb2e9b';
-import { routeDescriptor, LEGACY_ROUTE_KEYS } from './network-catalog.js?build=bea2f2f4f6fb2e9b';
-import { normalThroughLanes } from './lane-info.js?build=bea2f2f4f6fb2e9b';
+import { networkRoad } from './network-road.js?build=7a4dfbeb34f189f9';
+import { extensionRoutes, extensionRoute } from './network-extensions.js?build=7a4dfbeb34f189f9';
+import { routeDescriptor, LEGACY_ROUTE_KEYS } from './network-catalog.js?build=7a4dfbeb34f189f9';
+import { normalThroughLanes } from './lane-info.js?build=7a4dfbeb34f189f9';
 /** Georeferenced, per-event queue model on the exact OSM motorway carriageway curves.
  * A first-pass conservation model (not a calibrated traffic forecast).
  * No vehicle sprites, hidden road connectors, A3/A48 transfers, or invented detours.
  */
-import { buildContinuousRoads } from './cartography.js?build=bea2f2f4f6fb2e9b';
-import { exitPosition } from './core.js?build=bea2f2f4f6fb2e9b';
-import { PATHS, baselineCapacity, eventCapacity, defaultDemand } from './traffic.js?build=bea2f2f4f6fb2e9b';
-import { baseLaneCapacity, colorAtSpeed, queueFundamentalDiagram, freeSpeedKmh } from './traffic-physics.js?build=bea2f2f4f6fb2e9b';
-import { physicalEvents, accessibleExits } from './road-controls.js?build=bea2f2f4f6fb2e9b';
+import { buildContinuousRoads } from './cartography.js?build=7a4dfbeb34f189f9';
+import { exitPosition } from './core.js?build=7a4dfbeb34f189f9';
+import { PATHS, baselineCapacity, eventCapacity, defaultDemand } from './traffic.js?build=7a4dfbeb34f189f9';
+import { baseLaneCapacity, colorAtSpeed, queueFundamentalDiagram, freeSpeedKmh } from './traffic-physics.js?build=7a4dfbeb34f189f9';
+import { physicalEvents, accessibleExits } from './road-controls.js?build=7a4dfbeb34f189f9';
 const rad = Math.PI / 180;
 export function metres(a, b) {
     const dx = (b[1] - a[1]) * 111195 * Math.cos((a[0] + b[0]) / 2 * rad);
