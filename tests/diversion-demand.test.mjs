@@ -31,7 +31,7 @@ test('delay gradually increases willingness while most drivers still stay at mod
   assert.ok(choices[1]<50&&choices[2]<50,'the majority stays at one hour and at ninety minutes');
   assert.ok(choices[3]<100,'two hours must not already mean everybody leaves');
  }
- assert.equal(voluntaryDiversionPercent(180,0),100);
+ assert.equal(voluntaryDiversionPercent(180,0),95,'non-closure incidents always retain some through traffic');
  assert.ok(voluntaryDiversionPercent(180,150)<voluntaryDiversionPercent(180,5),
   'an overloaded bypass remains a cost in the route decision');
 });
