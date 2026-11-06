@@ -79,3 +79,31 @@ test('regular last off-ramp remains available; on-ramp barred, internal AS acces
  assert.equal(junctionAccess(r,[closure],last,gate.exit.ref).exit,true);
  assert.equal(junctionAccess(r,[closure],last,gate.exit.ref).entry,false);
 });
+
+test('multi-way ramps close only when every downstream branch enters the closed direction',()=>{
+ const closedRoad=route(selected,[[50,7],[50,7.015],[50,7.019],[50,7.03],[50,7.045]]);
+ const openRoad=route(open,[[50,7.015],[50.003,7.017]]);
+ const fork=[50.005,7.018],exclusiveFork=[50.005,7.022];
+ const shared=route('ramp-shared-approach',[[50.006,7.016],fork]);
+ const blockedBranch=route('ramp-closed-branch',[fork,closedRoad.points[2]]);
+ const openBranch=route('ramp-open-branch',[fork,openRoad.points[1]]);
+ const exclusive=route('ramp-exclusive-approach',[[50.006,7.02],exclusiveFork]);
+ const exclusiveEnd=route('ramp-exclusive-closed',[exclusiveFork,closedRoad.points[2]]);
+ const outside=route('ramp-unmapped-boundary',[[50.007,7.023],[50.008,7.024]]);
+ const all=Object.fromEntries([closedRoad,openRoad,shared,blockedBranch,openBranch,exclusive,exclusiveEnd,outside].map(r=>[r.key,r]));
+ const e={...event,pathKey:selected,point:[50,7.018]};
+ const j=[{road:'A4',ref:'915',name:'AD Köln-Heumar',position:closedRoad.points[1],source:'test'},
+  {road:'A4',ref:'916',name:'AK Köln-Süd',position:closedRoad.points[3],source:'test'}];
+ // No precomputed direct motorway connection: intermediate OSM ramp ways
+ // must still inherit the ban without closing the shared, open approach.
+ const spans=closedNetworkSpans([e],all,j,[]);
+ const closed=new Set(spans.map(s=>s.pathKey));
+ assert.ok(closed.has(selected));
+ assert.ok(closed.has(blockedBranch.key));
+ assert.ok(closed.has(exclusive.key));
+ assert.ok(closed.has(exclusiveEnd.key));
+ assert.ok(!closed.has(shared.key),'the feeder can still reach an open motorway');
+ assert.ok(!closed.has(openBranch.key));
+ assert.ok(!closed.has(outside.key),'an unmapped boundary is not automatically blocked');
+ assert.ok(!closed.has(open));
+});
