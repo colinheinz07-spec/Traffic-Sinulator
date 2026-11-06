@@ -67,7 +67,7 @@ export function normalJunctionTraffic(route:Corridor,exits:readonly Exit[],deman
   // Montabaur is a stronger distributor than rural Dierdorf.
   const localShares:Record<string,number>={'A3:40':12,'A3:43':7,'A3:37':5,'A3:36':7,'A3:38':8,'A48:12':10,'A48:11':11,'A48:10':12};
   const share=localShares[road+':'+j.ref]??(road==='A559'||road==='A59'?9:6),profile=junctionCapacityProfile(road,j.ref);
-  const access=junctionAccess(route,[],j.metre,j.ref);
+  const access=junctionAccess(route,events,j.metre,j.ref);
   return {id:route.key+':local:'+j.ref,ref:j.ref,metre:j.metre,
    entryVph:access.entry?(regional&&moment?regionalFlowAt(route,exits,demandVph,j.metre+.1,moment):demandVph)*share/100:0,exitPercent:access.exit?share:0,
    entryCapacityVph:profile.entry,exitCapacityVph:profile.exit,
