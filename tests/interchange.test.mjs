@@ -71,5 +71,5 @@ test('UI wires OSM spillback to map with no +5-minute debug control',()=>{
  assert.match(workflow,/npm run check/);
  assert.match(workflow,/git diff --check/);
  assert.match(publish,/npm run build/);
- assert.match(publish,/git add index\.html/);
+ assert.match(publish,/git add -A -- index\.html/);
 });
