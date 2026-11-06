@@ -1,4 +1,4 @@
-import { routeDescriptor } from './network-catalog.js?build=be987b3714487c32';
+import { routeDescriptor } from './network-catalog.js?build=6f9588346cdc71ff';
 /** Unrestricted base service before event-specific reductions. These are
  * simulator assumptions, not measured capacities for every A3/A48 section.
  * Motorway lanes receive +100 vehicles/hour (2000 → 2100);\n * one-lane interchange ramps retain 1500 and stay distinct. */
