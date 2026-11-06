@@ -2,7 +2,7 @@ name: Sync browser bundle for closure fix
 on:
   push:
     branches: [feat/generic-closures-ramp-directions]
-    paths: ['.github/workflows/sync-closure-build.yml']
+    paths: ['src/**', 'data/extension-junctions.json', '.github/workflows/sync-closure-build.yml']
 permissions:
   contents: write
 jobs:
