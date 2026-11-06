@@ -1,4 +1,5 @@
 import {extensionRoute} from './network-extensions.js';
+import {routeDescriptor} from './network-catalog.js';
 import {baseLaneCapacity} from './traffic-physics.js';
 /** Experimental cell-transmission traffic on real OSM carriageways.
  * Mainline cells and simulator detours share mass-conserving transfers. Their
@@ -76,7 +77,7 @@ const TARGET_CELL_M=100,WAVE_KMH=CONGESTION_WAVE_KMH,JAM_PER_LANE=QUEUE_JAM_DENS
 // One observation per MODEL minute; repainting/pause never advances this.
 const TRAVEL_ALPHA=1-Math.exp(-1/6);
 export function cellLanes(path:PathKey):number{
- return extensionRoute(path)?.lanes??(path.startsWith('ramp-')?1:path.startsWith('A48')?2:3);
+ return routeDescriptor(path)?.lanes??extensionRoute(path)?.lanes??1;
 }
 export function cellCriticalDensity(path:PathKey):number{
  return Math.min(baselineCapacity(path)/freeSpeedKmh(path),
@@ -94,14 +95,17 @@ export function initialiseCells(route:Corridor,initialDemandVph:number,localDema
  const v=freeSpeedKmh(route.key),lanes=cellLanes(route.key);
  const jam=JAM_PER_LANE*lanes;
  const cap=Math.min(baselineCapacity(route.key),v*WAVE_KMH*jam/(v+WAVE_KMH));
- const equilibriumDensity=Math.min(.96*jam,Math.min(initialDemandVph,cap)/v);
+
  const cells=Array.from({length:count},(_,i):TrafficCell=>{
   const fromM=i*cellM,toM=(i+1)*cellM;
   const demand=localDemandAt?.((fromM+toM)/2)??initialDemandVph;
   if(!Number.isFinite(demand)||demand<0)throw Error('Ungültiger örtlicher Zufluss');
-  const localLanes=localDemandAt?(route.normalLanes?.find(s=>s.fromM<=fromM&&s.toM>fromM)?.lanes??lanes):lanes;
-  const localCap=localDemandAt?Math.min(baseLaneCapacity(route.key)*localLanes,v*WAVE_KMH*JAM_PER_LANE*localLanes/(v+WAVE_KMH)):cap;
-  const density=localDemandAt?Math.min(.96*JAM_PER_LANE*localLanes,Math.min(demand,localCap)/v):equilibriumDensity;
+  // Physical lane drops apply also in constant-demand mode. Never
+  // initialise a two-lane section as if three lanes were available.
+  const localLanes=route.normalLanes?.find(s=>s.fromM<=fromM&&s.toM>fromM)?.lanes??lanes;
+  const localCap=Math.min(baseLaneCapacity(route.key)*localLanes,
+   v*WAVE_KMH*JAM_PER_LANE*localLanes/(v+WAVE_KMH));
+  const density=Math.min(.96*JAM_PER_LANE*localLanes,Math.min(demand,localCap)/v);
   return {fromM,toM,vehicles:density*dx,
    flowVph:Math.min(demand,localCap),speedKmh:v,densityVehKm:density};
  });
