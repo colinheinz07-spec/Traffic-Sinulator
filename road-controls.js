@@ -1,12 +1,12 @@
-import { extensionJunctions } from './network-extensions.js?build=0a7c0697f5742cbd';
-import { networkRoad } from './network-road.js?build=0a7c0697f5742cbd';
-import { networkData } from './geodata.js?build=0a7c0697f5742cbd';
-import { junctionRampAccess } from './junction-ramp-bindings.js?build=0a7c0697f5742cbd';
+import { extensionJunctions } from './network-extensions.js?build=be987b3714487c32';
+import { networkRoad } from './network-road.js?build=be987b3714487c32';
+import { networkData } from './geodata.js?build=be987b3714487c32';
+import { junctionRampAccess } from './junction-ramp-bindings.js?build=be987b3714487c32';
 /** Physical lane restrictions and directional AS access on actual road
  * intervals. Administrative closures keep their separate exit-gate rule. */
-import { exitPosition } from './core.js?build=0a7c0697f5742cbd';
-import { suggestedSpeed } from './events.js?build=0a7c0697f5742cbd';
-import { positionM } from './spatial.js?build=0a7c0697f5742cbd';
+import { exitPosition } from './core.js?build=be987b3714487c32';
+import { suggestedSpeed } from './events.js?build=be987b3714487c32';
+import { closureGate, positionM } from './spatial.js?build=be987b3714487c32';
 export function roadSections(route, events) {
     const located = events.filter(e => e.pathKey === route.key && e.kind !== 'closure').flatMap(event => {
         const fromM = positionM(route, event.point);
@@ -58,6 +58,20 @@ export function junctionAccess(route, events, metre, ref) {
         if (mode === 'entry' || mode === 'both')
             entry = false;
         if (mode === 'exit' || mode === 'both')
+            exit = false;
+    }
+    // Administrative closure: last usable off-ramp remains open to evacuate
+    // through traffic, its own on-ramp is shut, and all internal AS accesses
+    // are shut for new journeys. Other directions / AD bypasses stay open.
+    for (const event of events) {
+        if (event.kind !== 'closure' || event.pathKey !== route.key)
+            continue;
+        const gate = closureGate(route, event, [...junctionDefinitions.values()], events);
+        if (!gate)
+            continue;
+        if (metre >= gate.metre - 2 && metre < gate.endM - 1)
+            entry = false;
+        if (metre > gate.metre + 2 && metre < gate.endM - 1)
             exit = false;
     }
     return { entry, exit };

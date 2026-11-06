@@ -1,16 +1,16 @@
-import { networkRoad } from './network-road.js?build=0a7c0697f5742cbd';
-import { extensionRoutes, extensionRoute } from './network-extensions.js?build=0a7c0697f5742cbd';
-import { routeDescriptor, LEGACY_ROUTE_KEYS } from './network-catalog.js?build=0a7c0697f5742cbd';
-import { normalThroughLanes } from './lane-info.js?build=0a7c0697f5742cbd';
+import { networkRoad } from './network-road.js?build=be987b3714487c32';
+import { extensionRoutes, extensionRoute } from './network-extensions.js?build=be987b3714487c32';
+import { routeDescriptor, LEGACY_ROUTE_KEYS } from './network-catalog.js?build=be987b3714487c32';
+import { normalThroughLanes } from './lane-info.js?build=be987b3714487c32';
 /** Georeferenced, per-event queue model on the exact OSM motorway carriageway curves.
  * A first-pass conservation model (not a calibrated traffic forecast).
  * No vehicle sprites, hidden road connectors, A3/A48 transfers, or invented detours.
  */
-import { buildContinuousRoads } from './cartography.js?build=0a7c0697f5742cbd';
-import { exitPosition } from './core.js?build=0a7c0697f5742cbd';
-import { PATHS, baselineCapacity, eventCapacity, defaultDemand } from './traffic.js?build=0a7c0697f5742cbd';
-import { baseLaneCapacity, colorAtSpeed, queueFundamentalDiagram, freeSpeedKmh } from './traffic-physics.js?build=0a7c0697f5742cbd';
-import { physicalEvents, accessibleExits } from './road-controls.js?build=0a7c0697f5742cbd';
+import { buildContinuousRoads } from './cartography.js?build=be987b3714487c32';
+import { exitPosition } from './core.js?build=be987b3714487c32';
+import { PATHS, baselineCapacity, eventCapacity, defaultDemand } from './traffic.js?build=be987b3714487c32';
+import { baseLaneCapacity, colorAtSpeed, queueFundamentalDiagram, freeSpeedKmh } from './traffic-physics.js?build=be987b3714487c32';
+import { physicalEvents, accessibleExits } from './road-controls.js?build=be987b3714487c32';
 const rad = Math.PI / 180;
 export function metres(a, b) {
     const dx = (b[1] - a[1]) * 111195 * Math.cos((a[0] + b[0]) / 2 * rad);
@@ -141,7 +141,10 @@ export function closureGate(route, event, exits, events = []) {
         .filter((x) => x.metre !== null).sort((a, b) => a.metre - b.metre);
     // A marker on or immediately after an off-ramp belongs to that AS.
     // The former 50m exclusion incorrectly moved the gate to the previous AS.
-    const allowed = new Set(accessibleExits(route, events, exits, 'exit').map(e => e.road + ':' + e.ref));
+    // Choosing the pre-closure exit must not recursively apply the closure
+    // access rule to itself. Other physical roadworks still restrict exits.
+    const allowed = new Set(accessibleExits(route, events.filter(e => e.kind !== 'closure'), exits, 'exit')
+        .map(e => e.road + ':' + e.ref));
     const urban = route.key.startsWith('extra-a59-') || route.key.startsWith('extra-a4-') || route.key.startsWith('extra-a559-');
     const closest = junctions.filter(j => (urban || !/^(AD |AK )/.test(j.exit.name)) && allowed.has(j.exit.road + ':' + j.exit.ref) && j.metre <= at + 1).at(-1);
     const physicalEnd = Math.min(route.lengthM, at + event.settings.lengthM);

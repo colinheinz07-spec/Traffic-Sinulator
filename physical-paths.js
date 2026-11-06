@@ -1,7 +1,7 @@
 /** One motorway edge has one physical owner, including legacy ramp aliases. */
-import { networkData } from './geodata.js?build=0a7c0697f5742cbd';
-import { extensionRoutes, extensionRoute } from './network-extensions.js?build=0a7c0697f5742cbd';
-import { normalThroughLanes } from './lane-info.js?build=0a7c0697f5742cbd';
+import { networkData } from './geodata.js?build=be987b3714487c32';
+import { extensionRoutes, extensionRoute } from './network-extensions.js?build=be987b3714487c32';
+import { normalThroughLanes } from './lane-info.js?build=be987b3714487c32';
 const edge = (a, b) => [a.join(','), b.join(',')].sort().join('|');
 const distance = (a, b) => Math.hypot((a[0] - b[0]) * 111195, (a[1] - b[1]) * 111195 * Math.cos((a[0] + b[0]) * Math.PI / 360));
 let owners;

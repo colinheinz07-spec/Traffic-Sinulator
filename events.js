@@ -1,5 +1,5 @@
-import { extensionRoute } from './network-extensions.js?build=0a7c0697f5742cbd';
-import { validDailyRecurrence, dailyRecurrenceBounds, dailyOccurrenceAt } from './recurring-events.js?build=0a7c0697f5742cbd';
+import { extensionRoute } from './network-extensions.js?build=be987b3714487c32';
+import { validDailyRecurrence, dailyRecurrenceBounds, dailyOccurrenceAt } from './recurring-events.js?build=be987b3714487c32';
 export const EVENT_KINDS = ['roadworks', 'accident', 'breakdown', 'closure'];
 export const eventNames = { roadworks: 'Baustelle', accident: 'Unfall', breakdown: 'Lkw-Panne', closure: 'Vollsperrung' };
 export const eventSymbols = { roadworks: '🚧', accident: '💥', breakdown: '🚛', closure: '⛔' };
