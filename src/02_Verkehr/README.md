@@ -27,3 +27,27 @@ In [../02_Verkehr.ts](../02_Verkehr.ts) sind sechs **Freitagskurven** (`friday`)
 Die Grafik [verkehrsprofil-editor.ts](verkehrsprofil-editor.ts) verwendet dieselbe Rechenfunktion `profileFactor()` wie die Simulation. Eine Vorschau allein verändert die Simulation nicht. In den Testmodi `constant` und `wave` gelten bewusst andere Zuflussregeln.
 
 Nach dem Aktualisieren kann man weiterhin den genauen Zufluss über das Zahlenfeld `traffic-inflow` einstellen. Die Standardwerte werden beim Neuladen der App derzeit wiederhergestellt (keine dauerhafte Speicherung der individuellen Referenzwerte).
+
+## Örtliche Nachfrage je Anschlussstelle
+
+Alle neuen Szenarioannahmen für die **39 konkreten Anschlussstellen** stehen in
+[anschlussstellen-nachfrage.ts](anschlussstellen-nachfrage.ts). Öffne diese Datei,
+wenn du z. B. Montabaur mit Dierdorf oder die A59 bei Flughafen/Wahn/Spich vergleichen möchtest.
+
+Die Angaben sind **pro Fahrtrichtung**:
+- `entryPercent`: lokale Auffahrtsnachfrage relativ zur stündlichen Belastung des Abschnitts.
+- `exitPercent`: Anteil der ankommenden Autobahnfahrzeuge mit Ziel an dieser Ausfahrt.
+- `name` / `reason`: verständlicher Name und Grund für die Modellannahme.
+
+In der App zeigt **Verkehrsfluss → „🚘 Örtliche Auffahrten und Abfahrten je Anschlussstelle“**
+den Auffahrtswunsch (Fzg/h) und den jeweiligen Abfahrtsanteil für die gewählte Richtung.
+
+**Physikalische Trennung:** Die Fahrzeugmenge ist eine Nachfrage, keine Rampenkapazität.
+Die Simulations-Engine lässt nur den tatsächlich möglichen Verkehr passieren und führt
+Warteschlangen und Fahrzeugbestände weiter. Die Änderungen gelten im zeitabhängigen
+Kalendermodus; konstante und abklingende Testprofile verwenden zunächst die
+bisherigen balancierten Basisanteile.
+
+**Nicht als echte Messung ausgeben:** Die Zahlen sind bewusst konfigurierbare
+Szenariowerte. Eine belastbare Kalibrierung braucht Zählungen je Anschlussstelle,
+Richtung und Tageszeit. Es wurden keine unbekannten Anschlüsse oder Rampen ergänzt.

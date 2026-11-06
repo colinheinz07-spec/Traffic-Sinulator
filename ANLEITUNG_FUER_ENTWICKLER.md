@@ -35,3 +35,7 @@ Die großen Datenmodule `src/geodata.ts`, `src/network-extensions.ts`, `src/exte
 
 ## Neues Tagesprofil im Simulator (Freitag)
 Im Bereich **🚗 Verkehrsfluss** gibt es jetzt die aufklappbare Funktion **„📊 Verkehrsprofil ansehen und anpassen“**. Du kannst dort Tageskurven auswählen, Uhrzeiten vergleichen, den Referenzzufluss ändern und einen Tag als Simulationsstart übernehmen. Die Wochentagskurven stehen zentral in `src/02_Verkehr.ts`, die grafische Vorschau in `src/02_Verkehr/verkehrsprofil-editor.ts`. Die Freitagsspitze liegt im Modell bereits am frühen Nachmittag. Die Werte sind synthetische Szenarioannahmen; sie sind weder Live-Daten noch automatisch empirisch kalibriert.
+
+
+## Neue lokale AS-Verkehrsprofile
+Die für die Simulation verwendeten **örtlichen Ein- und Ausfahrtsanteile** sind gesammelt in `src/02_Verkehr/anschlussstellen-nachfrage.ts`. Wähle in der App eine Fahrtrichtung und öffne **„🚘 Örtliche Auffahrten und Abfahrten je Anschlussstelle“**. Die Zahlen sind Modellannahmen, keine realen Zählstellendaten. Die physikalischen Rampen- und Knotenkapazitäten bleiben getrennt.
