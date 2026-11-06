@@ -220,7 +220,13 @@ export function advanceSpatial(prev:SpatialState,events:readonly SimEvent[],dema
     const measured=receivingVph[key];
     const targetCapacity=Math.min(measured??Infinity,...blocked.map(j=>j.capacityVph));
     if(Number.isFinite(targetCapacity)){
-     const cap=mergeSupplyVph(key,targetCapacity,demands[link.to],volume,current['merge:'+key]?.vehicles??0);
+     // A shared CTM receiver already allocated this ramp's physical
+     // capacity after accounting for other motorway and ramp feeders.
+     // Applying a second target-demand ratio here would starve the ramp and
+     // make a conserved queue grow despite spare allocated discharge space.
+     const cap=measured!==undefined
+      ?Math.min(baselineCapacity(key),targetCapacity)
+      :mergeSupplyVph(key,targetCapacity,demands[link.to],volume,current['merge:'+key]?.vehicles??0);
      if(cap<baselineCapacity(key))nodes.push({id:'merge:'+key,event:null,
       place:Math.max(0,route.lengthM-.5),point:route.points.at(-1)!,limitVph:cap});
     }
