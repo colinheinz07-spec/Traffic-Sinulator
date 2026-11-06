@@ -84,3 +84,17 @@ export function validateLocalJunctionProfiles():string[]{
  }
  return errors;
 }
+
+/** The original balanced demand profile remains for constant/wave stress tests. */
+const LEGACY_LOCAL_SHARES:Readonly<Record<string,number>>={
+ 'A3:40':12,'A3:43':7,'A3:37':5,'A3:36':7,'A3:38':8,
+ 'A48:12':10,'A48:11':11,'A48:10':12
+};
+export function localJunctionShares(road:string,ref:string,calendar:boolean):{
+ entryPercent:number;exitPercent:number;name:string;reason:string
+}{
+ const old=LEGACY_LOCAL_SHARES[road+':'+ref]??(road==='A559'||road==='A59'?9:6);
+ const configured=calendar?junctionLocalProfile(road,ref):undefined;
+ return configured??{entryPercent:old,exitPercent:old,name:'AS '+ref,
+  reason:'Allgemeiner Standardwert; kein gesondertes örtliches Profil'};
+}

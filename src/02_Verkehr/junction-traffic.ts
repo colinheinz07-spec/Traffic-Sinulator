@@ -1,6 +1,6 @@
 /** 02_Verkehr: Zugeordnetes Fachmodul junction-traffic. */
 import {regionalFlowAt,regionalJunctionDemands} from '../regional-traffic.js';
-import {junctionLocalProfile} from './anschlussstellen-nachfrage.js';
+import {localJunctionShares} from './anschlussstellen-nachfrage.js';
 import type {SimEvent} from '../events.js';
 import {networkRoad} from '../network-road.js';
 import {junctionAccess} from '../road-controls.js';
@@ -65,15 +65,10 @@ export function normalJunctionTraffic(route:Corridor,exits:readonly Exit[],deman
   // Junction-specific local turnover. Balanced ordinary entry/exit at the
   // reference free flow avoids artificially growing demand at every node.
   const road=networkRoad(route.key)!;
-  // Explicit local catchment assumptions, independent of AS numbering.
-  // Montabaur is a stronger distributor than rural Dierdorf.
-  const localShares:Record<string,number>={'A3:40':12,'A3:43':7,'A3:37':5,'A3:36':7,'A3:38':8,'A48:12':10,'A48:11':11,'A48:10':12};
-  const legacyShare=localShares[road+':'+j.ref]??(road==='A559'||road==='A59'?9:6);
-  // Calendar mode uses explicit local source/destination shares. Synthetic
-  // test modes deliberately preserve the balanced legacy baseline.
-  const local=regional&&moment?junctionLocalProfile(road,j.ref):undefined;
-  const entryShare=local?.entryPercent??legacyShare;
-  const exitShare=local?.exitPercent??legacyShare;
+  // Defined in one readable AS catalog: distinct local offers (entries)
+  // and destination shares (exits), not extra vehicles silently injected.
+  const local=localJunctionShares(road,j.ref,!!(regional&&moment));
+  const entryShare=local.entryPercent,exitShare=local.exitPercent;
   const profile=junctionCapacityProfile(road,j.ref);
   const access=junctionAccess(route,events,j.metre,j.ref);
   return {id:route.key+':local:'+j.ref,ref:j.ref,metre:j.metre,
