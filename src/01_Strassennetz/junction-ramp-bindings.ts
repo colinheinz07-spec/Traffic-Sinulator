@@ -47,7 +47,17 @@ export function junctionRampBindings(route:Corridor,exits:readonly Exit[]):Junct
   const at=(r:ExtensionRoute,end:boolean)=>r.points[(end!==reverse)?r.points.length-1:0]!;
   const seeds=ramps.filter(r=>vertices.has(pointKey(at(r,false))));
   for(const seed of seeds){
-   if(/^(AD |AK )/.test(seed.zone))continue;
+   // Der Generator benennt manche reale lokale Zufahrt am Rand eines AK/AD
+   // nach dem benachbarten Autobahnknoten (z. B. A565 Bonn-Beuel-Nord).
+   // Ein Knoten-LABEL allein beweist deshalb nicht, dass es sich um eine
+   // reine Autobahn-Überleitung handelt. Nur wenn der Rampenanfang exakt
+   // mit dem gerichteten, tatsächlich importierten OSM-AS-Anker
+   // übereinstimmt, darf dieser Seed als lokale Rampe geprüft werden.
+   // Das Ende muss wie bisher eine verifizierte lokale Straßenanbindung
+   // erreichen – sonst erzeugt visit() keine lokale Rampenbindung.
+   if(/^(AD |AK )/.test(seed.zone)&&!anchors.some(a=>
+    a.j.directional?.[route.key]?.nodeId&&pointKey(a.point)===pointKey(at(seed,false))
+    &&a.j.access?.[route.key]?.[kind]!==false))continue;
    const connection=at(seed,false),labelled=anchors.filter(a=>seed.zone.startsWith(road+' AS '+a.j.ref+' '));
    const junction=(labelled.length?labelled:anchors).filter(a=>a.j.access?.[route.key]?.[kind]!==false)
     .map(a=>({...a,d:distance(a.point,connection)})).sort((a,b)=>a.d-b.d)[0];
@@ -60,6 +70,11 @@ export function junctionRampBindings(route:Corridor,exits:readonly Exit[]):Junct
     if(sequence.length>8||boundaryIndex===undefined&&trunks.has(end))return;
     const following=(graph.get(end)??[]).filter(r=>!sequence.includes(r));
     if(boundaryIndex===undefined&&following.length){for(const r of following)visit([...sequence,r]);return;}
+    // Ein falsch nach AD/AK benannter AS-Abzweig wird nur dann als
+    // ORTS-RAMPE freigegeben, wenn der nachverfolgte Weg tatsächlich eine
+    // im OSM-Import erfasste lokale Straße erreicht. Ein bloß endendes
+    // motorway_link-Fragment ist keine nachgewiesene Abfahrt.
+    if(boundaryIndex===undefined&&/^(AD |AK )/.test(seed.zone))return;
     const ordered=reverse?[...sequence].reverse():sequence;let lengthM=0;
     const segments=ordered.map(ramp=>{
      let rampFromM=0,length=rampLength(ramp);
