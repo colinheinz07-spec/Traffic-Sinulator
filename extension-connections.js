@@ -1,6 +1,6 @@
-import { extensionRoutes } from './network-extensions.js?build=6f9588346cdc71ff';
-import { MOTORWAY_ROUTE_KEYS } from './network-catalog.js?build=6f9588346cdc71ff';
-import { motorwayEndpointIndex } from './network-topology.js?build=6f9588346cdc71ff';
+import { extensionRoutes } from './network-extensions.js?build=78f2cf56b5451479';
+import { MOTORWAY_ROUTE_KEYS } from './network-catalog.js?build=78f2cf56b5451479';
+import { motorwayEndpointIndex } from './network-topology.js?build=78f2cf56b5451479';
 /** Connect only exact retained OSM endpoints. A self reference denotes an
  * external network boundary, not a fabricated road to an unmapped motorway. */
 export function buildExtensionConnections(routes) {

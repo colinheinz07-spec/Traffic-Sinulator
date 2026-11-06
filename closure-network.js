@@ -1,6 +1,6 @@
-import { closureGate, positionM } from './spatial.js?build=6f9588346cdc71ff';
-import { junctionRampBindings } from './junction-ramp-bindings.js?build=6f9588346cdc71ff';
-import { routeDescriptor } from './network-catalog.js?build=6f9588346cdc71ff';
+import { closureGate, positionM } from './spatial.js?build=78f2cf56b5451479';
+import { junctionRampBindings } from './junction-ramp-bindings.js?build=78f2cf56b5451479';
+import { routeDescriptor } from './network-catalog.js?build=78f2cf56b5451479';
 const EPS = 2;
 const inClosed = (at, from, to, atGate = false) => at >= from - (atGate ? EPS : -EPS) && at < to - EPS;
 /** A full closure affects only the selected direction and legal movements
@@ -41,6 +41,19 @@ export function closedNetworkSpans(events, routes, exits, connections) {
             if (!ramp)
                 continue;
             add(event.id, link.rampId, 0, ramp.lengthM, 'interchange-entry');
+        }
+        // Exit to the LOCAL road network: one endpoint belongs to the closed
+        // motorway and the other lies outside our Autobahn simulation. A fork
+        // leading to another *mapped motorway* is an open escape route instead.
+        for (const link of connections) {
+            if (link.from !== route.key || link.to !== link.rampId)
+                continue;
+            if (!inClosed(link.rampEntryM, gate.metre, gate.endM, false))
+                continue;
+            const ramp = routes[link.rampId];
+            if (!ramp)
+                continue;
+            add(event.id, link.rampId, 0, ramp.lengthM, 'local-exit');
         }
         // Ordinary directional AS ramps. Last upstream off-ramp remains open;
         // its paired on-ramp is barred from entering the closed section.

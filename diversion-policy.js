@@ -1,14 +1,14 @@
-import { networkRoad } from './network-road.js?build=6f9588346cdc71ff';
-import { cellQueueSpans } from './traffic-cells.js?build=6f9588346cdc71ff';
-import { closureGate } from './spatial.js?build=6f9588346cdc71ff';
-import { diversionJunctions, nearestExitBeforeQueue, potentialDiversionPercent } from './diversions.js?build=6f9588346cdc71ff';
-import { speedDelayInCells } from './speed-delay.js?build=6f9588346cdc71ff';
-import { eventCapacity, defaultDemand } from './traffic.js?build=6f9588346cdc71ff';
-import { freeSpeedKmh } from './traffic-physics.js?build=6f9588346cdc71ff';
-import { INTERCHANGE_DIVERSION_START_MIN, interchangeTrafficShare } from './interchange.js?build=6f9588346cdc71ff';
-import { closedMovementEvent, viaJourneyUsable, journeyRampCapacity, journeyTrafficShare } from './interchange-journeys.js?build=6f9588346cdc71ff';
-import { accessibleExits, junctionAccess } from './road-controls.js?build=6f9588346cdc71ff';
-import { exitRampVehicles, DEFAULT_EXIT_TERMINAL_VPH } from './junction-traffic.js?build=6f9588346cdc71ff';
+import { networkRoad } from './network-road.js?build=78f2cf56b5451479';
+import { cellQueueSpans } from './traffic-cells.js?build=78f2cf56b5451479';
+import { closureGate } from './spatial.js?build=78f2cf56b5451479';
+import { diversionJunctions, nearestExitBeforeQueue, potentialDiversionPercent } from './diversions.js?build=78f2cf56b5451479';
+import { speedDelayInCells } from './speed-delay.js?build=78f2cf56b5451479';
+import { eventCapacity, defaultDemand } from './traffic.js?build=78f2cf56b5451479';
+import { freeSpeedKmh } from './traffic-physics.js?build=78f2cf56b5451479';
+import { INTERCHANGE_DIVERSION_START_MIN, interchangeTrafficShare } from './interchange.js?build=78f2cf56b5451479';
+import { closedMovementEvent, viaJourneyUsable, journeyRampCapacity, journeyTrafficShare } from './interchange-journeys.js?build=78f2cf56b5451479';
+import { accessibleExits, junctionAccess } from './road-controls.js?build=78f2cf56b5451479';
+import { exitRampVehicles, DEFAULT_EXIT_TERMINAL_VPH } from './junction-traffic.js?build=78f2cf56b5451479';
 function exitTerminalWait(source, metre) {
     const ramp = source.junctions?.find(j => Math.abs(j.metre - metre) < 25);
     return ramp ? exitRampVehicles(ramp) / Math.max(1, ramp.exitTerminalVph ?? DEFAULT_EXIT_TERMINAL_VPH) * 60 : 0;
