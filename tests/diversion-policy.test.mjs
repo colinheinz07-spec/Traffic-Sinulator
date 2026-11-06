@@ -48,7 +48,7 @@ test('voluntary diversion is zero below 45 min and starts with a few drivers, fo
  assert.equal(voluntaryDiversionPercent(45),2);
  assert.ok(voluntaryDiversionPercent(45,10)>0&&voluntaryDiversionPercent(45,10)<2);
  assert.ok(voluntaryDiversionPercent(60)>voluntaryDiversionPercent(45));
- assert.equal(voluntaryDiversionPercent(500),100);
+ assert.equal(voluntaryDiversionPercent(500),95,'only a formal full closure may divert everyone');
  for(const kind of ['accident','roadworks','breakdown']){
   const path='A3-koeln',event=incident(path,'38','37',kind),entries=prepare(event),at=positionM(routes[path],event.point);
   const low=withQueue(path,at-3000,at,44),high=withQueue(path,at-3000,at,45);
@@ -220,8 +220,7 @@ test('long real Unfall runs never force remote exits and use the remaining delay
     const remaining=speedDelayInCells(previous,d.config.fromM,d.config.toM);
     assert.ok(remaining.delayMin>=45-1e-9,'voluntary departures require remaining delay, even at distant AS');
     assert.ok(d.desiredPercent>=0&&d.desiredPercent<=100);
-    if(d.desiredPercent===100)assert.ok(remaining.delayMin>=180,
-     'all drivers may choose a viable bypass only with a genuinely very high remaining delay');
+    assert.ok(d.desiredPercent<100,'an accident must not create a mandatory 100% diversion');
     assert.equal(routedDiversionChoice(d,entries,{[path]:previous},routes,[event],exits,
      {...defaultDemands(),[path]:4200}).mandatory,false,'an accident remains a voluntary diversion');
    }
