@@ -1,0 +1,31 @@
+name: Compile versioned junction-queue browser modules
+on:
+  push:
+    branches: [fix/shared-interchange-receiving]
+    paths: ['.github/workflows/build-shared-interchange.yml']
+permissions:
+  contents: write
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/shared-interchange-receiving
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci --no-audit --no-fund
+      - run: npm run build
+      - name: Save compiled JS together with its matching import fingerprints
+        run: |
+          git add index.html ./*.js
+          if git diff --cached --quiet; then exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "build: publish shared interchange receiving and fingerprinted scripts"
+          git fetch origin fix/shared-interchange-receiving
+          git rebase origin/fix/shared-interchange-receiving
+          git push origin HEAD:fix/shared-interchange-receiving
