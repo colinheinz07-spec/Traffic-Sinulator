@@ -6,7 +6,7 @@ import type {Exit} from '../core.js';
 const state=new WeakMap<object,Map<string,DirectionNetworkAudit>>();
 const st=(status:RampAuditStatus)=>status==='bound'?'zugeordnet':
  status==='not-applicable'?'laut Daten nicht vorhanden':'Zuordnung prüfen';
-function line(tag:'div'|'strong'|'span'|'small',value:string,className=''):HTMLElement{
+function line(tag:'div'|'strong'|'span'|'small'|'summary',value:string,className=''):HTMLElement{
  const e=document.createElement(tag);e.textContent=value;if(className)e.className=className;
  return e;
 }
@@ -46,7 +46,7 @@ export function renderNetworkAudit(path:string,routes:Readonly<Record<string,Cor
   const ramps=[...new Set([...access.entryRamps,...access.exitRamps])];
   if(ramps.length){
    const details=document.createElement('details');
-   details.append(line('summary' as 'div','Rampen-IDs ('+ramps.length+')'));
+   details.append(line('summary','Rampen-IDs ('+ramps.length+')'));
    details.append(line('small',ramps.join(' · ')));
    item.append(details);
   }
