@@ -7,6 +7,7 @@ import {MOTORWAY_PATHS,MOTORWAY_GROUPS,junctionDirectory,junctionRoute,trafficOv
 import type {DetourGeometry} from './detour-routing.js';
 import {planExtensionDetours,refreshExtensionDetour,extensionDetours} from './extension-detours.js';
 import {networkRoad} from './network-road.js';
+import {closedNetworkSpans} from './closure-network.js';
 import {routeDescriptor} from './network-catalog.js';
 import {buildExtensionConnections} from './extension-connections.js';
 import {extensionRoutes,extensionRoute,extensionJunctions} from './network-extensions.js';
@@ -1120,21 +1121,43 @@ function drawSpatialJams(){
   trafficLabelRects.push(callout);
  }
 }
+/** A white/red closure stripe covers the whole ADMINISTRATIVELY closed
+ * directional interval, not only the incident marker's short physical length.
+ * Only access ramps entering that section are striped. Open motorway bypass
+ * arms remain green unless occupied by their own real vehicle queues. */
 function drawClosureSections(){
  const widths=lineWidths(zoom);
- for(const event of activeEvents()){
-  if(event.kind!=='closure')continue;
-  const route=spatialCorridors[event.pathKey as PathKey];if(!route)continue;
-  const from=positionM(route,event.point);if(from===null)continue;
-  const to=Math.min(route.lengthM,from+event.settings.lengthM);
-  const narrow=event.pathKey.startsWith('ramp-')||extensionRoute(event.pathKey)?.kind==='ramp';
-  for(const visible of visibleRanges(event.pathKey,route.points)){
-   const start=Math.max(from,visible.fromM),end=Math.min(to,visible.toM);
-   if(end-start<1)continue;
-   const line=routeSlice(route,start,end);if(line.length<2)continue;
-   const width=narrow?widths.ramp:widths.motorway;
-   stroke(line,width+2.6,'#ffe8e8');
-   context!.save();context!.setLineDash([7,6]);stroke(line,width+1.2,'#c72535');context!.restore();
+ const intervals=closedNetworkSpans(activeEvents(),spatialCorridors,exits,networkConnections);
+ let marked=0;
+ for(const closed of intervals){
+  const route=spatialCorridors[closed.pathKey];if(!route)continue;
+  const narrow=closed.source!=='motorway';
+  const width=narrow?widths.ramp:widths.motorway;
+  for(const visible of visibleRanges(closed.pathKey,route.points)){
+   const from=Math.max(closed.fromM,visible.fromM);
+   const to=Math.min(closed.toM,visible.toM);
+   if(to-from<1)continue;
+   const line=routeSlice(route,from,to);if(line.length<2)continue;
+   // Google-Maps-style alternating red and white closure strokes.
+   stroke(line,width+2.8,'#fff7f7');
+   context!.save();
+   context!.setLineDash([Math.max(6,width*1.4),Math.max(6,width*1.4)]);
+   stroke(line,width+1.1,'#c92537');
+   context!.restore();
+   // A blockage symbol at the start of the closed stretch and on zoomed
+   // ramp arms; the event itself has its own existing ⛔ marker.
+   if(zoom>=12.6&&marked<32){
+    const at=narrow?(from+to)*.5:from+Math.min(90,(to-from)*.25);
+    const point=routeSlice(route,Math.max(0,at-.5),Math.min(route.lengthM,at+.5))[0];
+    if(point){
+     const [x,y]=toScreen(point),bounds=canvas.getBoundingClientRect();
+     if(x>16&&y>16&&x<bounds.width-16&&y<bounds.height-16){
+      context!.save();context!.font='15px system-ui,"Apple Color Emoji"';
+      context!.textAlign='center';context!.textBaseline='middle';
+      context!.fillText('⛔',x,y);context!.restore();marked++;
+     }
+    }
+   }
   }
  }
 }
