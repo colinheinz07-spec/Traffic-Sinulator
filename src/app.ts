@@ -1,6 +1,6 @@
 import {visibleRanges,canonicalPhysicalEvent} from './physical-paths.js';
 import {junctionRampBindings,junctionRampJams,junctionRampFlows} from './junction-ramp-bindings.js';
-import {mainlineMerges,downstreamReceiving,rampReceiving} from './network-receiving.js';
+import {mainlineMerges,sharedNetworkReceiving} from './network-receiving.js';
 import {profileDescription} from './traffic-profiles.js';
 import {regionalFlowAt,regionalBoundaryFlow,regionalDescription} from './regional-traffic.js';
 import {MOTORWAY_PATHS,MOTORWAY_GROUPS,junctionDirectory,junctionRoute,trafficOverviewPaths} from './network-presentation.js';
@@ -862,10 +862,19 @@ function stepTraffic(minutes:number){
    const transfers:import('./spatial.js').SpatialTransfer[]=[];
    const jams=trafficJams(timeline);
    const spillbacks=rampSpillbacks(jams,networkConnections,spatialCorridors);
-   // Actual departures and returns share the A3/A48 cell inventory.
+   // The target receiving face is shared by direct motorway feeders AND
+   // connected ramps. Allocate it once from the SAME previous-minute CTM
+   // snapshot, or two solvers could each take the entire free capacity.
    for(const key of CELL_PATHS)cellNetwork[key]??=initialiseCells(spatialCorridors[key],active[key],demandMode==='clock'?metre=>regionalFlowAt(spatialCorridors[key],exits,active[key],metre,simulatedClock()):undefined);
+   const pendingRampDemand=remainingInterchangeDemands(active,[...activeDetours.values()],timeline);
+   for(const key of localRampPaths)pendingRampDemand[key]=0;
+   for(const feature of extensionRoutes)if(!visibleRanges(feature.id,feature.points).length)pendingRampDemand[feature.id]=0;
+   const queuedRampStock:Partial<Record<PathKey,number>>={};
+   for(const queue of Object.values(spatialState.queues))
+    queuedRampStock[queue.pathKey]=(queuedRampStock[queue.pathKey]??0)+queue.vehicles;
+   const receiving=sharedNetworkReceiving(cellNetwork,networkConnections,directMerges,pendingRampDemand,queuedRampStock);
    const next=advanceRoutedNetwork(cellNetwork,spatialCorridors,timeline,active,exits,[...activeDetours.values()],
-    interchangeDelays(jams,timeline),simulatedClock(),demandMode==='clock',downstreamReceiving(cellNetwork,directMerges));
+    interchangeDelays(jams,timeline),simulatedClock(),demandMode==='clock',receiving.motorways);
    cellNetwork=next.cells;
    for(const entry of next.detours)activeDetours.set(entry.config.id,entry);
    transfers.push(...next.transfers);
@@ -879,13 +888,10 @@ function stepTraffic(minutes:number){
    const rampPaths:PathKey[]=[...new Set<PathKey>([...PATHS,...connectedRampPaths,
     ...timeline.filter(e=>extensionRoute(e.pathKey)?.kind==='ramp'&&!localRampPaths.has(e.pathKey as PathKey)).map(e=>e.pathKey as PathKey),
     ...Object.values(spatialState.queues).filter(q=>extensionRoute(q.pathKey)?.kind==='ramp'&&!localRampPaths.has(q.pathKey)).map(q=>q.pathKey)])];
-   // Queued vehicles are still real demand even when their ramp's new
-   // arrivals drop to zero (e.g. after a diversion is disabled).
-   const storedRampVehicles:Partial<Record<PathKey,number>>={};
-   for(const queue of Object.values(spatialState.queues))
-    storedRampVehicles[queue.pathKey]=(storedRampVehicles[queue.pathKey]??0)+queue.vehicles;
+   // Consume the ramp share of the SAME allocation used by mainline CTM.
+   // Existing ramp stock remains counted in this one shared budget.
    spatialState=advanceSpatial(spatialState,timeline,legacyActive,1,spatialCorridors,networkConnections,transfers,exits,physicalMainline,rampPaths,
-    rampReceiving(cellNetwork,networkConnections,legacyActive,storedRampVehicles));
+    receiving.ramps);
   }
  }
  catch(e){stopTraffic();$('traffic-issue').textContent=e instanceof Error?e.message:'Simulationsfehler';return;}
