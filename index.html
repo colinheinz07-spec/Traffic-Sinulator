@@ -163,6 +163,12 @@
 .network-audit-row details{font-size:.7rem;color:#bdddea;word-break:break-word}
 .network-audit-row details summary{cursor:pointer}
 .network-audit-problem,.network-audit-note{border:1px solid #64738a;border-radius:8px;padding:9px;font-size:.77rem;line-height:1.5;color:#e3edf6}
+
+.osm-map-classes-control{margin:7px 10px 4px;border:1px solid #3b627e;border-radius:11px;padding:9px 12px;background:#10293b}
+.osm-map-classes-control label{display:flex;align-items:center;gap:9px;color:#d9eefd;font-size:.8rem;cursor:pointer}
+.osm-map-classes-control input{accent-color:#67c7fa;width:20px;height:20px;flex-shrink:0}
+.osm-map-classes-control p{font-size:.7rem;line-height:1.55;color:#b8cedb;margin:5px 0 0}
+.osm-color-line{display:inline-block;width:20px;height:5px;border-radius:4px;vertical-align:middle;margin-left:7px;margin-right:2px}
 </style></head><body><main>
 <header><div><div class="eyebrow">Stausimulator · Kartenfundament</div><h1>A3 · A4 · A48 · A59 · A559 · A560 · A562</h1></div><span class="phase">TRAFFIC 1.23.0</span></header>
 <div class="toolbar"><button id="heumar">AD Köln-Heumar</button><button id="bad-camberg">AS Bad Camberg</button><button id="fit" class="primary">Gesamtes Netz</button><button id="dernbach">AD Dernbach</button><button id="koblenz">AK Koblenz</button><button id="diez">AS Diez</button><button id="limburg-nord">AS Limburg-Nord</button><button id="limburg-sued">AS Limburg-Süd</button><button id="honnef">AS Bad Honnef/Linz</button><button id="siebengebirge">AS Siebengebirge</button><button id="bonn-siegburg">AK Bonn/Siegburg</button></div>
@@ -179,6 +185,14 @@
 </section>
 <div class="traffic-playbar map-playbar" aria-label="Simulation steuern"><button id="traffic-play" type="button" class="primary" aria-pressed="false">▶ Start</button><button id="traffic-reset" type="button">Zurücksetzen</button><strong id="traffic-minute">Minute 0</strong></div>
 <section class="map-shell"><canvas id="map" aria-label="Interaktive Karte der A3, A4, A48, A59, A559, A560 und A562 mit Anschlussstellen und Überleitungen"></canvas><div class="map-status" id="status">Geprüfte Autobahndaten werden geladen …</div><div class="map-controls"><button id="plus" aria-label="Vergrößern">+</button><button id="minus" aria-label="Verkleinern">−</button></div><div class="legend"><span><i class="swatch" style="background:#26bb7c"></i>Frei (&gt;65 km/h)</span><span><i class="swatch" style="background:#f59e0b"></i>Stockend (&gt;30–65 km/h)</span><span><i class="swatch" style="background:#dc2626"></i>Stau/Stop-and-Go (&gt;10–30 km/h)</span><span><i class="swatch" style="background:#7f1d1d"></i>Stillstand/Kriechverkehr (0–10 km/h)</span><span><i class="swatch" style="background:#667582"></i>Gesperrter Fahrstreifen</span></div></section>
+<div class="osm-map-classes-control">
+ <label for="osm-autobahnfarben-toggle"><input id="osm-autobahnfarben-toggle" type="checkbox">
+  <strong>Autobahnzugehörigkeit auf der Karte hervorheben</strong></label>
+ <p><span class="osm-color-line" style="background:#3776ed"></span> Autobahn-Hauptfahrbahn
+  <span class="osm-color-line" style="background:#8ddfff"></span> Autobahnrampe/Überleitung
+  · Schmale Umrandungen aus dem importierten OSM-Netz. Die inneren Grün-/Rotfarben zeigen weiterhin den <b>Verkehr</b>.</p>
+ <p>Der Farbunterschied macht die Straßenarten erkennbar, aber <b>keine alleinige Fahrverbindung</b>: Bei Rampen zählen die tatsächlichen OSM-Knoten und die Fahrtrichtung. Rastplatz-Zufahrten sind keine regulären Anschlussstellen.</p>
+</div>
 <div id="hint" class="subline" aria-live="polite">Fahrbahn oder Rampe antippen, um den exakten Kartenpunkt auszuwählen.</div>
 <details class="panel junction-directory"><summary>Alle Anschlussstellen &amp; Knotenpunkte (<span id="junction-count">17</span>)</summary><div id="junctions" class="junction-directory-roads"><p>Anschlussstellen werden geladen …</p></div></details>
 
