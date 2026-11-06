@@ -1,2 +1,2 @@
 /** Bestehender Importpfad; der eigentliche Code liegt in 03_Stauphysik/speed-delay.ts. */
-export * from './03_Stauphysik/speed-delay.js?build=3fc5ece22d309f6b';
+export * from './03_Stauphysik/speed-delay.js?build=bd958533e4972c3f';

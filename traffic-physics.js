@@ -1,2 +1,2 @@
 /** Weiterleitung: Die aktive Logik steht in src/03_Stauphysik.ts. */
-export * from './03_Stauphysik.js?build=3fc5ece22d309f6b';
+export * from './03_Stauphysik.js?build=bd958533e4972c3f';

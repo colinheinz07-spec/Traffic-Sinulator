@@ -1,2 +1,2 @@
 /** Bestehender Importpfad; der eigentliche Code liegt in 01_Strassennetz/physical-paths.ts. */
-export * from './01_Strassennetz/physical-paths.js?build=3fc5ece22d309f6b';
+export * from './01_Strassennetz/physical-paths.js?build=bd958533e4972c3f';

@@ -1,12 +1,12 @@
 /** 01_Strassennetz: Zugeordnetes Fachmodul junction-ramp-bindings. */
 /** Local ramps render the SAME vehicles held by the junction solver.
  * A downstream incident alone never creates a second ramp inventory. */
-import { networkData } from '../geodata.js?build=3fc5ece22d309f6b';
-import { extensionRoutes, extensionRampBoundaryPoints } from '../network-extensions.js?build=3fc5ece22d309f6b';
-import { exitPosition, nearestPolyline } from '../core.js?build=3fc5ece22d309f6b';
-import { networkRoad } from '../network-road.js?build=3fc5ece22d309f6b';
-import { eventCapacity } from '../traffic.js?build=3fc5ece22d309f6b';
-import { queueFundamentalDiagram, colorAtSpeed } from '../traffic-physics.js?build=3fc5ece22d309f6b';
+import { networkData } from '../geodata.js?build=bd958533e4972c3f';
+import { extensionRoutes, extensionRampBoundaryPoints } from '../network-extensions.js?build=bd958533e4972c3f';
+import { exitPosition, nearestPolyline } from '../core.js?build=bd958533e4972c3f';
+import { networkRoad } from '../network-road.js?build=bd958533e4972c3f';
+import { eventCapacity } from '../traffic.js?build=bd958533e4972c3f';
+import { queueFundamentalDiagram, colorAtSpeed } from '../traffic-physics.js?build=bd958533e4972c3f';
 const pointKey = (p) => p.join(',');
 const distance = (a, b) => Math.hypot((b[0] - a[0]) * 111195, (b[1] - a[1]) * 111195 * Math.cos((a[0] + b[0]) * Math.PI / 360));
 const rampLength = (r) => r.points.slice(1).reduce((n, p, i) => n + distance(r.points[i], p), 0);
@@ -43,7 +43,16 @@ export function junctionRampBindings(route, exits) {
         const at = (r, end) => r.points[(end !== reverse) ? r.points.length - 1 : 0];
         const seeds = ramps.filter(r => vertices.has(pointKey(at(r, false))));
         for (const seed of seeds) {
-            if (/^(AD |AK )/.test(seed.zone))
+            // Der Generator benennt manche reale lokale Zufahrt am Rand eines AK/AD
+            // nach dem benachbarten Autobahnknoten (z. B. A565 Bonn-Beuel-Nord).
+            // Ein Knoten-LABEL allein beweist deshalb nicht, dass es sich um eine
+            // reine Autobahn-Überleitung handelt. Nur wenn der Rampenanfang exakt
+            // mit dem gerichteten, tatsächlich importierten OSM-AS-Anker
+            // übereinstimmt, darf dieser Seed als lokale Rampe geprüft werden.
+            // Das Ende muss wie bisher eine verifizierte lokale Straßenanbindung
+            // erreichen – sonst erzeugt visit() keine lokale Rampenbindung.
+            if (/^(AD |AK )/.test(seed.zone) && !anchors.some(a => a.j.directional?.[route.key]?.nodeId && pointKey(a.point) === pointKey(at(seed, false))
+                && a.j.access?.[route.key]?.[kind] !== false))
                 continue;
             const connection = at(seed, false), labelled = anchors.filter(a => seed.zone.startsWith(road + ' AS ' + a.j.ref + ' '));
             const junction = (labelled.length ? labelled : anchors).filter(a => a.j.access?.[route.key]?.[kind] !== false)
@@ -64,6 +73,12 @@ export function junctionRampBindings(route, exits) {
                         visit([...sequence, r]);
                     return;
                 }
+                // Ein falsch nach AD/AK benannter AS-Abzweig wird nur dann als
+                // ORTS-RAMPE freigegeben, wenn der nachverfolgte Weg tatsächlich eine
+                // im OSM-Import erfasste lokale Straße erreicht. Ein bloß endendes
+                // motorway_link-Fragment ist keine nachgewiesene Abfahrt.
+                if (boundaryIndex === undefined && /^(AD |AK )/.test(seed.zone))
+                    return;
                 const ordered = reverse ? [...sequence].reverse() : sequence;
                 let lengthM = 0;
                 const segments = ordered.map(ramp => {

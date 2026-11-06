@@ -1,11 +1,11 @@
 /** 02_Verkehr: Zugeordnetes Fachmodul junction-traffic. */
-import { regionalFlowAt, regionalJunctionDemands } from '../regional-traffic.js?build=3fc5ece22d309f6b';
-import { localJunctionShares } from './anschlussstellen-nachfrage.js?build=3fc5ece22d309f6b';
-import { networkRoad } from '../network-road.js?build=3fc5ece22d309f6b';
-import { junctionAccess } from '../road-controls.js?build=3fc5ece22d309f6b';
-import { localRoadAvailability } from '../calendar-traffic.js?build=3fc5ece22d309f6b';
-import { applyJunctionRampLimits } from '../junction-ramp-bindings.js?build=3fc5ece22d309f6b';
-import { diversionJunctions } from '../diversions.js?build=3fc5ece22d309f6b';
+import { regionalFlowAt, regionalJunctionDemands } from '../regional-traffic.js?build=bd958533e4972c3f';
+import { localJunctionShares } from './anschlussstellen-nachfrage.js?build=bd958533e4972c3f';
+import { networkRoad } from '../network-road.js?build=bd958533e4972c3f';
+import { junctionAccess } from '../road-controls.js?build=bd958533e4972c3f';
+import { localRoadAvailability } from '../calendar-traffic.js?build=bd958533e4972c3f';
+import { applyJunctionRampLimits } from '../junction-ramp-bindings.js?build=bd958533e4972c3f';
+import { diversionJunctions } from '../diversions.js?build=bd958533e4972c3f';
 // No surveyed AS signal plans or local off-ramp lengths are bundled. These
 // are explicit defaults: roughly one 300 m queue lane, and ~39% effective
 // green at 1800 veh/h/lane. They are not measured AS-specific capacities.
