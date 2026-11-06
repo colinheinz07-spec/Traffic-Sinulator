@@ -917,6 +917,10 @@ function initializeTraffic(){
   demandMode=pattern.value==='constant'?'constant':pattern.value==='wave'?'wave':'clock';
   renderTraffic();
  });
+ // Beim Aufklappen die gerade gewählte Richtung sofort auswerten.
+ $('traffic-local-demand-panel').addEventListener('toggle',()=>{
+  if(($('traffic-local-demand-panel') as HTMLDetailsElement).open)renderTrafficSafely();
+ });
  const startInput=$<HTMLInputElement>('traffic-start-datetime');
  startInput.value=dateTimeInputValue(new Date(simulationStartMs));
  startInput.addEventListener('change',()=>{
