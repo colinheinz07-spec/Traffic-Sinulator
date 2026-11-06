@@ -110,7 +110,7 @@ test('latest HTML legend and linked physics are speed-based',()=>{
  assert.ok(html.includes('TRAFFIC '+JSON.parse(readFileSync('package.json','utf8')).version));
  for(const label of ['Frei (&gt;65 km/h)','Stockend (&gt;30–65 km/h)','Stau\/Stop-and-Go (&gt;10–30 km/h)','Stillstand\/Kriechverkehr (0–10 km/h)'])
   assert.ok(html.includes(label),label);
- const view=readFileSync('src/traffic-view.ts','utf8');
+ const view=readFileSync('src/06_Karte/traffic-view.ts','utf8');
  assert.match(view,/physicalSpeedBands\(jam\)/);
  assert.match(view,/resolveSpeedBands\(bands\)/);
  assert.ok(app.includes('view.bands'));
