@@ -74,7 +74,7 @@ test('repainting after changing a posted speed without advancing simulation leav
 });
 test('SPCK app uses wave speeds in place of entire single-color queue, ramps included',()=>{
  const app=readFileSync('src/app.ts','utf8');
- const view=readFileSync('src/traffic-view.ts','utf8');
+ const view=readFileSync('src/06_Karte/traffic-view.ts','utf8');
  assert.ok(app.includes('view.bands'));
  assert.match(view,/stopAndGoBands\(jam,minute\)/);
  assert.match(view,/speedHistory:parent\.speedHistory/);
