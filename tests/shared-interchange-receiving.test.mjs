@@ -96,3 +96,19 @@ test('feeder CTM conserves its vehicles when pooled destination supply is exhaus
  assert.equal(pooled.mainline[source],0);
  assert.ok(next.backlog>=0);
 });
+
+test('stopped motorway feeder retains receiving service for cars already near the junction',()=>{
+ const metre=2700,source='extra-a59-koeln',onRamp='ramp-a48-to-koeln';
+ const targetState=grid(metre);
+ const approach=initialiseCells(routes[source],1700);
+ assert.ok(approach.cells.at(-1).vehicles>0);
+ const vehicles=approach.cells.at(-1).vehicles;
+ const available=sharedInterchangeReceiving(
+  {[target]:targetState,[source]:approach},
+  [ramp(onRamp,metre)],[merge(source,metre)],
+  {[source]:0,[onRamp]:1500});
+ assert.ok(available.mainline[source]>0,'the feeder cannot freeze when new external arrivals stop');
+ assert.ok(available.ramps[onRamp]>0);
+ assert.ok(available.mainline[source]+available.ramps[onRamp]<=220+1e-6);
+ assert.equal(approach.cells.at(-1).vehicles,vehicles);
+});
