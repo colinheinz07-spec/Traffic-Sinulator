@@ -23,8 +23,8 @@ const awayToOpen=route('ramp-to-open',[[50,7.019],[50.003,7.017]]);
 const before=route('ramp-before-closure',[[50.002,7.006],[50,7.007]]);
 const other=route('ramp-into-other',[[50.003,7.017],[50.004,7.019]]);
 const routes=Object.fromEntries([main,branch,toAachen,awayToOpen,before,other].map(r=>[r.key,r]));
-const exits=[{road:'A4',ref:'15',name:'AD Köln-Heumar',position:main.points[1],source:'test'},
- {road:'A4',ref:'16',name:'AK Köln-Süd',position:main.points[2],source:'test'}];
+const exits=[{road:'A4',ref:'915',name:'AD Köln-Heumar',position:main.points[1],source:'test'},
+ {road:'A4',ref:'916',name:'AK Köln-Süd',position:main.points[2],source:'test'}];
 const pos=main.metres;
 const event={id:'closed-aachen',kind:'closure',pathKey:selected,point:[50,7.018],
  laneCount:3,closedLanes:[0,1,2],createdAt:'2026-11-06T00:00:00Z',
@@ -37,8 +37,8 @@ const links=[
 ];
 test('closure spans the last usable exit through the next end exit, not a 400m marker only',()=>{
  const gate=closureGate(main,event,exits,[event]);
- assert.equal(gate.exit.ref,'15');
- assert.equal(gate.endExit.ref,'16');
+ assert.equal(gate.exit.ref,'915');
+ assert.equal(gate.endExit.ref,'916');
  const spans=closedNetworkSpans([event],routes,exits,links);
  const primary=spans.find(x=>x.pathKey===selected);
  assert.equal(primary.fromM,gate.metre);
