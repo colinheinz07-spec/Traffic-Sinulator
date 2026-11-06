@@ -8,58 +8,82 @@ import type {PathKey} from './traffic.js';
 import type {Corridor} from './spatial.js';
 import type {CellRouteState} from './traffic-cells.js';
 import {CONGESTION_WAVE_KMH,QUEUE_JAM_DENSITY_PER_LANE} from './traffic-physics.js';
-/** Share downstream CTM receiving capacity with a physically connected
- * on-ramp. No incident or over-saturation -> no artificial restriction.
- * A ramp's own conserved queue is then handled by advanceSpatial. */
+export interface MainlineMerge {from:PathKey;to:PathKey;mergeM:number}
+export interface NetworkReceivingLimits {
+ /** Available exit service of each feeder motorway, vehicles/hour. */
+ mainline:Partial<Record<PathKey,number>>;
+ /** Available exit service of each directed interchange ramp, vehicles/hour. */
+ ramps:Partial<Record<PathKey,number>>;
+}
+interface ReceivingArm {kind:'mainline'|'ramp';path:PathKey;weight:number}
+interface ReceivingBucket {supply:number;arms:Map<string,ReceivingArm>}
+type RampLink= {rampId:PathKey;to:PathKey;downstreamMergeM:number};
+
+/** One *physical* congested CTM cell owns one receiving budget.
+ * Previous solvers independently gave the full budget to upstream motorways
+ * AND every incoming ramp; a heavily overloaded interchange could therefore
+ * discharge several times the number of vehicles that would fit.
+ *
+ * The returned limits only govern REAL arrivals. Empty ramps remain free.
+ * Existing vehicles are not deleted; an unserved approach retains its queue.
+ * This is a deterministic scenario allocator, not a calibrated turn-count.
+ */
+export function sharedInterchangeReceiving(
+ cells:Readonly<Partial<Record<PathKey,CellRouteState>>>,
+ connections:readonly RampLink[],
+ merges:readonly MainlineMerge[],
+ activeVph:Readonly<Partial<Record<PathKey,number>>>={},
+ queuedVehicles:Readonly<Partial<Record<PathKey,number>>>={}
+):NetworkReceivingLimits {
+ const buckets=new Map<string,ReceivingBucket>();
+ const add=(to:PathKey,metre:number,kind:ReceivingArm['kind'],path:PathKey)=>{
+  const state=cells[to];
+  if(!state||!state.cells.length||!Number.isFinite(metre))return;
+  const index=Math.min(state.cells.length-1,Math.max(0,Math.floor(metre/state.cellM)));
+  const cell=state.cells[index]!;
+  const lanes=cell.openLanes?.length??Math.max(1,Math.round((cell.jamDensityVehKm??390)/QUEUE_JAM_DENSITY_PER_LANE));
+  const jam=cell.jamDensityVehKm??QUEUE_JAM_DENSITY_PER_LANE*lanes;
+  const blocked=state.closures?.some(g=>metre>=g.fromM-1&&metre<g.toM-1)??false;
+  if(!blocked&&cell.speedKmh>65&&cell.densityVehKm<=(cell.criticalDensityVehKm??20*lanes)*1.10)return;
+  const supply=blocked||lanes===0?0:Math.max(0,CONGESTION_WAVE_KMH*(jam-cell.densityVehKm));
+  const bucketKey=to+':'+index;
+  const bucket=buckets.get(bucketKey)??{supply,arms:new Map<string,ReceivingArm>()};
+  bucket.supply=Math.min(bucket.supply,supply);
+  const demand=activeVph[path]??defaultDemand(path);
+  const stock=kind==='ramp'?(queuedVehicles[path]??0):(cells[path]?.backlog??0);
+  // Stock is measured in vehicles; multiplying by 60 translates it to one
+  // model-minute of potential discharge for the receiving-share calculation.
+  const weight=Math.max(0,Number.isFinite(demand)?demand:0)+
+   60*Math.max(0,Number.isFinite(stock)?stock:0);
+  bucket.arms.set(kind+':'+path,{kind,path,weight}); // idempotent OSM links
+  buckets.set(bucketKey,bucket);
+ };
+ for(const link of connections)if(link.to!==link.rampId)
+  add(link.to,link.downstreamMergeM,'ramp',link.rampId);
+ for(const link of merges)if(link.to!==link.from)
+  add(link.to,link.mergeM,'mainline',link.from);
+ const limits:NetworkReceivingLimits={mainline:{},ramps:{}};
+ for(const bucket of buckets.values()){
+  const arms=[...bucket.arms.values()],total=arms.reduce((n,a)=>n+a.weight,0);
+  for(const arm of arms){
+   const share=total>0?bucket.supply*arm.weight/total:0;
+   const output=arm.kind==='ramp'?limits.ramps:limits.mainline;
+   // A feeder can touch multiple target cells. Its tightest actual
+   // downstream bottleneck determines its discharge.
+   output[arm.path]=Math.min(output[arm.path]??Infinity,share);
+  }
+ }
+ return limits;
+}
+/** Backward-compatible ramp-only query for isolated junction scenarios. */
 export function rampReceiving(
  cells:Readonly<Partial<Record<PathKey,CellRouteState>>>,
- connections:readonly {rampId:PathKey;to:PathKey;downstreamMergeM:number}[],
+ connections:readonly RampLink[],
  activeVph:Readonly<Partial<Record<PathKey,number>>>={},
  queuedVehicles:Readonly<Partial<Record<PathKey,number>>>={}
 ):Partial<Record<PathKey,number>>{
- const result:Partial<Record<PathKey,number>>={};
- // Several ramps can enter the SAME target CTM face. That face has one
- // receiving budget, not one independent copy for every ramp.
- const receivers=new Map<string,{supply:number;ramps:Set<PathKey>}>();
- for(const link of connections){
-  if(link.to===link.rampId)continue;
-  const dest=cells[link.to];
-  if(!dest||!dest.cells.length)continue;
-  const i=Math.min(dest.cells.length-1,Math.max(0,Math.floor(link.downstreamMergeM/dest.cellM)));
-  const cell=dest.cells[i]!;
-  const lanes=cell.openLanes?.length??Math.max(1,Math.round((cell.jamDensityVehKm??390)/QUEUE_JAM_DENSITY_PER_LANE));
-  const jam=cell.jamDensityVehKm??QUEUE_JAM_DENSITY_PER_LANE*lanes;
-  const blocked=dest.closures?.some(g=>link.downstreamMergeM>=g.fromM-1&&link.downstreamMergeM<g.toM-1)??false;
-  if(!blocked&&cell.speedKmh>65&&cell.densityVehKm<=(cell.criticalDensityVehKm??20*lanes)*1.10)continue;
-  const supply=blocked||lanes===0?0:Math.max(0,CONGESTION_WAVE_KMH*(jam-cell.densityVehKm));
-  const key=link.to+':'+i;
-  const group=receivers.get(key)??{supply,ramps:new Set<PathKey>()};
-  group.supply=Math.min(group.supply,supply);
-  group.ramps.add(link.rampId);
-  receivers.set(key,group);
- }
- for(const {supply,ramps} of receivers.values()){
-  // Initial fractions are scenario weights, not measured turn ratios.
-  // They only allocate the already available supply, never create more.
-  const weights=[...ramps].map(ramp=>{
-   const offered=activeVph[ramp]??defaultDemand(ramp);
-   const stock=queuedVehicles[ramp]??0;
-   // No arrivals and no stored vehicles = no competing merge demand.
-   // Once queued, cars retain a share of receiving service after traffic
-   // upstream stops: closing a ramp does not delete its existing queue.
-   const weight=Math.max(0,Number.isFinite(offered)?offered:0)+
-    60*Math.max(0,Number.isFinite(stock)?stock:0);
-   return {ramp,weight};
-  });
-  const total=weights.reduce((n,r)=>n+r.weight,0);
-  for(const {ramp,weight} of weights){
-   const share=total>0?supply*weight/total:0;
-   result[ramp]=Math.min(result[ramp]??Infinity,share);
-  }
- }
- return result;
+ return sharedInterchangeReceiving(cells,connections,[],activeVph,queuedVehicles).ramps;
 }
-export interface MainlineMerge {from:PathKey;to:PathKey;mergeM:number}
 export function mainlineMerges(routes:Readonly<Record<PathKey,Corridor>>):MainlineMerge[]{
  const index=motorwayEndpointIndex(routes,MOTORWAY_ROUTE_KEYS),result:MainlineMerge[]=[];
  for(const from of MOTORWAY_ROUTE_KEYS){
@@ -75,17 +99,10 @@ export function mainlineMerges(routes:Readonly<Record<PathKey,Corridor>>):Mainli
  }
  return result;
 }
-export function downstreamReceiving(cells:Readonly<Partial<Record<PathKey,CellRouteState>>>,merges:readonly MainlineMerge[]):Partial<Record<PathKey,number>>{
- const output:Partial<Record<PathKey,number>>={};
- for(const link of merges){
-  const target=cells[link.to];if(!target)continue;
-  const i=Math.min(target.cells.length-1,Math.floor(link.mergeM/target.cellM)),cell=target.cells[i]!;
-  const lanes=cell.openLanes?.length??Math.max(1,Math.round((cell.jamDensityVehKm??390)/QUEUE_JAM_DENSITY_PER_LANE));
-  const jam=cell.jamDensityVehKm??QUEUE_JAM_DENSITY_PER_LANE*lanes;
-  const formal=target.closures?.some(g=>link.mergeM>=g.fromM-1&&link.mergeM<g.toM-1);
-  if(!formal&&(cell.speedKmh>65&&cell.densityVehKm<=(cell.criticalDensityVehKm??20*lanes)*1.1))continue;
-  const supply=formal||lanes===0?0:Math.max(0,CONGESTION_WAVE_KMH*(jam-cell.densityVehKm));
-  output[link.from]=Math.min(output[link.from]??Infinity,supply);
- }
- return output;
+/** Backward-compatible motorway-only backpressure query. */
+export function downstreamReceiving(
+ cells:Readonly<Partial<Record<PathKey,CellRouteState>>>,
+ merges:readonly MainlineMerge[]
+):Partial<Record<PathKey,number>>{
+ return sharedInterchangeReceiving(cells,[],merges).mainline;
 }
