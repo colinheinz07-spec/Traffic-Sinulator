@@ -1,10 +1,11 @@
 /** 02_Verkehr: Zugeordnetes Fachmodul junction-traffic. */
-import { regionalFlowAt, regionalJunctionDemands } from '../regional-traffic.js?build=1cc68e0b949f5571';
-import { networkRoad } from '../network-road.js?build=1cc68e0b949f5571';
-import { junctionAccess } from '../road-controls.js?build=1cc68e0b949f5571';
-import { localRoadAvailability } from '../calendar-traffic.js?build=1cc68e0b949f5571';
-import { applyJunctionRampLimits } from '../junction-ramp-bindings.js?build=1cc68e0b949f5571';
-import { diversionJunctions } from '../diversions.js?build=1cc68e0b949f5571';
+import { regionalFlowAt, regionalJunctionDemands } from '../regional-traffic.js?build=075ee7368d0e21ea';
+import { localJunctionShares } from './anschlussstellen-nachfrage.js?build=075ee7368d0e21ea';
+import { networkRoad } from '../network-road.js?build=075ee7368d0e21ea';
+import { junctionAccess } from '../road-controls.js?build=075ee7368d0e21ea';
+import { localRoadAvailability } from '../calendar-traffic.js?build=075ee7368d0e21ea';
+import { applyJunctionRampLimits } from '../junction-ramp-bindings.js?build=075ee7368d0e21ea';
+import { diversionJunctions } from '../diversions.js?build=075ee7368d0e21ea';
 // No surveyed AS signal plans or local off-ramp lengths are bundled. These
 // are explicit defaults: roughly one 300 m queue lane, and ~39% effective
 // green at 1800 veh/h/lane. They are not measured AS-specific capacities.
@@ -31,13 +32,15 @@ export function normalJunctionTraffic(route, exits, demandVph, moment, regional 
         // Junction-specific local turnover. Balanced ordinary entry/exit at the
         // reference free flow avoids artificially growing demand at every node.
         const road = networkRoad(route.key);
-        // Explicit local catchment assumptions, independent of AS numbering.
-        // Montabaur is a stronger distributor than rural Dierdorf.
-        const localShares = { 'A3:40': 12, 'A3:43': 7, 'A3:37': 5, 'A3:36': 7, 'A3:38': 8, 'A48:12': 10, 'A48:11': 11, 'A48:10': 12 };
-        const share = localShares[road + ':' + j.ref] ?? (road === 'A559' || road === 'A59' ? 9 : 6), profile = junctionCapacityProfile(road, j.ref);
+        // Defined in one readable AS catalog: distinct local offers (entries)
+        // and destination shares (exits), not extra vehicles silently injected.
+        const local = localJunctionShares(road, j.ref, !!(regional && moment));
+        const entryShare = local.entryPercent, exitShare = local.exitPercent;
+        const profile = junctionCapacityProfile(road, j.ref);
         const access = junctionAccess(route, events, j.metre, j.ref);
         return { id: route.key + ':local:' + j.ref, ref: j.ref, metre: j.metre,
-            entryVph: access.entry ? (regional && moment ? regionalFlowAt(route, exits, demandVph, j.metre + .1, moment) : demandVph) * share / 100 : 0, exitPercent: access.exit ? share : 0,
+            entryVph: access.entry ? (regional && moment ? regionalFlowAt(route, exits, demandVph, j.metre + .1, moment) : demandVph) * entryShare / 100 : 0,
+            exitPercent: access.exit ? exitShare : 0,
             entryCapacityVph: profile.entry, exitCapacityVph: profile.exit,
             exitTerminalVph: Math.min(profile.exit, profile.terminal * localRoadAvailability(moment)), exitStorageVehicles: profile.storage };
     });
