@@ -1007,8 +1007,16 @@ function toScreen(p:Point):[number,number]{
  const transform=screenProjection();return [world[0]*transform.scale+transform.left,world[1]*transform.scale+transform.top];
 }
 function fromScreen(x:number,y:number):Point{const mid=mercator(focus,zoom);return inverse([mid[0]+x-wrapper.clientWidth/2,mid[1]+y-wrapper.clientHeight/2],zoom);}
+// Nur Karten-Overlay. Die Verkehrsfarben und das Routing bleiben unverändert.
+let showOsmAutobahnClasses=false;
 let frame=0;
 const refresh=()=>{needsDraw=true;if(!frame)frame=requestAnimationFrame(()=>{frame=0;if(needsDraw){needsDraw=false;draw();}});};
+const osmClassesToggle=$<HTMLInputElement>('osm-autobahnfarben-toggle');
+osmClassesToggle.addEventListener('change',()=>{
+ showOsmAutobahnClasses=osmClassesToggle.checked;
+ refresh();
+});
+
 function fit(){
  activeEventId=null;selected=null;$('detail').hidden=true;
  const all=[...allRoads.flatMap(r=>r.points),...ramps.flatMap(r=>r.points)];
@@ -1210,6 +1218,16 @@ function draw(){
  // Exact OSM node-connected chains eliminate thick end caps at ordinary way boundaries.
  // Zoom-adaptive outlines keep both carriageways visually distinct on narrow screens.
  const lines=lineWidths(zoom);
+ // Die zusätzliche schmale Außenkontur zeigt die aus OSM importierte
+ // Straßenklasse (Autobahn-Fahrweg oder Autobahnrampe). Sie ersetzt KEINEN
+ // Knoten-/Richtungstest und ändert KEINE Stau- oder Fahrzeugfarben.
+ if(showOsmAutobahnClasses){
+  for(const road of drawnRoads)stroke(road.points,lines.motorwayCasing+5,'#3776ed');
+  for(const feature of extensionRoutes)for(const range of visibleRanges(feature.id,feature.points))
+   stroke(range.points,(feature.kind==='ramp'?lines.rampCasing:lines.motorwayCasing)+5,
+    feature.kind==='ramp'?'#8ddfff':'#3776ed');
+  for(const ramp of ramps)stroke(ramp.points,lines.rampCasing+5,'#8ddfff');
+ }
  for(const road of drawnRoads)stroke(road.points,lines.motorwayCasing,'#083348');
  for(const feature of extensionRoutes)for(const range of visibleRanges(feature.id,feature.points)){stroke(range.points,feature.kind==='ramp'?lines.rampCasing:lines.motorwayCasing,'#061927');stroke(range.points,feature.kind==='ramp'?lines.ramp:lines.motorway,'#26bb7c');}
  for(const road of drawnRoads)stroke(road.points,lines.motorway,'#26bb7c');
