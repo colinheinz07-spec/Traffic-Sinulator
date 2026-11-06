@@ -50,7 +50,12 @@ export function sharedInterchangeReceiving(
   const bucket=buckets.get(bucketKey)??{supply,arms:new Map<string,ReceivingArm>()};
   bucket.supply=Math.min(bucket.supply,supply);
   const demand=activeVph[path]??defaultDemand(path);
-  const stock=kind==='ramp'?(queuedVehicles[path]??0):(cells[path]?.backlog??0);
+  // After the upstream inflow stops, vehicles already in the last
+  // motorway cell still need receiving service. Looking only at the
+  // external boundary backlog would freeze those vehicles at a merge.
+  const feeder=cells[path];
+  const stock=kind==='ramp'?(queuedVehicles[path]??0):
+   (feeder?.backlog??0)+(feeder?.cells.at(-1)?.vehicles??0);
   // Stock is measured in vehicles; multiplying by 60 translates it to one
   // model-minute of potential discharge for the receiving-share calculation.
   const weight=Math.max(0,Number.isFinite(demand)?demand:0)+
