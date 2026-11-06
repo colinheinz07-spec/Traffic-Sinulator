@@ -1,7 +1,7 @@
 /** 01_Strassennetz: Zugeordnetes Fachmodul extension-connections. */
-import { extensionRoutes } from '../network-extensions.js?build=71c5c2f4753ac7fc';
-import { MOTORWAY_ROUTE_KEYS } from '../network-catalog.js?build=71c5c2f4753ac7fc';
-import { motorwayEndpointIndex } from '../network-topology.js?build=71c5c2f4753ac7fc';
+import { extensionRoutes } from '../network-extensions.js?build=1cc68e0b949f5571';
+import { MOTORWAY_ROUTE_KEYS } from '../network-catalog.js?build=1cc68e0b949f5571';
+import { motorwayEndpointIndex } from '../network-topology.js?build=1cc68e0b949f5571';
 /** Connect only exact retained OSM endpoints. A self reference denotes an
  * external network boundary, not a fabricated road to an unmapped motorway. */
 export function buildExtensionConnections(routes) {

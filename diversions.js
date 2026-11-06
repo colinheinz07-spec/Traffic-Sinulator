@@ -1,2 +1,2 @@
 /** Bestehender Importpfad; der eigentliche Code liegt in 05_Umleitungen/diversions.ts. */
-export * from './05_Umleitungen/diversions.js?build=71c5c2f4753ac7fc';
+export * from './05_Umleitungen/diversions.js?build=1cc68e0b949f5571';
