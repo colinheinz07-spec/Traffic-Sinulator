@@ -1,47 +1,33 @@
-# 📘 Entwickler-Anleitung für deinen Stausimulator
+# 📘 Stausimulator – deine Entwickler-Anleitung
 
-## 1. Straßennetz – wo ist welche Autobahn?
-**Hauptdatei:** [src/01_Strassennetz.ts](src/01_Strassennetz.ts).
-Hier wird der Katalog aller simulierten Fahrwege aufgebaut. Vollständige Straßengeometrie und Rampen werden über `src/geodata.ts` (A3/A48) und `src/network-extensions.ts` (Erweiterungen) geladen. Die Ursprungsdaten liegen in `data/`, die Rechen-/Import-Skripte in `scripts/`. Die Hauptdatei exportiert auch die Netzdatensätze, sodass du einen gemeinsamen Zugriffspunkt hast.
+## Die sechs Abteilungen
+1. **[Straßennetz](src/01_Strassennetz/)**: Strecken, Autobahnen, Richtungen, Fahrstreifen, Ausfahrten und Rampen. Der zentrale Katalog steht in `src/01_Strassennetz.ts`. Die riesigen Geometrien werden automatisch aus OSM-Quellen erzeugt.
+2. **[Verkehr](src/02_Verkehr/)**: Nachfrage pro Fahrweg und Uhrzeit. In `src/02_Verkehr.ts` stehen `REFERENCE_PEAKS` und die Wochentagsprofile. `src/02_Verkehr/regional-traffic.ts` berechnet zusätzliche regionale Auf-/Abfahrtsströme.
+3. **[Stauphysik](src/03_Stauphysik/)**: Stauentwicklung, Zellmodell, Aufnahmekapazität an Einmündungen, Geschwindigkeiten. `src/03_Stauphysik/traffic-cells.ts` ist das Zellmodell.
+4. **[Ereignisse](src/04_Ereignisse/)**: Unfall, Baustelle, Vollsperrung und wiederkehrende Ereignisse. Eingriffe in belegte Fahrstreifen müssen auch den Rückstau beeinflussen.
+5. **[Umleitungen](src/05_Umleitungen/)**: Routing, Rampenbelastung und Umleitungsvorschläge. Beispielsweise `src/05_Umleitungen/detour-routing.ts`.
+6. **[Karte & Anzeige](src/06_Karte/)**: Farben, Meldungen, Kartengeometrien und Bedienung. `src/06_Karte/traffic-view.ts` bereitet das berechnete Verkehrsgeschehen für die Anzeige auf.
 
-**Neue Autobahn hinzufügen:** Beide Richtungen und alle realen Rampen als gerichtetes Netz importieren, anschließend Anschlussstellen und Verbindungen testen. Nicht nur einen Namen oder eine gerade Linie einfügen.
+## Warum sehe ich einige Dateien zweimal?
 
-## 2. Verkehr – wie viele Fahrzeuge kommen wann?
-**Hauptdatei:** [src/02_Verkehr.ts](src/02_Verkehr.ts).
-- `REFERENCE_PEAKS` = angenommener Spitzen-Zufluss pro Fahrweg (Kfz/h).
-- `weekday`, `saturday`, `sunday` = zeitabhängige Faktoren.
-- `profileFamily` = welche Tageskurve gilt für welchen Fahrweg?
-- `profileFactor` = Berechnung des Faktors zur aktuellen Simulationszeit.
-- Örtliche Auf-/Abfahrten: `src/regional-traffic.ts`, `src/junction-traffic.ts`.
+Wenn du `src/traffic-cells.ts` öffnest, siehst du nur eine Weiterleitung zur **eigentlichen Datei** `src/03_Stauphysik/traffic-cells.ts`. Die alte Adresse wurde bewusst nicht gelöscht: Sonst könnten ältere Importe und Tests abbrechen. Die Weiterleitungen enthalten **keine zweite Kopie der Logik**.
 
-**Beispiel:** Den Berufsverkehr auf der A48 ändern, ohne die Fahrstreifenanzahl zu manipulieren. Verkehrsnachfrage und Kapazität sind verschiedene Größen.
+## Diese Dateien sollst du NICHT direkt bearbeiten
 
-## 3. Stauphysik – warum staut es sich?
-**Hauptdatei:** [src/03_Stauphysik.ts](src/03_Stauphysik.ts).
-Hier liegen allgemeine Annahmen zu Fahrstreifenkapazität, Dichte, Geschwindigkeit und Farbstufen. Wichtigste Hilfsmodule: `src/traffic-cells.ts` für Zell- und Fahrzeugbestände, `src/spatial.ts` für Lage und Rückstauwellen, `src/network-receiving.ts` für den gemeinsamen Zufluss an Einmündungen.
+Die großen Datenmodule `src/geodata.ts`, `src/network-extensions.ts`, `src/extension-detours-data.ts`, `src/regional-detours.ts` und `src/ring-detours-data.ts` werden aus Geo-Daten generiert. Dazu gibt es [eine gesonderte Erklärung](src/GENERIERTE_DATEN.md).
 
-**Wichtig:** Eine rot gezeichnete Rampe ohne tatsächlich wartende Fahrzeuge ist ein Darstellungsfehler, kein Stau.
+## Beispiele
+- **Freitag 16 Uhr zu wenige Fahrzeuge auf der A3?** `src/02_Verkehr.ts` und `src/02_Verkehr/regional-traffic.ts`.
+- **Rückstau aus A59 auf A3 fehlt?** `src/03_Stauphysik/network-receiving.ts` und `src/03_Stauphysik/interchange.ts`; danach Umleitungsmodell prüfen.
+- **Vollsperrung blockiert falsche Ausfahrt?** `src/04_Ereignisse/closure-network.ts` und `src/04_Ereignisse/road-controls.ts`.
+- **Eine Überleitung fehlt?** Datenquelle/Geometrie und `src/01_Strassennetz/` prüfen.
+- **Karte färbt grün mit rotem Strich?** `src/06_Karte/traffic-view.ts` und `src/06_Karte/README.md`.
 
-## 4. Ereignisse – was passiert bei Unfall und Vollsperrung?
-**Hauptdatei:** [src/04_Ereignisse.ts](src/04_Ereignisse.ts).
-Hilfsmodule: `src/closure-network.ts`, `src/road-controls.ts`, `src/recurring-events.ts`. Gesperrte Teile müssen für neuen Verkehr unerreichbar sein; vorhandene Fahrzeuge dürfen nicht einfach gelöscht werden.
+## Bevor eine Änderung veröffentlicht wird
+1. Die richtige Abteilung auswählen.
+2. Nur das betroffene Modul bearbeiten; keine Rampen erfinden oder Fahrzeuge löschen.
+3. `npm run check` ausführen.
+4. Bei Netzänderungen außerdem die Python-OSM-Tests und tatsächliche Streckenfälle testen.
+5. Änderung nach erfolgreicher Prüfung in `main` übernehmen.
 
-## 5. Umleitungen – wohin kann der Verkehr ausweichen?
-**Hauptdatei:** [src/05_Umleitungen.ts](src/05_Umleitungen.ts).
-Diese Datei entscheidet, ob ein Ausweichweg sinnvoll ist. Die tatsächlichen Fahrwege und Verknüpfungen werden unter anderem von `src/detour-routing.ts`, `src/auto-diversions.ts`, `src/extension-detours.ts` bestimmt. Nur reale, gerichtete und befahrbare Rampen nutzen.
-
-## 6. Karte – was wird angezeigt?
-**Hauptdatei:** [src/06_Karte.ts](src/06_Karte.ts).
-Kartengeometrien sind von der Verkehrssimulation getrennt. Für Stauausgabe: `src/traffic-view.ts`, für Symbole `src/map-callouts.ts`, für Auswahl/Gesten `src/selection.ts` und `src/map-gestures.ts`. Die gesamte Bedienoberfläche liegt weiterhin in `src/app.ts` und `index.html`.
-
-## Was ist eine Weiterleitungsdatei?
-Zum Beispiel enthält `src/traffic-profiles.ts` jetzt nur einen Import/Export auf `src/02_Verkehr.ts`. Dadurch bleibt der bisherige Programmcode kompatibel. **Immer die nummerierte Hauptdatei öffnen**, wenn du die entsprechenden Regeln ändern möchtest.
-
-## Sicherer Ablauf
-1. Erst eine konkrete Änderung festlegen (z. B. „A3 Richtung Köln, Freitag 16 Uhr, Ausfahrt läuft voll“).
-2. Zuständigen Hauptbereich und ggf. Hilfsmodul finden.
-3. Nur notwendige Werte/Funktionen bearbeiten.
-4. `npm run check` ausführen und auch die Karte kontrollieren.
-5. Erst danach in `main` übernehmen.
-
-Bei fehlenden Rampen nicht einfach plausible Verbindungen erfinden: OSM-Quelle und gerichteten Netzgraph prüfen. Verkehrsprofile sind Modellannahmen, keine Live-Zählungen.
+**SPCK/iPhone:** Die TypeScript-Dateien sind die Quellen. `scripts/build.mjs` veröffentlicht daraus zusammenhängende JavaScript-Dateien in Unterordnern. Bearbeite nicht die generierten JS-Dateien.
