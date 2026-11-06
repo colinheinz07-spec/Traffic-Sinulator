@@ -54,7 +54,14 @@ test('constant and wave stress-test mode retains balanced local source/sink shar
  const chosen=localJunctionShares('A3','34',false);
  assert.equal(chosen.entryPercent,chosen.exitPercent);
  const rows=normalJunctionTraffic(routes['A3-frankfurt'],exits,1500);
- assert.ok(rows.every(j=>Math.abs(j.entryVph/1500*100-j.exitPercent)<1e-8));
+ // Teilanschlüsse können nur eine Auffahrt oder nur eine Abfahrt haben.
+ // Der Test prüft die balancierten Szenarioanteile deshalb ausschließlich
+ // dort, wo laut realem Netz BEIDE Fahrbeziehungen offen sind.
+ const both=rows.filter(j=>j.entryVph>0&&j.exitPercent>0);
+ assert.ok(both.length>=5);
+ assert.ok(both.every(j=>Math.abs(j.entryVph/1500*100-j.exitPercent)<1e-8));
+ assert.ok(rows.every(j=>j.entryVph>=0&&j.exitPercent>=0));
+
  assert.equal(localJunctionShares('A3','40',false).entryPercent,12);
  assert.equal(localJunctionShares('A3','37',false).exitPercent,5);
 });
