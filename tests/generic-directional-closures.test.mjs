@@ -22,7 +22,9 @@ const toAachen=route('ramp-into-aachen',[[50.002,7.017],[50,7.019]]);
 const awayToOpen=route('ramp-to-open',[[50,7.019],[50.003,7.017]]);
 const before=route('ramp-before-closure',[[50.002,7.006],[50,7.007]]);
 const other=route('ramp-into-other',[[50.003,7.017],[50.004,7.019]]);
-const routes=Object.fromEntries([main,branch,toAachen,awayToOpen,before,other].map(r=>[r.key,r]));
+const localInside=route('ramp-to-local-inside',[[50,7.021],[50.001,7.022]]);
+const lastExit=route('ramp-last-open-exit',[[50,7.015],[50.001,7.016]]);
+const routes=Object.fromEntries([main,branch,toAachen,awayToOpen,before,other,localInside,lastExit].map(r=>[r.key,r]));
 const exits=[{road:'A4',ref:'915',name:'AD Köln-Heumar',position:main.points[1],source:'test'},
  {road:'A4',ref:'916',name:'AK Köln-Süd',position:main.points[2],source:'test'}];
 const pos=main.metres;
@@ -33,7 +35,9 @@ const links=[
  {rampId:toAachen.key,from:open,to:selected,rampEntryM:0,downstreamMergeM:pos[1]+150,sourceGapM:0,mergeGapM:0},
  {rampId:awayToOpen.key,from:selected,to:open,rampEntryM:pos[1]+150,downstreamMergeM:50,sourceGapM:0,mergeGapM:0},
  {rampId:before.key,from:open,to:selected,rampEntryM:0,downstreamMergeM:pos[0]+200,sourceGapM:0,mergeGapM:0},
- {rampId:other.key,from:selected,to:open,rampEntryM:pos[1]+150,downstreamMergeM:100,sourceGapM:0,mergeGapM:0}
+ {rampId:other.key,from:selected,to:open,rampEntryM:pos[1]+150,downstreamMergeM:100,sourceGapM:0,mergeGapM:0},
+ {rampId:localInside.key,from:selected,to:localInside.key,rampEntryM:pos[1]+220,downstreamMergeM:0,sourceGapM:0,mergeGapM:0},
+ {rampId:lastExit.key,from:selected,to:lastExit.key,rampEntryM:pos[1],downstreamMergeM:0,sourceGapM:0,mergeGapM:0}
 ];
 test('closure spans the last usable exit through the next end exit, not a 400m marker only',()=>{
  const gate=closureGate(main,event,exits,[event]);
@@ -52,6 +56,8 @@ test('Heumar-direction closure blocks only entry toward Aachen; open outgoing au
  assert.ok(!spans.some(s=>s.pathKey===before.key));
  assert.ok(!spans.some(s=>s.pathKey===other.key));
  assert.ok(!spans.some(s=>s.pathKey===open));
+ assert.ok(spans.some(s=>s.pathKey===localInside.key&&s.source==='local-exit'));
+ assert.ok(!spans.some(s=>s.pathKey===lastExit.key),'last regular off-ramp stays open');
 });
 test('roadworks and accidents never receive administrative red/white closure stripes',()=>{
  for(const kind of ['roadworks','accident']){
