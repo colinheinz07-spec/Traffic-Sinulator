@@ -70,6 +70,11 @@ export function junctionRampBindings(route:Corridor,exits:readonly Exit[]):Junct
     if(sequence.length>8||boundaryIndex===undefined&&trunks.has(end))return;
     const following=(graph.get(end)??[]).filter(r=>!sequence.includes(r));
     if(boundaryIndex===undefined&&following.length){for(const r of following)visit([...sequence,r]);return;}
+    // Ein falsch nach AD/AK benannter AS-Abzweig wird nur dann als
+    // ORTS-RAMPE freigegeben, wenn der nachverfolgte Weg tatsächlich eine
+    // im OSM-Import erfasste lokale Straße erreicht. Ein bloß endendes
+    // motorway_link-Fragment ist keine nachgewiesene Abfahrt.
+    if(boundaryIndex===undefined&&/^(AD |AK )/.test(seed.zone))return;
     const ordered=reverse?[...sequence].reverse():sequence;let lengthM=0;
     const segments=ordered.map(ramp=>{
      let rampFromM=0,length=rampLength(ramp);
