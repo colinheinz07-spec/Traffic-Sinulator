@@ -8,7 +8,7 @@ permissions:
 jobs:
   rebuild:
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
         with:
@@ -23,13 +23,32 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - name: Test service-area classifier
         run: python -m unittest discover -s scripts/tests -p test_service_area_ramps.py -v
-      - name: Rebuild OSM directed junction routes
+      - name: Rebuild base directional motorway routes
         run: python scripts/build_network_extensions.py
+      - name: Restore the full A555/A565 Bonn network from its saved OSM source
+        run: python scripts/add_a555_a565.py
+      - name: Restore verified detours on the complete network
+        run: python scripts/build_extension_detours.py
+      - name: Guard against losing motorway routes during generation
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          t=Path('src/network-extensions.ts').read_text()
+          routes=json.loads(t.split('export const extensionRoutes:ExtensionRoute[]=')[1].split(';',1)[0])
+          ids={r['id'] for r in routes}
+          required={'extra-a555-bonn','extra-a555-koeln',
+                    'extra-a565-siegburg','extra-a565-koblenz',
+                    'extra-a59-bonn','extra-a59-koeln',
+                    'extra-a4-aachen','extra-a4-olpe'}
+          assert required<=ids,required-ids
+          print('All required A3/A4/A59/A555/A565 corridors retained')
+          PY
       - name: Rebuild versioned JS browser assets
         run: npm run build
       - name: Commit changed graph and browser modules
         run: |
-          git add src/network-extensions.ts data/extension-junctions.json index.html '*.js'
+          git add src/network-extensions.ts src/extension-detours-data.ts data/extension-junctions.json index.html '*.js'
           if git diff --cached --quiet; then exit 0; fi
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
