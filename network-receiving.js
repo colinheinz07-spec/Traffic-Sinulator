@@ -1,10 +1,10 @@
 /** Endpoint-connected mainlines exchange a receiving signal. This limits
  * actual discharge in the feeder CTM, rather than painting a second queue.
  * Aggregate motorway demands remain calibrated independently (not OD trips). */
-import { MOTORWAY_ROUTE_KEYS } from './network-catalog.js?build=832a6021a073c60a';
-import { defaultDemand } from './traffic.js?build=832a6021a073c60a';
-import { motorwayEndpointIndex } from './network-topology.js?build=832a6021a073c60a';
-import { CONGESTION_WAVE_KMH, QUEUE_JAM_DENSITY_PER_LANE } from './traffic-physics.js?build=832a6021a073c60a';
+import { MOTORWAY_ROUTE_KEYS } from './network-catalog.js?build=db2794dddb550a86';
+import { defaultDemand } from './traffic.js?build=db2794dddb550a86';
+import { motorwayEndpointIndex } from './network-topology.js?build=db2794dddb550a86';
+import { CONGESTION_WAVE_KMH, QUEUE_JAM_DENSITY_PER_LANE } from './traffic-physics.js?build=db2794dddb550a86';
 /** One *physical* congested CTM cell owns one receiving budget.
  * Previous solvers independently gave the full budget to upstream motorways
  * AND every incoming ramp; a heavily overloaded interchange could therefore
@@ -32,7 +32,12 @@ export function sharedInterchangeReceiving(cells, connections, merges, activeVph
         const bucket = buckets.get(bucketKey) ?? { supply, arms: new Map() };
         bucket.supply = Math.min(bucket.supply, supply);
         const demand = activeVph[path] ?? defaultDemand(path);
-        const stock = kind === 'ramp' ? (queuedVehicles[path] ?? 0) : (cells[path]?.backlog ?? 0);
+        // After the upstream inflow stops, vehicles already in the last
+        // motorway cell still need receiving service. Looking only at the
+        // external boundary backlog would freeze those vehicles at a merge.
+        const feeder = cells[path];
+        const stock = kind === 'ramp' ? (queuedVehicles[path] ?? 0) :
+            (feeder?.backlog ?? 0) + (feeder?.cells.at(-1)?.vehicles ?? 0);
         // Stock is measured in vehicles; multiplying by 60 translates it to one
         // model-minute of potential discharge for the receiving-share calculation.
         const weight = Math.max(0, Number.isFinite(demand) ? demand : 0) +
