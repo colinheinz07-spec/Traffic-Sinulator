@@ -18,25 +18,9 @@ PUBLIC_ROADS = {
 }
 
 
-def rest_area_only_ramp(feature, ways, motorway_points):
-    if feature.get("kind") != "ramp":
-        return False
-    # Exactly one directed motorway-to-motorway transfer is legitimate even
-    # when a service road happens to cross the ramp nearby.
-    endpoints = (tuple(feature["points"][0]), tuple(feature["points"][-1]))
-    if all(point in motorway_points for point in endpoints):
-        return False
-
+def service_access_index(ways):
     by_id = {way["id"]: way for way in ways}
-    for way_id in feature.get("wayIds", ()):
-        t = by_id.get(way_id, {}).get("tags", {})
-        fields = ("name", "destination", "destination:street", "service",
-                  "motorway:service", "amenity")
-        if any(SERVICE_AREA.search(str(t.get(k, ""))) for k in fields):
-            return True
-
-    service_points = set()
-    public_points = set()
+    service_points, public_points = set(), set()
     for way in ways:
         tags = way.get("tags", {})
         highway = tags.get("highway")
@@ -48,6 +32,25 @@ def rest_area_only_ramp(feature, ways, motorway_points):
             service_points.update(points)
         else:
             public_points.update(points)
-    touches_service = any(p in service_points for p in endpoints)
-    touches_public = any(p in public_points for p in endpoints)
-    return touches_service and not touches_public
+    return by_id, service_points, public_points
+
+
+def rest_area_only_ramp(feature, by_id, motorway_points, service_points, public_points):
+    if feature.get("kind") != "ramp":
+        return False
+    endpoints = (tuple(feature["points"][0]), tuple(feature["points"][-1]))
+    # A legally mapped motorway-to-motorway interchange arm stays intact.
+    if all(point in motorway_points for point in endpoints):
+        return False
+
+    for way_id in feature.get("wayIds", ()):
+        t = by_id.get(way_id, {}).get("tags", {})
+        fields = ("name", "destination", "destination:street", "service",
+                  "motorway:service", "amenity")
+        if any(SERVICE_AREA.search(str(t.get(k, ""))) for k in fields):
+            return True
+
+    # Only *service*-road access with no public street connection is excluded.
+    # An ordinary AS which also touches a petrol station remains an AS.
+    return (any(p in service_points for p in endpoints)
+            and not any(p in public_points for p in endpoints))
