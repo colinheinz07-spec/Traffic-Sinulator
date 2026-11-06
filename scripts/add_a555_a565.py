@@ -472,6 +472,17 @@ def build():
                 if nxt['id'] not in seen and metres(endpoint,center)<2100 or (
                   nxt['id'] not in seen and any(metres(endpoint,s)<1000 for _,_,_,s in sites)):
                     frontier.append(nxt)
+    # The Bonn importer appends its routes after the base network generator.
+    # Apply the same service-area classifier to newly added ramp chains,
+    # without deleting other Autobahnkreuz movements.
+    from service_area_ramps import service_access_index,rest_area_only_ramp
+    index=service_access_index(ways)
+    motorway_points={tuple(p) for r in routes if r['kind']=='motorway' for p in r['points']}
+    excluded={r['id'] for r in routes if r['id'].startswith('extra-bonn-')
+              and rest_area_only_ramp(r,index[0],motorway_points,index[1],index[2])}
+    if excluded:
+        routes=[r for r in routes if r['id'] not in excluded]
+        print('Bonn: excluded',len(excluded),'service-area-only ramps',flush=True)
     bundle['routes']=routes;bundle['junctions']=junctions
     (ROOT/'data/extension-junctions.json').write_text(json.dumps(bundle,separators=(',',':')))
     oldtext=(ROOT/'src/network-extensions.ts').read_text()
