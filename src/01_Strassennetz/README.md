@@ -23,3 +23,17 @@ Mit dem Schalter **„Autobahnzugehörigkeit auf der Karte hervorheben“** kann
 Das Netzwerk-Modell ordnet den grundlegenden OSM-Klassen `highway=motorway` (Hauptfahrbahn) und `highway=motorway_link` (Autobahn-Zubringer/Verbindungsrampe) die generierten Fahrwegarten `motorway` und `ramp` zu. Bei gemischten, zusammengefassten Routen ist die Umrandung eine **Modellklassifizierung für den gesamten Fahrweg**, nicht der Nachweis der Klasse jedes einzelnen OSM-Segments.
 
 **Wichtig:** Gleiche Farbe allein ist **kein** Nachweis einer tatsächlichen Verbindung, rechtlichen Widmung oder befahrbaren Fahrtrichtung. Erst die OSM-Knoten und der gerichtete Graph belegen eine Verbindung. Außerdem werden nicht jede `motorway_link`-Zufahrt (z. B. Rastplätze) automatisch als normale Anschlussstelle behandelt. Für fehlende, noch nicht importierte Rampen ist weiterhin der OSM-Vollständigkeitsabgleich erforderlich.
+
+## Fehlende OSM-Verbindungsrampen (November 2026)
+
+Der Import ergänzt **126 bislang nicht als eigene Fahrwege im Simulator vorhandene, anhand gleicher OSM-Knoten angeschlossene `motorway_link`-Ways**. Bei sieben ausdrücklich als zweirichtungsfähig ausgewiesenen OSM-Wegen erzeugt er je Richtung einen Fahrweg auf derselben realen Mittellinie: zusammen **133 gerichtete Ergänzungen**.
+
+- Im Raum **Siebengebirge**: u. a. OSM-Ways 407505963–407505966.
+- Am **Kreuz Köln-Süd** und benachbarten AS: u. a. OSM-Ways 4400131/4400133/4400126/4400135.
+- Am **Kreuz Bonn-Nord / A555–A565**: u. a. OSM-Ways 4356485/4356494/5939833/8016754.
+
+Die generierten Daten liegen in [osm-zusatzrampen.ts](osm-zusatzrampen.ts). Das reproduzierbare Generatorskript ist `scripts/build_osm_additional_ramps.py`; nach einem erneuten vollständigen OSM-Import wird es im letzten Importschritt automatisch ausgeführt.
+
+**Sichtbarkeit und Simulation:** Die zusätzlichen Wege gehören zum gleichen `extensionRoutes`-Katalog wie bisherige Rampen, erscheinen daher grün bei freier Fahrt, sind anklickbar, können Ereignisse tragen und werden durch die normalen Komponenten auf direkte Autobahnverbindungen und lokale Rampen-Ketten geprüft. Eine reine OSM-Verbindungsrampe erhält **keinen künstlichen eigenständigen Fahrzeugzufluss** (`demandVph=0`). Nur verifizierte Knoten-/Fahrbeziehungen bekommen Fahrzeugströme durch die bestehenden Modelle.
+
+**Grenzen:** Nicht jeder OSM-Weg wurde eingefügt. Bewusst ausgeschlossen sind `access=no/private`, an Rastplätze gebundene Wege sowie nicht an das bereits modellierte Netz angeschlossene Wege. Der Hinweis auf der Hintergrundkarte allein beweist keine echte Knotenverbindung. Der Import verwendet gespeicherte OSM-Snapshots, keinen vollständigen Live-Abgleich. Nicht modellierte Fremdautobahnen und OSM-Wege mit abweichendem Zugang brauchen noch eigene Prüfungen. Auch durch einen verbundenen Way entsteht nicht automatisch ein durchgängig korrektes Routing über mehrere Rampen-Zweige; solche Fälle bleiben im Netzdiagnose-Audit zu prüfen.

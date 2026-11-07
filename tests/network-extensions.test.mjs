@@ -34,11 +34,14 @@ test('each added path can form a real event queue and release it using the same 
   const point=feature.points[Math.floor(feature.points.length/2)];
   const event={id:'queue-'+feature.id,pathKey:feature.id,kind:'accident',point,laneCount:feature.lanes,
    closedLanes:Array.from({length:feature.lanes},(_,i)=>i),createdAt:'2026-11-01T08:00:00Z',settings:{lengthM:50,speedKmh:0,shoulder:'blocked'}};
-  let state=advanceSpatial(emptySpatial(),[event],demands,8,routes,[],[],[],undefined,NETWORK_PATHS);
+  // New OSM geometry has no independent demand; test event physics with
+  // an explicit traffic scenario, not fabricated default traffic.
+  const scenario=feature.demandVph>0?demands:{...demands,[feature.id]:Math.min(850,feature.lanes*400)};
+  let state=advanceSpatial(emptySpatial(),[event],scenario,8,routes,[],[],[],undefined,NETWORK_PATHS);
   const before=state.queues[event.id]?.vehicles??0;assert.ok(before>0,feature.id);
   const view=trafficView(jamsAt(state,[event],routes),{},routes,[event],[],state.minute);
   assert.ok(view.reports[feature.id].ownVehicles>0&&view.bands.has(feature.id));
-  state=advanceSpatial(state,[],demands,20,routes,[],[],[],undefined,NETWORK_PATHS);
+  state=advanceSpatial(state,[],scenario,20,routes,[],[],[],undefined,NETWORK_PATHS);
   assert.ok((state.queues[event.id]?.vehicles??0)<before,feature.id+' clears');
  }
 });

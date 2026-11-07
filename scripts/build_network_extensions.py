@@ -292,6 +292,8 @@ ids=[f['id'] for f in features]
 assert len(ids)==len(set(ids)), 'Duplicate directed path IDs'
 text="import type {Point,Exit} from './core.js';\nexport const EXTENSION_IDS="+json.dumps(ids)+" as const;\nexport type ExtensionId=typeof EXTENSION_IDS[number];\nexport interface ExtensionRoute {id:ExtensionId;name:string;zone:string;kind:'motorway'|'ramp';lanes:number;laneSegments:{fromM:number;toM:number;lanes:number}[];points:Point[];wayIds:number[];demandVph:number;freeKmh:number}\nexport const extensionRoutes:ExtensionRoute[]="+json.dumps(features,separators=(',',':'))+";\nexport const extensionJunctions:Exit[]="+json.dumps(junctions,separators=(',',':'))+";\nexport const extensionRampBoundaryPoints:Point[]="+json.dumps(rampBoundaryPoints,separators=(',',':'))+";\nconst byId=new Map<string,ExtensionRoute>(extensionRoutes.map(r=>[r.id,r]));\nexport const extensionRoute=(id:string)=>byId.get(id);\n"
 (ROOT/'src/network-extensions.ts').write_text(text)
+from attach_verified_osm_links import patch_generated_extensions
+patch_generated_extensions(ROOT)
 print('Generated',len(features),'directed extension paths;',sum(len(f['points']) for f in features),'original vertices')
 
 (ROOT/'data/extension-junctions.json').write_text(json.dumps(dict(routes=features,junctions=junctions),separators=(',',':')))

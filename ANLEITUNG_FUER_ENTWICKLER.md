@@ -39,3 +39,7 @@ Im Bereich **🚗 Verkehrsfluss** gibt es jetzt die aufklappbare Funktion **„�
 
 ## Neue lokale AS-Verkehrsprofile
 Die für die Simulation verwendeten **örtlichen Ein- und Ausfahrtsanteile** sind gesammelt in `src/02_Verkehr/anschlussstellen-nachfrage.ts`. Wähle in der App eine Fahrtrichtung und öffne **„🚘 Örtliche Auffahrten und Abfahrten je Anschlussstelle“**. Die Zahlen sind Modellannahmen, keine realen Zählstellendaten. Die physikalischen Rampen- und Knotenkapazitäten bleiben getrennt.
+
+
+## Originalgetreu ergänzte Autobahnrampen
+In `src/01_Strassennetz/osm-zusatzrampen.ts` liegen 126 überprüfte OSM-Rampensegmente (133 Fahrwege einschließlich Gegenrichtungen auf ausdrücklich zweirichtungsfähigen Linien). Die Ergänzungen sind in der Karte und in den Simulationskatalog integriert. Zur Wiederherstellung nach einem Neuimport: `python3 scripts/build_osm_additional_ramps.py`. Keine zufälligen Linien, keine Rastplatz-Zufahrten und keine unabhängigen Phantomfahrzeuge.

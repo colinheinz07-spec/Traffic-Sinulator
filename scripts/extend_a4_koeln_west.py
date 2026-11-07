@@ -283,6 +283,8 @@ text+="export const extensionRampBoundaryPoints:Point[]="+json.dumps(boundary,se
 text+="const byId=new Map<string,ExtensionRoute>(extensionRoutes.map(r=>[r.id,r]));\\nexport const extensionRoute=(id:string)=>byId.get(id);\\n"
 # Replace escaped line separators as actual newline in TS output.
 (ROOT/'src/network-extensions.ts').write_text(text.replace('\\n','\n'))
+from attach_verified_osm_links import patch_generated_extensions
+patch_generated_extensions(ROOT)
 print('A4 to AK Köln-West:',round(length(west)/1000,2),round(length(back)/1000,2),
  'km; A1 arms:',round(length(north)/1000,2),round(length(southbound)/1000,2),
  'km; verified A1/A4 turns',count,'total paths',len(features),flush=True)
