@@ -42,4 +42,4 @@ Die für die Simulation verwendeten **örtlichen Ein- und Ausfahrtsanteile** sin
 
 
 ## Originalgetreu ergänzte Autobahnrampen
-In `src/01_Strassennetz/osm-zusatzrampen.ts` liegen 126 überprüfte OSM-Rampensegmente (133 Fahrwege einschließlich Gegenrichtungen auf ausdrücklich zweirichtungsfähigen Linien). Die Ergänzungen sind in der Karte und in den Simulationskatalog integriert. Zur Wiederherstellung nach einem Neuimport: `python3 scripts/build_osm_additional_ramps.py`. Keine zufälligen Linien, keine Rastplatz-Zufahrten und keine unabhängigen Phantomfahrzeuge.
+In `src/01_Strassennetz/osm-zusatzrampen.ts` liegen 136 überprüfte OSM-Rampensegmente (143 Fahrwege einschließlich Gegenrichtungen auf ausdrücklich zweirichtungsfähigen Linien). Die Ergänzungen sind in der Karte und in den Simulationskatalog integriert. Zur Wiederherstellung nach einem Neuimport: `python3 scripts/build_osm_additional_ramps.py`. Keine zufälligen Linien, keine Rastplatz-Zufahrten und keine unabhängigen Phantomfahrzeuge.
