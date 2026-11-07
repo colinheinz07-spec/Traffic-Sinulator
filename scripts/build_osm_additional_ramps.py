@@ -8,7 +8,8 @@ from pathlib import Path
 
 ROOT=Path(__file__).resolve().parents[1]
 SOURCES=(
- "a3-heumar-camberg-osm.json","a4-koeln-sued-osm.json",
+ "a3-heumar-camberg-osm.json","a3-wiesbaden-osm.json",
+ "a4-koeln-sued-osm.json",
  "a4-koeln-west-osm.json","a555-a565-bonn-osm.json",
  "bonn-a59-a562-osm.json","a59-a560-osm.json","cologne-triangle-osm.json",
 )
