@@ -21,7 +21,9 @@ function motorwayHeading(route:Corridor,metre:number):[number,number]{
  return heading(route.points[Math.max(0,i-1)]!,route.points[Math.min(route.points.length-1,i+1)]!);
 }
 function attachment(hits:MotorwayHit[],ramp:Corridor,routes:Readonly<Record<PathKey,Corridor>>,atEnd:boolean):MotorwayHit|undefined{
- if(hits.length<=1)return hits[0];
+ // Auch ein einzelner Knoten-Treffer muss zur gerichteten Rampe passen.
+ // Sonst verbindet ein gemeinsamer OSM-Punkt eine Auffahrt entgegen der Fahrtrichtung.
+ if(!hits.length)return undefined;
  const points=ramp.points,axis=atEnd?heading(points.at(-2)!,points.at(-1)!):
   heading(points[0]!,points[1]!);
  const ranked=hits.map((hit,index)=>{
