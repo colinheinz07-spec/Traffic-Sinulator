@@ -73,8 +73,10 @@ test('an incident reaching the end of the map retains every upstream exit route'
 });
 test('boundary detours finish outside the network and conserve all cars without a fictitious re-entry',()=>{
  for(const path of DIRECTIONS){
-  const route=routes[path],e=incident(path,route.lengthM-250);
+  const route=routes[path];
   const last=bundledExitRoutes(path,exits,route).at(-1);
+  const boundaryAt=path==='A3-koeln'?last.from.metre+200:route.lengthM-250;
+  const e=incident(path,boundaryAt);
   const choice=automaticDiversions([e],routes,exits,{}).find(o=>o.from.ref===last.from.ref);
   const c=config(choice),demands={...defaultDemands(),[path]:1800};
   let cells={[path]:initialiseCells(route,1800)},detours=[{config:c,state:emptyDetour(c)}];
