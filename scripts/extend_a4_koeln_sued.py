@@ -234,5 +234,7 @@ head+="export const extensionJunctions:Exit[]="+json.dumps(junctions,separators=
 head+="export const extensionRampBoundaryPoints:Point[]="+json.dumps(boundary,separators=(',',':'))+";\n"
 head+="const byId=new Map<string,ExtensionRoute>(extensionRoutes.map(r=>[r.id,r]));\nexport const extensionRoute=(id:string)=>byId.get(id);\n"
 (ROOT/'src/network-extensions.ts').write_text(head)
+from attach_verified_osm_links import patch_generated_extensions
+patch_generated_extensions(ROOT)
 print('A4 westbound +',round(length(west)/1000,2),'km, eastbound +',round(length(back)/1000,2),
  'km; A555',round(length(koeln)/1000,2),round(length(bonn)/1000,2),'km;',turns,'cross-motorway turns;',len(features),'total paths',flush=True)
