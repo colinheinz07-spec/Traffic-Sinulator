@@ -67,7 +67,12 @@ export function junctionRampBindings(route:Corridor,exits:readonly Exit[]):Junct
     if(reverse)indices.reverse();
     const boundaryIndex=indices.slice(1).find(i=>boundaries.has(pointKey(last.points[i]!))&&!trunks.has(pointKey(last.points[i]!)));
     const end=pointKey(at(last,true));
-    if(sequence.length>8||boundaryIndex===undefined&&trunks.has(end))return;
+    // Eine echte OSM-Rampe kann aus deutlich mehr als acht Wegen bestehen
+    // (z. B. A4 Köln-Eifeltor mit 15–16 Teilstücken). Nicht nach der
+    // Anzahl der OSM-Ways abbrechen, sondern nur bei unplausibler Länge.
+    // Der Zyklenschutz steckt bereits in !sequence.includes(r).
+    const tracedM=sequence.reduce((n,r)=>n+rampLength(r),0);
+    if(tracedM>6000||boundaryIndex===undefined&&trunks.has(end))return;
     const following=(graph.get(end)??[]).filter(r=>!sequence.includes(r));
     if(boundaryIndex===undefined&&following.length){for(const r of following)visit([...sequence,r]);return;}
     // Ein falsch nach AD/AK benannter AS-Abzweig wird nur dann als
