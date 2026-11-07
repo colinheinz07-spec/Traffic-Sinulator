@@ -12,9 +12,9 @@ import {defaultDemand} from '../dist/traffic.js';
 const extra=verifiedOsmAdditionalRoutes;
 const byId=id=>extra.find(r=>r.wayIds[0]===id&&!r.id.endsWith('-back'));
 const contains=(lat,lon,range=.018)=>extra.filter(r=>r.points.some(p=>Math.abs(p[0]-lat)<range&&Math.abs(p[1]-lon)<range));
-test('126 actual OSM motorway_link ways are available as 133 navigable directed corridors',()=>{
- assert.equal(new Set(extra.flatMap(x=>x.wayIds)).size,126);
- assert.equal(extra.length,133);
+test('136 actual OSM motorway_link ways are available as 143 navigable directed corridors',()=>{
+ assert.equal(new Set(extra.flatMap(x=>x.wayIds)).size,136);
+ assert.equal(extra.length,143);
  assert.equal(new Set(extra.map(x=>x.id)).size,extra.length);
  assert.equal(extensionRoutes.length,711+extra.length);
  assert.equal(EXTENSION_IDS.length,extensionRoutes.length);
@@ -41,6 +41,17 @@ test('Siebengebirge, Kreuz Köln-Süd and Kreuz Bonn-Nord get their originally s
  assert.ok(contains(50.675,7.294,.021).length>=4);
  assert.ok(contains(50.884,6.968,.020).length>=8);
  assert.ok(contains(50.747,7.077,.024).length>=13);
+});
+test('Idstein, Niedernhausen and Wiesbaden preserve 10 newly verified one-way OSM connectors',()=>{
+ for(const id of [388594671,278106759,27005343,384052261,23328071,384052268,5200961,384052273,8205921,384055828]){
+  const ramp=byId(id);
+  assert.ok(ramp,'missing motorway_link '+id);
+  assert.ok(ramp.points.length>=2);
+  assert.equal(ramp.demandVph,0,'no invented ramp vehicles');
+ }
+ const idstein=extra.filter(r=>[388594671,278106759].includes(r.wayIds[0]));
+ assert.equal(idstein.length,2);
+ assert.ok(idstein.every(r=>r.points.some(p=>p[0]>50.20&&p[0]<50.22&&p[1]>8.24&&p[1]<8.26)));
 });
 test('two-way OSM links provide reversed directional routes on ONE geometry, not invented parallel roads',()=>{
  const original=extra.filter(x=>x.id.startsWith('extra-osm-link-')&&!x.id.endsWith('-back'));
