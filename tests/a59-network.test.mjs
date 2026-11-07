@@ -42,12 +42,12 @@ test('all extension exits including A555/A565 historic-normal ramps have verifie
   }
  }
  assert.deepEqual(missing,[],'all advertised off-ramps must have a directed OSM alternative');
- const sources=['a3-heumar-camberg-osm.json','a59-a560-osm.json','cologne-triangle-osm.json','bonn-a59-a562-osm.json','a4-koeln-sued-osm.json','a4-koeln-west-osm.json','a555-a565-bonn-osm.json'].flatMap(f=>JSON.parse(readFileSync(new URL('../data/'+f,import.meta.url))).elements);
+ const sources=['a3-heumar-camberg-osm.json','a59-a560-osm.json','cologne-triangle-osm.json','bonn-a59-a562-osm.json','a4-koeln-sued-osm.json','a4-koeln-west-osm.json','a555-a565-bonn-osm.json','a3-leverkusen-osm.json'].flatMap(f=>JSON.parse(readFileSync(new URL('../data/'+f,import.meta.url))).elements);
  const ways=new Map(sources.filter(e=>e.type==='way').map(w=>[w.id,w])),edge=new Set();
  const point=p=>[p.lat,p.lon].map(v=>Number(v.toFixed(7))).join(',');
  for(const w of ways.values()){
   const ps=w.geometry?.map(point)??[],t=w.tags??{};if(t.oneway==='-1')ps.reverse();
-  const directed=['yes','1','-1'].includes(t.oneway)||['motorway','motorway_link'].includes(t.highway)||t.junction==='roundabout';
+  const directed=t.oneway!=='no'&&(['yes','1','-1'].includes(t.oneway)||['motorway','motorway_link'].includes(t.highway)||t.junction==='roundabout');
   for(let i=1;i<ps.length;i++){edge.add(ps[i-1]+'>'+ps[i]);if(!directed)edge.add(ps[i]+'>'+ps[i-1]);}
  }
  for(const r of extensionDetours){assert.deepEqual(r.points[0],r.fromPoint);for(let i=1;i<r.points.length;i++)assert.ok(edge.has(r.points[i-1].join(',')+'>'+r.points[i].join(',')),r.id+' edge '+i);}
