@@ -46,7 +46,10 @@ if(networkData.exits.some(e=>e.road==='A3'&&e.ref==='28')){
 }
 export function isNetworkDestination(exit:Exit):boolean{return exit.source==='simulation-boundary';}
 export function bundledTargets(path:RoadId,exits:readonly Exit[],route:Corridor):JunctionAnchor[]{
- const normal=diversionJunctions(path,exits,route).filter(x=>!x.isInterchange);
+ // Die OSM-geprüften AS 24–26 dürfen nicht an die alten, nur grob
+ // angenäherten A3/A48-Nebenstraßen-Umleitungen gekoppelt werden.
+ const normal=diversionJunctions(path,exits,route).filter(x=>!x.isInterchange&&
+  !(path.startsWith('A3')&&['23','24','25','26'].includes(x.ref)));
  return [...normal,{road:path.startsWith('A3')?'A3':'A48',ref:'end-'+path,
   name:'Weiterfahrt außerhalb des Netzes · '+names[path],position:ends[path].point,
   source:'simulation-boundary',metre:route.lengthM,isInterchange:false}];
