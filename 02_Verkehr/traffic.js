@@ -1,13 +1,13 @@
 /** 02_Verkehr: Zugeordnetes Fachmodul traffic. */
-import { profileFactor, profileIdentity } from '../traffic-profiles.js?build=acf463921baa3f59';
-import { LEGACY_ROUTE_KEYS, NETWORK_ROUTE_KEYS, ROUTE_CATALOG, routeDescriptor } from '../network-catalog.js?build=acf463921baa3f59';
+import { profileFactor, profileIdentity } from '../traffic-profiles.js?build=0cbe7c573cdf05c3';
+import { LEGACY_ROUTE_KEYS, NETWORK_ROUTE_KEYS, ROUTE_CATALOG, routeDescriptor } from '../network-catalog.js?build=0cbe7c573cdf05c3';
 /** Deliberately isolated, macroscopic first-pass traffic-flow simulation.
  * Traffic volumes, capacities, and queue density are modelling assumptions,
  * NOT measured flows, road regulations, official diversion routes, or observed jams.
  * One controlling bottleneck per directional path; no A3/A48 ramp transfer yet.
  */
-import { flowPolicy } from '../events.js?build=acf463921baa3f59';
-import { baseLaneCapacity, QUEUE_JAM_DENSITY_PER_LANE } from '../traffic-physics.js?build=acf463921baa3f59';
+import { flowPolicy } from '../events.js?build=0cbe7c573cdf05c3';
+import { baseLaneCapacity, QUEUE_JAM_DENSITY_PER_LANE } from '../traffic-physics.js?build=0cbe7c573cdf05c3';
 export const PATHS = LEGACY_ROUTE_KEYS;
 export const NETWORK_PATHS = NETWORK_ROUTE_KEYS;
 const demandDefaults = Object.fromEntries(ROUTE_CATALOG.map(r => [r.key, r.demandVph]));
