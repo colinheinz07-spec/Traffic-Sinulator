@@ -72,7 +72,13 @@ export function junctionRampBindings(route:Corridor,exits:readonly Exit[]):Junct
     // Anzahl der OSM-Ways abbrechen, sondern nur bei unplausibler Länge.
     // Der Zyklenschutz steckt bereits in !sequence.includes(r).
     const tracedM=sequence.reduce((n,r)=>n+rampLength(r),0);
-    if(tracedM>6000||boundaryIndex===undefined&&trunks.has(end))return;
+    // Eine vor der nächsten Ausfahrt wieder an dieselbe Fahrbahn
+    // angebundene Sammlerfahrbahn ist nur dann ein lokaler AS-Ast,
+    // wenn OSM ein echtes, richtungsbezogenes Ziel ausweist.
+    // Das betrifft insbesondere die B506-Rampe bei AS26 Dellbrück.
+    const signedCollector=kind==='exit'&&boundaryIndex===undefined&&
+     trunks.has(end)&&vertices.has(end)&&Boolean(sequence[0]?.destinationRef);
+    if(tracedM>6000||boundaryIndex===undefined&&trunks.has(end)&&!signedCollector)return;
     const following=(graph.get(end)??[]).filter(r=>!sequence.includes(r));
     if(boundaryIndex===undefined&&following.length){for(const r of following)visit([...sequence,r]);return;}
     // Ein falsch nach AD/AK benannter AS-Abzweig wird nur dann als

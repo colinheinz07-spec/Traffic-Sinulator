@@ -24,7 +24,7 @@ const eventBetween=(path,startRef,endRef,kind='closure')=>{
 test('all 27 existing A3/A48 junction references remain available in both directions',()=>{
  for(const key of ['A3-koeln','A3-frankfurt']){
   const js=diversionJunctions(key,exits,roads[key]);
-  assert.equal(js.length,22,key+' must include Limburg-Süd through Bonn/Siegburg');
+  assert.equal(js.length,26,key+' must include Limburg-Süd through Bonn/Siegburg');
   for(const ref of ['43','42','41','40','39','38','37','36','35','34'])
    assert.ok(js.some(x=>x.ref===ref),key+' / '+ref);
  }

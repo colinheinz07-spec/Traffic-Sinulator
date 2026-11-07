@@ -8,6 +8,7 @@ import {advanceRoutedPath,advanceRoutedNetwork} from '../dist/routed-traffic.js'
 import {emptyDetour,detourVehicles} from '../dist/detour-flow.js';
 import {defaultDemands} from '../dist/traffic.js';
 import {automaticDiversions} from '../dist/auto-diversions.js';
+import {bundledTargets,isNetworkDestination} from '../dist/bundled-detours.js';
 import {diversionJunctions,potentialDiversionPercent} from '../dist/diversions.js';
 import {buildRampConnections} from '../dist/interchange.js';
 const routes=makeCorridors(networkData.roads,networkData.ramps),exits=networkData.exits;
@@ -102,7 +103,7 @@ test('extreme delay reaches 100 percent willingness and all feasible upstream ex
  assert.equal(potentialDiversionPercent(500,false),100);
  const a=junction(path,'41'),b=junction(path,'42'),e=event((a.metre+b.metre)/2,'closure',[0,1,2],0);
  const choices=automaticDiversions([e],routes,exits,{});
- const expected=diversionJunctions(path,exits,route).filter(j=>!j.isInterchange&&junctionAccess(route,[],j.metre,j.ref).exit&&j.metre<(a.metre+b.metre)/2-50);
+ const expected=bundledTargets(path,exits,route).filter(j=>!isNetworkDestination(j)&&!j.isInterchange&&junctionAccess(route,[],j.metre,j.ref).exit&&j.metre<(a.metre+b.metre)/2-50);
  assert.equal(choices.length,expected.length);assert.ok(choices.length>3);
  assert.ok(choices.every(c=>c.to.metre>c.from.metre&&!c.from.isInterchange&&!c.to.isInterchange));
  assert.ok(choices.some(c=>c.link.code==='SIM'),'missing official U-routes still need a real-route request');

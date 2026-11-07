@@ -6,14 +6,14 @@ import {extensionJunctions,extensionRoutes} from '../dist/network-extensions.js'
 import {networkRoad} from '../dist/network-road.js';
 const exits=[...networkData.exits,...extensionJunctions];
 test('every modelled motorway has two permanent directions in the same overview and registry',()=>{
- assert.equal(MOTORWAY_PATHS.length,20);
+ assert.equal(MOTORWAY_PATHS.length,22);
  // Dynamic discovery must preserve both directions without relying on a
  // historical presentation order or hardcoded motorway list.
  assert.deepEqual(
   MOTORWAY_GROUPS.map(g=>g.road).sort(),
   [...new Set(MOTORWAY_PATHS.map(networkRoad))].sort()
  );
- assert.ok(MOTORWAY_GROUPS.every(g=>g.paths.length===2));
+ assert.ok(MOTORWAY_GROUPS.every(g=>g.paths.length===(g.road==='A1'?4:2)));
  assert.deepEqual(MOTORWAY_GROUPS.flatMap(g=>g.paths).sort(),[...MOTORWAY_PATHS].sort());
  const rows=trafficOverviewPaths('A3-koeln',new Set(),new Set());
  for(const path of MOTORWAY_PATHS)assert.ok(rows.includes(path));

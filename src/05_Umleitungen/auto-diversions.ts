@@ -41,7 +41,7 @@ export function automaticDiversions(events:readonly SimEvent[],corridors:Readonl
    // Prepare cross-motorway alternatives before the target queue reaches
    // the AD. The remaining journey's delay controls whether anyone uses it.
    const source=connection.from,to=after[0]!;
-   const junctions=diversionJunctions(source,available(source,'exit'),corridors[source]).filter(x=>!x.isInterchange);
+   const junctions=diversionJunctions(source,available(source,'exit'),corridors[source]).filter(x=>!x.isInterchange&&!(source.startsWith('A3')&&['23','24','25','26'].includes(x.ref)));
    const sources=source==='A3-koeln'&&path==='A48-koblenz'
     ?junctions.filter(x=>x.metre>connection.rampEntryM).slice(0,1)
     :junctions.filter(x=>x.metre<connection.rampEntryM-50);
@@ -99,7 +99,7 @@ export function automaticDiversions(events:readonly SimEvent[],corridors:Readonl
     const from=source==='A3-koeln'&&path==='A48-koblenz'
      ?diversionJunctions(source,available(source,'exit'),sourceRoute).find(j=>!j.isInterchange&&j.metre>connection.rampEntryM)
      :nearestExitBeforeQueue(source,sourceRoute,available(source,'exit'),approach?.fromM??connection.rampEntryM,connection.rampEntryM);
-    if(!from||!to||plans.has(source+':'+from.ref+':'+path))continue;
+    if(!from||source.startsWith('A3')&&['23','24','25','26'].includes(from.ref)||!to||plans.has(source+':'+from.ref+':'+path))continue;
     const link:DiversionLink={id:source+'-BUNDLED-'+from.ref+'-to-'+path,code:'SIM',path:source,
      fromRoad:from.road,fromRef:from.ref,toRoad:to.road,toRef:to.ref,evidence:'partial',
      description:'Enthaltene simulierte Umfahrung des Autobahnknotens'};
@@ -120,7 +120,7 @@ export function automaticDiversions(events:readonly SimEvent[],corridors:Readonl
   let end=connection.downstreamMergeM;
   const relevant=cells[target]?cellQueueSpans(cells[target]!).filter(s=>s.fromM<=first.metre+1&&
    s.toM>connection.downstreamMergeM):[];
-  const sourceExits=diversionJunctions(source,available(source,'exit'),sourceRoute).filter(j=>!j.isInterchange);
+  const sourceExits=diversionJunctions(source,available(source,'exit'),sourceRoute).filter(j=>!j.isInterchange&&!(source.startsWith('A3')&&['23','24','25','26'].includes(j.ref)));
   const lastSource=sourceExits.filter(j=>j.metre<connection.rampEntryM-1).at(-1);
   const sourceQueue=cells[source]&&cellQueueSpans(cells[source]!).some(s=>
    s.toM>=(lastSource?.metre??connection.rampEntryM)-1&&s.fromM<connection.rampEntryM);
