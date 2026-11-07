@@ -1,12 +1,12 @@
 /** 01_Strassennetz: Zugeordnetes Fachmodul junction-ramp-bindings. */
 /** Local ramps render the SAME vehicles held by the junction solver.
  * A downstream incident alone never creates a second ramp inventory. */
-import { networkData } from '../geodata.js?build=27d3f861dd882835';
-import { extensionRoutes, extensionRampBoundaryPoints } from '../network-extensions.js?build=27d3f861dd882835';
-import { exitPosition, nearestPolyline } from '../core.js?build=27d3f861dd882835';
-import { networkRoad } from '../network-road.js?build=27d3f861dd882835';
-import { eventCapacity } from '../traffic.js?build=27d3f861dd882835';
-import { queueFundamentalDiagram, colorAtSpeed } from '../traffic-physics.js?build=27d3f861dd882835';
+import { networkData } from '../geodata.js?build=3b44a696873cb354';
+import { extensionRoutes, extensionRampBoundaryPoints } from '../network-extensions.js?build=3b44a696873cb354';
+import { exitPosition, nearestPolyline } from '../core.js?build=3b44a696873cb354';
+import { networkRoad } from '../network-road.js?build=3b44a696873cb354';
+import { eventCapacity } from '../traffic.js?build=3b44a696873cb354';
+import { queueFundamentalDiagram, colorAtSpeed } from '../traffic-physics.js?build=3b44a696873cb354';
 const pointKey = (p) => p.join(',');
 const distance = (a, b) => Math.hypot((b[0] - a[0]) * 111195, (b[1] - a[1]) * 111195 * Math.cos((a[0] + b[0]) * Math.PI / 360));
 const rampLength = (r) => r.points.slice(1).reduce((n, p, i) => n + distance(r.points[i], p), 0);
@@ -65,7 +65,12 @@ export function junctionRampBindings(route, exits) {
                     indices.reverse();
                 const boundaryIndex = indices.slice(1).find(i => boundaries.has(pointKey(last.points[i])) && !trunks.has(pointKey(last.points[i])));
                 const end = pointKey(at(last, true));
-                if (sequence.length > 8 || boundaryIndex === undefined && trunks.has(end))
+                // Eine echte OSM-Rampe kann aus deutlich mehr als acht Wegen bestehen
+                // (z. B. A4 Köln-Eifeltor mit 15–16 Teilstücken). Nicht nach der
+                // Anzahl der OSM-Ways abbrechen, sondern nur bei unplausibler Länge.
+                // Der Zyklenschutz steckt bereits in !sequence.includes(r).
+                const tracedM = sequence.reduce((n, r) => n + rampLength(r), 0);
+                if (tracedM > 6000 || boundaryIndex === undefined && trunks.has(end))
                     return;
                 const following = (graph.get(end) ?? []).filter(r => !sequence.includes(r));
                 if (boundaryIndex === undefined && following.length) {

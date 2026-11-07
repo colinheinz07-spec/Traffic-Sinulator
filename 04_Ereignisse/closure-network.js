@@ -1,6 +1,6 @@
-import { closureGate, positionM } from '../spatial.js?build=27d3f861dd882835';
-import { junctionRampBindings } from '../junction-ramp-bindings.js?build=27d3f861dd882835';
-import { routeDescriptor } from '../network-catalog.js?build=27d3f861dd882835';
+import { closureGate, positionM } from '../spatial.js?build=3b44a696873cb354';
+import { junctionRampBindings } from '../junction-ramp-bindings.js?build=3b44a696873cb354';
+import { routeDescriptor } from '../network-catalog.js?build=3b44a696873cb354';
 const EPS = 2;
 const inClosed = (at, from, to, atGate = false) => at >= from - (atGate ? EPS : -EPS) && at < to - EPS;
 /** A full closure affects only the selected direction and legal movements
