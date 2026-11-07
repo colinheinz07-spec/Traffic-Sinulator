@@ -1,2 +1,2 @@
 /** Bestehender Importpfad; der eigentliche Code liegt in 06_Karte/map-geometry.ts. */
-export * from './06_Karte/map-geometry.js?build=0cbe7c573cdf05c3';
+export * from './06_Karte/map-geometry.js?build=af5a9319e52db706';

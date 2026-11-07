@@ -1,15 +1,15 @@
 /** 05_Umleitungen: Zugeordnetes Fachmodul bundled-detours. */
-import { regionalDetours } from '../regional-detours.js?build=0cbe7c573cdf05c3';
-import { junctionAccess } from '../road-controls.js?build=0cbe7c573cdf05c3';
-import { networkData } from '../geodata.js?build=0cbe7c573cdf05c3';
+import { regionalDetours } from '../regional-detours.js?build=af5a9319e52db706';
+import { junctionAccess } from '../road-controls.js?build=af5a9319e52db706';
+import { networkData } from '../geodata.js?build=af5a9319e52db706';
 /** Offline simulator side-road network. These hand-authored corridors are
  * approximate, NOT surveyed OSM ways, official U-routes or navigation advice.
  * Every normal AS has a route in both directions, including network exits.
  * Longer bypasses concatenate the same sections; no routing server is used.
  */
-import { DIRECTIONS, names, exitPosition } from '../core.js?build=0cbe7c573cdf05c3';
-import { diversionJunctions } from '../diversions.js?build=0cbe7c573cdf05c3';
-import { metres, positionM } from '../spatial.js?build=0cbe7c573cdf05c3';
+import { DIRECTIONS, names, exitPosition } from '../core.js?build=af5a9319e52db706';
+import { diversionJunctions } from '../diversions.js?build=af5a9319e52db706';
+import { metres, positionM } from '../spatial.js?build=af5a9319e52db706';
 export const BUNDLED_SECTIONS = [
     { from: 'A3:33', to: 'A3:34', capacity: 820, via: [[50.6840, 7.2697], [50.6760, 7.2745], [50.6679, 7.2812], [50.6597, 7.2930], [50.6550, 7.3070], [50.6509, 7.3215]] },
     { from: 'A3:34', to: 'A3:35', capacity: 820, via: [[50.6450, 7.3414], [50.6379, 7.3547], [50.6268, 7.3675], [50.6212, 7.3900], [50.6087, 7.4115], [50.5986, 7.4184]] },

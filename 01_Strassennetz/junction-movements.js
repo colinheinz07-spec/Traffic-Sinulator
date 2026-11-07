@@ -1,16 +1,16 @@
 /** 01_Strassennetz: Zugeordnetes Fachmodul junction-movements. */
-import { extensionRoute } from '../network-extensions.js?build=0cbe7c573cdf05c3';
+import { extensionRoute } from '../network-extensions.js?build=af5a9319e52db706';
 /** Direction-specific entrance/exit situation for the A3/A48 simulator.
  * Targets are PLANNED route-choice percentages, not counted departures.
  * Counted values come from ordinary junction cells and detour ledgers.
  * Every normal AS is covered; AK/AD are separate motorway nodes and cannot
  * be misrepresented as exits onto local roads.
  */
-import { names } from '../core.js?build=0cbe7c573cdf05c3';
-import { positionM, closureGate } from '../spatial.js?build=0cbe7c573cdf05c3';
-import { diversionJunctions } from '../diversions.js?build=0cbe7c573cdf05c3';
-import { exitRampVehicles, DEFAULT_EXIT_TERMINAL_VPH, DEFAULT_EXIT_STORAGE_VEHICLES } from '../junction-traffic.js?build=0cbe7c573cdf05c3';
-import { junctionAccess } from '../road-controls.js?build=0cbe7c573cdf05c3';
+import { names } from '../core.js?build=af5a9319e52db706';
+import { positionM, closureGate } from '../spatial.js?build=af5a9319e52db706';
+import { diversionJunctions } from '../diversions.js?build=af5a9319e52db706';
+import { exitRampVehicles, DEFAULT_EXIT_TERMINAL_VPH, DEFAULT_EXIT_STORAGE_VEHICLES } from '../junction-traffic.js?build=af5a9319e52db706';
+import { junctionAccess } from '../road-controls.js?build=af5a9319e52db706';
 /** A formal closure forces departure only at the LAST usable normal exit.
  * Earlier exits are voluntary alternatives chosen by remaining time loss,
  * independently of the tail's distance from any junction.
