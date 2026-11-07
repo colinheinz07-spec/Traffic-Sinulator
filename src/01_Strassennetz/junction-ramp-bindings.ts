@@ -75,11 +75,14 @@ export function junctionRampBindings(route:Corridor,exits:readonly Exit[]):Junct
     if(tracedM>6000||boundaryIndex===undefined&&trunks.has(end))return;
     const following=(graph.get(end)??[]).filter(r=>!sequence.includes(r));
     if(boundaryIndex===undefined&&following.length){for(const r of following)visit([...sequence,r]);return;}
-    // Ein falsch nach AD/AK benannter AS-Abzweig wird nur dann als
-    // ORTS-RAMPE freigegeben, wenn der nachverfolgte Weg tatsächlich eine
-    // im OSM-Import erfasste lokale Straße erreicht. Ein bloß endendes
-    // motorway_link-Fragment ist keine nachgewiesene Abfahrt.
-    if(boundaryIndex===undefined&&/^(AD |AK )/.test(seed.zone))return;
+    // Existing explicitly mapped AS approaches (e.g. Montabaur) may end at
+    // the edge of an older OSM street snapshot. Keep those established
+    // junction-traffic bindings instead of silently deleting real flows.
+    // New, unlabeled motorway_link additions must reach a verified public
+    // street; merely being near an AS is not proof of a local access.
+    // As before, misleadingly labelled AK/AD turns need that proof too.
+    if(boundaryIndex===undefined&&
+       (/^(AD |AK )/.test(seed.zone)||seed.id.startsWith('extra-osm-link-')))return;
     const ordered=reverse?[...sequence].reverse():sequence;let lengthM=0;
     const segments=ordered.map(ramp=>{
      let rampFromM=0,length=rampLength(ramp);

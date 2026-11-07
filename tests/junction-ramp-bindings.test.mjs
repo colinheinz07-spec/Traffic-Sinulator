@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {networkData} from '../dist/geodata.js';
-import {extensionJunctions} from '../dist/network-extensions.js';
+import {extensionJunctions,extensionRoutes,extensionRampBoundaryPoints} from '../dist/network-extensions.js';
+import {MOTORWAY_ROUTE_KEYS} from '../dist/network-catalog.js';
 import {makeCorridors} from '../dist/spatial.js';
 import {initialiseCells,advanceCells,assertCellConservation} from '../dist/traffic-cells.js';
 import {normalJunctionTraffic} from '../dist/junction-traffic.js';
@@ -56,4 +57,29 @@ test('a physical ramp accident limits its own junction service while a formal cl
  let cells=initialiseCells(route,1200);
  for(let i=0;i<3;i++)cells=advanceCells(cells,route,make('accident'),1200,exits,[],normalJunctionTraffic(route,exits,1200,undefined,false,make('accident')));
  assertCellConservation(cells);assert.ok(cells.junctions.find(j=>j.ref==='41').waiting>0);
+});
+
+test('new unlabelled OSM motorway_link branches cannot masquerade as connected public-road exits',()=>{
+ const publicStreet=new Set(extensionRampBoundaryPoints.map(p=>p.join(',')));
+ const mainlines=new Set([
+  ...networkData.roads.flatMap(r=>r.points),
+  ...extensionRoutes.filter(r=>r.kind==='motorway').flatMap(r=>r.points)
+ ].map(p=>p.join(',')));
+ assert.ok(extensionRoutes.some(r=>r.id.startsWith('extra-osm-link-')),
+  'this guards the real imported supplementary OSM link inventory');
+ for(const path of MOTORWAY_ROUTE_KEYS){
+  for(const binding of junctionRampBindings(routes[path],exits)){
+   const seed=binding.segments[binding.kind==='entry'?binding.segments.length-1:0]?.ramp;
+   if(!seed?.id.startsWith('extra-osm-link-'))continue;
+   const last=binding.kind==='entry'?binding.segments[0]:binding.segments.at(-1);
+   assert.ok(last?.ramp.points.some(p=>{
+    const key=p.join(',');return publicStreet.has(key)&&!mainlines.has(key);
+   }),path+' AS '+binding.ref+' '+binding.kind+' claims a public-road access without OSM evidence');
+  }
+ }
+ // An imported fragment's mere proximity must not invalidate established
+ // mapped local traffic when an older public-road snapshot is incomplete.
+ const montabaur=junctionRampBindings(routes['A3-koeln'],exits).filter(b=>b.ref==='40');
+ assert.ok(montabaur.some(b=>b.kind==='entry'),'A3 Köln AS40 entrance was lost');
+ assert.ok(montabaur.some(b=>b.kind==='exit'),'A3 Köln AS40 exit was lost');
 });
