@@ -503,6 +503,9 @@ def build():
     header+="export const extensionRampBoundaryPoints:Point[]="+json.dumps(boundaries,separators=(',',':'))+";\n"
     header+="const byId=new Map<string,ExtensionRoute>(extensionRoutes.map(r=>[r.id,r]));\nexport const extensionRoute=(id:string)=>byId.get(id);\n"
     (ROOT/'src/network-extensions.ts').write_text(header)
+    # Keep the last A555 metres to the Cologne Verteilerkreis fork.
+    from extend_a555_koeln_north import extend as extend_a555_koeln_north
+    extend_a555_koeln_north()
     from attach_verified_osm_links import patch_generated_extensions
     patch_generated_extensions(ROOT)
     from build_osm_additional_ramps import regenerate
