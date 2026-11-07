@@ -59,22 +59,27 @@ test('a physical ramp accident limits its own junction service while a formal cl
  assertCellConservation(cells);assert.ok(cells.junctions.find(j=>j.ref==='41').waiting>0);
 });
 
-test('every simulated local AS arm reaches a verified OSM public street, not an orphan ramp tip',()=>{
+test('new unlabelled OSM motorway_link branches cannot masquerade as connected public-road exits',()=>{
  const publicStreet=new Set(extensionRampBoundaryPoints.map(p=>p.join(',')));
  const mainlines=new Set([
   ...networkData.roads.flatMap(r=>r.points),
   ...extensionRoutes.filter(r=>r.kind==='motorway').flatMap(r=>r.points)
  ].map(p=>p.join(',')));
- let checked=0;
+ assert.ok(extensionRoutes.some(r=>r.id.startsWith('extra-osm-link-')),
+  'this guards the real imported supplementary OSM link inventory');
  for(const path of MOTORWAY_ROUTE_KEYS){
   for(const binding of junctionRampBindings(routes[path],exits)){
-   const streetEnd=binding.kind==='entry'?binding.segments[0]:binding.segments.at(-1);
-   assert.ok(streetEnd, path+' '+binding.ref+' missing terminal');
-   assert.ok(streetEnd.ramp.points.some(p=>{
+   const seed=binding.segments[binding.kind==='entry'?binding.segments.length-1:0]?.ramp;
+   if(!seed?.id.startsWith('extra-osm-link-'))continue;
+   const last=binding.kind==='entry'?binding.segments[0]:binding.segments.at(-1);
+   assert.ok(last?.ramp.points.some(p=>{
     const key=p.join(',');return publicStreet.has(key)&&!mainlines.has(key);
-   }),path+' AS '+binding.ref+' '+binding.kind+' ends without a proven street connection');
-   checked++;
+   }),path+' AS '+binding.ref+' '+binding.kind+' claims a public-road access without OSM evidence');
   }
  }
- assert.ok(checked>10,'audit must include real ordinary junction ramps');
+ // An imported fragment's mere proximity must not invalidate established
+ // mapped local traffic when an older public-road snapshot is incomplete.
+ const montabaur=junctionRampBindings(routes['A3-koeln'],exits).filter(b=>b.ref==='40');
+ assert.ok(montabaur.some(b=>b.kind==='entry'),'A3 Köln AS40 entrance was lost');
+ assert.ok(montabaur.some(b=>b.kind==='exit'),'A3 Köln AS40 exit was lost');
 });
