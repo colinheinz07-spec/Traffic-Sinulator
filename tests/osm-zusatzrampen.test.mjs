@@ -12,9 +12,9 @@ import {defaultDemand} from '../dist/traffic.js';
 const extra=verifiedOsmAdditionalRoutes;
 const byId=id=>extra.find(r=>r.wayIds[0]===id&&!r.id.endsWith('-back'));
 const contains=(lat,lon,range=.018)=>extra.filter(r=>r.points.some(p=>Math.abs(p[0]-lat)<range&&Math.abs(p[1]-lon)<range));
-test('136 actual OSM motorway_link ways are available as 143 navigable directed corridors',()=>{
- assert.equal(new Set(extra.flatMap(x=>x.wayIds)).size,136);
- assert.equal(extra.length,143);
+test('138 actual OSM motorway_link ways are available as 145 navigable directed corridors',()=>{
+ assert.equal(new Set(extra.flatMap(x=>x.wayIds)).size,138);
+ assert.equal(extra.length,145);
  assert.equal(new Set(extra.map(x=>x.id)).size,extra.length);
  assert.equal(extensionRoutes.length,711+extra.length);
  assert.equal(EXTENSION_IDS.length,extensionRoutes.length);
@@ -52,6 +52,18 @@ test('Idstein, Niedernhausen and Wiesbaden preserve 10 newly verified one-way OS
  const idstein=extra.filter(r=>[388594671,278106759].includes(r.wayIds[0]));
  assert.equal(idstein.length,2);
  assert.ok(idstein.every(r=>r.points.some(p=>p[0]>50.20&&p[0]<50.22&&p[1]>8.24&&p[1]<8.26)));
+});
+test('A555 Cologne-bound continuation and both genuine Verteilerkreis ramp arms are preserved',()=>{
+ const north=extensionRoutes.find(r=>r.id==='extra-a555-koeln');
+ assert.ok(north);
+ for(const id of [20661568,20661572,1451715037,230940374,1451715031,4400143,235824475,178797123])
+  assert.ok(north.wayIds.includes(id),'missing directed A555 mainline '+id);
+ assert.deepEqual(north.points.at(-1),[50.8913065,6.9678547]);
+ for(const id of [4400125,233553030]){
+  const ramp=byId(id);assert.ok(ramp,'missing exact north-end branch '+id);
+  assert.deepEqual(ramp.points[0],north.points.at(-1));
+  assert.equal(ramp.demandVph,0);
+ }
 });
 test('two-way OSM links provide reversed directional routes on ONE geometry, not invented parallel roads',()=>{
  const original=extra.filter(x=>x.id.startsWith('extra-osm-link-')&&!x.id.endsWith('-back'));
