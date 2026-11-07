@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {networkData} from '../dist/geodata.js';
-import {extensionJunctions} from '../dist/network-extensions.js';
+import {extensionJunctions,extensionRoutes,extensionRampBoundaryPoints} from '../dist/network-extensions.js';
+import {MOTORWAY_ROUTE_KEYS} from '../dist/network-catalog.js';
 import {makeCorridors} from '../dist/spatial.js';
 import {initialiseCells,advanceCells,assertCellConservation} from '../dist/traffic-cells.js';
 import {normalJunctionTraffic} from '../dist/junction-traffic.js';
@@ -56,4 +57,24 @@ test('a physical ramp accident limits its own junction service while a formal cl
  let cells=initialiseCells(route,1200);
  for(let i=0;i<3;i++)cells=advanceCells(cells,route,make('accident'),1200,exits,[],normalJunctionTraffic(route,exits,1200,undefined,false,make('accident')));
  assertCellConservation(cells);assert.ok(cells.junctions.find(j=>j.ref==='41').waiting>0);
+});
+
+test('every simulated local AS arm reaches a verified OSM public street, not an orphan ramp tip',()=>{
+ const publicStreet=new Set(extensionRampBoundaryPoints.map(p=>p.join(',')));
+ const mainlines=new Set([
+  ...networkData.roads.flatMap(r=>r.points),
+  ...extensionRoutes.filter(r=>r.kind==='motorway').flatMap(r=>r.points)
+ ].map(p=>p.join(',')));
+ let checked=0;
+ for(const path of MOTORWAY_ROUTE_KEYS){
+  for(const binding of junctionRampBindings(routes[path],exits)){
+   const streetEnd=binding.kind==='entry'?binding.segments[0]:binding.segments.at(-1);
+   assert.ok(streetEnd, path+' '+binding.ref+' missing terminal');
+   assert.ok(streetEnd.ramp.points.some(p=>{
+    const key=p.join(',');return publicStreet.has(key)&&!mainlines.has(key);
+   }),path+' AS '+binding.ref+' '+binding.kind+' ends without a proven street connection');
+   checked++;
+  }
+ }
+ assert.ok(checked>10,'audit must include real ordinary junction ramps');
 });
