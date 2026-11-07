@@ -1,7 +1,7 @@
 /** 01_Strassennetz: Zugeordnetes Fachmodul extension-connections. */
-import { extensionRoutes } from '../network-extensions.js?build=af5a9319e52db706';
-import { MOTORWAY_ROUTE_KEYS } from '../network-catalog.js?build=af5a9319e52db706';
-import { motorwayEndpointIndex } from '../network-topology.js?build=af5a9319e52db706';
+import { extensionRoutes } from '../network-extensions.js?build=b556e4c8a817de2e';
+import { MOTORWAY_ROUTE_KEYS } from '../network-catalog.js?build=b556e4c8a817de2e';
+import { motorwayEndpointIndex } from '../network-topology.js?build=b556e4c8a817de2e';
 const heading = (a, b) => {
     const x = (b[1] - a[1]) * Math.cos((a[0] + b[0]) * Math.PI / 360), y = b[0] - a[0], length = Math.hypot(x, y);
     return length > .00000001 ? [x / length, y / length] : [0, 0];

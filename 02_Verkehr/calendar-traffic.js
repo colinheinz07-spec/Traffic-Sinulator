@@ -1,7 +1,7 @@
 /** 02_Verkehr: Zugeordnetes Fachmodul calendar-traffic. */
 /** Explicit scenario assumptions, not measured local road counts. */
-import { effectiveEventsAt } from '../events.js?build=af5a9319e52db706';
-import { NETWORK_PATHS as PATHS } from '../traffic.js?build=af5a9319e52db706';
+import { effectiveEventsAt } from '../events.js?build=b556e4c8a817de2e';
+import { NETWORK_PATHS as PATHS } from '../traffic.js?build=b556e4c8a817de2e';
 /** Availability relative to the existing busy-weekday calibration.
  * A quiet road cannot exceed its geometric/signal maximum: the ramp
  * terminal remains bounded by its junction-specific maximum. No holiday assumptions. */
