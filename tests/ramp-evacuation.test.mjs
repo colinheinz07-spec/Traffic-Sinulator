@@ -17,7 +17,10 @@ for(const ramp of extensionRoutes.filter(r=>r.kind==='ramp'))test(`${ramp.id}: f
  const fresh=advanceSpatial(emptySpatial(),[closure],demands,15,routes,links,[],exits,[],[ramp.id]);
  assert.equal(Object.keys(fresh.queues).length,0);
  const accident={...closure,kind:'accident'};
- const blocked=advanceSpatial(emptySpatial(),[accident],demands,2,routes,links,[],exits,[],[ramp.id]);
+ // A newly imported OSM segment has no automatic independent demand;
+ // an accident queues actual cars only when a scenario supplies cars.
+ const incidentDemand=ramp.demandVph>0?demands:{...demands,[ramp.id]:Math.min(850,ramp.lanes*400)};
+ const blocked=advanceSpatial(emptySpatial(),[accident],incidentDemand,2,routes,links,[],exits,[],[ramp.id]);
  assert.ok(blocked.queues[accident.id]?.vehicles>0,'physical obstruction still queues actual traffic');
 });
 
