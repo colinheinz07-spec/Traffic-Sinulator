@@ -58,7 +58,7 @@ for(const path of ['A3-koeln','A3-frankfurt'])test(`${path}: a full closure in t
 test('SPCK contains the northern map data and both navigation targets without an online routing dependency',()=>{
  const html=readFileSync('index.html','utf8');
  for(const id of ['siebengebirge','bonn-siegburg'])assert.ok(html.includes('id="'+id+'"'));
- assert.ok(html.includes('38 sofort verfügbare Abfahrtsmöglichkeiten'));
+ assert.ok(html.includes('44 fahrtrichtungsabhängige Abfahrtsmöglichkeiten'));
  const source=JSON.parse(readFileSync('data/a3-north-osm.json','utf8'));
  assert.ok(source.elements.some(e=>e.type==='node'&&e.tags?.ref==='33'));
  assert.ok(source.elements.some(e=>e.type==='node'&&e.tags?.ref==='32'));
