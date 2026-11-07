@@ -505,6 +505,8 @@ def build():
     (ROOT/'src/network-extensions.ts').write_text(header)
     from attach_verified_osm_links import patch_generated_extensions
     patch_generated_extensions(ROOT)
+    from build_osm_additional_ramps import regenerate
+    regenerate()
     print('A555 / A565 expansion complete:',len(routes),'routes;',len(junctions),'junctions;',len(seen),'new ramp way candidates',flush=True)
 if __name__=='__main__':
     import sys
