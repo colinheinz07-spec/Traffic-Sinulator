@@ -48,7 +48,7 @@ test('when a ramp has a closed mainline endpoint AND an open onward branch, the 
  const blocked=new Set(closedNetworkSpans([event],full,exits,[]).map(s=>s.pathKey));
  assert.ok(!blocked.has(common.key),'never block a shared feeder before the branch');
  assert.ok(!blocked.has(escape.key),'the exit to the open motorway stays usable');
- assert.ok(blocked.has(closedArm.key),'other exclusively blocked ramp stays closed');
+ assert.ok(!blocked.has(closedArm.key),'any feeder ending at the shared open fork must remain open');
 });
 test('ordinary roadworks and accidents never produce red-white administrative ramp stripes',()=>{
  for(const kind of ['accident','roadworks'])
