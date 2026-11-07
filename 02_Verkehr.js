@@ -5,7 +5,7 @@
  */
 /** Demand curves are model assumptions. DTV anchors are two-way DAILY
  * counts, never hourly inputs. See docs/Regional-demand.md for evidence. */
-import { extensionRoute } from './network-extensions.js?build=a94d75afb60e3d28';
+import { extensionRoute } from './network-extensions.js?build=5a5b497110235b6c';
 const weekday = {
     transit: [[0, .14], [4, .09], [5, .20], [6, .52], [7, .86], [8, 1], [9, .79], [10, .66], [12, .68], [14, .72], [15, .82], [16, 1], [17, 1.05], [18, .82], [19, .58], [21, .32], [23, .19], [24, .14]],
     koblenz: [[0, .12], [4, .08], [4.5, .12], [5, .24], [6, .62], [7.25, 1], [8, .94], [9, .64], [10, .55], [12, .58], [14, .68], [15.5, .94], [16.5, 1], [17.5, .92], [19, .52], [21, .28], [23, .16], [24, .12]],

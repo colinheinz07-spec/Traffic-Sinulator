@@ -1,2 +1,2 @@
 /** Bestehender Importpfad; der eigentliche Code liegt in 02_Verkehr/traffic.ts. */
-export * from './02_Verkehr/traffic.js?build=a94d75afb60e3d28';
+export * from './02_Verkehr/traffic.js?build=5a5b497110235b6c';

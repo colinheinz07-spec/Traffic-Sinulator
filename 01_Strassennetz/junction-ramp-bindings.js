@@ -1,12 +1,12 @@
 /** 01_Strassennetz: Zugeordnetes Fachmodul junction-ramp-bindings. */
 /** Local ramps render the SAME vehicles held by the junction solver.
  * A downstream incident alone never creates a second ramp inventory. */
-import { networkData } from '../geodata.js?build=a94d75afb60e3d28';
-import { extensionRoutes, extensionRampBoundaryPoints } from '../network-extensions.js?build=a94d75afb60e3d28';
-import { exitPosition, nearestPolyline } from '../core.js?build=a94d75afb60e3d28';
-import { networkRoad } from '../network-road.js?build=a94d75afb60e3d28';
-import { eventCapacity } from '../traffic.js?build=a94d75afb60e3d28';
-import { queueFundamentalDiagram, colorAtSpeed } from '../traffic-physics.js?build=a94d75afb60e3d28';
+import { networkData } from '../geodata.js?build=5a5b497110235b6c';
+import { extensionRoutes, extensionRampBoundaryPoints } from '../network-extensions.js?build=5a5b497110235b6c';
+import { exitPosition, nearestPolyline } from '../core.js?build=5a5b497110235b6c';
+import { networkRoad } from '../network-road.js?build=5a5b497110235b6c';
+import { eventCapacity } from '../traffic.js?build=5a5b497110235b6c';
+import { queueFundamentalDiagram, colorAtSpeed } from '../traffic-physics.js?build=5a5b497110235b6c';
 const pointKey = (p) => p.join(',');
 const distance = (a, b) => Math.hypot((b[0] - a[0]) * 111195, (b[1] - a[1]) * 111195 * Math.cos((a[0] + b[0]) * Math.PI / 360));
 const rampLength = (r) => r.points.slice(1).reduce((n, p, i) => n + distance(r.points[i], p), 0);
@@ -78,11 +78,14 @@ export function junctionRampBindings(route, exits) {
                         visit([...sequence, r]);
                     return;
                 }
-                // Ein falsch nach AD/AK benannter AS-Abzweig wird nur dann als
-                // ORTS-RAMPE freigegeben, wenn der nachverfolgte Weg tatsächlich eine
-                // im OSM-Import erfasste lokale Straße erreicht. Ein bloß endendes
-                // motorway_link-Fragment ist keine nachgewiesene Abfahrt.
-                if (boundaryIndex === undefined && /^(AD |AK )/.test(seed.zone))
+                // Existing explicitly mapped AS approaches (e.g. Montabaur) may end at
+                // the edge of an older OSM street snapshot. Keep those established
+                // junction-traffic bindings instead of silently deleting real flows.
+                // New, unlabeled motorway_link additions must reach a verified public
+                // street; merely being near an AS is not proof of a local access.
+                // As before, misleadingly labelled AK/AD turns need that proof too.
+                if (boundaryIndex === undefined &&
+                    (/^(AD |AK )/.test(seed.zone) || seed.id.startsWith('extra-osm-link-')))
                     return;
                 const ordered = reverse ? [...sequence].reverse() : sequence;
                 let lengthM = 0;

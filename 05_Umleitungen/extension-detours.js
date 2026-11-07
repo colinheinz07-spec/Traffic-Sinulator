@@ -1,12 +1,12 @@
 /** 05_Umleitungen: Zugeordnetes Fachmodul extension-detours. */
-import { ringDetours } from '../ring-detours-data.js?build=a94d75afb60e3d28';
-import { extensionDetours as baseDetours } from '../extension-detours-data.js?build=a94d75afb60e3d28';
-import { eventCapacity } from '../traffic.js?build=a94d75afb60e3d28';
-import { closureGate, positionM } from '../spatial.js?build=a94d75afb60e3d28';
-import { cellQueueSpans } from '../traffic-cells.js?build=a94d75afb60e3d28';
-import { diversionJunctions } from '../diversions.js?build=a94d75afb60e3d28';
-import { junctionAccess } from '../road-controls.js?build=a94d75afb60e3d28';
-import { speedDelayInCells } from '../speed-delay.js?build=a94d75afb60e3d28';
+import { ringDetours } from '../ring-detours-data.js?build=5a5b497110235b6c';
+import { extensionDetours as baseDetours } from '../extension-detours-data.js?build=5a5b497110235b6c';
+import { eventCapacity } from '../traffic.js?build=5a5b497110235b6c';
+import { closureGate, positionM } from '../spatial.js?build=5a5b497110235b6c';
+import { cellQueueSpans } from '../traffic-cells.js?build=5a5b497110235b6c';
+import { diversionJunctions } from '../diversions.js?build=5a5b497110235b6c';
+import { junctionAccess } from '../road-controls.js?build=5a5b497110235b6c';
+import { speedDelayInCells } from '../speed-delay.js?build=5a5b497110235b6c';
 const extensionDetours = [...baseDetours, ...ringDetours];
 const sectionCache = new WeakMap();
 const indexed = new Map(extensionDetours.map(r => [r.id, r]));
