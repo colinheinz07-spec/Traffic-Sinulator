@@ -1,4 +1,4 @@
-/** 04_Ereignisse: Zugeordnetes Fachmodul closure-network. */
+/** 04_Ereignisse: gerichtete Rampenketten bei Vollsperrungen. */
 /** Administrative motorway closures: one interval on the selected direction,
  * plus only the physical ramps which enter or leave that *closed* section.
  *
@@ -22,6 +22,52 @@ export interface ClosedNetworkSpan {
  source:'motorway'|'interchange-entry'|'local-entry'|'local-exit'|'direct-ramp';
 }
 const EPS=2;
+/** Actual OSM ramp-to-ramp continuations. One transfer ramp may consist of
+ * several directed ways, and a way may branch to both an open and a closed
+ * destination. Keep the common approach open whenever ANY legal downstream
+ * branch remains open. Unknown external boundaries are treated as open,
+ * never guessed to be a prohibited motorway entry.
+ */
+interface RampEndpointTopology {
+ ramps:Corridor[];
+ starts:Map<string,Corridor[]>;
+ mainlines:Map<string,{key:string;metre:number}[]>;
+}
+const endpointCache=new WeakMap<object,RampEndpointTopology>();
+const pointId=(p:readonly number[])=>p.join(',');
+function endpointTopology(routes:Readonly<Record<string,Corridor>>):RampEndpointTopology{
+ const cached=endpointCache.get(routes);if(cached)return cached;
+ const ramps:Corridor[]=[],starts=new Map<string,Corridor[]>(),
+  mainlines=new Map<string,{key:string;metre:number}[]>();
+ for(const route of Object.values(routes)){
+  if(routeDescriptor(route.key)?.kind==='ramp'||route.key.startsWith('ramp-')){
+   ramps.push(route);
+   const at=pointId(route.points[0]!);
+   starts.set(at,[...(starts.get(at)??[]),route]);
+  }else{
+   route.points.forEach((point,i)=>{
+    const at=pointId(point);
+    mainlines.set(at,[...(mainlines.get(at)??[]),{key:route.key,metre:route.metres[i]!}]);
+   });
+  }
+ }
+ const result={ramps,starts,mainlines};endpointCache.set(routes,result);return result;
+}
+/** Exakt derselbe gerichtete Tangentenabgleich wie bei Autobahn-Rampen.
+ * Geometrische Knotengleichheit allein erlaubt keine Fahrt gegen die Richtung. */
+function heading(a:readonly number[],b:readonly number[]):[number,number]{
+ const x=(b[1]!-a[1]!)*Math.cos((a[0]!+b[0]!)*Math.PI/360),y=b[0]!-a[0]!;
+ const n=Math.hypot(x,y);return n>1e-8?[x/n,y/n]:[0,0];
+}
+function directedReceiving(ramp:Corridor,hit:{key:string;metre:number},
+ routes:Readonly<Record<string,Corridor>>):boolean{
+ const road=routes[hit.key];if(!road||road.points.length<2)return false;
+ const at=road.metres.findIndex(m=>m>=hit.metre-.05);
+ const i=at<0?road.points.length-1:at;
+ const along=heading(road.points[Math.max(0,i-1)]!,road.points[Math.min(road.points.length-1,i+1)]!);
+ const arriving=heading(ramp.points.at(-2)!,ramp.points.at(-1)!);
+ return along[0]*arriving[0]+along[1]*arriving[1]>=.15;
+}
 const inClosed=(at:number,from:number,to:number,atGate=false)=>
  at >= from-(atGate?EPS:-EPS) && at < to-EPS;
 
@@ -88,6 +134,30 @@ export function closedNetworkSpans(
       binding.kind==='entry'?'local-entry':'local-exit');
    }
   }
+  // Traverse directed ramp chains back from the prohibited receiving road.
+  // A shared feeder at a fork remains OPEN when it can reach an open arm.
+  // Direct connections above remain useful for ramps whose OSM endpoints
+  // differ from the old motorway geometry; this is an additive audit.
+  const topo=endpointTopology(routes),memo=new Map<string,boolean>();
+  const leadsOnlyIntoClosure=(ramp:Corridor,visiting:Set<string>):boolean=>{
+   const known=memo.get(ramp.key);if(known!==undefined)return known;
+   if(visiting.has(ramp.key))return false; // cycle/unknown: fail open
+   const nextSeen=new Set(visiting);nextSeen.add(ramp.key);
+   const at=pointId(ramp.points.at(-1)!);
+   const mainlineHits=(topo.mainlines.get(at)??[]).filter(hit=>directedReceiving(ramp,hit,routes));
+   const continuations=(topo.starts.get(at)??[]).filter(next=>next.key!==ramp.key);
+   // Gemeinsame Zufahrt nur sperren, wenn ALLE tatsächlich befahrbaren
+   // Nachfolger gesperrt sind. Ein offener Ast gewinnt auch bei vorhandenem
+   // Hauptfahrbahn-Treffer – keine pauschale Sperrung vor einer Gabelung.
+   const reachable=[
+    ...mainlineHits.map(hit=>hit.key===route.key&&inClosed(hit.metre,gate.metre,gate.endM,true)),
+    ...continuations.map(next=>leadsOnlyIntoClosure(next,nextSeen))
+   ];
+   const closed=reachable.length>0&&reachable.every(Boolean);
+   memo.set(ramp.key,closed);return closed;
+  };
+  for(const ramp of topo.ramps)if(leadsOnlyIntoClosure(ramp,new Set()))
+   add(event.id,ramp.key,0,ramp.lengthM,'interchange-entry');
  }
  // The same segment must not draw multiple overlapping red/white stripes
  // when two closure rules name the identical directed ramp.
