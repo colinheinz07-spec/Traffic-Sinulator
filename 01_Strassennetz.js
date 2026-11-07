@@ -10,11 +10,11 @@
  * Existing A3/A48 observations remain explicitly calibrated legacy DATA.
  * Adding a generated ExtensionRoute registers it automatically.
  */
-import { networkData } from './geodata.js?build=b556e4c8a817de2e';
-import { names } from './core.js?build=b556e4c8a817de2e';
-import { extensionRoutes } from './network-extensions.js?build=b556e4c8a817de2e';
-import { normalThroughLanes } from './lane-info.js?build=b556e4c8a817de2e';
-import { REFERENCE_PEAKS } from './traffic-profiles.js?build=b556e4c8a817de2e';
+import { networkData } from './geodata.js?build=27d3f861dd882835';
+import { names } from './core.js?build=27d3f861dd882835';
+import { extensionRoutes } from './network-extensions.js?build=27d3f861dd882835';
+import { normalThroughLanes } from './lane-info.js?build=27d3f861dd882835';
+import { REFERENCE_PEAKS } from './traffic-profiles.js?build=27d3f861dd882835';
 const legacyDemand = {
     'A3-koeln': 4200, 'A3-frankfurt': 4100,
     'A48-dernbach': 2400, 'A48-koblenz': 1700,
@@ -106,5 +106,5 @@ export function validateRouteCatalog(catalog = ROUTE_CATALOG) {
     return errors;
 }
 /** Direkter Zugriff auf das vollstaendige geladene Netz einschliesslich aller gerichteten Erweiterungen. */
-export { networkData } from './geodata.js?build=b556e4c8a817de2e';
-export { extensionRoutes, extensionJunctions } from './network-extensions.js?build=b556e4c8a817de2e';
+export { networkData } from './geodata.js?build=27d3f861dd882835';
+export { extensionRoutes, extensionJunctions } from './network-extensions.js?build=27d3f861dd882835';

@@ -2,7 +2,7 @@
  * Änderungen am Referenzzufluss wirken auf die echte Simulation.
  * Die Grafik nutzt exakt die profileFactor-Funktion der Verkehrs-Engine.
  */
-import { profileFactor, profileDescription } from '../traffic-profiles.js?build=b556e4c8a817de2e';
+import { profileFactor, profileDescription } from '../traffic-profiles.js?build=27d3f861dd882835';
 const NS = 'http://www.w3.org/2000/svg';
 function element(tag, attributes) {
     const node = document.createElementNS(NS, tag);

@@ -1,7 +1,7 @@
 /** 01_Strassennetz: Zugeordnetes Fachmodul extension-connections. */
-import { extensionRoutes } from '../network-extensions.js?build=b556e4c8a817de2e';
-import { MOTORWAY_ROUTE_KEYS } from '../network-catalog.js?build=b556e4c8a817de2e';
-import { motorwayEndpointIndex } from '../network-topology.js?build=b556e4c8a817de2e';
+import { extensionRoutes } from '../network-extensions.js?build=27d3f861dd882835';
+import { MOTORWAY_ROUTE_KEYS } from '../network-catalog.js?build=27d3f861dd882835';
+import { motorwayEndpointIndex } from '../network-topology.js?build=27d3f861dd882835';
 const heading = (a, b) => {
     const x = (b[1] - a[1]) * Math.cos((a[0] + b[0]) * Math.PI / 360), y = b[0] - a[0], length = Math.hypot(x, y);
     return length > .00000001 ? [x / length, y / length] : [0, 0];
@@ -12,8 +12,10 @@ function motorwayHeading(route, metre) {
     return heading(route.points[Math.max(0, i - 1)], route.points[Math.min(route.points.length - 1, i + 1)]);
 }
 function attachment(hits, ramp, routes, atEnd) {
-    if (hits.length <= 1)
-        return hits[0];
+    // Auch ein einzelner Knoten-Treffer muss zur gerichteten Rampe passen.
+    // Sonst verbindet ein gemeinsamer OSM-Punkt eine Auffahrt entgegen der Fahrtrichtung.
+    if (!hits.length)
+        return undefined;
     const points = ramp.points, axis = atEnd ? heading(points.at(-2), points.at(-1)) :
         heading(points[0], points[1]);
     const ranked = hits.map((hit, index) => {
