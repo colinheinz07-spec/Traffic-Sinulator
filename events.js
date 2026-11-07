@@ -1,2 +1,2 @@
 /** Weiterleitung: Die aktive Logik steht in src/04_Ereignisse.ts. */
-export * from './04_Ereignisse.js?build=3b44a696873cb354';
+export * from './04_Ereignisse.js?build=a94d75afb60e3d28';

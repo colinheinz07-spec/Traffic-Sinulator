@@ -1,2 +1,2 @@
 /** Weiterleitung: Die aktive Logik steht in src/02_Verkehr.ts. */
-export * from './02_Verkehr.js?build=3b44a696873cb354';
+export * from './02_Verkehr.js?build=a94d75afb60e3d28';

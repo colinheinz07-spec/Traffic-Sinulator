@@ -3,7 +3,7 @@
  * Zugehoerige Daten/Module: Zellmodell: traffic-cells.ts; Netzrueckstau: network-receiving.ts.
  * Hier liegt die aktive Programmlogik. Alte Dateinamen leiten hierher weiter.
  */
-import { routeDescriptor } from './network-catalog.js?build=3b44a696873cb354';
+import { routeDescriptor } from './network-catalog.js?build=a94d75afb60e3d28';
 /** Unrestricted base service before event-specific reductions. These are
  * simulator assumptions, not measured capacities for every A3/A48 section.
  * Motorway lanes receive +100 vehicles/hour (2000 → 2100);\n * one-lane interchange ramps retain 1500 and stay distinct. */

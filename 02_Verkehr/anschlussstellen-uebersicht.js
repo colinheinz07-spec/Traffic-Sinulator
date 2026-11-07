@@ -1,7 +1,7 @@
 /** Zeigt modellierte Zuflüsse und Ausfahrtsanteile pro vorhandener AS. */
-import { networkRoad } from '../network-road.js?build=3b44a696873cb354';
-import { normalJunctionTraffic } from '../junction-traffic.js?build=3b44a696873cb354';
-import { localJunctionShares } from './anschlussstellen-nachfrage.js?build=3b44a696873cb354';
+import { networkRoad } from '../network-road.js?build=a94d75afb60e3d28';
+import { normalJunctionTraffic } from '../junction-traffic.js?build=a94d75afb60e3d28';
+import { localJunctionShares } from './anschlussstellen-nachfrage.js?build=a94d75afb60e3d28';
 const fmt = (n) => n.toLocaleString('de-DE', { maximumFractionDigits: 1 });
 export function renderLocalDemandProfiles(route, exits, demandVph, moment, calendar, events) {
     const panel = document.getElementById('traffic-local-demand-panel');

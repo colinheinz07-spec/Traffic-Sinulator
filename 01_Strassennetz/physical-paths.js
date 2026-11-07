@@ -1,8 +1,8 @@
 /** 01_Strassennetz: Zugeordnetes Fachmodul physical-paths. */
 /** One motorway edge has one physical owner, including legacy ramp aliases. */
-import { networkData } from '../geodata.js?build=3b44a696873cb354';
-import { extensionRoutes, extensionRoute } from '../network-extensions.js?build=3b44a696873cb354';
-import { normalThroughLanes } from '../lane-info.js?build=3b44a696873cb354';
+import { networkData } from '../geodata.js?build=a94d75afb60e3d28';
+import { extensionRoutes, extensionRoute } from '../network-extensions.js?build=a94d75afb60e3d28';
+import { normalThroughLanes } from '../lane-info.js?build=a94d75afb60e3d28';
 const edge = (a, b) => [a.join(','), b.join(',')].sort().join('|');
 const distance = (a, b) => Math.hypot((a[0] - b[0]) * 111195, (a[1] - b[1]) * 111195 * Math.cos((a[0] + b[0]) * Math.PI / 360));
 let owners;
