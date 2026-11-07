@@ -26,7 +26,7 @@ Das Netzwerk-Modell ordnet den grundlegenden OSM-Klassen `highway=motorway` (Hau
 
 ## Fehlende OSM-Verbindungsrampen (November 2026)
 
-Der Import ergänzt **136 bislang nicht als eigene Fahrwege im Simulator vorhandene, anhand gleicher OSM-Knoten angeschlossene `motorway_link`-Ways**. Bei sieben ausdrücklich als zweirichtungsfähig ausgewiesenen OSM-Wegen erzeugt er je Richtung einen Fahrweg auf derselben realen Mittellinie: zusammen **143 gerichtete Ergänzungen**.
+Der Import ergänzt **138 bislang nicht als eigene Fahrwege im Simulator vorhandene, anhand gleicher OSM-Knoten angeschlossene `motorway_link`-Ways**. Bei sieben ausdrücklich als zweirichtungsfähig ausgewiesenen OSM-Wegen erzeugt er je Richtung einen Fahrweg auf derselben realen Mittellinie: zusammen **145 gerichtete Ergänzungen**.
 
 - Im Raum **Siebengebirge**: u. a. OSM-Ways 407505963–407505966.
 - Am **Kreuz Köln-Süd** und benachbarten AS: u. a. OSM-Ways 4400131/4400133/4400126/4400135.
@@ -41,3 +41,7 @@ Die generierten Daten liegen in [osm-zusatzrampen.ts](osm-zusatzrampen.ts). Das 
 ## Ergänzung Idstein / Niedernhausen / Wiesbaden
 
 Der gespeicherte OSM-Stand `data/a3-wiesbaden-osm.json` war beim Rampenimport bisher nicht enthalten. Das erweitert die Geometrie um **10 echte gerichtete `motorway_link`-Segmente**: Idstein (2), Niedernhausen (4) und Wiesbadener Kreuzungsbereiche (4). Die Linie endet weiterhin dort, wo OSM in eine Nicht-Autobahn-Straße übergeht. Kein erfundener Anschluss und kein zusätzlicher Fahrzeugzufluss.
+
+## A555 Richtung Köln – Verteilerkreis
+
+Die an der AK Köln-Süd verkürzte **A555-Richtungsfahrbahn Richtung Köln** wurde mit acht direkt zusammenhängenden, originalen OSM-`motorway`-Ways bis zum Verteilerkreis-Abzweig verlängert. Zwei getrennte originale `motorway_link`-Ways (4400125 und 233553030) führen von dort zu den tatsächlichen primären Stadtstraßen. Keine durchgezogene imaginäre Brücke zwischen beiden Straßen, keine Phantomnachfrage. Regenerierbar über `scripts/extend_a555_koeln_north.py`; bei Neuimport im A555/A565-Importer enthalten.
