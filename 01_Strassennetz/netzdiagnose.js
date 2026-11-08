@@ -9,11 +9,11 @@
  * Modell. Das beweist NICHT, dass die echte Rampe fehlt. AK/AD werden
  * separat durch die gerichteten Autobahn-Überleitungen modelliert.
  */
-import { networkRoad } from '../network-road.js?build=f706910bd9663983';
-import { diversionJunctions } from '../diversions.js?build=f706910bd9663983';
-import { junctionRampBindings } from '../junction-ramp-bindings.js?build=f706910bd9663983';
-import { buildExtensionConnections } from '../extension-connections.js?build=f706910bd9663983';
-import { extensionRoutes } from '../network-extensions.js?build=f706910bd9663983';
+import { networkRoad } from '../network-road.js?build=04711ec6101cdcfe';
+import { diversionJunctions } from '../diversions.js?build=04711ec6101cdcfe';
+import { junctionRampBindings } from '../junction-ramp-bindings.js?build=04711ec6101cdcfe';
+import { buildExtensionConnections } from '../extension-connections.js?build=04711ec6101cdcfe';
+import { extensionRoutes } from '../network-extensions.js?build=04711ec6101cdcfe';
 /** A detached terminal may be an intentional open map boundary or a
  * segment continuing along another ramp. Never invent a link from proximity. */
 export function directionNetworkAudit(path, routes, exits) {

@@ -1,13 +1,13 @@
 /** 03_Stauphysik: Zugeordnetes Fachmodul traffic-cells. */
-import { extensionRoute } from '../network-extensions.js?build=f706910bd9663983';
-import { routeDescriptor } from '../network-catalog.js?build=f706910bd9663983';
-import { baseLaneCapacity } from '../traffic-physics.js?build=f706910bd9663983';
-import { positionM, closureGate } from '../spatial.js?build=f706910bd9663983';
-import { baselineCapacity, eventCapacity } from '../traffic.js?build=f706910bd9663983';
-import { flowPolicy, DEFAULT_CLEARANCE_MIN } from '../events.js?build=f706910bd9663983';
-import { colorAtSpeed, freeSpeedKmh, QUEUE_JAM_DENSITY_PER_LANE, CONGESTION_WAVE_KMH } from '../traffic-physics.js?build=f706910bd9663983';
-import { normalJunctionTraffic, exitRampVehicles, DEFAULT_EXIT_TERMINAL_VPH, DEFAULT_EXIT_STORAGE_VEHICLES } from '../junction-traffic.js?build=f706910bd9663983';
-import { roadSections, physicalEvents, junctionAccess } from '../road-controls.js?build=f706910bd9663983';
+import { extensionRoute } from '../network-extensions.js?build=04711ec6101cdcfe';
+import { routeDescriptor } from '../network-catalog.js?build=04711ec6101cdcfe';
+import { baseLaneCapacity } from '../traffic-physics.js?build=04711ec6101cdcfe';
+import { positionM, closureGate } from '../spatial.js?build=04711ec6101cdcfe';
+import { baselineCapacity, eventCapacity } from '../traffic.js?build=04711ec6101cdcfe';
+import { flowPolicy, DEFAULT_CLEARANCE_MIN } from '../events.js?build=04711ec6101cdcfe';
+import { colorAtSpeed, freeSpeedKmh, QUEUE_JAM_DENSITY_PER_LANE, CONGESTION_WAVE_KMH } from '../traffic-physics.js?build=04711ec6101cdcfe';
+import { normalJunctionTraffic, exitRampVehicles, DEFAULT_EXIT_TERMINAL_VPH, DEFAULT_EXIT_STORAGE_VEHICLES } from '../junction-traffic.js?build=04711ec6101cdcfe';
+import { roadSections, physicalEvents, junctionAccess } from '../road-controls.js?build=04711ec6101cdcfe';
 const TARGET_CELL_M = 100, WAVE_KMH = CONGESTION_WAVE_KMH, JAM_PER_LANE = QUEUE_JAM_DENSITY_PER_LANE;
 // One observation per MODEL minute; repainting/pause never advances this.
 const TRAVEL_ALPHA = 1 - Math.exp(-1 / 6);

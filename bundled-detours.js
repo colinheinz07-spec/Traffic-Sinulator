@@ -1,2 +1,2 @@
 /** Bestehender Importpfad; der eigentliche Code liegt in 05_Umleitungen/bundled-detours.ts. */
-export * from './05_Umleitungen/bundled-detours.js?build=f706910bd9663983';
+export * from './05_Umleitungen/bundled-detours.js?build=04711ec6101cdcfe';
