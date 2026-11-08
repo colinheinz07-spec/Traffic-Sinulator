@@ -193,8 +193,150 @@ def gap_routes():
     return patches, len(starts), len(graph)
 
 
+
+def missing_motorway_link_runs(features, initial_patches):
+    """Coverage scan of all saved OSM motorway_link way edges, not merely ramp ends.
+
+    A way may have been imported under a different route ID yet have missing
+    interior vertices; compare the *physical edges*, not its way ID.
+    Only import exact original OSM lines connected to the retained network.
+    """
+    exits = read_array(ROOT / "src/geodata.ts",
+                       "export const networkData:MapData=")["exits"]
+    exits += read_array(ROOT / "src/network-extensions.ts",
+                        "export const extensionJunctions:Exit[]=")
+    covered = set()
+    known = set()
+    for feature in features:
+        ps = [coord(p) for p in feature["points"]]
+        known.update(ps)
+        covered.update(frozenset((a, b)) for a, b in zip(ps, ps[1:]))
+    for patch in initial_patches:
+        ps = [coord(p) for p in patch["points"]]
+        known.update(ps)
+        covered.update(frozenset((a, b)) for a, b in zip(ps, ps[1:]))
+
+    # All eligible areas are near named motorway junctions already imported.
+    # This excludes foreign motorways and remote maintenance/service roads.
+    eligible = {}
+    public_nodes = set()
+    service_nodes = set()
+    for way in load_ways():
+        tags = way.get("tags", {})
+        kind = tags.get("highway")
+        ps = list(map(point, way["geometry"]))
+        if kind in {"trunk", "trunk_link", "primary", "primary_link",
+                    "secondary", "secondary_link", "tertiary",
+                    "tertiary_link", "residential", "unclassified", "living_street"}:
+            public_nodes.update((ps[0], ps[-1]))
+        if kind == "service":
+            service_nodes.update((ps[0], ps[-1]))
+        if kind != "motorway_link":
+            continue
+        if any(tags.get(k) in FORBIDDEN for k in ("access", "vehicle", "motor_vehicle", "motorcar")):
+            continue
+        label = " ".join(str(tags.get(k, "")) for k in
+                         ("name", "destination", "destination:street",
+                          "service", "motorway:service", "amenity"))
+        if REST_AREA.search(label):
+            continue
+        if not ps or len(ps) < 2:
+            continue
+        mid = ps[len(ps)//2]
+        nearest = min(exits, key=lambda j: metres(mid, coord(j["position"])))
+        if metres(mid, coord(nearest["position"])) > 2400:
+            continue
+        if all(frozenset((a, b)) in covered for a, b in zip(ps, ps[1:])):
+            continue
+        eligible[way["id"]] = (way, ps, nearest)
+
+    selected = set()
+    # Extend from original OSM nodes of retained roads/ramps, never through
+    # distance snapping, arbitrary chord connections or public roads.
+    for _ in range(18):
+        newly = set()
+        for way_id, (way, ps, _) in eligible.items():
+            if way_id in selected:
+                continue
+            if any(p in known for p in ps):
+                # Reject only genuine service-area dead ends. A public AS
+                # boundary remains legal even when a service road is nearby.
+                if any(p in service_nodes for p in (ps[0], ps[-1])) and not any(
+                        p in public_nodes for p in (ps[0], ps[-1])):
+                    continue
+                newly.add(way_id)
+        if not newly:
+            break
+        for way_id in newly:
+            selected.add(way_id)
+            known.update(eligible[way_id][1])
+
+    additions = []
+    already = set(covered)
+    for way_id in sorted(selected):
+        way, ps, exit = eligible[way_id]
+        tags = way["tags"]
+        original = ps[::-1] if tags.get("oneway") == "-1" else ps
+        two_way = tags.get("oneway") == "no"
+        runs = []
+        run = []
+        for a, b in zip(original, original[1:]):
+            pair = frozenset((a, b))
+            if pair in already:
+                if len(run) > 1:
+                    runs.append(run)
+                run = []
+                continue
+            if run and run[-1] != a:
+                runs.append(run)
+                run = []
+            if not run:
+                run = [a]
+            run.append(b)
+            already.add(pair)
+        if len(run) > 1:
+            runs.append(run)
+        try:
+            lanes = int(str(tags.get("lanes", "1")).split(";")[0])
+        except ValueError:
+            lanes = 1
+        lanes = max(1, min(4, lanes//2 if two_way else lanes))
+        for run_index, run in enumerate(runs):
+            length = sum(metres(a, b) for a, b in zip(run, run[1:]))
+            if length <= 0.1:
+                continue
+            label = f'{exit["road"]} {exit["ref"]} {exit["name"]}'
+            for reverse in (False, True) if two_way else (False,):
+                oriented = run[::-1] if reverse else run
+                signature = f"{way_id}:{run_index}:{reverse}:{oriented[0]}:{oriented[-1]}"
+                suffix = hashlib.sha1(signature.encode()).hexdigest()[:12]
+                additions.append({
+                    "id": "extra-osm-ramp-gap-" + suffix,
+                    "name": "OSM-Rampenabdeckung · " + label,
+                    "zone": label, "kind": "ramp", "lanes": lanes,
+                    "laneSegments": [{"fromM": 0, "toM": length, "lanes": lanes}],
+                    "points": [list(p) for p in oriented],
+                    "wayIds": [way_id], "demandVph": 0, "freeKmh": 80,
+                })
+    missing_eligible = sum(
+        any(frozenset((a, b)) not in already for a, b in
+            zip(ps, ps[1:]))
+        for _, ps, _ in eligible.values()
+        if any(p in known for p in ps)
+    )
+    return additions, {
+        "eligibleUncoveredWays": len(eligible),
+        "connectedMissingWays": len(selected),
+        "routesImported": len(additions),
+        "connectedStillUncoveredWays": missing_eligible,
+    }
+
+
 def main():
     patches, open_ends, source_nodes = gap_routes()
+    features, _, _ = existing_routes()
+    coverage, nationwide = missing_motorway_link_runs(features, patches)
+    patches.extend(coverage)
     header = (
         "/** OSM-originale, tatsächlich fehlende motorway_link-Kanten an Rampen.\n"
         " * Keine Landstraßen, kein Snapping, keine künstlichen Geraden.\n"
@@ -213,6 +355,7 @@ def main():
         "sourceGraphNodes": source_nodes,
         "verifiedPatches": len(patches),
         "sumLengthM": round(sum(r["laneSegments"][0]["toM"] for r in patches), 1),
+        "nationwide": nationwide,
         "locations": {place: sum(place.lower() in r["zone"].lower() for r in patches)
                       for place in places},
     }
