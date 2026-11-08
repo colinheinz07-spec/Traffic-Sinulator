@@ -324,11 +324,30 @@ def missing_motorway_link_runs(features, initial_patches):
         for _, ps, _ in eligible.values()
         if any(p in known for p in ps)
     )
+    # Report all unresolved source geometry by junction instead of hiding
+    # these pink motorway_link ways from the network quality assessment.
+    unresolved = []
+    for way_id, (_, ps, near) in eligible.items():
+        if way_id in selected:
+            continue
+        mid = ps[len(ps)//2]
+        unresolved.append({
+            "wayId": way_id,
+            "near": f'{near["road"]} {near["ref"]} {near["name"]}',
+            "centre": list(mid),
+            "metres": round(sum(metres(a, b) for a, b in zip(ps, ps[1:])), 1),
+        })
+    by_junction = defaultdict(int)
+    for record in unresolved:
+        by_junction[record["near"]] += 1
     return additions, {
+        "junctionsAudited": len(exits),
         "eligibleUncoveredWays": len(eligible),
         "connectedMissingWays": len(selected),
         "routesImported": len(additions),
         "connectedStillUncoveredWays": missing_eligible,
+        "unresolvedByJunction": dict(sorted(by_junction.items())),
+        "unresolvedOsmWayDetails": sorted(unresolved, key=lambda r: (r["near"], r["wayId"])),
     }
 
 
