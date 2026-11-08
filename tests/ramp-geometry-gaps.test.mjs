@@ -32,12 +32,18 @@ test('new ramp parts do not duplicate the already rendered OSM geometry',()=>{
  const preexisting=[...networkData.roads,...networkData.ramps,
   ...extensionRoutes.filter(r=>!r.id.startsWith('extra-osm-ramp-gap-'))];
  const baseline=new Set(preexisting.flatMap(r=>r.points.slice(1).map((p,i)=>edge(r.points[i],p))));
- const repairs=new Set();
+ const repairs=new Map();
  for(const r of verifiedRampGapRoutes)for(let i=1;i<r.points.length;i++){
-  const key=edge(r.points[i-1],r.points[i]);
+  const a=r.points[i-1],b=r.points[i],key=edge(a,b);
   assert.ok(!baseline.has(key),'existing OSM motorway/ramp stroke was wrongly duplicated');
-  assert.ok(!repairs.has(key),'two repairs overlap same OSM edge');
-  repairs.add(key);
+  const old=repairs.get(key);
+  if(old){
+   assert.equal(old.wayId,r.wayIds[0],
+    'different OSM ways must not paint the same ramp segment twice');
+   assert.equal(old.a,point(b));
+   assert.equal(old.b,point(a),
+    'only an explicitly two-way OSM ramp may use the same physical edge in reverse');
+  }else repairs.set(key,{wayId:r.wayIds[0],a:point(a),b:point(b)});
  }
 });
 
