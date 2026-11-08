@@ -31,7 +31,7 @@ jobs:
       - run: node --test tests/ramp-geometry-gaps.test.mjs tests/osm-zusatzrampen.test.mjs
       - name: Commit fingerprinted browser modules
         run: |
-          git add -A -- src/01_Strassennetz/osm-rampenluecken.ts data/ramp-gap-repair-audit.json data/ramp-gap-diagnostics.json data/missing-osm-ramp-edges.json index.html '*.js' '01_Strassennetz/*.js' '02_Verkehr/*.js' '03_Stauphysik/*.js' '04_Ereignisse/*.js' '05_Umleitungen/*.js' '06_Karte/*.js'
+          git add -A -- index.html '*.js' '01_Strassennetz/*.js' '02_Verkehr/*.js' '03_Stauphysik/*.js' '04_Ereignisse/*.js' '05_Umleitungen/*.js' '06_Karte/*.js' src/01_Strassennetz/osm-rampenluecken.ts data/ramp-gap-repair-audit.json data/ramp-gap-diagnostics.json data/missing-osm-ramp-edges.json
           if git diff --cached --quiet; then exit 0; fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
