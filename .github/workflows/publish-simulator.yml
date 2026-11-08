@@ -19,13 +19,17 @@ jobs:
         with:
           node-version: '22'
       - run: npm ci --no-audit --no-fund
+      # Completes short ramp fragments exclusively from the pinned OSM motorway_link ways.
+      # The generated routes are used by BOTH the simulation and the map.
+      - run: python3 scripts/repair_osm_ramp_gaps.py
       # Full regression tests run independently in check.yml. The browser
       # bundle must still publish when the full suite takes many minutes.
       - run: npm run typecheck
       - run: npm run build
+      - run: node --test tests/ramp-geometry-gaps.test.mjs tests/osm-zusatzrampen.test.mjs
       - name: Commit fingerprinted browser modules
         run: |
-          git add -A -- index.html '*.js' '01_Strassennetz/*.js' '02_Verkehr/*.js' '03_Stauphysik/*.js' '04_Ereignisse/*.js' '05_Umleitungen/*.js' '06_Karte/*.js'
+          git add -A -- src/01_Strassennetz/osm-rampenluecken.ts data/ramp-gap-repair-audit.json index.html '*.js' '01_Strassennetz/*.js' '02_Verkehr/*.js' '03_Stauphysik/*.js' '04_Ereignisse/*.js' '05_Umleitungen/*.js' '06_Karte/*.js'
           if git diff --cached --quiet; then exit 0; fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
