@@ -1,0 +1,3441 @@
+{
+  "Idstein": {
+    "openRampEnds": 0,
+    "examples": []
+  },
+  "Montabaur": {
+    "openRampEnds": 11,
+    "examples": [
+      {
+        "ramp": "extra-heumar-23208523",
+        "wayIds": [
+          23208523
+        ],
+        "point": [
+          50.4465776,
+          7.8306845
+        ],
+        "nearestOsmEdges": [
+          {
+            "wayId": 23208523,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4465776,
+              7.8306845
+            ],
+            "b": [
+              50.4465776,
+              7.8307409
+            ],
+            "nodeA": 1034447581,
+            "nodeB": 7548010968,
+            "distanceToEndpointsM": 0.0,
+            "edgeLengthM": 4.0,
+            "alreadyDisplayed": true,
+            "exactSharedNode": true
+          },
+          {
+            "wayId": 23208523,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4465776,
+              7.8307409
+            ],
+            "b": [
+              50.4465708,
+              7.8308
+            ],
+            "nodeA": 7548010968,
+            "nodeB": 1232840178,
+            "distanceToEndpointsM": 4.0,
+            "edgeLengthM": 4.3,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 29613078,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4465074,
+              7.8306823
+            ],
+            "b": [
+              50.4465157,
+              7.8307332
+            ],
+            "nodeA": 1232840209,
+            "nodeB": 11733946107,
+            "distanceToEndpointsM": 7.7,
+            "edgeLengthM": 3.7,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 29613078,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4465157,
+              7.8307332
+            ],
+            "b": [
+              50.4465205,
+              7.8307868
+            ],
+            "nodeA": 11733946107,
+            "nodeB": 7548010969,
+            "distanceToEndpointsM": 7.7,
+            "edgeLengthM": 3.8,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 29613078,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4464919,
+              7.8306186
+            ],
+            "b": [
+              50.4465074,
+              7.8306823
+            ],
+            "nodeA": 11733946106,
+            "nodeB": 1232840209,
+            "distanceToEndpointsM": 7.8,
+            "edgeLengthM": 4.8,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 23208523,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4465708,
+              7.8308
+            ],
+            "b": [
+              50.4465548,
+              7.8308942
+            ],
+            "nodeA": 1232840178,
+            "nodeB": 11171441401,
+            "distanceToEndpointsM": 8.2,
+            "edgeLengthM": 6.9,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 29613078,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4465205,
+              7.8307868
+            ],
+            "b": [
+              50.4465197,
+              7.8308459
+            ],
+            "nodeA": 7548010969,
+            "nodeB": 11171441399,
+            "distanceToEndpointsM": 9.6,
+            "edgeLengthM": 4.2,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 29613078,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4464635,
+              7.8305428
+            ],
+            "b": [
+              50.4464919,
+              7.8306186
+            ],
+            "nodeA": 336081911,
+            "nodeB": 11733946106,
+            "distanceToEndpointsM": 10.6,
+            "edgeLengthM": 6.2,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          }
+        ]
+      },
+      {
+        "ramp": "extra-heumar-23608535",
+        "wayIds": [
+          23608535,
+          535237606
+        ],
+        "point": [
+          50.4466854,
+          7.8307692
+        ],
+        "nearestOsmEdges": [
+          {
+            "wayId": 535237606,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4466466,
+              7.8308089
+            ],
+            "b": [
+              50.4466854,
+              7.8307692
+            ],
+            "nodeA": 7548010967,
+            "nodeB": 255690658,
+            "distanceToEndpointsM": 0.0,
+            "edgeLengthM": 5.1,
+            "alreadyDisplayed": true,
+            "exactSharedNode": true
+          },
+          {
+            "wayId": 535237606,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4466222,
+              7.8308541
+            ],
+            "b": [
+              50.4466466,
+              7.8308089
+            ],
+            "nodeA": 2513057749,
+            "nodeB": 7548010967,
+            "distanceToEndpointsM": 5.1,
+            "edgeLengthM": 4.2,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 535237606,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4465949,
+              7.8309275
+            ],
+            "b": [
+              50.4466222,
+              7.8308541
+            ],
+            "nodeA": 11138698012,
+            "nodeB": 2513057749,
+            "distanceToEndpointsM": 9.2,
+            "edgeLengthM": 6.0,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 23208523,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4465776,
+              7.8306845
+            ],
+            "b": [
+              50.4465776,
+              7.8307409
+            ],
+            "nodeA": 1034447581,
+            "nodeB": 7548010968,
+            "distanceToEndpointsM": 12.2,
+            "edgeLengthM": 4.0,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 23208523,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4465776,
+              7.8307409
+            ],
+            "b": [
+              50.4465708,
+              7.8308
+            ],
+            "nodeA": 7548010968,
+            "nodeB": 1232840178,
+            "distanceToEndpointsM": 12.2,
+            "edgeLengthM": 4.3,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 23208523,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4465708,
+              7.8308
+            ],
+            "b": [
+              50.4465548,
+              7.8308942
+            ],
+            "nodeA": 1232840178,
+            "nodeB": 11171441401,
+            "distanceToEndpointsM": 12.9,
+            "edgeLengthM": 6.9,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 535237606,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4465679,
+              7.8310257
+            ],
+            "b": [
+              50.4465949,
+              7.8309275
+            ],
+            "nodeA": 336081612,
+            "nodeB": 11138698012,
+            "distanceToEndpointsM": 15.1,
+            "edgeLengthM": 7.6,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 23208523,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4465548,
+              7.8308942
+            ],
+            "b": [
+              50.4465316,
+              7.8310038
+            ],
+            "nodeA": 11171441401,
+            "nodeB": 11733915260,
+            "distanceToEndpointsM": 17.0,
+            "edgeLengthM": 8.2,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          }
+        ]
+      },
+      {
+        "ramp": "extra-heumar-1391773490",
+        "wayIds": [
+          1391773490,
+          29613078
+        ],
+        "point": [
+          50.4462735,
+          7.8302856
+        ],
+        "nearestOsmEdges": [
+          {
+            "wayId": 1391773490,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4462735,
+              7.8302856
+            ],
+            "b": [
+              50.4463181,
+              7.8303354
+            ],
+            "nodeA": 12882957221,
+            "nodeB": 12882957222,
+            "distanceToEndpointsM": 0.0,
+            "edgeLengthM": 6.1,
+            "alreadyDisplayed": true,
+            "exactSharedNode": true
+          },
+          {
+            "wayId": 29613078,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4463181,
+              7.8303354
+            ],
+            "b": [
+              50.4463637,
+              7.8303822
+            ],
+            "nodeA": 12882957222,
+            "nodeB": 11733946105,
+            "distanceToEndpointsM": 6.1,
+            "edgeLengthM": 6.1,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 23880127,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4462218,
+              7.8308665
+            ],
+            "b": [
+              50.446245,
+              7.8304442
+            ],
+            "nodeA": 12116466955,
+            "nodeB": 311600537,
+            "distanceToEndpointsM": 11.7,
+            "edgeLengthM": 30.0,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 28371037,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4462655,
+              7.8301204
+            ],
+            "b": [
+              50.4462846,
+              7.8297468
+            ],
+            "nodeA": 311600530,
+            "nodeB": 11733946074,
+            "distanceToEndpointsM": 11.7,
+            "edgeLengthM": 26.5,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 28371041,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.446245,
+              7.8304442
+            ],
+            "b": [
+              50.4462655,
+              7.8301204
+            ],
+            "nodeA": 311600537,
+            "nodeB": 311600530,
+            "distanceToEndpointsM": 11.7,
+            "edgeLengthM": 23.0,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 29613078,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4463637,
+              7.8303822
+            ],
+            "b": [
+              50.4463896,
+              7.8304151
+            ],
+            "nodeA": 11733946105,
+            "nodeB": 2513057745,
+            "distanceToEndpointsM": 12.1,
+            "edgeLengthM": 3.7,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 29613078,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4463896,
+              7.8304151
+            ],
+            "b": [
+              50.446414,
+              7.8304511
+            ],
+            "nodeA": 2513057745,
+            "nodeB": 11171441425,
+            "distanceToEndpointsM": 15.8,
+            "edgeLengthM": 3.7,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 28371038,
+            "highway": "motorway",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4461533,
+              7.8301145
+            ],
+            "b": [
+              50.4462714,
+              7.8282574
+            ],
+            "nodeA": 311600531,
+            "nodeB": 2329414757,
+            "distanceToEndpointsM": 18.0,
+            "edgeLengthM": 132.2,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          }
+        ]
+      },
+      {
+        "ramp": "extra-heumar-30449962",
+        "wayIds": [
+          30449962
+        ],
+        "point": [
+          50.4440892,
+          7.8404378
+        ],
+        "nearestOsmEdges": [
+          {
+            "wayId": 30449962,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4440892,
+              7.8404378
+            ],
+            "b": [
+              50.4440069,
+              7.8402148
+            ],
+            "nodeA": 12787535172,
+            "nodeB": 14130556961,
+            "distanceToEndpointsM": 0.0,
+            "edgeLengthM": 18.3,
+            "alreadyDisplayed": true,
+            "exactSharedNode": true
+          },
+          {
+            "wayId": 30449962,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4440069,
+              7.8402148
+            ],
+            "b": [
+              50.4439757,
+              7.840126
+            ],
+            "nodeA": 14130556961,
+            "nodeB": 336077386,
+            "distanceToEndpointsM": 18.3,
+            "edgeLengthM": 7.2,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 30449962,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4439757,
+              7.840126
+            ],
+            "b": [
+              50.4439341,
+              7.8399983
+            ],
+            "nodeA": 336077386,
+            "nodeB": 5155331118,
+            "distanceToEndpointsM": 25.4,
+            "edgeLengthM": 10.2,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 30449962,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4439341,
+              7.8399983
+            ],
+            "b": [
+              50.4439162,
+              7.8399222
+            ],
+            "nodeA": 5155331118,
+            "nodeB": 5155331119,
+            "distanceToEndpointsM": 35.6,
+            "edgeLengthM": 5.7,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 30449962,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4439162,
+              7.8399222
+            ],
+            "b": [
+              50.4439026,
+              7.8398413
+            ],
+            "nodeA": 5155331119,
+            "nodeB": 1941117757,
+            "distanceToEndpointsM": 41.3,
+            "edgeLengthM": 5.9,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 30449962,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4439026,
+              7.8398413
+            ],
+            "b": [
+              50.4438964,
+              7.8397661
+            ],
+            "nodeA": 1941117757,
+            "nodeB": 5155331120,
+            "distanceToEndpointsM": 47.1,
+            "edgeLengthM": 5.4,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 30449962,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4438964,
+              7.8397661
+            ],
+            "b": [
+              50.4438943,
+              7.8396772
+            ],
+            "nodeA": 5155331120,
+            "nodeB": 13188699323,
+            "distanceToEndpointsM": 52.2,
+            "edgeLengthM": 6.3,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 30449962,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4438943,
+              7.8396772
+            ],
+            "b": [
+              50.4438978,
+              7.8395887
+            ],
+            "nodeA": 13188699323,
+            "nodeB": 14130556962,
+            "distanceToEndpointsM": 58.1,
+            "edgeLengthM": 6.3,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          }
+        ]
+      },
+      {
+        "ramp": "extra-heumar-689876996",
+        "wayIds": [
+          689876996
+        ],
+        "point": [
+          50.4454557,
+          7.8302769
+        ],
+        "nearestOsmEdges": [
+          {
+            "wayId": 689876996,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4453591,
+              7.8303656
+            ],
+            "b": [
+              50.4454557,
+              7.8302769
+            ],
+            "nodeA": 6472095706,
+            "nodeB": 12882957215,
+            "distanceToEndpointsM": 0.0,
+            "edgeLengthM": 12.4,
+            "alreadyDisplayed": true,
+            "exactSharedNode": true
+          },
+          {
+            "wayId": 689876996,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4453315,
+              7.8303936
+            ],
+            "b": [
+              50.4453591,
+              7.8303656
+            ],
+            "nodeA": 6472095707,
+            "nodeB": 6472095706,
+            "distanceToEndpointsM": 12.4,
+            "edgeLengthM": 3.7,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 689876996,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4453095,
+              7.8304252
+            ],
+            "b": [
+              50.4453315,
+              7.8303936
+            ],
+            "nodeA": 11733915266,
+            "nodeB": 6472095707,
+            "distanceToEndpointsM": 16.1,
+            "edgeLengthM": 3.3,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 689876996,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4452903,
+              7.8304574
+            ],
+            "b": [
+              50.4453095,
+              7.8304252
+            ],
+            "nodeA": 11733915263,
+            "nodeB": 11733915266,
+            "distanceToEndpointsM": 19.4,
+            "edgeLengthM": 3.1,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 689876996,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4452746,
+              7.8304902
+            ],
+            "b": [
+              50.4452903,
+              7.8304574
+            ],
+            "nodeA": 11733915264,
+            "nodeB": 11733915263,
+            "distanceToEndpointsM": 22.4,
+            "edgeLengthM": 2.9,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 689876996,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4452606,
+              7.8305287
+            ],
+            "b": [
+              50.4452746,
+              7.8304902
+            ],
+            "nodeA": 6472095708,
+            "nodeB": 11733915264,
+            "distanceToEndpointsM": 25.2,
+            "edgeLengthM": 3.1,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 785021080,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4452242,
+              7.8304596
+            ],
+            "b": [
+              50.4452246,
+              7.8302753
+            ],
+            "nodeA": 4964007942,
+            "nodeB": 12882957214,
+            "distanceToEndpointsM": 25.7,
+            "edgeLengthM": 13.1,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 689876996,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4452226,
+              7.8306583
+            ],
+            "b": [
+              50.4452606,
+              7.8305287
+            ],
+            "nodeA": 6472095702,
+            "nodeB": 6472095708,
+            "distanceToEndpointsM": 28.1,
+            "edgeLengthM": 10.1,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          }
+        ]
+      },
+      {
+        "ramp": "extra-heumar-785021080",
+        "wayIds": [
+          785021080
+        ],
+        "point": [
+          50.4452246,
+          7.8302753
+        ],
+        "nearestOsmEdges": [
+          {
+            "wayId": 785021080,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4452242,
+              7.8304596
+            ],
+            "b": [
+              50.4452246,
+              7.8302753
+            ],
+            "nodeA": 4964007942,
+            "nodeB": 12882957214,
+            "distanceToEndpointsM": 0.0,
+            "edgeLengthM": 13.1,
+            "alreadyDisplayed": true,
+            "exactSharedNode": true
+          },
+          {
+            "wayId": 1262909214,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4451438,
+              7.8302732
+            ],
+            "b": [
+              50.4451426,
+              7.8305708
+            ],
+            "nodeA": 12882957213,
+            "nodeB": 1473368787,
+            "distanceToEndpointsM": 9.0,
+            "edgeLengthM": 21.1,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 785021080,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4452226,
+              7.8306583
+            ],
+            "b": [
+              50.4452242,
+              7.8304596
+            ],
+            "nodeA": 6472095702,
+            "nodeB": 4964007942,
+            "distanceToEndpointsM": 13.1,
+            "edgeLengthM": 14.1,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 689876996,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4452903,
+              7.8304574
+            ],
+            "b": [
+              50.4453095,
+              7.8304252
+            ],
+            "nodeA": 11733915263,
+            "nodeB": 11733915266,
+            "distanceToEndpointsM": 14.2,
+            "edgeLengthM": 3.1,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 689876996,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4453095,
+              7.8304252
+            ],
+            "b": [
+              50.4453315,
+              7.8303936
+            ],
+            "nodeA": 11733915266,
+            "nodeB": 6472095707,
+            "distanceToEndpointsM": 14.2,
+            "edgeLengthM": 3.3,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 689876996,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4453315,
+              7.8303936
+            ],
+            "b": [
+              50.4453591,
+              7.8303656
+            ],
+            "nodeA": 6472095707,
+            "nodeB": 6472095706,
+            "distanceToEndpointsM": 14.5,
+            "edgeLengthM": 3.7,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 689876996,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4452746,
+              7.8304902
+            ],
+            "b": [
+              50.4452903,
+              7.8304574
+            ],
+            "nodeA": 11733915264,
+            "nodeB": 11733915263,
+            "distanceToEndpointsM": 14.8,
+            "edgeLengthM": 2.9,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 689876996,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4452606,
+              7.8305287
+            ],
+            "b": [
+              50.4452746,
+              7.8304902
+            ],
+            "nodeA": 6472095708,
+            "nodeB": 11733915264,
+            "distanceToEndpointsM": 16.2,
+            "edgeLengthM": 3.1,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          }
+        ]
+      },
+      {
+        "ramp": "extra-heumar-30449934",
+        "wayIds": [
+          30449934
+        ],
+        "point": [
+          50.4433006,
+          7.8395092
+        ],
+        "nearestOsmEdges": [
+          {
+            "wayId": 30449934,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4434359,
+              7.8395358
+            ],
+            "b": [
+              50.4433006,
+              7.8395092
+            ],
+            "nodeA": 11078779883,
+            "nodeB": 7252936016,
+            "distanceToEndpointsM": 0.0,
+            "edgeLengthM": 15.2,
+            "alreadyDisplayed": true,
+            "exactSharedNode": true
+          },
+          {
+            "wayId": 30449934,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4434643,
+              7.8395376
+            ],
+            "b": [
+              50.4434359,
+              7.8395358
+            ],
+            "nodeA": 14130543590,
+            "nodeB": 11078779883,
+            "distanceToEndpointsM": 15.2,
+            "edgeLengthM": 3.2,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 30449934,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.443494,
+              7.8395374
+            ],
+            "b": [
+              50.4434643,
+              7.8395376
+            ],
+            "nodeA": 13188699316,
+            "nodeB": 14130543590,
+            "distanceToEndpointsM": 18.3,
+            "edgeLengthM": 3.3,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 30449934,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4435221,
+              7.839535
+            ],
+            "b": [
+              50.443494,
+              7.8395374
+            ],
+            "nodeA": 14130543589,
+            "nodeB": 13188699316,
+            "distanceToEndpointsM": 21.6,
+            "edgeLengthM": 3.1,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 30449934,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4435546,
+              7.8395286
+            ],
+            "b": [
+              50.4435221,
+              7.839535
+            ],
+            "nodeA": 11078779884,
+            "nodeB": 14130543589,
+            "distanceToEndpointsM": 24.7,
+            "edgeLengthM": 3.6,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 30449934,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4435828,
+              7.8395204
+            ],
+            "b": [
+              50.4435546,
+              7.8395286
+            ],
+            "nodeA": 1941117743,
+            "nodeB": 11078779884,
+            "distanceToEndpointsM": 28.3,
+            "edgeLengthM": 3.2,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 30449934,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4436078,
+              7.8395074
+            ],
+            "b": [
+              50.4435828,
+              7.8395204
+            ],
+            "nodeA": 14130543588,
+            "nodeB": 1941117743,
+            "distanceToEndpointsM": 31.4,
+            "edgeLengthM": 2.9,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 30449934,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4436322,
+              7.8394894
+            ],
+            "b": [
+              50.4436078,
+              7.8395074
+            ],
+            "nodeA": 5155331127,
+            "nodeB": 14130543588,
+            "distanceToEndpointsM": 34.2,
+            "edgeLengthM": 3.0,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          }
+        ]
+      },
+      {
+        "ramp": "extra-heumar-535237604",
+        "wayIds": [
+          535237604
+        ],
+        "point": [
+          50.4449138,
+          7.8302653
+        ],
+        "nearestOsmEdges": [
+          {
+            "wayId": 535237604,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4449138,
+              7.8302653
+            ],
+            "b": [
+              50.4449855,
+              7.8303363
+            ],
+            "nodeA": 11733946095,
+            "nodeB": 13437841219,
+            "distanceToEndpointsM": 0.0,
+            "edgeLengthM": 9.4,
+            "alreadyDisplayed": true,
+            "exactSharedNode": true
+          },
+          {
+            "wayId": 535237604,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4449855,
+              7.8303363
+            ],
+            "b": [
+              50.4450193,
+              7.8303702
+            ],
+            "nodeA": 13437841219,
+            "nodeB": 12882957216,
+            "distanceToEndpointsM": 9.4,
+            "edgeLengthM": 4.5,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 535237604,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4450193,
+              7.8303702
+            ],
+            "b": [
+              50.4450495,
+              7.8304035
+            ],
+            "nodeA": 12882957216,
+            "nodeB": 12882957217,
+            "distanceToEndpointsM": 13.9,
+            "edgeLengthM": 4.1,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 535237604,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4450495,
+              7.8304035
+            ],
+            "b": [
+              50.445075,
+              7.8304366
+            ],
+            "nodeA": 12882957217,
+            "nodeB": 11733946096,
+            "distanceToEndpointsM": 18.0,
+            "edgeLengthM": 3.7,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 535237604,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.445075,
+              7.8304366
+            ],
+            "b": [
+              50.445096,
+              7.8304675
+            ],
+            "nodeA": 11733946096,
+            "nodeB": 13437841220,
+            "distanceToEndpointsM": 21.6,
+            "edgeLengthM": 3.2,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 535237604,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.445096,
+              7.8304675
+            ],
+            "b": [
+              50.4451154,
+              7.8305007
+            ],
+            "nodeA": 13437841220,
+            "nodeB": 1473368785,
+            "distanceToEndpointsM": 24.8,
+            "edgeLengthM": 3.2,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 1262909214,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4451438,
+              7.8302732
+            ],
+            "b": [
+              50.4451426,
+              7.8305708
+            ],
+            "nodeA": 12882957213,
+            "nodeB": 1473368787,
+            "distanceToEndpointsM": 25.6,
+            "edgeLengthM": 21.1,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 535237604,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4451154,
+              7.8305007
+            ],
+            "b": [
+              50.4451265,
+              7.8305247
+            ],
+            "nodeA": 1473368785,
+            "nodeB": 12882957218,
+            "distanceToEndpointsM": 27.9,
+            "edgeLengthM": 2.1,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          }
+        ]
+      },
+      {
+        "ramp": "extra-heumar-1262909214",
+        "wayIds": [
+          1262909214
+        ],
+        "point": [
+          50.4451438,
+          7.8302732
+        ],
+        "nearestOsmEdges": [
+          {
+            "wayId": 1262909214,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4451438,
+              7.8302732
+            ],
+            "b": [
+              50.4451426,
+              7.8305708
+            ],
+            "nodeA": 12882957213,
+            "nodeB": 1473368787,
+            "distanceToEndpointsM": 0.0,
+            "edgeLengthM": 21.1,
+            "alreadyDisplayed": true,
+            "exactSharedNode": true
+          },
+          {
+            "wayId": 785021080,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4452242,
+              7.8304596
+            ],
+            "b": [
+              50.4452246,
+              7.8302753
+            ],
+            "nodeA": 4964007942,
+            "nodeB": 12882957214,
+            "distanceToEndpointsM": 9.0,
+            "edgeLengthM": 13.1,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 535237604,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4450495,
+              7.8304035
+            ],
+            "b": [
+              50.445075,
+              7.8304366
+            ],
+            "nodeA": 12882957217,
+            "nodeB": 11733946096,
+            "distanceToEndpointsM": 13.9,
+            "edgeLengthM": 3.7,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 535237604,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.445075,
+              7.8304366
+            ],
+            "b": [
+              50.445096,
+              7.8304675
+            ],
+            "nodeA": 11733946096,
+            "nodeB": 13437841220,
+            "distanceToEndpointsM": 13.9,
+            "edgeLengthM": 3.2,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 535237604,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4450193,
+              7.8303702
+            ],
+            "b": [
+              50.4450495,
+              7.8304035
+            ],
+            "nodeA": 12882957216,
+            "nodeB": 12882957217,
+            "distanceToEndpointsM": 14.0,
+            "edgeLengthM": 4.1,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 535237604,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.445096,
+              7.8304675
+            ],
+            "b": [
+              50.4451154,
+              7.8305007
+            ],
+            "nodeA": 13437841220,
+            "nodeB": 1473368785,
+            "distanceToEndpointsM": 14.7,
+            "edgeLengthM": 3.2,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 535237604,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4449855,
+              7.8303363
+            ],
+            "b": [
+              50.4450193,
+              7.8303702
+            ],
+            "nodeA": 13437841219,
+            "nodeB": 12882957216,
+            "distanceToEndpointsM": 15.5,
+            "edgeLengthM": 4.5,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 785021080,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4452226,
+              7.8306583
+            ],
+            "b": [
+              50.4452242,
+              7.8304596
+            ],
+            "nodeA": 6472095702,
+            "nodeB": 4964007942,
+            "distanceToEndpointsM": 15.9,
+            "edgeLengthM": 14.1,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          }
+        ]
+      },
+      {
+        "ramp": "extra-heumar-1201406276",
+        "wayIds": [
+          1201406276,
+          535229026
+        ],
+        "point": [
+          50.4482586,
+          7.8432749
+        ],
+        "nearestOsmEdges": [
+          {
+            "wayId": 535229026,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4483843,
+              7.8432881
+            ],
+            "b": [
+              50.4482586,
+              7.8432749
+            ],
+            "nodeA": 11078779895,
+            "nodeB": 2329276357,
+            "distanceToEndpointsM": 0.0,
+            "edgeLengthM": 14.0,
+            "alreadyDisplayed": true,
+            "exactSharedNode": true
+          },
+          {
+            "wayId": 535229026,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4484334,
+              7.8432903
+            ],
+            "b": [
+              50.4483843,
+              7.8432881
+            ],
+            "nodeA": 3163628140,
+            "nodeB": 11078779895,
+            "distanceToEndpointsM": 14.0,
+            "edgeLengthM": 5.5,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 535229026,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4484638,
+              7.8432889
+            ],
+            "b": [
+              50.4484334,
+              7.8432903
+            ],
+            "nodeA": 2513049682,
+            "nodeB": 3163628140,
+            "distanceToEndpointsM": 19.5,
+            "edgeLengthM": 3.4,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 535229026,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.448492,
+              7.8432824
+            ],
+            "b": [
+              50.4484638,
+              7.8432889
+            ],
+            "nodeA": 5188486480,
+            "nodeB": 2513049682,
+            "distanceToEndpointsM": 22.8,
+            "edgeLengthM": 3.2,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 535229026,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4485223,
+              7.843268
+            ],
+            "b": [
+              50.448492,
+              7.8432824
+            ],
+            "nodeA": 12771736575,
+            "nodeB": 5188486480,
+            "distanceToEndpointsM": 26.0,
+            "edgeLengthM": 3.5,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 535229026,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4485485,
+              7.8432466
+            ],
+            "b": [
+              50.4485223,
+              7.843268
+            ],
+            "nodeA": 13437902690,
+            "nodeB": 12771736575,
+            "distanceToEndpointsM": 29.3,
+            "edgeLengthM": 3.3,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 535229026,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4485737,
+              7.8432188
+            ],
+            "b": [
+              50.4485485,
+              7.8432466
+            ],
+            "nodeA": 3163628142,
+            "nodeB": 13437902690,
+            "distanceToEndpointsM": 32.3,
+            "edgeLengthM": 3.4,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 535229026,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4486041,
+              7.843175
+            ],
+            "b": [
+              50.4485737,
+              7.8432188
+            ],
+            "nodeA": 5188486479,
+            "nodeB": 3163628142,
+            "distanceToEndpointsM": 35.3,
+            "edgeLengthM": 4.6,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          }
+        ]
+      },
+      {
+        "ramp": "extra-heumar-535229028",
+        "wayIds": [
+          535229028,
+          1201406275
+        ],
+        "point": [
+          50.449118,
+          7.8437633
+        ],
+        "nearestOsmEdges": [
+          {
+            "wayId": 535229028,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.449118,
+              7.8437633
+            ],
+            "b": [
+              50.4490488,
+              7.8436755
+            ],
+            "nodeA": 332414325,
+            "nodeB": 13437902692,
+            "distanceToEndpointsM": 0.0,
+            "edgeLengthM": 9.9,
+            "alreadyDisplayed": true,
+            "exactSharedNode": true
+          },
+          {
+            "wayId": 535229028,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4490488,
+              7.8436755
+            ],
+            "b": [
+              50.4490274,
+              7.8436498
+            ],
+            "nodeA": 13437902692,
+            "nodeB": 13437902694,
+            "distanceToEndpointsM": 9.9,
+            "edgeLengthM": 3.0,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 535229028,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4490274,
+              7.8436498
+            ],
+            "b": [
+              50.4490087,
+              7.8436328
+            ],
+            "nodeA": 13437902694,
+            "nodeB": 13437902693,
+            "distanceToEndpointsM": 12.9,
+            "edgeLengthM": 2.4,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 535229028,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4490087,
+              7.8436328
+            ],
+            "b": [
+              50.4488958,
+              7.8435499
+            ],
+            "nodeA": 13437902693,
+            "nodeB": 13437902697,
+            "distanceToEndpointsM": 15.3,
+            "edgeLengthM": 13.9,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 535229028,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4488958,
+              7.8435499
+            ],
+            "b": [
+              50.4488654,
+              7.8435215
+            ],
+            "nodeA": 13437902697,
+            "nodeB": 13437902695,
+            "distanceToEndpointsM": 29.0,
+            "edgeLengthM": 3.9,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 535229028,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4488654,
+              7.8435215
+            ],
+            "b": [
+              50.4488426,
+              7.8434939
+            ],
+            "nodeA": 13437902695,
+            "nodeB": 13437902696,
+            "distanceToEndpointsM": 32.9,
+            "edgeLengthM": 3.2,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 535229028,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4488426,
+              7.8434939
+            ],
+            "b": [
+              50.4488233,
+              7.8434636
+            ],
+            "nodeA": 13437902696,
+            "nodeB": 5188486476,
+            "distanceToEndpointsM": 36.1,
+            "edgeLengthM": 3.0,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 535229028,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4488233,
+              7.8434636
+            ],
+            "b": [
+              50.4488035,
+              7.843424
+            ],
+            "nodeA": 5188486476,
+            "nodeB": 11138698025,
+            "distanceToEndpointsM": 39.0,
+            "edgeLengthM": 3.6,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          }
+        ]
+      }
+    ]
+  },
+  "Limburg-Nord": {
+    "openRampEnds": 8,
+    "examples": [
+      {
+        "ramp": "extra-heumar-23769301",
+        "wayIds": [
+          23769301
+        ],
+        "point": [
+          50.3980207,
+          8.069918
+        ],
+        "nearestOsmEdges": [
+          {
+            "wayId": 23769301,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.3980207,
+              8.069918
+            ],
+            "b": [
+              50.3982233,
+              8.0702106
+            ],
+            "nodeA": 257532493,
+            "nodeB": 257532494,
+            "distanceToEndpointsM": 0.0,
+            "edgeLengthM": 30.6,
+            "alreadyDisplayed": true,
+            "exactSharedNode": true
+          },
+          {
+            "wayId": 23781932,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.3981403,
+              8.0697378
+            ],
+            "b": [
+              50.3979447,
+              8.0696936
+            ],
+            "nodeA": 5234884176,
+            "nodeB": 257681759,
+            "distanceToEndpointsM": 18.0,
+            "edgeLengthM": 22.0,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 23781932,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.3982261,
+              8.0697483
+            ],
+            "b": [
+              50.3981403,
+              8.0697378
+            ],
+            "nodeA": 257681758,
+            "nodeB": 5234884176,
+            "distanceToEndpointsM": 18.4,
+            "edgeLengthM": 9.6,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 23781932,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.3982927,
+              8.06975
+            ],
+            "b": [
+              50.3982261,
+              8.0697483
+            ],
+            "nodeA": 5234884177,
+            "nodeB": 257681758,
+            "distanceToEndpointsM": 25.8,
+            "edgeLengthM": 7.4,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 23769301,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.3982233,
+              8.0702106
+            ],
+            "b": [
+              50.3982647,
+              8.0702814
+            ],
+            "nodeA": 257532494,
+            "nodeB": 5234884175,
+            "distanceToEndpointsM": 30.6,
+            "edgeLengthM": 6.8,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 23781932,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.3983495,
+              8.0697364
+            ],
+            "b": [
+              50.3982927,
+              8.06975
+            ],
+            "nodeA": 5234884178,
+            "nodeB": 5234884177,
+            "distanceToEndpointsM": 32.5,
+            "edgeLengthM": 6.4,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 23769301,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.3982647,
+              8.0702814
+            ],
+            "b": [
+              50.3982991,
+              8.0703563
+            ],
+            "nodeA": 5234884175,
+            "nodeB": 257532496,
+            "distanceToEndpointsM": 37.4,
+            "edgeLengthM": 6.5,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 23781932,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.398402,
+              8.0697107
+            ],
+            "b": [
+              50.3983495,
+              8.0697364
+            ],
+            "nodeA": 257681757,
+            "nodeB": 5234884178,
+            "distanceToEndpointsM": 38.8,
+            "edgeLengthM": 6.1,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          }
+        ]
+      },
+      {
+        "ramp": "extra-heumar-23781846",
+        "wayIds": [
+          23781846
+        ],
+        "point": [
+          50.4014469,
+          8.071791
+        ],
+        "nearestOsmEdges": [
+          {
+            "wayId": 23781846,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4014469,
+              8.071791
+            ],
+            "b": [
+              50.4012534,
+              8.0715421
+            ],
+            "nodeA": 59973676,
+            "nodeB": 59955283,
+            "distanceToEndpointsM": 0.0,
+            "edgeLengthM": 27.8,
+            "alreadyDisplayed": true,
+            "exactSharedNode": true
+          },
+          {
+            "wayId": 38447325,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4013253,
+              8.072127
+            ],
+            "b": [
+              50.4014165,
+              8.0721046
+            ],
+            "nodeA": 43327866,
+            "nodeB": 5234883807,
+            "distanceToEndpointsM": 22.5,
+            "edgeLengthM": 10.3,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 38447325,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4014165,
+              8.0721046
+            ],
+            "b": [
+              50.4015186,
+              8.0721058
+            ],
+            "nodeA": 5234883807,
+            "nodeB": 43327874,
+            "distanceToEndpointsM": 22.5,
+            "edgeLengthM": 11.4,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 38447325,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4015186,
+              8.0721058
+            ],
+            "b": [
+              50.4017057,
+              8.0721291
+            ],
+            "nodeA": 43327874,
+            "nodeB": 59973678,
+            "distanceToEndpointsM": 23.7,
+            "edgeLengthM": 20.9,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 38447325,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4012432,
+              8.0721675
+            ],
+            "b": [
+              50.4013253,
+              8.072127
+            ],
+            "nodeA": 43327859,
+            "nodeB": 43327866,
+            "distanceToEndpointsM": 27.4,
+            "edgeLengthM": 9.6,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 23781846,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4012534,
+              8.0715421
+            ],
+            "b": [
+              50.4012052,
+              8.0714714
+            ],
+            "nodeA": 59955283,
+            "nodeB": 12395566668,
+            "distanceToEndpointsM": 27.8,
+            "edgeLengthM": 7.3,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 38447325,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4011664,
+              8.0722252
+            ],
+            "b": [
+              50.4012432,
+              8.0721675
+            ],
+            "nodeA": 43327852,
+            "nodeB": 43327859,
+            "distanceToEndpointsM": 35.0,
+            "edgeLengthM": 9.5,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 23781846,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4012052,
+              8.0714714
+            ],
+            "b": [
+              50.4011681,
+              8.0714119
+            ],
+            "nodeA": 12395566668,
+            "nodeB": 5234884159,
+            "distanceToEndpointsM": 35.1,
+            "edgeLengthM": 5.9,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          }
+        ]
+      },
+      {
+        "ramp": "extra-heumar-23781932",
+        "wayIds": [
+          23781932
+        ],
+        "point": [
+          50.3979447,
+          8.0696936
+        ],
+        "nearestOsmEdges": [
+          {
+            "wayId": 23781932,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.3981403,
+              8.0697378
+            ],
+            "b": [
+              50.3979447,
+              8.0696936
+            ],
+            "nodeA": 5234884176,
+            "nodeB": 257681759,
+            "distanceToEndpointsM": 0.0,
+            "edgeLengthM": 22.0,
+            "alreadyDisplayed": true,
+            "exactSharedNode": true
+          },
+          {
+            "wayId": 23769301,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.3980207,
+              8.069918
+            ],
+            "b": [
+              50.3982233,
+              8.0702106
+            ],
+            "nodeA": 257532493,
+            "nodeB": 257532494,
+            "distanceToEndpointsM": 18.0,
+            "edgeLengthM": 30.6,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 23781932,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.3982261,
+              8.0697483
+            ],
+            "b": [
+              50.3981403,
+              8.0697378
+            ],
+            "nodeA": 257681758,
+            "nodeB": 5234884176,
+            "distanceToEndpointsM": 22.0,
+            "edgeLengthM": 9.6,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 23781932,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.3982927,
+              8.06975
+            ],
+            "b": [
+              50.3982261,
+              8.0697483
+            ],
+            "nodeA": 5234884177,
+            "nodeB": 257681758,
+            "distanceToEndpointsM": 31.5,
+            "edgeLengthM": 7.4,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 23781932,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.3983495,
+              8.0697364
+            ],
+            "b": [
+              50.3982927,
+              8.06975
+            ],
+            "nodeA": 5234884178,
+            "nodeB": 5234884177,
+            "distanceToEndpointsM": 38.9,
+            "edgeLengthM": 6.4,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 23781932,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.398402,
+              8.0697107
+            ],
+            "b": [
+              50.3983495,
+              8.0697364
+            ],
+            "nodeA": 257681757,
+            "nodeB": 5234884178,
+            "distanceToEndpointsM": 45.1,
+            "edgeLengthM": 6.1,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 23769301,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.3982233,
+              8.0702106
+            ],
+            "b": [
+              50.3982647,
+              8.0702814
+            ],
+            "nodeA": 257532494,
+            "nodeB": 5234884175,
+            "distanceToEndpointsM": 48.0,
+            "edgeLengthM": 6.8,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 23781932,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.3984525,
+              8.0696799
+            ],
+            "b": [
+              50.398402,
+              8.0697107
+            ],
+            "nodeA": 5234884179,
+            "nodeB": 257681757,
+            "distanceToEndpointsM": 50.9,
+            "edgeLengthM": 6.0,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          }
+        ]
+      },
+      {
+        "ramp": "extra-heumar-38447325",
+        "wayIds": [
+          38447325
+        ],
+        "point": [
+          50.4017057,
+          8.0721291
+        ],
+        "nearestOsmEdges": [
+          {
+            "wayId": 38447325,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4015186,
+              8.0721058
+            ],
+            "b": [
+              50.4017057,
+              8.0721291
+            ],
+            "nodeA": 43327874,
+            "nodeB": 59973678,
+            "distanceToEndpointsM": 0.0,
+            "edgeLengthM": 20.9,
+            "alreadyDisplayed": true,
+            "exactSharedNode": true
+          },
+          {
+            "wayId": 38447325,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4014165,
+              8.0721046
+            ],
+            "b": [
+              50.4015186,
+              8.0721058
+            ],
+            "nodeA": 5234883807,
+            "nodeB": 43327874,
+            "distanceToEndpointsM": 20.9,
+            "edgeLengthM": 11.4,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 38447325,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4013253,
+              8.072127
+            ],
+            "b": [
+              50.4014165,
+              8.0721046
+            ],
+            "nodeA": 43327866,
+            "nodeB": 5234883807,
+            "distanceToEndpointsM": 32.2,
+            "edgeLengthM": 10.3,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 23781846,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4014469,
+              8.071791
+            ],
+            "b": [
+              50.4012534,
+              8.0715421
+            ],
+            "nodeA": 59973676,
+            "nodeB": 59955283,
+            "distanceToEndpointsM": 37.4,
+            "edgeLengthM": 27.8,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 38447325,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4012432,
+              8.0721675
+            ],
+            "b": [
+              50.4013253,
+              8.072127
+            ],
+            "nodeA": 43327859,
+            "nodeB": 43327866,
+            "distanceToEndpointsM": 42.3,
+            "edgeLengthM": 9.6,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 38447325,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4011664,
+              8.0722252
+            ],
+            "b": [
+              50.4012432,
+              8.0721675
+            ],
+            "nodeA": 43327852,
+            "nodeB": 43327859,
+            "distanceToEndpointsM": 51.5,
+            "edgeLengthM": 9.5,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 38447325,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4011011,
+              8.0722927
+            ],
+            "b": [
+              50.4011664,
+              8.0722252
+            ],
+            "nodeA": 43327844,
+            "nodeB": 43327852,
+            "distanceToEndpointsM": 60.4,
+            "edgeLengthM": 8.7,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 23781846,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4012534,
+              8.0715421
+            ],
+            "b": [
+              50.4012052,
+              8.0714714
+            ],
+            "nodeA": 59955283,
+            "nodeB": 12395566668,
+            "distanceToEndpointsM": 65.3,
+            "edgeLengthM": 7.3,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          }
+        ]
+      },
+      {
+        "ramp": "extra-heumar-5727539",
+        "wayIds": [
+          5727539
+        ],
+        "point": [
+          50.3990012,
+          8.0703231
+        ],
+        "nearestOsmEdges": [
+          {
+            "wayId": 5727539,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.3990012,
+              8.0703231
+            ],
+            "b": [
+              50.3988304,
+              8.0700387
+            ],
+            "nodeA": 290345145,
+            "nodeB": 290345146,
+            "distanceToEndpointsM": 0.0,
+            "edgeLengthM": 27.7,
+            "alreadyDisplayed": true,
+            "exactSharedNode": true
+          },
+          {
+            "wayId": 8014729,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.3988366,
+              8.0705473
+            ],
+            "b": [
+              50.3990531,
+              8.0705286
+            ],
+            "nodeA": 59973675,
+            "nodeB": 48016203,
+            "distanceToEndpointsM": 15.7,
+            "edgeLengthM": 24.1,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 8014729,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.3987575,
+              8.0705584
+            ],
+            "b": [
+              50.3988366,
+              8.0705473
+            ],
+            "nodeA": 59955281,
+            "nodeB": 59973675,
+            "distanceToEndpointsM": 24.2,
+            "edgeLengthM": 8.8,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 5727539,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.3988304,
+              8.0700387
+            ],
+            "b": [
+              50.3987923,
+              8.0699667
+            ],
+            "nodeA": 290345146,
+            "nodeB": 290345147,
+            "distanceToEndpointsM": 27.7,
+            "edgeLengthM": 6.6,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 8014729,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.3986734,
+              8.0705954
+            ],
+            "b": [
+              50.3987575,
+              8.0705584
+            ],
+            "nodeA": 59955280,
+            "nodeB": 59955281,
+            "distanceToEndpointsM": 31.8,
+            "edgeLengthM": 9.7,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 5727539,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.3987923,
+              8.0699667
+            ],
+            "b": [
+              50.3987661,
+              8.0699051
+            ],
+            "nodeA": 290345147,
+            "nodeB": 12927983870,
+            "distanceToEndpointsM": 34.3,
+            "edgeLengthM": 5.2,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 5984302,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.3993543,
+              8.0703471
+            ],
+            "b": [
+              50.3992697,
+              8.0705761
+            ],
+            "nodeA": 43353817,
+            "nodeB": 13328017243,
+            "distanceToEndpointsM": 34.8,
+            "edgeLengthM": 18.8,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 5984302,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.3992697,
+              8.0705761
+            ],
+            "b": [
+              50.3991817,
+              8.0708052
+            ],
+            "nodeA": 13328017243,
+            "nodeB": 43353820,
+            "distanceToEndpointsM": 34.8,
+            "edgeLengthM": 19.0,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          }
+        ]
+      },
+      {
+        "ramp": "extra-heumar-8014729",
+        "wayIds": [
+          8014729
+        ],
+        "point": [
+          50.3990531,
+          8.0705286
+        ],
+        "nearestOsmEdges": [
+          {
+            "wayId": 8014729,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.3988366,
+              8.0705473
+            ],
+            "b": [
+              50.3990531,
+              8.0705286
+            ],
+            "nodeA": 59973675,
+            "nodeB": 48016203,
+            "distanceToEndpointsM": 0.0,
+            "edgeLengthM": 24.1,
+            "alreadyDisplayed": true,
+            "exactSharedNode": true
+          },
+          {
+            "wayId": 5727539,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.3990012,
+              8.0703231
+            ],
+            "b": [
+              50.3988304,
+              8.0700387
+            ],
+            "nodeA": 290345145,
+            "nodeB": 290345146,
+            "distanceToEndpointsM": 15.7,
+            "edgeLengthM": 27.7,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 8014729,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.3987575,
+              8.0705584
+            ],
+            "b": [
+              50.3988366,
+              8.0705473
+            ],
+            "nodeA": 59955281,
+            "nodeB": 59973675,
+            "distanceToEndpointsM": 24.1,
+            "edgeLengthM": 8.8,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 5984301,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.3991817,
+              8.0708052
+            ],
+            "b": [
+              50.3991125,
+              8.0709718
+            ],
+            "nodeA": 43353820,
+            "nodeB": 13328017244,
+            "distanceToEndpointsM": 24.3,
+            "edgeLengthM": 14.1,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 5984302,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.3993543,
+              8.0703471
+            ],
+            "b": [
+              50.3992697,
+              8.0705761
+            ],
+            "nodeA": 43353817,
+            "nodeB": 13328017243,
+            "distanceToEndpointsM": 24.3,
+            "edgeLengthM": 18.8,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 5984302,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.3992697,
+              8.0705761
+            ],
+            "b": [
+              50.3991817,
+              8.0708052
+            ],
+            "nodeA": 13328017243,
+            "nodeB": 43353820,
+            "distanceToEndpointsM": 24.3,
+            "edgeLengthM": 19.0,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 5984301,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.3991125,
+              8.0709718
+            ],
+            "b": [
+              50.399046,
+              8.0711259
+            ],
+            "nodeA": 13328017244,
+            "nodeB": 43353840,
+            "distanceToEndpointsM": 32.1,
+            "edgeLengthM": 13.2,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 8014729,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.3986734,
+              8.0705954
+            ],
+            "b": [
+              50.3987575,
+              8.0705584
+            ],
+            "nodeA": 59955280,
+            "nodeB": 59955281,
+            "distanceToEndpointsM": 32.9,
+            "edgeLengthM": 9.7,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          }
+        ]
+      },
+      {
+        "ramp": "extra-heumar-23781848",
+        "wayIds": [
+          23781848,
+          23781849
+        ],
+        "point": [
+          50.400256,
+          8.0710814
+        ],
+        "nearestOsmEdges": [
+          {
+            "wayId": 23781849,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4005073,
+              8.071119
+            ],
+            "b": [
+              50.400256,
+              8.0710814
+            ],
+            "nodeA": 257680914,
+            "nodeB": 257680915,
+            "distanceToEndpointsM": 0.0,
+            "edgeLengthM": 28.1,
+            "alreadyDisplayed": true,
+            "exactSharedNode": true
+          },
+          {
+            "wayId": 23781849,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4005581,
+              8.0711205
+            ],
+            "b": [
+              50.4005073,
+              8.071119
+            ],
+            "nodeA": 12927983871,
+            "nodeB": 257680914,
+            "distanceToEndpointsM": 28.1,
+            "edgeLengthM": 5.6,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 23781853,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4004609,
+              8.071379
+            ],
+            "b": [
+              50.4005297,
+              8.0714747
+            ],
+            "nodeA": 257680919,
+            "nodeB": 14132724910,
+            "distanceToEndpointsM": 31.0,
+            "edgeLengthM": 10.2,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 23781849,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4006108,
+              8.0711127
+            ],
+            "b": [
+              50.4005581,
+              8.0711205
+            ],
+            "nodeA": 5234884162,
+            "nodeB": 12927983871,
+            "distanceToEndpointsM": 33.7,
+            "edgeLengthM": 5.9,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 23781849,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.400658,
+              8.0711009
+            ],
+            "b": [
+              50.4006108,
+              8.0711127
+            ],
+            "nodeA": 883027689,
+            "nodeB": 5234884162,
+            "distanceToEndpointsM": 39.5,
+            "edgeLengthM": 5.3,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 23781853,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4005297,
+              8.0714747
+            ],
+            "b": [
+              50.4005577,
+              8.0715121
+            ],
+            "nodeA": 14132724910,
+            "nodeB": 14132724914,
+            "distanceToEndpointsM": 41.3,
+            "edgeLengthM": 4.1,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 23781849,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4007057,
+              8.0710806
+            ],
+            "b": [
+              50.400658,
+              8.0711009
+            ],
+            "nodeA": 5234884163,
+            "nodeB": 883027689,
+            "distanceToEndpointsM": 44.7,
+            "edgeLengthM": 5.5,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 23781853,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4005577,
+              8.0715121
+            ],
+            "b": [
+              50.4005898,
+              8.0715431
+            ],
+            "nodeA": 14132724914,
+            "nodeB": 14132724911,
+            "distanceToEndpointsM": 45.4,
+            "edgeLengthM": 4.2,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          }
+        ]
+      },
+      {
+        "ramp": "extra-heumar-23781853",
+        "wayIds": [
+          23781853
+        ],
+        "point": [
+          50.4004609,
+          8.071379
+        ],
+        "nearestOsmEdges": [
+          {
+            "wayId": 23781853,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4004609,
+              8.071379
+            ],
+            "b": [
+              50.4005297,
+              8.0714747
+            ],
+            "nodeA": 257680919,
+            "nodeB": 14132724910,
+            "distanceToEndpointsM": 0.0,
+            "edgeLengthM": 10.2,
+            "alreadyDisplayed": true,
+            "exactSharedNode": true
+          },
+          {
+            "wayId": 23781853,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4005297,
+              8.0714747
+            ],
+            "b": [
+              50.4005577,
+              8.0715121
+            ],
+            "nodeA": 14132724910,
+            "nodeB": 14132724914,
+            "distanceToEndpointsM": 10.2,
+            "edgeLengthM": 4.1,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 23781853,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4005577,
+              8.0715121
+            ],
+            "b": [
+              50.4005898,
+              8.0715431
+            ],
+            "nodeA": 14132724914,
+            "nodeB": 14132724911,
+            "distanceToEndpointsM": 14.3,
+            "edgeLengthM": 4.2,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 23781853,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4005898,
+              8.0715431
+            ],
+            "b": [
+              50.4006395,
+              8.0715834
+            ],
+            "nodeA": 14132724911,
+            "nodeB": 14132724915,
+            "distanceToEndpointsM": 18.5,
+            "edgeLengthM": 6.2,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 23781849,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4005581,
+              8.0711205
+            ],
+            "b": [
+              50.4005073,
+              8.071119
+            ],
+            "nodeA": 12927983871,
+            "nodeB": 257680914,
+            "distanceToEndpointsM": 19.1,
+            "edgeLengthM": 5.6,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 23781849,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4005073,
+              8.071119
+            ],
+            "b": [
+              50.400256,
+              8.0710814
+            ],
+            "nodeA": 257680914,
+            "nodeB": 257680915,
+            "distanceToEndpointsM": 19.1,
+            "edgeLengthM": 28.1,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 23781849,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4006108,
+              8.0711127
+            ],
+            "b": [
+              50.4005581,
+              8.0711205
+            ],
+            "nodeA": 5234884162,
+            "nodeB": 12927983871,
+            "distanceToEndpointsM": 21.3,
+            "edgeLengthM": 5.9,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          },
+          {
+            "wayId": 23781853,
+            "highway": "motorway_link",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4006395,
+              8.0715834
+            ],
+            "b": [
+              50.4006801,
+              8.0716201
+            ],
+            "nodeA": 14132724915,
+            "nodeB": 14132724912,
+            "distanceToEndpointsM": 24.6,
+            "edgeLengthM": 5.2,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          }
+        ]
+      }
+    ]
+  }
+}
