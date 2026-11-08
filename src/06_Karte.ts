@@ -112,6 +112,14 @@ export function junctionLabelPosition(exit:Exit):Point{
  const verified=directions.filter(value=>value.nodeId>0);
  const anchors=verified.length?verified:directions;
  const unique=[...new Map(anchors.map(a=>[key(a.position),a.position])).values()];
+ // Some complexes (Montabaur, large motorway crosses) have off-ramp
+ // departure vertices more than a kilometre apart. Their arithmetic
+ // midpoint can land on an unrelated stretch. In that case pin an
+ // actually surveyed anchor nearest the existing named junction instead.
+ const distanceM=(a:Point,b:Point)=>Math.hypot((a[0]-b[0])*111195,
+  (a[1]-b[1])*111195*Math.cos((a[0]+b[0])*Math.PI/360));
+ const spread=Math.max(0,...unique.flatMap(a=>unique.map(b=>distanceM(a,b))));
+ if(spread>450)return [...unique].sort((a,b)=>distanceM(a,exit.position)-distanceM(b,exit.position))[0]!;
  return [
   unique.reduce((sum,p)=>sum+p[0],0)/unique.length,
   unique.reduce((sum,p)=>sum+p[1],0)/unique.length
