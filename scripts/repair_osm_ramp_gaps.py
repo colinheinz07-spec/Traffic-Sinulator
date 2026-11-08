@@ -250,6 +250,16 @@ def missing_motorway_link_runs(features, initial_patches):
             continue
         eligible[way["id"]] = (way, ps, nearest)
 
+    # A motorway_link is a REAL OSM ramp even when its next motorway
+    # is not yet imported (A61/A66/A1 at the external network boundary).
+    # Remove service-area-only branches but preserve exact OSM geometry of
+    # the otherwise uncovered ramp as a zero-demand corridor. It is coloured
+    # on the map, but receives no invented graph connection or vehicles.
+    for way_id, (_, ps, _) in list(eligible.items()):
+        if (any(p in service_nodes for p in (ps[0], ps[-1]))
+                and not any(p in public_nodes for p in (ps[0], ps[-1]))):
+            del eligible[way_id]
+
     selected = set()
     # Extend from original OSM nodes of retained roads/ramps, never through
     # distance snapping, arbitrary chord connections or public roads.
@@ -271,9 +281,14 @@ def missing_motorway_link_runs(features, initial_patches):
             selected.add(way_id)
             known.update(eligible[way_id][1])
 
+    # Colour every verified motorway_link at the imported interchanges.
+    # Isolated physical corridors stay zero-demand until the real adjacent
+    # motorway has been imported. Never synthesize a road between endpoints.
+    topologically_connected = set(selected)
+    all_original_ramps = set(eligible)
     additions = []
     already = set(covered)
-    for way_id in sorted(selected):
+    for way_id in sorted(all_original_ramps):
         way, ps, exit = eligible[way_id]
         tags = way["tags"]
         original = ps[::-1] if tags.get("oneway") == "-1" else ps
@@ -343,7 +358,8 @@ def missing_motorway_link_runs(features, initial_patches):
     return additions, {
         "junctionsAudited": len(exits),
         "eligibleUncoveredWays": len(eligible),
-        "connectedMissingWays": len(selected),
+        "connectedMissingWays": len(topologically_connected),
+        "geometryOnlyWays": len(all_original_ramps - topologically_connected),
         "routesImported": len(additions),
         "connectedStillUncoveredWays": missing_eligible,
         "unresolvedByJunction": dict(sorted(by_junction.items())),
