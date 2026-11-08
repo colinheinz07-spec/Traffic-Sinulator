@@ -1,2 +1,2 @@
 /** Bestehender Importpfad; der eigentliche Code liegt in 05_Umleitungen/extension-detours.ts. */
-export * from './05_Umleitungen/extension-detours.js?build=04711ec6101cdcfe';
+export * from './05_Umleitungen/extension-detours.js?build=cbb66658c54f64f7';

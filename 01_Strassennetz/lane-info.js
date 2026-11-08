@@ -1,7 +1,7 @@
 /** 01_Strassennetz: Zugeordnetes Fachmodul lane-info. */
-import { normalLaneOverrides, motorwayLaneCalibration } from '../normal-lanes.js?build=04711ec6101cdcfe';
-import { nearestPolyline } from '../core.js?build=04711ec6101cdcfe';
-import { rampLaneWays, unverifiedRoadWays } from '../lane-profiles.js?build=04711ec6101cdcfe';
+import { normalLaneOverrides, motorwayLaneCalibration } from '../normal-lanes.js?build=cbb66658c54f64f7';
+import { nearestPolyline } from '../core.js?build=cbb66658c54f64f7';
+import { rampLaneWays, unverifiedRoadWays } from '../lane-profiles.js?build=cbb66658c54f64f7';
 /** OSM lanes includes acceleration/diverging lanes and sometimes temporary
  * construction layouts. A3's verified normal corridor has three through
  * lanes. A48 auxiliary turn/merge-only lanes are excluded explicitly. */

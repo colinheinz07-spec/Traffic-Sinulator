@@ -1,2 +1,2 @@
 /** Bestehender Importpfad; der eigentliche Code liegt in 01_Strassennetz/extension-connections.ts. */
-export * from './01_Strassennetz/extension-connections.js?build=04711ec6101cdcfe';
+export * from './01_Strassennetz/extension-connections.js?build=cbb66658c54f64f7';

@@ -1,5 +1,5 @@
 /** Mobile/read-only network inspection; never modifies traffic state. */
-import { directionNetworkAudit, validateNetworkAudit } from './netzdiagnose.js?build=04711ec6101cdcfe';
+import { directionNetworkAudit, validateNetworkAudit } from './netzdiagnose.js?build=cbb66658c54f64f7';
 const state = new WeakMap();
 const st = (status) => status === 'bound' ? 'zugeordnet' :
     status === 'not-applicable' ? 'laut Daten nicht vorhanden' : 'Zuordnung prüfen';
