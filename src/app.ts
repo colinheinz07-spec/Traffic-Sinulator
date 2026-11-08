@@ -1070,7 +1070,6 @@ function plotLabels(width:number,height:number){
   const [x,y]=toScreen(event.point);obstacles.push({x:x-24,y:y-24,w:48,h:48});
  }
  context!.font='600 10px system-ui';
- const key=$<HTMLSelectElement>('traffic-route').value as RoadId;
  const mapExits=exits.map(e=>({...e,position:junctionLabelPosition(e)}));
  junctionLabels=layoutJunctionLabels(mapExits,toScreen,{width,height},zoom,text=>context!.measureText(text).width,obstacles);
  for(const {point:[x,y],text,box} of junctionLabels){
