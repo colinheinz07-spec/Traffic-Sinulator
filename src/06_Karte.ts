@@ -99,6 +99,44 @@ export function rampBadges(ramps:readonly Ramp[],project:(p:Point)=>[number,numb
 export interface Rectangle {x:number;y:number;w:number;h:number}
 export function overlaps(a:Rectangle,b:Rectangle,margin=3){return a.x<b.x+b.w+margin&&a.x+a.w+margin>b.x&&a.y<b.y+b.h+margin&&a.y+a.h+margin>b.y;}
 
+/** The base label point may be only a rough importer search seed.
+ * Prefer each junction's actual, direction-specific OSM motorway vertices,
+ * regardless of the motorway currently selected in the traffic overview.
+ * This changes only the map pin: cell transfers keep their own directional
+ * exitPosition() anchors. */
+export function junctionLabelPosition(exit:Exit):Point{
+ const directions=Object.values(exit.directional??{}).filter((value):value is {position:Point;nodeId:number}=>
+  !!value&&Array.isArray(value.position)&&value.position.length===2&&
+  value.position.every(Number.isFinite));
+ if(!directions.length)return exit.position;
+ const verified=directions.filter(value=>value.nodeId>0);
+ const anchors=verified.length?verified:directions;
+ const unique=[...new Map(anchors.map(a=>[key(a.position),a.position])).values()];
+ return [
+  unique.reduce((sum,p)=>sum+p[0],0)/unique.length,
+  unique.reduce((sum,p)=>sum+p[1],0)/unique.length
+ ];
+}
+
+/** At a local-road boundary, a motorway_link really ends and the ordinary
+ * street (such as the L82 at Köln-Poll) continues in the base map.
+ * Signal that real OSM interface with a subtle non-traffic marker instead
+ * of inventing another green motorway segment past the boundary. */
+export interface StreetTerminalMarker {point:Point;screen:[number,number]}
+export function layoutStreetTerminalMarkers(boundaries:readonly Point[],
+ project:(point:Point)=>[number,number],viewport:{width:number;height:number},
+ zoom:number):StreetTerminalMarker[]{
+ if(zoom<13.5)return [];
+ const markers:StreetTerminalMarker[]=[];
+ for(const point of boundaries){
+  const screen=project(point),[x,y]=screen;
+  if(x<5||y<5||x>viewport.width-5||y>viewport.height-5)continue;
+  if(markers.some(m=>Math.hypot(m.screen[0]-x,m.screen[1]-y)<14))continue;
+  markers.push({point,screen});
+ }
+ return markers;
+}
+
 export interface JunctionLabel {exit:Exit;point:[number,number];text:string;box:Rectangle|null}
 /** Junction names appear only in the detailed view; overview prioritises events. */
 export function layoutJunctionLabels(exits:readonly Exit[],project:(point:Point)=>[number,number],
