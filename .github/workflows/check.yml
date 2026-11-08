@@ -12,6 +12,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Rebuild verified motorway_link coverage for all junctions
+        run: python3 scripts/repair_osm_ramp_gaps.py
       - run: npm install --no-audit --no-fund
       - run: npm run check
       - name: Verify OSM motorway geometry is never fabricated
