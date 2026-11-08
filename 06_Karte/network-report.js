@@ -1,5 +1,5 @@
-import { pathBottleneck } from '../traffic.js?build=5a5b497110235b6c';
-import { colorAtSpeed, freeSpeedKmh } from '../traffic-physics.js?build=5a5b497110235b6c';
+import { pathBottleneck } from '../traffic.js?build=468d7db6d22b8662';
+import { colorAtSpeed, freeSpeedKmh } from '../traffic-physics.js?build=468d7db6d22b8662';
 const rank = { free: 0, slow: 1, jam: 2, standstill: 3 };
 export function routeReport(key, jams, spillbacks, events) {
     const own = jams.filter(j => j.pathKey === key);
