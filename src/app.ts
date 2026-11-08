@@ -13,7 +13,7 @@ import {networkRoad} from './network-road.js';
 import {closedNetworkSpans} from './closure-network.js';
 import {routeDescriptor} from './network-catalog.js';
 import {buildExtensionConnections} from './extension-connections.js';
-import {extensionRoutes,extensionRoute,extensionJunctions} from './network-extensions.js';
+import {extensionRoutes,extensionRoute,extensionJunctions,extensionRampBoundaryPoints} from './network-extensions.js';
 import {worldGeometry} from './map-geometry.js';
 import {announcedClosureDemands} from './calendar-traffic.js';
 import {bindMapGestures} from './map-gestures.js';
@@ -37,7 +37,7 @@ import {emptyDetour,detourVehicles,type DetourConfig} from './detour-flow.js';
 import {decodeEvents,eventFromHit,updatedEvent,eventNames,eventSymbols,eventSummary,flowPolicy,defaultLengthM,defaultSettings,maxLengthM,suggestedSpeed,DEFAULT_CLEARANCE_MIN,STORAGE_KEY,isEventKind,validEvent,effectiveEventsAt,eventScheduleStatus,type EventKind,type ShoulderMode,type SimEvent} from './events.js';
 import {roadLaneInfo,rampLaneInfo} from './lane-info.js';
 import {mapCandidates,chooseMapHits,closestJunction,lanePositions,hitLabel,extensionCandidates,type MapHit} from './selection.js';
-import {buildContinuousRoads,lineWidths,along,rampBadges,layoutJunctionLabels,type Rectangle,type RampBadge,type JunctionLabel} from './cartography.js';
+import {buildContinuousRoads,lineWidths,along,rampBadges,layoutJunctionLabels,junctionLabelPosition,layoutStreetTerminalMarkers,type Rectangle,type RampBadge,type JunctionLabel} from './cartography.js';
 import {placeJamCallout,type LabelRect} from './map-callouts.js';
 import {installScheduleForm} from './schedule-form.js';
 import {roadSections,physicalEvents} from './road-controls.js';
@@ -1071,7 +1071,7 @@ function plotLabels(width:number,height:number){
  }
  context!.font='600 10px system-ui';
  const key=$<HTMLSelectElement>('traffic-route').value as RoadId;
- const mapExits=exits.map(e=>({...e,position:(e.road===networkRoad(key)||e.sharedRoad===networkRoad(key))?exitPosition(e,key):e.position}));
+ const mapExits=exits.map(e=>({...e,position:junctionLabelPosition(e)}));
  junctionLabels=layoutJunctionLabels(mapExits,toScreen,{width,height},zoom,text=>context!.measureText(text).width,obstacles);
  for(const {point:[x,y],text,box} of junctionLabels){
   context!.beginPath();context!.arc(x,y,3.4,0,2*Math.PI);context!.fillStyle='#09283d';context!.fill();context!.strokeStyle='#f3f8fc';context!.lineWidth=1.3;context!.stroke();
@@ -1211,6 +1211,17 @@ function drawClosureSections(){
   }
  }
 }
+/** Neutral road-end markers are placed only at VERIFIED OSM local-street
+ * boundaries. Green motorway_link segments stop there: never draw a fake
+ * motorway continuation along a normal urban street. */
+function drawVerifiedStreetTerminals(width:number,height:number){
+ for(const marker of layoutStreetTerminalMarkers(extensionRampBoundaryPoints,toScreen,{width,height},zoom)){
+  const [x,y]=marker.screen;
+  context!.beginPath();context!.arc(x,y,2.6,0,2*Math.PI);
+  context!.fillStyle='#c9d6db';context!.fill();
+  context!.lineWidth=.8;context!.strokeStyle='#263a46';context!.stroke();
+ }
+}
 function draw(){
  const {width,height,scale}=size();context!.setTransform(scale,0,0,scale,0,0);
  context!.fillStyle='#132b3d';context!.fillRect(0,0,width,height);
@@ -1233,6 +1244,7 @@ function draw(){
  for(const road of drawnRoads)stroke(road.points,lines.motorway,'#26bb7c');
  for(const ramp of ramps)stroke(ramp.points,lines.rampCasing,'#273b4c');
  for(const ramp of ramps)stroke(ramp.points,lines.ramp,'#26bb7c');
+ drawVerifiedStreetTerminals(width,height);
  drawSpatialJams();drawClosureSections();
  plotLabels(width,height);plotRampBadges(width,height);drawEventMarkers(width,height);
  drawJunctionMovementHints(width,height);
