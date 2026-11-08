@@ -3,8 +3,8 @@
  * Zugehoerige Daten/Module: Weitere Dateien: closure-network.ts, road-controls.ts und recurring-events.ts.
  * Hier liegt die aktive Programmlogik. Alte Dateinamen leiten hierher weiter.
  */
-import { extensionRoute } from './network-extensions.js?build=468d7db6d22b8662';
-import { validDailyRecurrence, dailyRecurrenceBounds, dailyOccurrenceAt } from './recurring-events.js?build=468d7db6d22b8662';
+import { extensionRoute } from './network-extensions.js?build=f706910bd9663983';
+import { validDailyRecurrence, dailyRecurrenceBounds, dailyOccurrenceAt } from './recurring-events.js?build=f706910bd9663983';
 export const EVENT_KINDS = ['roadworks', 'accident', 'breakdown', 'closure'];
 export const eventNames = { roadworks: 'Baustelle', accident: 'Unfall', breakdown: 'Lkw-Panne', closure: 'Vollsperrung' };
 export const eventSymbols = { roadworks: '🚧', accident: '💥', breakdown: '🚛', closure: '⛔' };
