@@ -41,6 +41,7 @@ def report():
     output = {}
     for name, centre in CITIES:
         loose = []
+        cityways = [(w, ps) for w, ps in ways if any(metres(p, centre) <= RADIUS + 150 for p in ps)]
         for f in features:
             if f.get("kind") != "ramp":
                 continue
@@ -51,7 +52,7 @@ def report():
                 if len(owners.get(at, ())) > 1 or at in street:
                     continue
                 near = []
-                for w, ps in ways:
+                for w, ps in cityways:
                     for index, (a, b) in enumerate(zip(ps, ps[1:])):
                         d = min(metres(at, a), metres(at, b))
                         if d > 95:
