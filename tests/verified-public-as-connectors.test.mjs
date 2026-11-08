@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
+import {spawnSync} from 'node:child_process';
 import {publicAccessConnectors} from '../dist/01_Strassennetz/osm-anschlussstrassen.js';
 import {NETWORK_ROUTE_KEYS} from '../dist/network-catalog.js';
 
@@ -66,4 +67,11 @@ test('real local access road display never generates standalone motorway traffic
  assert.match(app,/for\(const access of publicAccessConnectors\)/);
  assert.match(app,/#1b9f81/);
  assert.match(html,/AS-Verbindungsstraße \(OSM; noch ohne eigene Stauphysik\)/);
+});
+
+test('OSM junction street connectors regenerate deterministically from pinned snapshots',()=>{
+ const result=spawnSync(process.execPath,['scripts/build_public_access_connectors.mjs','--check'],{
+  encoding:'utf8',timeout:120000,maxBuffer:2*1024*1024
+ });
+ assert.equal(result.status,0,result.stderr||result.error?.message||result.stdout);
 });
