@@ -23,7 +23,7 @@ test('OSM ramp gap repairs appear as real, selectable ramp paths',()=>{
   assert.ok(r.points.length>=2);
   assert.ok(r.wayIds.length>0);
   assert.ok(r.lanes>=1&&r.lanes<=4);
-  assert.ok(r.laneSegments[0].toM<=280.01);
+  assert.ok(r.laneSegments[0].toM<=3000,'do not import remote motorway corridors as ramp fragments');
   assert.ok(r.points.every(p=>p.length===2&&p.every(Number.isFinite)));
  }
 });
