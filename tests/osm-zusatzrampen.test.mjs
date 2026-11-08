@@ -92,7 +92,7 @@ test('street boundaries and exact OSM motorway connections are real segment endp
 });
 test('no service area-only slip roads, closed/private ramps or duplicate imported OSM ways added',()=>{
  const existing=new Set([...networkData.roads.map(r=>r.wayId),...networkData.ramps.flatMap(x=>x.wayIds),
-   ...extensionRoutes.filter(x=>!x.id.startsWith('extra-osm-link-')).flatMap(x=>x.wayIds)]);
+   ...extensionRoutes.filter(x=>!x.id.startsWith('extra-osm-link-')&&!x.id.startsWith('extra-osm-ramp-gap-')).flatMap(x=>x.wayIds)]);
  for(const f of extra)for(const id of f.wayIds)assert.ok(!existing.has(id),'duplicate OSM way '+id);
  for(const id of [27005183,326138777,407517104])assert.equal(byId(id),undefined);
  const doc=readFileSync('scripts/build_osm_additional_ramps.py','utf8');
