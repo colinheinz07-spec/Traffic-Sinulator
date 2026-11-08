@@ -1,2 +1,2 @@
 /** Bestehender Importpfad; der eigentliche Code liegt in 06_Karte/map-gestures.ts. */
-export * from './06_Karte/map-gestures.js?build=cbb66658c54f64f7';
+export * from './06_Karte/map-gestures.js?build=1a42ae58629317ad';

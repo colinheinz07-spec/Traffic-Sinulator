@@ -1,12 +1,12 @@
 /** 06_Karte: Zugeordnetes Fachmodul selection. */
-import { physicalOwnerAt } from '../physical-paths.js?build=cbb66658c54f64f7';
-import { extensionRoutes } from '../network-extensions.js?build=cbb66658c54f64f7';
+import { physicalOwnerAt } from '../physical-paths.js?build=1a42ae58629317ad';
+import { extensionRoutes } from '../network-extensions.js?build=1a42ae58629317ad';
 /** Map hit-testing remains separate from rendering and transport logic.
  * All snapped positions are interpolated ONLY on verified OSM road geometries.
  */
-import { nearestPolyline, exitPosition } from '../core.js?build=cbb66658c54f64f7';
-import { motorwayRef } from '../network-catalog.js?build=cbb66658c54f64f7';
-import { networkRoad } from '../network-road.js?build=cbb66658c54f64f7';
+import { nearestPolyline, exitPosition } from '../core.js?build=1a42ae58629317ad';
+import { motorwayRef } from '../network-catalog.js?build=1a42ae58629317ad';
+import { networkRoad } from '../network-road.js?build=1a42ae58629317ad';
 /** Reduce hundreds of OSM ways to one candidate for each motorway direction and each ramp. */
 export function mapCandidates(roads, ramps, tap, project, tolerance = 18) {
     const hits = new Map();

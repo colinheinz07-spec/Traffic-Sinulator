@@ -1,8 +1,14 @@
 {
   "unattachedRampEnds": 137,
   "sourceGraphNodes": 4903,
-  "verifiedPatches": 0,
-  "sumLengthM": 0,
+  "verifiedPatches": 3,
+  "sumLengthM": 400.0,
+  "nationwide": {
+    "eligibleUncoveredWays": 98,
+    "connectedMissingWays": 3,
+    "routesImported": 3,
+    "connectedStillUncoveredWays": 0
+  },
   "locations": {
     "Idstein": 0,
     "Montabaur": 0,

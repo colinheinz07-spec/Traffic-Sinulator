@@ -1,17 +1,17 @@
 /** 03_Stauphysik: Zugeordnetes Fachmodul spatial. */
-import { networkRoad } from '../network-road.js?build=cbb66658c54f64f7';
-import { extensionRoutes, extensionRoute } from '../network-extensions.js?build=cbb66658c54f64f7';
-import { routeDescriptor, LEGACY_ROUTE_KEYS } from '../network-catalog.js?build=cbb66658c54f64f7';
-import { normalThroughLanes } from '../lane-info.js?build=cbb66658c54f64f7';
+import { networkRoad } from '../network-road.js?build=1a42ae58629317ad';
+import { extensionRoutes, extensionRoute } from '../network-extensions.js?build=1a42ae58629317ad';
+import { routeDescriptor, LEGACY_ROUTE_KEYS } from '../network-catalog.js?build=1a42ae58629317ad';
+import { normalThroughLanes } from '../lane-info.js?build=1a42ae58629317ad';
 /** Georeferenced, per-event queue model on the exact OSM motorway carriageway curves.
  * A first-pass conservation model (not a calibrated traffic forecast).
  * No vehicle sprites, hidden road connectors, A3/A48 transfers, or invented detours.
  */
-import { buildContinuousRoads } from '../cartography.js?build=cbb66658c54f64f7';
-import { exitPosition } from '../core.js?build=cbb66658c54f64f7';
-import { PATHS, baselineCapacity, eventCapacity, defaultDemand } from '../traffic.js?build=cbb66658c54f64f7';
-import { baseLaneCapacity, colorAtSpeed, queueFundamentalDiagram, freeSpeedKmh } from '../traffic-physics.js?build=cbb66658c54f64f7';
-import { physicalEvents, accessibleExits } from '../road-controls.js?build=cbb66658c54f64f7';
+import { buildContinuousRoads } from '../cartography.js?build=1a42ae58629317ad';
+import { exitPosition } from '../core.js?build=1a42ae58629317ad';
+import { PATHS, baselineCapacity, eventCapacity, defaultDemand } from '../traffic.js?build=1a42ae58629317ad';
+import { baseLaneCapacity, colorAtSpeed, queueFundamentalDiagram, freeSpeedKmh } from '../traffic-physics.js?build=1a42ae58629317ad';
+import { physicalEvents, accessibleExits } from '../road-controls.js?build=1a42ae58629317ad';
 const rad = Math.PI / 180;
 export function metres(a, b) {
     const dx = (b[1] - a[1]) * 111195 * Math.cos((a[0] + b[0]) / 2 * rad);

@@ -1,8 +1,8 @@
 /** 03_Stauphysik: Zugeordnetes Fachmodul interchange. */
-import { extensionRoute } from '../network-extensions.js?build=cbb66658c54f64f7';
-import { positionM, metres } from '../spatial.js?build=cbb66658c54f64f7';
-import { defaultDemand, eventCapacity } from '../traffic.js?build=cbb66658c54f64f7';
-import { DEFAULT_CLEARANCE_MIN } from '../events.js?build=cbb66658c54f64f7';
+import { extensionRoute } from '../network-extensions.js?build=1a42ae58629317ad';
+import { positionM, metres } from '../spatial.js?build=1a42ae58629317ad';
+import { defaultDemand, eventCapacity } from '../traffic.js?build=1a42ae58629317ad';
+import { DEFAULT_CLEARANCE_MIN } from '../events.js?build=1a42ae58629317ad';
 export const INTERCHANGE_DIVERSION_START_MIN = 45;
 const movements = {
     'ramp-a48-to-koeln': { from: 'A48-dernbach', to: 'A3-koeln' },
