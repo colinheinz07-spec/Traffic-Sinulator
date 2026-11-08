@@ -184,7 +184,30 @@
             "alreadyDisplayed": true,
             "exactSharedNode": false
           }
-        ]
+        ],
+        "nearestOtherClass": {
+          "motorway": {
+            "wayId": 28371042,
+            "highway": "motorway",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4461339,
+              7.8304369
+            ],
+            "b": [
+              50.4461533,
+              7.8301145
+            ],
+            "nodeA": 311600539,
+            "nodeB": 311600531,
+            "distanceToEndpointsM": 52.4,
+            "edgeLengthM": 22.9,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          }
+        }
       },
       {
         "ramp": "extra-heumar-23608535",
@@ -365,7 +388,30 @@
             "alreadyDisplayed": true,
             "exactSharedNode": false
           }
-        ]
+        ],
+        "nearestOtherClass": {
+          "motorway": {
+            "wayId": 28371042,
+            "highway": "motorway",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4461339,
+              7.8304369
+            ],
+            "b": [
+              50.4461533,
+              7.8301145
+            ],
+            "nodeA": 311600539,
+            "nodeB": 311600531,
+            "distanceToEndpointsM": 65.7,
+            "edgeLengthM": 22.9,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          }
+        }
       },
       {
         "ramp": "extra-heumar-1391773490",
@@ -546,7 +592,30 @@
             "alreadyDisplayed": true,
             "exactSharedNode": false
           }
-        ]
+        ],
+        "nearestOtherClass": {
+          "motorway": {
+            "wayId": 28371038,
+            "highway": "motorway",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.4461533,
+              7.8301145
+            ],
+            "b": [
+              50.4462714,
+              7.8282574
+            ],
+            "nodeA": 311600531,
+            "nodeB": 2329414757,
+            "distanceToEndpointsM": 18.0,
+            "edgeLengthM": 132.2,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          }
+        }
       },
       {
         "ramp": "extra-heumar-30449962",
@@ -726,7 +795,8 @@
             "alreadyDisplayed": true,
             "exactSharedNode": false
           }
-        ]
+        ],
+        "nearestOtherClass": {}
       },
       {
         "ramp": "extra-heumar-689876996",
@@ -906,7 +976,30 @@
             "alreadyDisplayed": true,
             "exactSharedNode": false
           }
-        ]
+        ],
+        "nearestOtherClass": {
+          "motorway": {
+            "wayId": 28371039,
+            "highway": "motorway",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.445975,
+              7.8301037
+            ],
+            "b": [
+              50.4459558,
+              7.8304258
+            ],
+            "nodeA": 311600532,
+            "nodeB": 378132,
+            "distanceToEndpointsM": 56.6,
+            "edgeLengthM": 22.9,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          }
+        }
       },
       {
         "ramp": "extra-heumar-785021080",
@@ -1086,7 +1179,30 @@
             "alreadyDisplayed": true,
             "exactSharedNode": false
           }
-        ]
+        ],
+        "nearestOtherClass": {
+          "motorway": {
+            "wayId": 28371039,
+            "highway": "motorway",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.445975,
+              7.8301037
+            ],
+            "b": [
+              50.4459558,
+              7.8304258
+            ],
+            "nodeA": 311600532,
+            "nodeB": 378132,
+            "distanceToEndpointsM": 82.0,
+            "edgeLengthM": 22.9,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          }
+        }
       },
       {
         "ramp": "extra-heumar-30449934",
@@ -1266,7 +1382,8 @@
             "alreadyDisplayed": true,
             "exactSharedNode": false
           }
-        ]
+        ],
+        "nearestOtherClass": {}
       },
       {
         "ramp": "extra-heumar-535237604",
@@ -1446,7 +1563,8 @@
             "alreadyDisplayed": true,
             "exactSharedNode": false
           }
-        ]
+        ],
+        "nearestOtherClass": {}
       },
       {
         "ramp": "extra-heumar-1262909214",
@@ -1626,7 +1744,30 @@
             "alreadyDisplayed": true,
             "exactSharedNode": false
           }
-        ]
+        ],
+        "nearestOtherClass": {
+          "motorway": {
+            "wayId": 28371039,
+            "highway": "motorway",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.445975,
+              7.8301037
+            ],
+            "b": [
+              50.4459558,
+              7.8304258
+            ],
+            "nodeA": 311600532,
+            "nodeB": 378132,
+            "distanceToEndpointsM": 90.9,
+            "edgeLengthM": 22.9,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          }
+        }
       },
       {
         "ramp": "extra-heumar-1201406276",
@@ -1807,7 +1948,8 @@
             "alreadyDisplayed": true,
             "exactSharedNode": false
           }
-        ]
+        ],
+        "nearestOtherClass": {}
       },
       {
         "ramp": "extra-heumar-535229028",
@@ -1988,7 +2130,8 @@
             "alreadyDisplayed": true,
             "exactSharedNode": false
           }
-        ]
+        ],
+        "nearestOtherClass": {}
       }
     ]
   },
@@ -2173,7 +2316,8 @@
             "alreadyDisplayed": true,
             "exactSharedNode": false
           }
-        ]
+        ],
+        "nearestOtherClass": {}
       },
       {
         "ramp": "extra-heumar-23781846",
@@ -2353,7 +2497,8 @@
             "alreadyDisplayed": true,
             "exactSharedNode": false
           }
-        ]
+        ],
+        "nearestOtherClass": {}
       },
       {
         "ramp": "extra-heumar-23781932",
@@ -2533,7 +2678,8 @@
             "alreadyDisplayed": true,
             "exactSharedNode": false
           }
-        ]
+        ],
+        "nearestOtherClass": {}
       },
       {
         "ramp": "extra-heumar-38447325",
@@ -2713,7 +2859,8 @@
             "alreadyDisplayed": true,
             "exactSharedNode": false
           }
-        ]
+        ],
+        "nearestOtherClass": {}
       },
       {
         "ramp": "extra-heumar-5727539",
@@ -2893,7 +3040,30 @@
             "alreadyDisplayed": true,
             "exactSharedNode": false
           }
-        ]
+        ],
+        "nearestOtherClass": {
+          "motorway": {
+            "wayId": 4007899,
+            "highway": "motorway",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.3992973,
+              8.0708718
+            ],
+            "b": [
+              50.3991507,
+              8.0712262
+            ],
+            "nodeA": 398279,
+            "nodeB": 13328017277,
+            "distanceToEndpointsM": 51.0,
+            "edgeLengthM": 29.9,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          }
+        }
       },
       {
         "ramp": "extra-heumar-8014729",
@@ -3073,7 +3243,30 @@
             "alreadyDisplayed": true,
             "exactSharedNode": false
           }
-        ]
+        ],
+        "nearestOtherClass": {
+          "motorway": {
+            "wayId": 4007899,
+            "highway": "motorway",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.3992973,
+              8.0708718
+            ],
+            "b": [
+              50.3991507,
+              8.0712262
+            ],
+            "nodeA": 398279,
+            "nodeB": 13328017277,
+            "distanceToEndpointsM": 36.5,
+            "edgeLengthM": 29.9,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          }
+        }
       },
       {
         "ramp": "extra-heumar-23781848",
@@ -3254,7 +3447,30 @@
             "alreadyDisplayed": true,
             "exactSharedNode": false
           }
-        ]
+        ],
+        "nearestOtherClass": {
+          "motorway": {
+            "wayId": 4007901,
+            "highway": "motorway",
+            "name": null,
+            "oneway": "yes",
+            "access": null,
+            "a": [
+              50.3996297,
+              8.0705172
+            ],
+            "b": [
+              50.4002478,
+              8.0687896
+            ],
+            "nodeA": 508470,
+            "nodeB": 13328021270,
+            "distanceToEndpointsM": 80.3,
+            "edgeLengthM": 140.4,
+            "alreadyDisplayed": true,
+            "exactSharedNode": false
+          }
+        }
       },
       {
         "ramp": "extra-heumar-23781853",
@@ -3434,7 +3650,8 @@
             "alreadyDisplayed": true,
             "exactSharedNode": false
           }
-        ]
+        ],
+        "nearestOtherClass": {}
       }
     ]
   }
