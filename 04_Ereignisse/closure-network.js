@@ -1,6 +1,6 @@
-import { closureGate, positionM } from '../spatial.js?build=1a42ae58629317ad';
-import { junctionRampBindings } from '../junction-ramp-bindings.js?build=1a42ae58629317ad';
-import { routeDescriptor } from '../network-catalog.js?build=1a42ae58629317ad';
+import { closureGate, positionM } from '../spatial.js?build=9b249171bed12707';
+import { junctionRampBindings } from '../junction-ramp-bindings.js?build=9b249171bed12707';
+import { routeDescriptor } from '../network-catalog.js?build=9b249171bed12707';
 const EPS = 2;
 const endpointCache = new WeakMap();
 const pointId = (p) => p.join(',');

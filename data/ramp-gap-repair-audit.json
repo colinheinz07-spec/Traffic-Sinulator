@@ -1,13 +1,14 @@
 {
   "unattachedRampEnds": 137,
   "sourceGraphNodes": 4903,
-  "verifiedPatches": 3,
-  "sumLengthM": 400.0,
+  "verifiedPatches": 99,
+  "sumLengthM": 11698.0,
   "nationwide": {
     "junctionsAudited": 73,
     "eligibleUncoveredWays": 98,
     "connectedMissingWays": 3,
-    "routesImported": 3,
+    "geometryOnlyWays": 95,
+    "routesImported": 99,
     "connectedStillUncoveredWays": 0,
     "unresolvedByJunction": {
       "A3 27 AK Köln-Ost": 26,

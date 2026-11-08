@@ -3,17 +3,17 @@
  * Zugehoerige Daten/Module: Wege: detour-routing.ts, auto-diversions.ts und extension-detours.ts.
  * Hier liegt die aktive Programmlogik. Alte Dateinamen leiten hierher weiter.
  */
-import { networkRoad } from './network-road.js?build=1a42ae58629317ad';
-import { cellQueueSpans } from './traffic-cells.js?build=1a42ae58629317ad';
-import { closureGate } from './spatial.js?build=1a42ae58629317ad';
-import { diversionJunctions, nearestExitBeforeQueue, potentialDiversionPercent } from './diversions.js?build=1a42ae58629317ad';
-import { speedDelayInCells } from './speed-delay.js?build=1a42ae58629317ad';
-import { eventCapacity, defaultDemand } from './traffic.js?build=1a42ae58629317ad';
-import { freeSpeedKmh } from './traffic-physics.js?build=1a42ae58629317ad';
-import { INTERCHANGE_DIVERSION_START_MIN, interchangeTrafficShare } from './interchange.js?build=1a42ae58629317ad';
-import { closedMovementEvent, viaJourneyUsable, journeyRampCapacity, journeyTrafficShare } from './interchange-journeys.js?build=1a42ae58629317ad';
-import { accessibleExits, junctionAccess } from './road-controls.js?build=1a42ae58629317ad';
-import { exitRampVehicles, DEFAULT_EXIT_TERMINAL_VPH } from './junction-traffic.js?build=1a42ae58629317ad';
+import { networkRoad } from './network-road.js?build=9b249171bed12707';
+import { cellQueueSpans } from './traffic-cells.js?build=9b249171bed12707';
+import { closureGate } from './spatial.js?build=9b249171bed12707';
+import { diversionJunctions, nearestExitBeforeQueue, potentialDiversionPercent } from './diversions.js?build=9b249171bed12707';
+import { speedDelayInCells } from './speed-delay.js?build=9b249171bed12707';
+import { eventCapacity, defaultDemand } from './traffic.js?build=9b249171bed12707';
+import { freeSpeedKmh } from './traffic-physics.js?build=9b249171bed12707';
+import { INTERCHANGE_DIVERSION_START_MIN, interchangeTrafficShare } from './interchange.js?build=9b249171bed12707';
+import { closedMovementEvent, viaJourneyUsable, journeyRampCapacity, journeyTrafficShare } from './interchange-journeys.js?build=9b249171bed12707';
+import { accessibleExits, junctionAccess } from './road-controls.js?build=9b249171bed12707';
+import { exitRampVehicles, DEFAULT_EXIT_TERMINAL_VPH } from './junction-traffic.js?build=9b249171bed12707';
 function exitTerminalWait(source, metre) {
     const ramp = source.junctions?.find(j => Math.abs(j.metre - metre) < 25);
     return ramp ? exitRampVehicles(ramp) / Math.max(1, ramp.exitTerminalVph ?? DEFAULT_EXIT_TERMINAL_VPH) * 60 : 0;
