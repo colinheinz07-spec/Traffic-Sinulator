@@ -28,7 +28,7 @@ jobs:
       # bundle must still publish when the full suite takes many minutes.
       - run: npm run typecheck
       - run: npm run build
-      - run: node --test tests/ramp-geometry-gaps.test.mjs tests/osm-zusatzrampen.test.mjs
+      - run: node --test tests/ramp-geometry-gaps.test.mjs tests/osm-zusatzrampen.test.mjs tests/all-junction-ramp-coverage.test.mjs
       - name: Commit fingerprinted browser modules
         run: |
           git add -A -- index.html '*.js' '01_Strassennetz/*.js' '02_Verkehr/*.js' '03_Stauphysik/*.js' '04_Ereignisse/*.js' '05_Umleitungen/*.js' '06_Karte/*.js' src/01_Strassennetz/osm-rampenluecken.ts data/ramp-gap-repair-audit.json data/ramp-gap-diagnostics.json data/missing-osm-ramp-edges.json
