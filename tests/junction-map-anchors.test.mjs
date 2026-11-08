@@ -57,3 +57,13 @@ test('the saved OSM snapshots contain no unimported local motorway_link near Kö
   assert.deepEqual(ways.filter(w=>!owned.has(w.id)).map(w=>w.id),[],file+' has missing imported motorway links');
  }
 });
+
+test('widely separated motorway departures do not place the pin midway on an unrelated stretch',()=>{
+ const montabaur=exits.find(j=>j.road==='A3'&&j.ref==='40');
+ assert.ok(montabaur);
+ const branches=Object.values(montabaur.directional).filter(a=>a.nodeId>0);
+ assert.ok(d(branches[0].position,branches[1].position)>1000);
+ const marker=junctionLabelPosition(montabaur);
+ assert.ok(branches.some(a=>d(a.position,marker)<1),
+  'very wide complexes must use a surveyed vertex rather than an arbitrary midpoint');
+});
