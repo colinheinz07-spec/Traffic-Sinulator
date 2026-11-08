@@ -19,6 +19,7 @@ test('zoom adaptive line styles preserve fine independent carriageways',()=>{
  assert.ok(low.motorway<mid.motorway&&mid.motorway<high.motorway);
  assert.ok(mid.motorwayCasing<6.4&&mid.rampCasing<8);
  assert.ok(low.motorway>=1.5);
+ assert.ok(high.ramp>7.0&&high.motorway>7.5,'full ramp and motorway surface must cover the wider OSM pink tile at close zoom');
 });
 test('ramp badges sit at real points on each of the four OSM routes',()=>{
  const c=mercator([50.460264,7.767549],14.2),project=p=>{const v=mercator(p,14.2);return [190+v[0]-c[0],380+v[1]-c[1]]};
