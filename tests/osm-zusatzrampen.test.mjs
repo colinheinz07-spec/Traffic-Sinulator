@@ -4,6 +4,7 @@ import {readFileSync} from 'node:fs';
 import {extensionRoutes,extensionRoute,EXTENSION_IDS,extensionRampBoundaryPoints} from '../dist/network-extensions.js';
 import {networkData} from '../dist/geodata.js';
 import {verifiedOsmAdditionalRoutes,verifiedOsmStreetBoundaries} from '../dist/01_Strassennetz/osm-zusatzrampen.js';
+import {verifiedRampGapRoutes} from '../dist/01_Strassennetz/osm-rampenluecken.js';
 import {NETWORK_ROUTE_KEYS} from '../dist/network-catalog.js';
 import {makeCorridors} from '../dist/spatial.js';
 import {buildExtensionConnections} from '../dist/extension-connections.js';
@@ -16,7 +17,7 @@ test('138 actual OSM motorway_link ways are available as 145 navigable directed 
  assert.equal(new Set(extra.flatMap(x=>x.wayIds)).size,138);
  assert.equal(extra.length,145);
  assert.equal(new Set(extra.map(x=>x.id)).size,extra.length);
- assert.equal(extensionRoutes.length,711+extra.length);
+ assert.equal(extensionRoutes.length,711+extra.length+verifiedRampGapRoutes.length);
  assert.equal(EXTENSION_IDS.length,extensionRoutes.length);
  const allKeys=new Set(NETWORK_ROUTE_KEYS);
  const corridors=makeCorridors(networkData.roads,networkData.ramps);
