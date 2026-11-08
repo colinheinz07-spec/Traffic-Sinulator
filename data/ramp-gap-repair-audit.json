@@ -4,10 +4,877 @@
   "verifiedPatches": 3,
   "sumLengthM": 400.0,
   "nationwide": {
+    "junctionsAudited": 73,
     "eligibleUncoveredWays": 98,
     "connectedMissingWays": 3,
     "routesImported": 3,
-    "connectedStillUncoveredWays": 0
+    "connectedStillUncoveredWays": 0,
+    "unresolvedByJunction": {
+      "A3 27 AK Köln-Ost": 26,
+      "A3 47 AK Wiesbadener Kreuz": 19,
+      "A4 10 AK Köln-West": 8,
+      "A4 14 AK Köln-Gremberg": 7,
+      "A48 9 AK Koblenz (A61)": 9,
+      "A565 4 AK Bonn-Nord": 22,
+      "A59 34 Flughafen": 4
+    },
+    "unresolvedOsmWayDetails": [
+      {
+        "wayId": 9620185,
+        "near": "A3 27 AK Köln-Ost",
+        "centre": [
+          50.9674038,
+          7.0327407
+        ],
+        "metres": 68.2
+      },
+      {
+        "wayId": 26802038,
+        "near": "A3 27 AK Köln-Ost",
+        "centre": [
+          50.9665652,
+          7.0293061
+        ],
+        "metres": 26.5
+      },
+      {
+        "wayId": 26802041,
+        "near": "A3 27 AK Köln-Ost",
+        "centre": [
+          50.9666124,
+          7.0296624
+        ],
+        "metres": 45.4
+      },
+      {
+        "wayId": 26802112,
+        "near": "A3 27 AK Köln-Ost",
+        "centre": [
+          50.9672978,
+          7.0329678
+        ],
+        "metres": 45.2
+      },
+      {
+        "wayId": 29292569,
+        "near": "A3 27 AK Köln-Ost",
+        "centre": [
+          50.9665334,
+          7.029547
+        ],
+        "metres": 33.1
+      },
+      {
+        "wayId": 29292920,
+        "near": "A3 27 AK Köln-Ost",
+        "centre": [
+          50.9671823,
+          7.0324794
+        ],
+        "metres": 53.9
+      },
+      {
+        "wayId": 49188343,
+        "near": "A3 27 AK Köln-Ost",
+        "centre": [
+          50.9665146,
+          7.0294334
+        ],
+        "metres": 35.7
+      },
+      {
+        "wayId": 132624458,
+        "near": "A3 27 AK Köln-Ost",
+        "centre": [
+          50.9495983,
+          7.0570931
+        ],
+        "metres": 31.3
+      },
+      {
+        "wayId": 132624471,
+        "near": "A3 27 AK Köln-Ost",
+        "centre": [
+          50.9487907,
+          7.0572404
+        ],
+        "metres": 33.0
+      },
+      {
+        "wayId": 132624472,
+        "near": "A3 27 AK Köln-Ost",
+        "centre": [
+          50.9517983,
+          7.0596654
+        ],
+        "metres": 613.7
+      },
+      {
+        "wayId": 132624473,
+        "near": "A3 27 AK Köln-Ost",
+        "centre": [
+          50.9501524,
+          7.0585298
+        ],
+        "metres": 302.3
+      },
+      {
+        "wayId": 132624474,
+        "near": "A3 27 AK Köln-Ost",
+        "centre": [
+          50.9525054,
+          7.05788
+        ],
+        "metres": 121.0
+      },
+      {
+        "wayId": 132624477,
+        "near": "A3 27 AK Köln-Ost",
+        "centre": [
+          50.9515161,
+          7.0569886
+        ],
+        "metres": 37.4
+      },
+      {
+        "wayId": 132624479,
+        "near": "A3 27 AK Köln-Ost",
+        "centre": [
+          50.9495899,
+          7.0576201
+        ],
+        "metres": 50.9
+      },
+      {
+        "wayId": 132624481,
+        "near": "A3 27 AK Köln-Ost",
+        "centre": [
+          50.951782,
+          7.0551233
+        ],
+        "metres": 199.2
+      },
+      {
+        "wayId": 132624482,
+        "near": "A3 27 AK Köln-Ost",
+        "centre": [
+          50.9525983,
+          7.0581975
+        ],
+        "metres": 68.3
+      },
+      {
+        "wayId": 132624485,
+        "near": "A3 27 AK Köln-Ost",
+        "centre": [
+          50.9508618,
+          7.0562602
+        ],
+        "metres": 380.0
+      },
+      {
+        "wayId": 209985268,
+        "near": "A3 27 AK Köln-Ost",
+        "centre": [
+          50.9523297,
+          7.0589015
+        ],
+        "metres": 93.2
+      },
+      {
+        "wayId": 209985269,
+        "near": "A3 27 AK Köln-Ost",
+        "centre": [
+          50.951386,
+          7.0589827
+        ],
+        "metres": 166.2
+      },
+      {
+        "wayId": 254177414,
+        "near": "A3 27 AK Köln-Ost",
+        "centre": [
+          50.9667189,
+          7.0293674
+        ],
+        "metres": 41.6
+      },
+      {
+        "wayId": 254177419,
+        "near": "A3 27 AK Köln-Ost",
+        "centre": [
+          50.9674164,
+          7.0326121
+        ],
+        "metres": 141.7
+      },
+      {
+        "wayId": 315140144,
+        "near": "A3 27 AK Köln-Ost",
+        "centre": [
+          50.9671743,
+          7.0327278
+        ],
+        "metres": 36.8
+      },
+      {
+        "wayId": 612509410,
+        "near": "A3 27 AK Köln-Ost",
+        "centre": [
+          50.9492624,
+          7.0574629
+        ],
+        "metres": 99.3
+      },
+      {
+        "wayId": 835776960,
+        "near": "A3 27 AK Köln-Ost",
+        "centre": [
+          50.950668,
+          7.0598207
+        ],
+        "metres": 260.6
+      },
+      {
+        "wayId": 835776964,
+        "near": "A3 27 AK Köln-Ost",
+        "centre": [
+          50.9667989,
+          7.0294527
+        ],
+        "metres": 43.2
+      },
+      {
+        "wayId": 1392330640,
+        "near": "A3 27 AK Köln-Ost",
+        "centre": [
+          50.9664092,
+          7.0291882
+        ],
+        "metres": 20.8
+      },
+      {
+        "wayId": 4267087,
+        "near": "A3 47 AK Wiesbadener Kreuz",
+        "centre": [
+          50.0559385,
+          8.4066088
+        ],
+        "metres": 143.6
+      },
+      {
+        "wayId": 23789953,
+        "near": "A3 47 AK Wiesbadener Kreuz",
+        "centre": [
+          50.0558251,
+          8.4070755
+        ],
+        "metres": 133.0
+      },
+      {
+        "wayId": 155363726,
+        "near": "A3 47 AK Wiesbadener Kreuz",
+        "centre": [
+          50.0559409,
+          8.3720629
+        ],
+        "metres": 104.6
+      },
+      {
+        "wayId": 155363729,
+        "near": "A3 47 AK Wiesbadener Kreuz",
+        "centre": [
+          50.0553629,
+          8.3714159
+        ],
+        "metres": 86.8
+      },
+      {
+        "wayId": 155363730,
+        "near": "A3 47 AK Wiesbadener Kreuz",
+        "centre": [
+          50.0561469,
+          8.3710764
+        ],
+        "metres": 171.1
+      },
+      {
+        "wayId": 155363742,
+        "near": "A3 47 AK Wiesbadener Kreuz",
+        "centre": [
+          50.0553012,
+          8.400977
+        ],
+        "metres": 180.3
+      },
+      {
+        "wayId": 155363758,
+        "near": "A3 47 AK Wiesbadener Kreuz",
+        "centre": [
+          50.0565274,
+          8.3699968
+        ],
+        "metres": 37.7
+      },
+      {
+        "wayId": 155363781,
+        "near": "A3 47 AK Wiesbadener Kreuz",
+        "centre": [
+          50.0553335,
+          8.3721417
+        ],
+        "metres": 281.2
+      },
+      {
+        "wayId": 155363783,
+        "near": "A3 47 AK Wiesbadener Kreuz",
+        "centre": [
+          50.0568119,
+          8.3698969
+        ],
+        "metres": 46.1
+      },
+      {
+        "wayId": 231437167,
+        "near": "A3 47 AK Wiesbadener Kreuz",
+        "centre": [
+          50.0552059,
+          8.4018183
+        ],
+        "metres": 141.1
+      },
+      {
+        "wayId": 322961150,
+        "near": "A3 47 AK Wiesbadener Kreuz",
+        "centre": [
+          50.0549351,
+          8.3712178
+        ],
+        "metres": 61.8
+      },
+      {
+        "wayId": 323863421,
+        "near": "A3 47 AK Wiesbadener Kreuz",
+        "centre": [
+          50.0567135,
+          8.369913
+        ],
+        "metres": 34.1
+      },
+      {
+        "wayId": 323863422,
+        "near": "A3 47 AK Wiesbadener Kreuz",
+        "centre": [
+          50.0566573,
+          8.3705493
+        ],
+        "metres": 104.8
+      },
+      {
+        "wayId": 323864237,
+        "near": "A3 47 AK Wiesbadener Kreuz",
+        "centre": [
+          50.0546505,
+          8.3710801
+        ],
+        "metres": 44.3
+      },
+      {
+        "wayId": 344657711,
+        "near": "A3 47 AK Wiesbadener Kreuz",
+        "centre": [
+          50.0544785,
+          8.4024028
+        ],
+        "metres": 119.5
+      },
+      {
+        "wayId": 400470773,
+        "near": "A3 47 AK Wiesbadener Kreuz",
+        "centre": [
+          50.056448,
+          8.4065514
+        ],
+        "metres": 28.2
+      },
+      {
+        "wayId": 400470777,
+        "near": "A3 47 AK Wiesbadener Kreuz",
+        "centre": [
+          50.056352,
+          8.4064089
+        ],
+        "metres": 22.1
+      },
+      {
+        "wayId": 491679706,
+        "near": "A3 47 AK Wiesbadener Kreuz",
+        "centre": [
+          50.0566331,
+          8.3699492
+        ],
+        "metres": 28.1
+      },
+      {
+        "wayId": 1229508508,
+        "near": "A3 47 AK Wiesbadener Kreuz",
+        "centre": [
+          50.056725,
+          8.3702762
+        ],
+        "metres": 13.2
+      },
+      {
+        "wayId": 19975745,
+        "near": "A4 10 AK Köln-West",
+        "centre": [
+          50.9183504,
+          6.841386
+        ],
+        "metres": 424.2
+      },
+      {
+        "wayId": 19975746,
+        "near": "A4 10 AK Köln-West",
+        "centre": [
+          50.9171859,
+          6.8427809
+        ],
+        "metres": 314.1
+      },
+      {
+        "wayId": 21355252,
+        "near": "A4 10 AK Köln-West",
+        "centre": [
+          50.9165138,
+          6.8437775
+        ],
+        "metres": 262.5
+      },
+      {
+        "wayId": 61675491,
+        "near": "A4 10 AK Köln-West",
+        "centre": [
+          50.9147433,
+          6.8451296
+        ],
+        "metres": 64.8
+      },
+      {
+        "wayId": 61675499,
+        "near": "A4 10 AK Köln-West",
+        "centre": [
+          50.9147964,
+          6.8450903
+        ],
+        "metres": 39.6
+      },
+      {
+        "wayId": 61675502,
+        "near": "A4 10 AK Köln-West",
+        "centre": [
+          50.9172686,
+          6.8433104
+        ],
+        "metres": 50.5
+      },
+      {
+        "wayId": 325738440,
+        "near": "A4 10 AK Köln-West",
+        "centre": [
+          50.9141507,
+          6.8456436
+        ],
+        "metres": 17.5
+      },
+      {
+        "wayId": 923142662,
+        "near": "A4 10 AK Köln-West",
+        "centre": [
+          50.9148552,
+          6.8450037
+        ],
+        "metres": 40.9
+      },
+      {
+        "wayId": 132408368,
+        "near": "A4 14 AK Köln-Gremberg",
+        "centre": [
+          50.9241458,
+          7.0000156
+        ],
+        "metres": 127.5
+      },
+      {
+        "wayId": 132408406,
+        "near": "A4 14 AK Köln-Gremberg",
+        "centre": [
+          50.9241658,
+          6.9992849
+        ],
+        "metres": 146.6
+      },
+      {
+        "wayId": 132408410,
+        "near": "A4 14 AK Köln-Gremberg",
+        "centre": [
+          50.9251985,
+          6.9999329
+        ],
+        "metres": 132.2
+      },
+      {
+        "wayId": 132408412,
+        "near": "A4 14 AK Köln-Gremberg",
+        "centre": [
+          50.9242864,
+          7.0004443
+        ],
+        "metres": 111.3
+      },
+      {
+        "wayId": 132408419,
+        "near": "A4 14 AK Köln-Gremberg",
+        "centre": [
+          50.9248907,
+          7.0031355
+        ],
+        "metres": 247.2
+      },
+      {
+        "wayId": 146825990,
+        "near": "A4 14 AK Köln-Gremberg",
+        "centre": [
+          50.9248091,
+          7.0000004
+        ],
+        "metres": 101.9
+      },
+      {
+        "wayId": 329035701,
+        "near": "A4 14 AK Köln-Gremberg",
+        "centre": [
+          50.924478,
+          7.0035619
+        ],
+        "metres": 283.3
+      },
+      {
+        "wayId": 24526353,
+        "near": "A48 9 AK Koblenz (A61)",
+        "centre": [
+          50.3475161,
+          7.4985555
+        ],
+        "metres": 285.3
+      },
+      {
+        "wayId": 24526355,
+        "near": "A48 9 AK Koblenz (A61)",
+        "centre": [
+          50.3475809,
+          7.4984481
+        ],
+        "metres": 305.4
+      },
+      {
+        "wayId": 24556341,
+        "near": "A48 9 AK Koblenz (A61)",
+        "centre": [
+          50.3481339,
+          7.5017
+        ],
+        "metres": 435.4
+      },
+      {
+        "wayId": 28527076,
+        "near": "A48 9 AK Koblenz (A61)",
+        "centre": [
+          50.3467133,
+          7.4984588
+        ],
+        "metres": 37.4
+      },
+      {
+        "wayId": 28527077,
+        "near": "A48 9 AK Koblenz (A61)",
+        "centre": [
+          50.3467459,
+          7.5030711
+        ],
+        "metres": 30.0
+      },
+      {
+        "wayId": 28527078,
+        "near": "A48 9 AK Koblenz (A61)",
+        "centre": [
+          50.3480107,
+          7.5013372
+        ],
+        "metres": 389.3
+      },
+      {
+        "wayId": 28527079,
+        "near": "A48 9 AK Koblenz (A61)",
+        "centre": [
+          50.3465058,
+          7.5027366
+        ],
+        "metres": 41.7
+      },
+      {
+        "wayId": 28527080,
+        "near": "A48 9 AK Koblenz (A61)",
+        "centre": [
+          50.3464346,
+          7.4981121
+        ],
+        "metres": 35.6
+      },
+      {
+        "wayId": 1435667789,
+        "near": "A48 9 AK Koblenz (A61)",
+        "centre": [
+          50.3465537,
+          7.503038
+        ],
+        "metres": 32.7
+      },
+      {
+        "wayId": 4471628,
+        "near": "A565 4 AK Bonn-Nord",
+        "centre": [
+          50.7280788,
+          7.0806561
+        ],
+        "metres": 102.9
+      },
+      {
+        "wayId": 4471648,
+        "near": "A565 4 AK Bonn-Nord",
+        "centre": [
+          50.7297627,
+          7.0774195
+        ],
+        "metres": 10.7
+      },
+      {
+        "wayId": 4882574,
+        "near": "A565 4 AK Bonn-Nord",
+        "centre": [
+          50.7399983,
+          7.0722552
+        ],
+        "metres": 68.1
+      },
+      {
+        "wayId": 4882580,
+        "near": "A565 4 AK Bonn-Nord",
+        "centre": [
+          50.7423544,
+          7.0713773
+        ],
+        "metres": 35.2
+      },
+      {
+        "wayId": 4958937,
+        "near": "A565 4 AK Bonn-Nord",
+        "centre": [
+          50.7313736,
+          7.0746626
+        ],
+        "metres": 96.9
+      },
+      {
+        "wayId": 4965268,
+        "near": "A565 4 AK Bonn-Nord",
+        "centre": [
+          50.7276419,
+          7.0808936
+        ],
+        "metres": 162.0
+      },
+      {
+        "wayId": 22979549,
+        "near": "A565 4 AK Bonn-Nord",
+        "centre": [
+          50.7404171,
+          7.0716658
+        ],
+        "metres": 184.7
+      },
+      {
+        "wayId": 22979550,
+        "near": "A565 4 AK Bonn-Nord",
+        "centre": [
+          50.7418303,
+          7.0718345
+        ],
+        "metres": 105.3
+      },
+      {
+        "wayId": 48624484,
+        "near": "A565 4 AK Bonn-Nord",
+        "centre": [
+          50.7424508,
+          7.071925
+        ],
+        "metres": 45.7
+      },
+      {
+        "wayId": 48624485,
+        "near": "A565 4 AK Bonn-Nord",
+        "centre": [
+          50.7423468,
+          7.0712567
+        ],
+        "metres": 30.6
+      },
+      {
+        "wayId": 48624486,
+        "near": "A565 4 AK Bonn-Nord",
+        "centre": [
+          50.7418869,
+          7.0713146
+        ],
+        "metres": 82.1
+      },
+      {
+        "wayId": 48624487,
+        "near": "A565 4 AK Bonn-Nord",
+        "centre": [
+          50.7424025,
+          7.0717406
+        ],
+        "metres": 37.7
+      },
+      {
+        "wayId": 123640437,
+        "near": "A565 4 AK Bonn-Nord",
+        "centre": [
+          50.7313202,
+          7.0751654
+        ],
+        "metres": 34.7
+      },
+      {
+        "wayId": 123640440,
+        "near": "A565 4 AK Bonn-Nord",
+        "centre": [
+          50.731753,
+          7.0748534
+        ],
+        "metres": 107.9
+      },
+      {
+        "wayId": 123640446,
+        "near": "A565 4 AK Bonn-Nord",
+        "centre": [
+          50.7306378,
+          7.0759026
+        ],
+        "metres": 188.2
+      },
+      {
+        "wayId": 123640452,
+        "near": "A565 4 AK Bonn-Nord",
+        "centre": [
+          50.7303365,
+          7.0754388
+        ],
+        "metres": 118.9
+      },
+      {
+        "wayId": 209143766,
+        "near": "A565 4 AK Bonn-Nord",
+        "centre": [
+          50.741124,
+          7.0719423
+        ],
+        "metres": 143.5
+      },
+      {
+        "wayId": 223052476,
+        "near": "A565 4 AK Bonn-Nord",
+        "centre": [
+          50.7292697,
+          7.0768473
+        ],
+        "metres": 20.6
+      },
+      {
+        "wayId": 235428308,
+        "near": "A565 4 AK Bonn-Nord",
+        "centre": [
+          50.7411494,
+          7.0714215
+        ],
+        "metres": 41.1
+      },
+      {
+        "wayId": 235468135,
+        "near": "A565 4 AK Bonn-Nord",
+        "centre": [
+          50.7294613,
+          7.0766195
+        ],
+        "metres": 93.5
+      },
+      {
+        "wayId": 464930732,
+        "near": "A565 4 AK Bonn-Nord",
+        "centre": [
+          50.7293918,
+          7.0767243
+        ],
+        "metres": 16.3
+      },
+      {
+        "wayId": 1539085921,
+        "near": "A565 4 AK Bonn-Nord",
+        "centre": [
+          50.7298565,
+          7.0772872
+        ],
+        "metres": 14.0
+      },
+      {
+        "wayId": 33095283,
+        "near": "A59 34 Flughafen",
+        "centre": [
+          50.8837192,
+          7.1070345
+        ],
+        "metres": 177.9
+      },
+      {
+        "wayId": 132622446,
+        "near": "A59 34 Flughafen",
+        "centre": [
+          50.8833414,
+          7.1023906
+        ],
+        "metres": 389.7
+      },
+      {
+        "wayId": 208405194,
+        "near": "A59 34 Flughafen",
+        "centre": [
+          50.8828765,
+          7.1050669
+        ],
+        "metres": 46.7
+      },
+      {
+        "wayId": 828972909,
+        "near": "A59 34 Flughafen",
+        "centre": [
+          50.8829987,
+          7.1050818
+        ],
+        "metres": 36.5
+      }
+    ]
   },
   "locations": {
     "Idstein": 0,
