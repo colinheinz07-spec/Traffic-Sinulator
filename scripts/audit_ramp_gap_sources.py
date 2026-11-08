@@ -73,8 +73,13 @@ def report():
                 near.sort(key=lambda e: (e["distanceToEndpointsM"],
                                          0 if e["exactSharedNode"] else 1,
                                          e["wayId"]))
+                classes = {}
+                for candidate in near:
+                    if candidate["highway"] != "motorway_link" and candidate["highway"] not in classes:
+                        classes[candidate["highway"]] = candidate
                 loose.append({"ramp": f["id"], "wayIds": f.get("wayIds"),
-                              "point": at, "nearestOsmEdges": near[:8]})
+                              "point": at, "nearestOsmEdges": near[:8],
+                              "nearestOtherClass": classes})
         output[name] = {
             "openRampEnds": len(loose),
             "examples": loose[:35]
