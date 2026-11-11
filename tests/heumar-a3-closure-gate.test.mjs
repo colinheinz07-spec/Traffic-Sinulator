@@ -5,6 +5,7 @@ import {extensionJunctions} from '../dist/network-extensions.js';
 import {makeCorridors,positionM,routeSlice,closureGate} from '../dist/spatial.js';
 import {closedNetworkSpans} from '../dist/closure-network.js';
 import {exitPosition} from '../dist/core.js';
+import {buildExtensionConnections} from '../dist/extension-connections.js';
 
 const routes=makeCorridors(networkData.roads,networkData.ramps);
 const exits=[...networkData.exits,...extensionJunctions];
@@ -34,4 +35,25 @@ test('A3 towards Koeln: closure from AD Heumar to AK Koeln-Ost never starts at t
  assert.equal(spans.find(s=>s.pathKey==='A3-koeln')?.fromM,gate.metre);
  assert.equal(spans.find(s=>s.pathKey==='A3-koeln')?.toM,gate.endM);
  assert.ok(!spans.some(s=>s.pathKey==='A3-frankfurt'),'opposite carriageway remains open');
+});
+
+test('real Heumar ramps: diverge to A4 survives, entry towards closed A3 is prohibited',()=>{
+ const from=positionM(a3,exitPosition(heumar,'A3-koeln'),900);
+ const until=positionM(a3,exitPosition(ost,'A3-koeln'),900);
+ assert.ok(from!==null&&until!==null);
+ const event={
+  id:'real-heumar-ramp-closure',kind:'closure',pathKey:'A3-koeln',
+  point:routeSlice(a3,from+Math.min(450,(until-from)/3),from+Math.min(451,(until-from)/3+1))[0],
+  closedLanes:[0,1,2],laneCount:3,createdAt:'2026-11-11T12:00:00Z',
+  settings:{lengthM:250,speedKmh:0,shoulder:'blocked'}
+ };
+ const connections=buildExtensionConnections(routes);
+ const spans=closedNetworkSpans([event],routes,exits,connections);
+ const blocked=new Set(spans.map(s=>s.pathKey));
+ assert.ok(!blocked.has('extra-turn-A3-koeln-to-extra-a4-aachen-992497963'),
+  'the mapped Heumar exit towards A4 Aachen must remain usable');
+ assert.ok(blocked.has('extra-heumar-132614489'),
+  'the mapped A4 -> closed A3 Koeln ramp must be prohibited');
+ assert.ok(!blocked.has('extra-heumar-132614508'),
+  'ramp towards opposite A3 direction must remain accessible');
 });
