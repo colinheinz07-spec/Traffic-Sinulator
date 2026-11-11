@@ -129,7 +129,15 @@ export function closureGate(route:Corridor,event:SimEvent,exits:readonly Exit[],
  const allowed=new Set(accessibleExits(route,events.filter(e=>e.kind!=='closure'),exits,'exit')
   .map(e=>e.road+':'+e.ref));
  const urban=route.key.startsWith('extra-a59-')||route.key.startsWith('extra-a4-')||route.key.startsWith('extra-a559-');
- const closest=junctions.filter(j=>(urban||!/^(AD |AK )/.test(j.exit.name))&&allowed.has(j.exit.road+':'+j.exit.ref)&&j.metre<=at+1).at(-1);
+ // AD/AK are also real *last usable motorway exits* when their directional
+ // OSM junction node is known. Previously A3 systematically skipped them,
+ // closing e.g. Heumar -> Koeln-Ost already at the preceding ordinary AS.
+ // Unverified interchange labels must not move a gate upstream by guesswork.
+ const usableJunction=(j:typeof junctions[number])=>
+  !/^(AD |AK )/.test(j.exit.name)||urban||
+  (j.exit.directional?.[route.key as RoadId]?.nodeId??0)>0;
+ const closest=junctions.filter(j=>usableJunction(j)&&
+  allowed.has(j.exit.road+':'+j.exit.ref)&&j.metre<=at+1).at(-1);
  const physicalEnd=Math.min(route.lengthM,at+event.settings.lengthM);
  const end=junctions.find(j=>j.metre>at+1&&j.metre>=physicalEnd-1);
  let metre=closest?.metre??0,endM=end?.metre??route.lengthM;
