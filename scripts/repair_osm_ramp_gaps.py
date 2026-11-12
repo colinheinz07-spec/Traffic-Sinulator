@@ -31,6 +31,16 @@ MAX_GAP_METRES = 280
 MAX_SEGMENTS = 36
 
 
+def within_ramp_audit_scope(points, known_nodes, nearest_junction_m, label_radius_m=2400):
+    """Include actual OSM-connected ramps even beyond a junction-label radius.
+
+    Labels are cartographic hints, not the legal or physical limits of an
+    interchange. A distant candidate requires an EXACT existing OSM vertex;
+    nearby unconnected geometry is kept for the strict source coverage audit.
+    """
+    return nearest_junction_m <= label_radius_m or any(p in known_nodes for p in points)
+
+
 def point(p):
     return (round(float(p["lat"]), 7), round(float(p["lon"]), 7))
 
@@ -216,8 +226,9 @@ def missing_motorway_link_runs(features, initial_patches):
         known.update(ps)
         covered.update(frozenset((a, b)) for a, b in zip(ps, ps[1:]))
 
-    # All eligible areas are near named motorway junctions already imported.
-    # This excludes foreign motorways and remote maintenance/service roads.
+    # Include labelled junction surroundings and additional EXACT-OSM-connected
+    # motorway_link paths, without treating a 2.4-km label radius as a hard
+    # geographical limit. Detached remote paths remain excluded.
     eligible = {}
     public_nodes = set()
     service_nodes = set()
@@ -246,7 +257,8 @@ def missing_motorway_link_runs(features, initial_patches):
             continue
         mid = ps[len(ps)//2]
         nearest = min(exits, key=lambda j: metres(mid, coord(j["position"])))
-        if metres(mid, coord(nearest["position"])) > 2400:
+        if not within_ramp_audit_scope(ps, known,
+                                       metres(mid, coord(nearest["position"]))):
             continue
         if all(frozenset((a, b)) in covered for a, b in zip(ps, ps[1:])):
             continue
