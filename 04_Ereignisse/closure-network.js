@@ -1,6 +1,6 @@
-import { closureGate, positionM } from '../spatial.js?build=9b249171bed12707';
-import { junctionRampBindings } from '../junction-ramp-bindings.js?build=9b249171bed12707';
-import { routeDescriptor } from '../network-catalog.js?build=9b249171bed12707';
+import { closureGate, positionM } from '../spatial.js?build=aeb7f301ec00046e';
+import { junctionRampBindings } from '../junction-ramp-bindings.js?build=aeb7f301ec00046e';
+import { routeDescriptor } from '../network-catalog.js?build=aeb7f301ec00046e';
 const EPS = 2;
 const endpointCache = new WeakMap();
 const pointId = (p) => p.join(',');
@@ -73,10 +73,16 @@ export function closedNetworkSpans(events, routes, exits, connections) {
         // Physically connected ramps leading INTO the prohibited direction.
         // A diverge OUT of the closure to an open motorway is not blocked;
         // those exits may serve existing traffic/mandatory diversion.
+        // A ramp can be shared up to a real fork. Never block the entire feeder
+        // merely because ONE of its possible receiving motorways is closed.
+        const hasOpenReceiver = (rampId) => connections.some(link => link.rampId === rampId && (link.to !== route.key ||
+            !inClosed(link.downstreamMergeM, gate.metre, gate.endM, true)));
         for (const link of connections) {
             if (link.to !== route.key || link.rampId === route.key)
                 continue;
             if (!inClosed(link.downstreamMergeM, gate.metre, gate.endM, true))
+                continue;
+            if (hasOpenReceiver(link.rampId))
                 continue;
             const ramp = routes[link.rampId];
             if (!ramp)
@@ -144,7 +150,7 @@ export function closedNetworkSpans(events, routes, exits, connections) {
             return closed;
         };
         for (const ramp of topo.ramps)
-            if (leadsOnlyIntoClosure(ramp, new Set()))
+            if (!hasOpenReceiver(ramp.key) && leadsOnlyIntoClosure(ramp, new Set()))
                 add(event.id, ramp.key, 0, ramp.lengthM, 'interchange-entry');
     }
     // The same segment must not draw multiple overlapping red/white stripes

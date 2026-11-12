@@ -1,17 +1,17 @@
 /** 03_Stauphysik: Zugeordnetes Fachmodul spatial. */
-import { networkRoad } from '../network-road.js?build=9b249171bed12707';
-import { extensionRoutes, extensionRoute } from '../network-extensions.js?build=9b249171bed12707';
-import { routeDescriptor, LEGACY_ROUTE_KEYS } from '../network-catalog.js?build=9b249171bed12707';
-import { normalThroughLanes } from '../lane-info.js?build=9b249171bed12707';
+import { networkRoad } from '../network-road.js?build=aeb7f301ec00046e';
+import { extensionRoutes, extensionRoute } from '../network-extensions.js?build=aeb7f301ec00046e';
+import { routeDescriptor, LEGACY_ROUTE_KEYS } from '../network-catalog.js?build=aeb7f301ec00046e';
+import { normalThroughLanes } from '../lane-info.js?build=aeb7f301ec00046e';
 /** Georeferenced, per-event queue model on the exact OSM motorway carriageway curves.
  * A first-pass conservation model (not a calibrated traffic forecast).
  * No vehicle sprites, hidden road connectors, A3/A48 transfers, or invented detours.
  */
-import { buildContinuousRoads } from '../cartography.js?build=9b249171bed12707';
-import { exitPosition } from '../core.js?build=9b249171bed12707';
-import { PATHS, baselineCapacity, eventCapacity, defaultDemand } from '../traffic.js?build=9b249171bed12707';
-import { baseLaneCapacity, colorAtSpeed, queueFundamentalDiagram, freeSpeedKmh } from '../traffic-physics.js?build=9b249171bed12707';
-import { physicalEvents, accessibleExits } from '../road-controls.js?build=9b249171bed12707';
+import { buildContinuousRoads } from '../cartography.js?build=aeb7f301ec00046e';
+import { exitPosition } from '../core.js?build=aeb7f301ec00046e';
+import { PATHS, baselineCapacity, eventCapacity, defaultDemand } from '../traffic.js?build=aeb7f301ec00046e';
+import { baseLaneCapacity, colorAtSpeed, queueFundamentalDiagram, freeSpeedKmh } from '../traffic-physics.js?build=aeb7f301ec00046e';
+import { physicalEvents, accessibleExits } from '../road-controls.js?build=aeb7f301ec00046e';
 const rad = Math.PI / 180;
 export function metres(a, b) {
     const dx = (b[1] - a[1]) * 111195 * Math.cos((a[0] + b[0]) / 2 * rad);
@@ -147,7 +147,21 @@ export function closureGate(route, event, exits, events = []) {
     const allowed = new Set(accessibleExits(route, events.filter(e => e.kind !== 'closure'), exits, 'exit')
         .map(e => e.road + ':' + e.ref));
     const urban = route.key.startsWith('extra-a59-') || route.key.startsWith('extra-a4-') || route.key.startsWith('extra-a559-');
-    const closest = junctions.filter(j => (urban || !/^(AD |AK )/.test(j.exit.name)) && allowed.has(j.exit.road + ':' + j.exit.ref) && j.metre <= at + 1).at(-1);
+    // AD/AK are also real *last usable motorway exits* when their directional
+    // OSM junction node is known. Previously A3 systematically skipped them,
+    // closing e.g. Heumar -> Koeln-Ost already at the preceding ordinary AS.
+    // Unverified interchange labels must not move a gate upstream by guesswork.
+    // Only use an interchange as the last compulsory diversion when another
+    // mapped junction lies further downstream. At an open network boundary
+    // there may be no modelled legal departure from the final AK/AD: forcing
+    // vehicles toward that dead end would strand all boundary detour trips.
+    // The previous normal-AS gate remains the conservative fallback there.
+    const hasDownstreamJunction = junctions.some(j => j.metre > at + 1);
+    const usableJunction = (j) => !/^(AD |AK )/.test(j.exit.name) ||
+        (hasDownstreamJunction && (urban ||
+            (j.exit.directional?.[route.key]?.nodeId ?? 0) > 0));
+    const closest = junctions.filter(j => usableJunction(j) &&
+        allowed.has(j.exit.road + ':' + j.exit.ref) && j.metre <= at + 1).at(-1);
     const physicalEnd = Math.min(route.lengthM, at + event.settings.lengthM);
     const end = junctions.find(j => j.metre > at + 1 && j.metre >= physicalEnd - 1);
     let metre = closest?.metre ?? 0, endM = end?.metre ?? route.lengthM;
