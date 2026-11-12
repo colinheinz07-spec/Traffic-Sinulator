@@ -16,9 +16,11 @@ test('rest-area cleanup must never remove existing Bonn, Köln or other major au
   assert.ok(ids.has(key),key+' must survive graph cleanup');
  }
  const raw=JSON.parse(readFileSync('data/extension-junctions.json','utf8'));
- // Original generator output must remain intact. The 133 additional
- // OSM-verified ways are supplied separately by osm-zusatzrampen.ts.
+ // The original generator routes must stay intact. Two separate verified
+ // imports (osm-zusatzrampen and osm-rampenluecken) are additive and cannot
+ // be expected to appear in the original generator JSON.
  assert.deepEqual(new Set(raw.routes.map(r=>r.id)),
-  new Set(extensionRoutes.filter(r=>!r.id.startsWith('extra-osm-link-')).map(r=>r.id)));
+  new Set(extensionRoutes.filter(r=>!r.id.startsWith('extra-osm-link-')&&
+   !r.id.startsWith('extra-osm-ramp-gap-')).map(r=>r.id)));
  assert.ok(extensionRoutes.some(r=>r.id.startsWith('extra-osm-link-')));
 });

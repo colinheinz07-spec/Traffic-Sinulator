@@ -79,3 +79,20 @@ test('regular last off-ramp remains available; on-ramp barred, internal AS acces
  assert.equal(junctionAccess(r,[closure],last,gate.exit.ref).exit,true);
  assert.equal(junctionAccess(r,[closure],last,gate.exit.ref).entry,false);
 });
+
+
+test('shared feeder with a reachable open receiver is not fully shut by another closed branch',()=>{
+ const shared=route('ramp-shared-receiver',[[50.002,7.018],[50,7.019]]);
+ const mixed=[
+  ...links,
+  {rampId:shared.key,from:open,to:selected,rampEntryM:0,
+   downstreamMergeM:pos[1]+150,sourceGapM:0,mergeGapM:0},
+  {rampId:shared.key,from:open,to:open,rampEntryM:0,
+   downstreamMergeM:50,sourceGapM:0,mergeGapM:0}
+ ];
+ const spans=closedNetworkSpans([event],{...routes,[shared.key]:shared},exits,mixed);
+ assert.ok(!spans.some(s=>s.pathKey===shared.key),
+  'closing the shared feeder would wrongly block its open motorway destination');
+ assert.ok(spans.some(s=>s.pathKey===toAachen.key),
+  'exclusive entrance to the closed mainline must remain shut');
+});

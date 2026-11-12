@@ -228,9 +228,11 @@ def missing_motorway_link_runs(features, initial_patches):
         if kind in {"trunk", "trunk_link", "primary", "primary_link",
                     "secondary", "secondary_link", "tertiary",
                     "tertiary_link", "residential", "unclassified", "living_street"}:
-            public_nodes.update((ps[0], ps[-1]))
+            # OSM roads can meet at an interior vertex, not just a Way end.
+            # Missing these junctions painted service-area access as AS ramps.
+            public_nodes.update(ps)
         if kind == "service":
-            service_nodes.update((ps[0], ps[-1]))
+            service_nodes.update(ps)
         if kind != "motorway_link":
             continue
         if any(tags.get(k) in FORBIDDEN for k in ("access", "vehicle", "motor_vehicle", "motorcar")):
