@@ -1,5 +1,5 @@
 /** 01_Strassennetz: Zugeordnetes Fachmodul network-road. */
-import { routeDescriptor } from '../network-catalog.js?build=aeb7f301ec00046e';
+import { routeDescriptor } from '../network-catalog.js?build=85d4833c04e283b6';
 /** All motorway numbers come from network metadata; adding an A61, A7 or
  * A100 corridor needs no additional conditional here. Ramps are not roads. */
 export function networkRoad(key) {

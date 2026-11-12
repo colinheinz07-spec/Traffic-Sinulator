@@ -1,2 +1,2 @@
 /** Bestehender Importpfad; der eigentliche Code liegt in 01_Strassennetz/lane-info.ts. */
-export * from './01_Strassennetz/lane-info.js?build=aeb7f301ec00046e';
+export * from './01_Strassennetz/lane-info.js?build=85d4833c04e283b6';
