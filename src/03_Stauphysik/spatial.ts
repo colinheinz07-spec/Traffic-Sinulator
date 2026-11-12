@@ -133,9 +133,16 @@ export function closureGate(route:Corridor,event:SimEvent,exits:readonly Exit[],
  // OSM junction node is known. Previously A3 systematically skipped them,
  // closing e.g. Heumar -> Koeln-Ost already at the preceding ordinary AS.
  // Unverified interchange labels must not move a gate upstream by guesswork.
+ // Only use an interchange as the last compulsory diversion when another
+ // mapped junction lies further downstream. At an open network boundary
+ // there may be no modelled legal departure from the final AK/AD: forcing
+ // vehicles toward that dead end would strand all boundary detour trips.
+ // The previous normal-AS gate remains the conservative fallback there.
+ const hasDownstreamJunction=junctions.some(j=>j.metre>at+1);
  const usableJunction=(j:typeof junctions[number])=>
-  !/^(AD |AK )/.test(j.exit.name)||urban||
-  (j.exit.directional?.[route.key as RoadId]?.nodeId??0)>0;
+  !/^(AD |AK )/.test(j.exit.name)||
+  (hasDownstreamJunction&&(urban||
+   (j.exit.directional?.[route.key as RoadId]?.nodeId??0)>0));
  const closest=junctions.filter(j=>usableJunction(j)&&
   allowed.has(j.exit.road+':'+j.exit.ref)&&j.metre<=at+1).at(-1);
  const physicalEnd=Math.min(route.lengthM,at+event.settings.lengthM);
