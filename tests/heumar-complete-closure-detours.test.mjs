@@ -56,6 +56,10 @@ test('mandatory motorway exits at A3, A4 and A59 are derived from existing OSM g
     x.pathKey.includes('heumar-132614489')||x.pathKey.includes('a559')||x.pathKey.includes('a4-olpe'))
   }));
  assert.ok(fromA59,'A59 traffic must join open A559 before the A4/A3 closure funnel');
+ assert.ok(fromA4.closureTurnSharePercent>0&&fromA4.closureTurnSharePercent<100,
+  'A4 vehicles with open destinations must retain through-traffic instead of all turning to A559');
+ assert.equal(fromA3.closureTurnSharePercent,100);
+ assert.equal(fromA59.closureTurnSharePercent,100);
  for(const config of [fromA3,fromA4,fromA59]){
   assert.equal(config.motorwayBypass,true);
   assert.equal(config.exitIsInterchange,true);
