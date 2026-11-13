@@ -99,7 +99,11 @@ export function closureForkDetours(
   const feeders=new Set(blocked.map(c=>c.from));
   for(const feeder of feeders){
    const blockedAt=Math.min(...blocked.filter(c=>c.from===feeder).map(c=>c.rampEntryM));
+   // Prefer an alternative autobahn instead of a U-turn into the opposite
+   // direction of the closed motorway (A4 -> A559, not A4 -> A3 Frankfurt).
+   const closedRef=routeDescriptor(event.pathKey)?.motorway;
    const open=physicalLinks.filter(c=>c.from===feeder&&c.to!==event.pathKey&&
+    routeDescriptor(c.to)?.motorway!==closedRef&&
     c.rampEntryM<=blockedAt+1&&!forbidden(c.to,c.downstreamMergeM)&&
     !forbidden(c.rampId,0)).sort((a,b)=>b.rampEntryM-a.rampEntryM);
    if(open.length)linkRoute(event,open[0]!);
@@ -111,19 +115,27 @@ export function closureForkDetours(
    for(const ring of ringDetours.filter(r=>r.path===merge.from&&r.targetPath===event.pathKey)){
     const source=routes[ring.path];if(!source)continue;
     const fromM=positionM(source,ring.fromPoint,2);if(fromM===null)continue;
+    const landings:{path:string;toM:number;index:number}[]=[];
     for(const leg of ring.legs){
      if(!motorway(leg.path)||leg.path===event.pathKey)continue;
      const target=routes[leg.path];if(!target)continue;
-     const toM=positionM(target,leg.fromPoint,2);if(toM===null||forbidden(leg.path,toM))continue;
-     const end=ring.points.findIndex(p=>pointKey(p)===pointKey(leg.fromPoint));
-     if(end<1)continue;
-     const geometry=ring.points.slice(0,end+1) as [number,number][];
-     // The OSM route is truncated at its first safe motorway leg. The
-     // original full-route wayIds also contain the now-BLOCKED destination
-     // arm, so do not charge this prefix against those unused road sections.
-     add(event,merge.from,leg.path,fromM,toM,geometry,[],ring.id+':'+leg.path);
-     break;
+     // A ring OSM trace can pass through A559 and then A4 toward the
+     // closed A3. Transfer at the FIRST safe motorway on the trace.
+     for(let index=1;index<ring.points.length;index++){
+      const toM=positionM(target,ring.points[index]!,0.10);
+      if(toM===null||toM<40||toM>=target.lengthM-40||
+       forbidden(leg.path,toM))continue;
+      landings.push({path:leg.path,toM,index});break;
+     }
     }
+    landings.sort((a,b)=>a.index-b.index);
+    const earliest=landings[0];
+    if(!earliest)continue;
+    const geometry=ring.points.slice(0,earliest.index+1) as [number,number][];
+    // Original full-route wayIds include later blocked arms, and cannot
+    // consume road capacity that the truncated journey never traverses.
+    add(event,merge.from,earliest.path,fromM,earliest.toM,geometry,[],
+     ring.id+':'+earliest.path);
    }
   }
  }
