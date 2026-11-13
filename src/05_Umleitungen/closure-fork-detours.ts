@@ -42,7 +42,10 @@ export function closureForkDetours(
   const id='CLOSURE-FORK-'+event.id+':'+source+':'+sourceRamp;
   if(offered.has(id))return;
   offered.add(id);
-  const km=lengthKm(points),capacity=1500;
+  const km=lengthKm(points);
+  // Do not turn a two-lane OSM motorway ramp into a one-lane bottleneck.
+  // 1,500 veh/h per ramp lane is the declared simulation assumption.
+  const capacity=1500*Math.max(1,Math.min(3,extensionRoute(sourceRamp)?.lanes??1));
   if(km<=.005||km>80)return;
   result.push({
    id,path:source,targetPath:target,fromM,toM,sourceEndM:fromM,
