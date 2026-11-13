@@ -155,6 +155,11 @@ function baseDiversionChoice(entry:ChoiceRoute,entries:readonly ChoiceRoute[],
   const empty={percent:0,mandatory:false,delayMin:0,upstreamRank:0};
   if(entry.enabled===false||config.geometry.roadCapacityVph<=0)return empty;
   const cause=events.find(e=>e.id===config.eventId),grid=cells[path],route=routes[path];if(!grid||!route)return empty;
+  // These verified fork bypasses exist only when a FULL closure blocks the
+  // original directed motorway movement. Make the legal open branch mandatory
+  // rather than waiting for a 45-minute voluntary queue threshold.
+  if(config.id.startsWith('CLOSURE-FORK-')&&cause?.kind==='closure')
+   return {...empty,percent:100,mandatory:true};
   const closure=cause?.kind==='closure'?closureGate(route,cause,exits,events):null;
   if(closure&&config.fromM<=closure.metre+1&&(config.sourceEndM??config.toM)>=closure.endM-1)return {...empty,percent:100,mandatory:true};
   const loss=speedDelayInCells(grid,config.fromM,config.sourceEndM??config.toM,config.sourceEndM??config.toM),delayMin=loss.delayMin;
