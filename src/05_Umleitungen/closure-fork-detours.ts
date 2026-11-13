@@ -17,7 +17,7 @@ import type {DetourConfig} from '../detour-flow.js';
 
 const pointKey=(p:readonly number[])=>p.join(',');
 const motorway=(key:string)=>routeDescriptor(key)?.kind==='motorway';
-const lengthKm=(points:readonly (readonly [number,number])[])=>
+const lengthKm=(points:readonly [number,number][])=>
  points.slice(1).reduce((sum,p,i)=>sum+metres(points[i]!,p),0)/1000;
 
 export function closureForkDetours(
