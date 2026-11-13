@@ -49,7 +49,12 @@ test('mandatory motorway exits at A3, A4 and A59 are derived from existing OSM g
  const fromA4=alternatives.find(c=>c.path==='extra-a4-olpe'&&c.targetPath==='extra-a559-porz');
  const fromA59=alternatives.find(c=>c.path==='extra-a59-koeln'&&c.targetPath==='extra-a4-olpe');
  assert.ok(fromA3,'A3 must branch to open A4 at Heumar');
- assert.ok(fromA4,'A4 traffic must avoid its barred entrance to A3');
+ assert.ok(fromA4,'A4 traffic must avoid its barred entrance to A3: '+JSON.stringify({
+   choices:alternatives.map(x=>[x.path,x.targetPath,x.fromM,x.toM]),
+   a4Links:links.filter(x=>x.from==='extra-a4-olpe').map(x=>[x.rampId,x.to,x.rampEntryM,x.downstreamMergeM]),
+   closureRampSpans:closedNetworkSpans([event],routes,exits,links).filter(x=>
+    x.pathKey.includes('heumar-132614489')||x.pathKey.includes('a559')||x.pathKey.includes('a4-olpe'))
+  }));
  assert.ok(fromA59,'A59 traffic must be able to divert through open A559/A4 ring');
  for(const config of [fromA3,fromA4,fromA59]){
   assert.equal(config.motorwayBypass,true);
