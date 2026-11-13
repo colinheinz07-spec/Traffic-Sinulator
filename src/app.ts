@@ -11,6 +11,7 @@ import type {DetourGeometry} from './detour-routing.js';
 import {planExtensionDetours,refreshExtensionDetour,extensionDetours} from './extension-detours.js';
 import {networkRoad} from './network-road.js';
 import {closedNetworkSpans} from './closure-network.js';
+import {closureForkDetours} from './05_Umleitungen/closure-fork-detours.js';
 import {routeDescriptor} from './network-catalog.js';
 import {buildExtensionConnections} from './extension-connections.js';
 import {extensionRoutes,extensionRoute,extensionJunctions,extensionRampBoundaryPoints} from './network-extensions.js';
@@ -455,9 +456,10 @@ function prepareAutomaticDetours(){
   const old=activeDetours.get(key);
   if(old&&!available.has(key))activeDetours.set(key,{...old,enabled:false,desiredPercent:0});
  }
- const extended=planExtensionDetours(timeline,spatialCorridors,exits,cellNetwork,networkConnections);
+ const extended=[...planExtensionDetours(timeline,spatialCorridors,exits,cellNetwork,networkConnections),
+  ...closureForkDetours(timeline,spatialCorridors,exits,networkConnections,directMerges)];
  const extendedIds=new Set(extended.map(c=>c.id));
- for(const [id,entry] of activeDetours)if(id.startsWith('EXT-'))activeDetours.set(id,{...entry,
+ for(const [id,entry] of activeDetours)if(id.startsWith('EXT-')||id.startsWith('CLOSURE-FORK-'))activeDetours.set(id,{...entry,
   config:refreshExtensionDetour(entry.config,spatialCorridors,timeline,exits,cellNetwork),enabled:extendedIds.has(id)&&entry.config.geometry.roadCapacityVph>0&&!suppressedDetours.has(id)});
  for(const config of extended){
   const coreChoice=plans.find(p=>p.path===config.path&&!p.targetPath&&Math.abs(p.from.metre-config.fromM)<25);
