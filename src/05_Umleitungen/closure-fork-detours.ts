@@ -94,8 +94,8 @@ export function closureForkDetours(
   }
   // Feeders to the blocked motorway must leave at their own LAST usable
   // motorway fork. This prevents waiting at a forbidden A4 -> A3 ramp.
-  const blocked=physicalLinks.filter(c=>c.to===event.pathKey&&
-   c.from!==event.pathKey&&forbidden(c.to,c.downstreamMergeM));
+  const blocked=links.filter(c=>motorway(c.from)&&c.from!==event.pathKey&&
+   c.rampId!==c.from&&forbidden(c.rampId,0));
   const feeders=new Set(blocked.map(c=>c.from));
   for(const feeder of feeders){
    const blockedAt=Math.min(...blocked.filter(c=>c.from===feeder).map(c=>c.rampEntryM));
