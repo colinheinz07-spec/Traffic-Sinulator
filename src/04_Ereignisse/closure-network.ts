@@ -35,6 +35,11 @@ interface RampEndpointTopology {
  mainlines:Map<string,{key:string;metre:number}[]>;
 }
 const endpointCache=new WeakMap<object,RampEndpointTopology>();
+const motorwayMergeCache=new WeakMap<object,ReturnType<typeof mainlineMerges>>();
+function cachedMotorwayMerges(routes:Readonly<Record<string,Corridor>>){
+ const existing=motorwayMergeCache.get(routes);if(existing)return existing;
+ const found=mainlineMerges(routes);motorwayMergeCache.set(routes,found);return found;
+}
 const pointId=(p:readonly number[])=>p.join(',');
 function endpointTopology(routes:Readonly<Record<string,Corridor>>):RampEndpointTopology{
  const cached=endpointCache.get(routes);if(cached)return cached;
@@ -117,7 +122,7 @@ export function closedNetworkSpans(
   // vertex, without a separate highway=motorway_link (e.g. A59 -> A3).
   // Stripe only the terminal entrance to the blocked arm. The rest of the
   // approach remains open for earlier motorway and AS diversions.
-  for(const merge of mainlineMerges(routes)){
+  for(const merge of cachedMotorwayMerges(routes)){
    if(merge.to!==route.key||!inClosed(merge.mergeM,gate.metre,gate.endM,true))continue;
    const feeder=routes[merge.from];if(!feeder)continue;
    add(event.id,feeder.key,Math.max(0,feeder.lengthM-250),feeder.lengthM,'motorway');
