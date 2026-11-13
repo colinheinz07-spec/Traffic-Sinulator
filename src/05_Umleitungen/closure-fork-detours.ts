@@ -57,7 +57,8 @@ export function closureForkDetours(
     roadCapacityVph:capacity,junctionCount:0,trafficLightCount:0,
     source:'osm-motorway-ramp',relationId:null,
     label:'Gerichtete OSM-Autobahnumleitung an Vollsperrung',
-    sections:[...new Set(wayIds)].map(way=>({id:'osm-way:'+way,capacityVph:capacity}))}
+    sections:wayIds.length?[...new Set(wayIds)].map(way=>({id:'osm-way:'+way,capacityVph:capacity})):
+     [{id:'osm-trace-prefix:'+sourceRamp,capacityVph:capacity}]}
   });
  };
  const uniqueLinks=new Map<string,NetworkConnection>();
@@ -117,7 +118,10 @@ export function closureForkDetours(
      const end=ring.points.findIndex(p=>pointKey(p)===pointKey(leg.fromPoint));
      if(end<1)continue;
      const geometry=ring.points.slice(0,end+1) as [number,number][];
-     add(event,merge.from,leg.path,fromM,toM,geometry,ring.wayIds,ring.id+':'+leg.path);
+     // The OSM route is truncated at its first safe motorway leg. The
+     // original full-route wayIds also contain the now-BLOCKED destination
+     // arm, so do not charge this prefix against those unused road sections.
+     add(event,merge.from,leg.path,fromM,toM,geometry,[],ring.id+':'+leg.path);
      break;
     }
    }
