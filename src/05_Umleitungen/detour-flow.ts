@@ -27,6 +27,9 @@ export interface DetourConfig {
  exitsNetwork?:boolean;
  exitIsInterchange?:boolean;
  motorwayBypass?:boolean;
+ /** In a closure only the flow aiming at the barred turn is forced to divert.
+  * Other physical motorway destinations remain accessible. */
+ closureTurnSharePercent?:number;
 }
 export interface InTransit {minute:number;vehicles:number}
 export interface DetourState {

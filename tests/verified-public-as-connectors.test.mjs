@@ -58,15 +58,17 @@ test('every drawn AS connector edge is an exact consecutive edge of a public OSM
   }
  }
 });
-test('real local access road display never generates standalone motorway traffic',()=>{
+test('audited public AS roads do not appear as simulated or teal motorway overlays',()=>{
  const model=new Set(NETWORK_ROUTE_KEYS);
  assert.ok(publicAccessConnectors.every(x=>!model.has(x.id)),
   'a real public street was silently turned into a simulated motorway link');
  const app=readFileSync('src/app.ts','utf8');
  const html=readFileSync('index.html','utf8');
- assert.match(app,/for\(const access of publicAccessConnectors\)/);
- assert.match(app,/#1b9f81/);
- assert.match(html,/AS-Verbindungsstraße \(OSM; noch ohne eigene Stauphysik\)/);
+ // The public roads remain available for OSM auditing, but they no longer
+ // contaminate the motorway-only simulation map with teal connectors.
+ assert.doesNotMatch(app,/publicAccessConnectors/);
+ assert.doesNotMatch(app,/#1b9f81/);
+ assert.doesNotMatch(html,/AS-Verbindungsstraße \(OSM; noch ohne eigene Stauphysik\)/);
 });
 
 test('OSM junction street connectors regenerate deterministically from pinned snapshots',()=>{

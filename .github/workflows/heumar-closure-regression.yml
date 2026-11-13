@@ -1,0 +1,25 @@
+name: Heumar directed full closure regression
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/04_Ereignisse/**'
+      - 'src/05_Umleitungen/**'
+      - 'src/app.ts'
+      - 'src/05_Umleitungen.ts'
+      - 'src/06_Karte.ts'
+      - 'index.html'
+      - 'tests/heumar-complete-closure-detours.test.mjs'
+      - 'tests/as-ramp-map-cleanup.test.mjs'
+      - '.github/workflows/heumar-closure-regression.yml'
+jobs:
+  heumar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci --no-audit --no-fund
+      - run: npm run build
+      - run: node --test tests/heumar-complete-closure-detours.test.mjs tests/as-ramp-map-cleanup.test.mjs tests/heumar-a3-closure-gate.test.mjs

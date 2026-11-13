@@ -1,5 +1,4 @@
 import {visibleRanges,canonicalPhysicalEvent} from './physical-paths.js';
-import {publicAccessConnectors} from './01_Strassennetz/osm-anschlussstrassen.js';
 import {junctionRampBindings,junctionRampJams,junctionRampFlows} from './junction-ramp-bindings.js';
 import {mainlineMerges,sharedNetworkReceiving} from './network-receiving.js';
 import {profileDescription} from './traffic-profiles.js';
@@ -12,6 +11,7 @@ import type {DetourGeometry} from './detour-routing.js';
 import {planExtensionDetours,refreshExtensionDetour,extensionDetours} from './extension-detours.js';
 import {networkRoad} from './network-road.js';
 import {closedNetworkSpans} from './closure-network.js';
+import {closureForkDetours} from './05_Umleitungen/closure-fork-detours.js';
 import {routeDescriptor} from './network-catalog.js';
 import {buildExtensionConnections} from './extension-connections.js';
 import {extensionRoutes,extensionRoute,extensionJunctions,extensionRampBoundaryPoints} from './network-extensions.js';
@@ -456,9 +456,10 @@ function prepareAutomaticDetours(){
   const old=activeDetours.get(key);
   if(old&&!available.has(key))activeDetours.set(key,{...old,enabled:false,desiredPercent:0});
  }
- const extended=planExtensionDetours(timeline,spatialCorridors,exits,cellNetwork,networkConnections);
+ const extended=[...planExtensionDetours(timeline,spatialCorridors,exits,cellNetwork,networkConnections),
+  ...closureForkDetours(timeline,spatialCorridors,exits,networkConnections,directMerges)];
  const extendedIds=new Set(extended.map(c=>c.id));
- for(const [id,entry] of activeDetours)if(id.startsWith('EXT-'))activeDetours.set(id,{...entry,
+ for(const [id,entry] of activeDetours)if(id.startsWith('EXT-')||id.startsWith('CLOSURE-FORK-'))activeDetours.set(id,{...entry,
   config:refreshExtensionDetour(entry.config,spatialCorridors,timeline,exits,cellNetwork),enabled:extendedIds.has(id)&&entry.config.geometry.roadCapacityVph>0&&!suppressedDetours.has(id)});
  for(const config of extended){
   const coreChoice=plans.find(p=>p.path===config.path&&!p.targetPath&&Math.abs(p.from.metre-config.fromM)<25);
@@ -1226,36 +1227,27 @@ function draw(){
  const {width,height,scale}=size();context!.setTransform(scale,0,0,scale,0,0);
  context!.fillStyle='#132b3d';context!.fillRect(0,0,width,height);
  drawTiles(width,height);
- // Exact OSM node-connected chains eliminate thick end caps at ordinary way boundaries.
- // Existing public streets often join an off-ramp to a nearby on-ramp.
- // Show only the verifiable short OSM road sections at numbered AS:
- // these are NOT motorway_link routes and introduce no vehicle inventory.
- // Zoom-adaptive outlines keep both carriageways visually distinct on narrow screens.
+ // Draw only motorway and motorway_link geometry. Public roads stay in the
+ // OSM basemap, never green and never confused with simulation ramps.
  const lines=lineWidths(zoom);
  // Die zusätzliche schmale Außenkontur zeigt die aus OSM importierte
  // Straßenklasse (Autobahn-Fahrweg oder Autobahnrampe). Sie ersetzt KEINEN
  // Knoten-/Richtungstest und ändert KEINE Stau- oder Fahrzeugfarben.
  if(showOsmAutobahnClasses){
-  for(const access of publicAccessConnectors)stroke(access.points,lines.rampCasing+3,'#65ad93');
+
   for(const road of drawnRoads)stroke(road.points,lines.motorwayCasing+5,'#3776ed');
   for(const feature of extensionRoutes)for(const range of visibleRanges(feature.id,feature.points))
    stroke(range.points,(feature.kind==='ramp'?lines.rampCasing:lines.motorwayCasing)+5,
     feature.kind==='ramp'?'#8ddfff':'#3776ed');
   for(const ramp of ramps)stroke(ramp.points,lines.rampCasing+5,'#8ddfff');
  }
- // Public AS access roads are drawn beneath the real motorway/ramp
- // carriageways. Distinct teal-green indicates a street connection;
- // only motorway/ramp paths receive simulation speed colours.
- for(const access of publicAccessConnectors){
-  stroke(access.points,lines.rampCasing,'#113b3b');
-  stroke(access.points,lines.ramp,'#1b9f81');
- }
+
  for(const road of drawnRoads)stroke(road.points,lines.motorwayCasing,'#083348');
  for(const feature of extensionRoutes)for(const range of visibleRanges(feature.id,feature.points)){stroke(range.points,feature.kind==='ramp'?lines.rampCasing:lines.motorwayCasing,'#061927');stroke(range.points,feature.kind==='ramp'?lines.ramp:lines.motorway,'#26bb7c');}
  for(const road of drawnRoads)stroke(road.points,lines.motorway,'#26bb7c');
  for(const ramp of ramps)stroke(ramp.points,lines.rampCasing,'#273b4c');
  for(const ramp of ramps)stroke(ramp.points,lines.ramp,'#26bb7c');
- drawVerifiedStreetTerminals(width,height);
+
  drawSpatialJams();drawClosureSections();
  plotLabels(width,height);plotRampBadges(width,height);drawEventMarkers(width,height);
  drawJunctionMovementHints(width,height);

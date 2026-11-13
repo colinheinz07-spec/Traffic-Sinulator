@@ -60,8 +60,11 @@ export function lineWidths(zoom:number){
  const z=Math.max(8,Math.min(17,zoom));
  const t=Math.max(0,Math.min(1,(z-10.8)/4.5));
  const detail=Math.max(0,Math.min(1,(z-13.4)/3.6))**1.35;
- const base=1.65+t*2.1+detail*8.15;
- const ramp=1.7+t*1.9+detail*7.45;
+ // At close zoom OSM raster paints broad pink motorway_link ribbons.
+ // Our physical OSM ramp strokes must fully cover that backing, including
+ // narrow merges. Only ramp/motorway shapes are widened – never local roads.
+ const base=1.65+t*2.1+detail*10.65;
+ const ramp=1.7+t*1.9+detail*10.45;
  return {motorway:base,motorwayCasing:base+1.25,ramp,rampCasing:ramp+1.25};
 }
 function dist(a:Point,b:Point):number{
