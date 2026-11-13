@@ -3,17 +3,17 @@
  * Zugehoerige Daten/Module: Wege: detour-routing.ts, auto-diversions.ts und extension-detours.ts.
  * Hier liegt die aktive Programmlogik. Alte Dateinamen leiten hierher weiter.
  */
-import { networkRoad } from './network-road.js?build=85d4833c04e283b6';
-import { cellQueueSpans } from './traffic-cells.js?build=85d4833c04e283b6';
-import { closureGate } from './spatial.js?build=85d4833c04e283b6';
-import { diversionJunctions, nearestExitBeforeQueue, potentialDiversionPercent } from './diversions.js?build=85d4833c04e283b6';
-import { speedDelayInCells } from './speed-delay.js?build=85d4833c04e283b6';
-import { eventCapacity, defaultDemand } from './traffic.js?build=85d4833c04e283b6';
-import { freeSpeedKmh } from './traffic-physics.js?build=85d4833c04e283b6';
-import { INTERCHANGE_DIVERSION_START_MIN, interchangeTrafficShare } from './interchange.js?build=85d4833c04e283b6';
-import { closedMovementEvent, viaJourneyUsable, journeyRampCapacity, journeyTrafficShare } from './interchange-journeys.js?build=85d4833c04e283b6';
-import { accessibleExits, junctionAccess } from './road-controls.js?build=85d4833c04e283b6';
-import { exitRampVehicles, DEFAULT_EXIT_TERMINAL_VPH } from './junction-traffic.js?build=85d4833c04e283b6';
+import { networkRoad } from './network-road.js?build=611f14eae9771edc';
+import { cellQueueSpans } from './traffic-cells.js?build=611f14eae9771edc';
+import { closureGate } from './spatial.js?build=611f14eae9771edc';
+import { diversionJunctions, nearestExitBeforeQueue, potentialDiversionPercent } from './diversions.js?build=611f14eae9771edc';
+import { speedDelayInCells } from './speed-delay.js?build=611f14eae9771edc';
+import { eventCapacity, defaultDemand } from './traffic.js?build=611f14eae9771edc';
+import { freeSpeedKmh } from './traffic-physics.js?build=611f14eae9771edc';
+import { INTERCHANGE_DIVERSION_START_MIN, interchangeTrafficShare } from './interchange.js?build=611f14eae9771edc';
+import { closedMovementEvent, viaJourneyUsable, journeyRampCapacity, journeyTrafficShare } from './interchange-journeys.js?build=611f14eae9771edc';
+import { accessibleExits, junctionAccess } from './road-controls.js?build=611f14eae9771edc';
+import { exitRampVehicles, DEFAULT_EXIT_TERMINAL_VPH } from './junction-traffic.js?build=611f14eae9771edc';
 function exitTerminalWait(source, metre) {
     const ramp = source.junctions?.find(j => Math.abs(j.metre - metre) < 25);
     return ramp ? exitRampVehicles(ramp) / Math.max(1, ramp.exitTerminalVph ?? DEFAULT_EXIT_TERMINAL_VPH) * 60 : 0;
@@ -152,6 +152,11 @@ function baseDiversionChoice(entry, entries, cells, routes, events, exits, deman
         const cause = events.find(e => e.id === config.eventId), grid = cells[path], route = routes[path];
         if (!grid || !route)
             return empty;
+        // These verified fork bypasses exist only when a FULL closure blocks the
+        // original directed motorway movement. Make the legal open branch mandatory
+        // rather than waiting for a 45-minute voluntary queue threshold.
+        if (config.id.startsWith('CLOSURE-FORK-') && cause?.kind === 'closure')
+            return { ...empty, percent: Math.max(0, Math.min(100, config.closureTurnSharePercent ?? 100)), mandatory: true };
         const closure = cause?.kind === 'closure' ? closureGate(route, cause, exits, events) : null;
         if (closure && config.fromM <= closure.metre + 1 && (config.sourceEndM ?? config.toM) >= closure.endM - 1)
             return { ...empty, percent: 100, mandatory: true };

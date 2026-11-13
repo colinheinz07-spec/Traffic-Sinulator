@@ -1,2 +1,2 @@
 /** Bestehender Importpfad; der eigentliche Code liegt in 05_Umleitungen/interchange-journeys.ts. */
-export * from './05_Umleitungen/interchange-journeys.js?build=85d4833c04e283b6';
+export * from './05_Umleitungen/interchange-journeys.js?build=611f14eae9771edc';

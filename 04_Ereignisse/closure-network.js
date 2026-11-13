@@ -1,8 +1,18 @@
-import { closureGate, positionM } from '../spatial.js?build=85d4833c04e283b6';
-import { junctionRampBindings } from '../junction-ramp-bindings.js?build=85d4833c04e283b6';
-import { routeDescriptor } from '../network-catalog.js?build=85d4833c04e283b6';
+import { closureGate, positionM } from '../spatial.js?build=611f14eae9771edc';
+import { junctionRampBindings } from '../junction-ramp-bindings.js?build=611f14eae9771edc';
+import { routeDescriptor } from '../network-catalog.js?build=611f14eae9771edc';
+import { mainlineMerges } from '../network-receiving.js?build=611f14eae9771edc';
 const EPS = 2;
 const endpointCache = new WeakMap();
+const motorwayMergeCache = new WeakMap();
+function cachedMotorwayMerges(routes) {
+    const existing = motorwayMergeCache.get(routes);
+    if (existing)
+        return existing;
+    const found = mainlineMerges(routes);
+    motorwayMergeCache.set(routes, found);
+    return found;
+}
 const pointId = (p) => p.join(',');
 function endpointTopology(routes) {
     const cached = endpointCache.get(routes);
@@ -88,6 +98,18 @@ export function closedNetworkSpans(events, routes, exits, connections) {
             if (!ramp)
                 continue;
             add(event.id, link.rampId, 0, ramp.lengthM, 'interchange-entry');
+        }
+        // Some motorways merge directly into another motorway at a common OSM
+        // vertex, without a separate highway=motorway_link (e.g. A59 -> A3).
+        // Stripe only the terminal entrance to the blocked arm. The rest of the
+        // approach remains open for earlier motorway and AS diversions.
+        for (const merge of cachedMotorwayMerges(routes)) {
+            if (merge.to !== route.key || !inClosed(merge.mergeM, gate.metre, gate.endM, true))
+                continue;
+            const feeder = routes[merge.from];
+            if (!feeder)
+                continue;
+            add(event.id, feeder.key, Math.max(0, feeder.lengthM - 250), feeder.lengthM, 'motorway');
         }
         // Exit to the LOCAL road network: one endpoint belongs to the closed
         // motorway and the other lies outside our Autobahn simulation. A fork

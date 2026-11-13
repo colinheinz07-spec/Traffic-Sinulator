@@ -1,2 +1,2 @@
 /** Bestehender Importpfad; der eigentliche Code liegt in 01_Strassennetz/core.ts. */
-export * from './01_Strassennetz/core.js?build=85d4833c04e283b6';
+export * from './01_Strassennetz/core.js?build=611f14eae9771edc';
