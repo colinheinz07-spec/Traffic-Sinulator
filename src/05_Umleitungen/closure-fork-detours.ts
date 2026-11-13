@@ -33,7 +33,8 @@ export function closureForkDetours(
  const result:DetourConfig[]=[];
  const offered=new Set<string>();
  const add=(event:SimEvent,source:string,target:string,fromM:number,toM:number,
-  points:[number,number][],wayIds:readonly number[],sourceRamp:string)=>{
+  points:[number,number][],wayIds:readonly number[],sourceRamp:string,
+  closureTurnSharePercent=100)=>{
   const sender=routes[source],receiver=routes[target];
   if(!sender||!receiver||!motorway(source)||!motorway(target)||source===target||
    !Number.isFinite(fromM)||!Number.isFinite(toM)||fromM<0||
@@ -50,7 +51,7 @@ export function closureForkDetours(
   result.push({
    id,path:source,targetPath:target,fromM,toM,sourceEndM:fromM,
    targetEntryM:toM,eventId:event.id,
-   motorwayBypass:true,exitIsInterchange:true,
+   motorwayBypass:true,exitIsInterchange:true,closureTurnSharePercent,
    alternativeGroup:'CLOSURE-FORK:'+event.id+':'+source,
    geometry:{id,path:source,sourceExitRef:'AD/AK',targetExitRef:'OSM',
     points,lengthKm:km,freeMinutes:Math.max(.2,km/70*60),
@@ -71,10 +72,10 @@ export function closureForkDetours(
    uniqueLinks.set(id,link);
  }
  const physicalLinks=[...uniqueLinks.values()];
- const linkRoute=(event:SimEvent,link:NetworkConnection)=>{
+ const linkRoute=(event:SimEvent,link:NetworkConnection,share=100)=>{
   const ramp=routes[link.rampId]!;
   add(event,link.from,link.to,link.rampEntryM,link.downstreamMergeM,
-   ramp.points,extensionRoute(link.rampId)?.wayIds??[],link.rampId);
+   ramp.points,extensionRoute(link.rampId)?.wayIds??[],link.rampId,share);
  };
  for(const event of events){
   if(event.kind!=='closure'||!motorway(event.pathKey))continue;
@@ -106,7 +107,17 @@ export function closureForkDetours(
     routeDescriptor(c.to)?.motorway!==closedRef&&
     c.rampEntryM<=blockedAt+1&&!forbidden(c.to,c.downstreamMergeM)&&
     !forbidden(c.rampId,0)).sort((a,b)=>b.rampEntryM-a.rampEntryM);
-   if(open.length)linkRoute(event,open[0]!);
+   if(open.length){
+    const closedDestinations=new Set(blocked.filter(c=>c.from===feeder).map(c=>c.to));
+    const openDestinations=new Set(links.filter(c=>c.from===feeder&&motorway(c.to)&&
+     !closedDestinations.has(c.to)&&Math.abs(c.rampEntryM-blockedAt)<80&&
+     !forbidden(c.rampId,0)).map(c=>c.to));
+    // Preserve traffic for still-open destinations instead of routing every
+    // A4 vehicle through A559 simply because A3 Koeln is closed.
+    const share=100*closedDestinations.size/
+     Math.max(1,closedDestinations.size+openDestinations.size);
+    linkRoute(event,open[0]!,share);
+   }
   }
   // A motorway can physically merge into a closed A3 without a separately
   // tagged motorway_link (A59 Heumar). Reuse verified OSM ring geometry,
@@ -121,9 +132,9 @@ export function closureForkDetours(
      const target=routes[leg.path];if(!target)continue;
      // A ring OSM trace can pass through A559 and then A4 toward the
      // closed A3. Transfer at the FIRST safe motorway on the trace.
-     for(let index=1;index<ring.points.length;index++){
+     for(let index=3;index<ring.points.length;index++){
       const toM=positionM(target,ring.points[index]!,0.10);
-      if(toM===null||toM<40||toM>=target.lengthM-40||
+      if(toM===null||toM<80||toM>=target.lengthM-40||
        forbidden(leg.path,toM))continue;
       landings.push({path:leg.path,toM,index});break;
      }
