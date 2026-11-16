@@ -1,2 +1,2 @@
 /** Bestehender Importpfad; der eigentliche Code liegt in 06_Karte/traffic-view.ts. */
-export * from './06_Karte/traffic-view.js?build=611f14eae9771edc';
+export * from './06_Karte/traffic-view.js?build=6c50172f4f7501e9';

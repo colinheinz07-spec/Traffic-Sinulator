@@ -2,8 +2,8 @@
 /** Interactive schedule form: one-off phases or repeated local-time windows.
  * Only planned roadworks/closures; existing unscheduled events remain valid.
  */
-import { suggestedSpeed } from '../events.js?build=611f14eae9771edc';
-import { validCalendarDate, validClockTime, validDailyRecurrence, dailyRecurrenceBounds, shiftCalendarDate } from '../recurring-events.js?build=611f14eae9771edc';
+import { suggestedSpeed } from '../events.js?build=6c50172f4f7501e9';
+import { validCalendarDate, validClockTime, validDailyRecurrence, dailyRecurrenceBounds, shiftCalendarDate } from '../recurring-events.js?build=6c50172f4f7501e9';
 const get = (id) => document.getElementById(id);
 const options = (values, selected) => {
     const select = document.createElement('select');

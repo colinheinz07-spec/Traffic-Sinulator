@@ -1,23 +1,25 @@
 /** 05_Umleitungen: Zugeordnetes Fachmodul extension-detours. */
-import { ringDetours } from '../ring-detours-data.js?build=611f14eae9771edc';
-import { extensionDetours as baseDetours } from '../extension-detours-data.js?build=611f14eae9771edc';
-import { eventCapacity } from '../traffic.js?build=611f14eae9771edc';
-import { closureGate, positionM } from '../spatial.js?build=611f14eae9771edc';
-import { cellQueueSpans } from '../traffic-cells.js?build=611f14eae9771edc';
-import { diversionJunctions } from '../diversions.js?build=611f14eae9771edc';
-import { junctionAccess } from '../road-controls.js?build=611f14eae9771edc';
-import { speedDelayInCells } from '../speed-delay.js?build=611f14eae9771edc';
+import { ringDetours } from '../ring-detours-data.js?build=6c50172f4f7501e9';
+import { extensionDetours as baseDetours } from '../extension-detours-data.js?build=6c50172f4f7501e9';
+import { eventCapacity } from '../traffic.js?build=6c50172f4f7501e9';
+import { closureGate, positionM } from '../spatial.js?build=6c50172f4f7501e9';
+import { cellQueueSpans } from '../traffic-cells.js?build=6c50172f4f7501e9';
+import { diversionJunctions } from '../diversions.js?build=6c50172f4f7501e9';
+import { junctionAccess } from '../road-controls.js?build=6c50172f4f7501e9';
+import { speedDelayInCells } from '../speed-delay.js?build=6c50172f4f7501e9';
 const extensionDetours = [...baseDetours, ...ringDetours];
 const sectionCache = new WeakMap();
 const indexed = new Map(extensionDetours.map(r => [r.id, r]));
 /** Real directed geometry; route selection and capacities are simulator assumptions. */
 export function extensionDetourConfig(record, eventId, routes, events, exits, cells = {}) {
     const path = record.path, target = record.targetPath, route = routes[path], destination = routes[target];
-    if(!route||!destination)return null;
- // A local diversion may only re-enter at an actual ordinary AS.
- // A verified motorway-to-motorway trace is a different kind of journey.
- const targetJunction=diversionJunctions(target,exits,destination).find(j=>j.ref===record.toRef);
- if(record.toRef!=='end'&&(!targetJunction||targetJunction.isInterchange)&&!record.motorwayBypass)return null;
+    if (!route || !destination)
+        return null;
+    // A local diversion may only re-enter at an actual ordinary AS.
+    // A verified motorway-to-motorway trace is a different kind of journey.
+    const targetJunction = diversionJunctions(target, exits, destination).find(j => j.ref === record.toRef);
+    if (record.toRef !== 'end' && (!targetJunction || targetJunction.isInterchange) && !record.motorwayBypass)
+        return null;
     const fromM = positionM(route, record.fromPoint, 1), toM = record.toRef === 'end' ? destination.lengthM : positionM(destination, record.toPoint, 1);
     if (fromM === null || toM === null || path === target && toM <= fromM)
         return null;

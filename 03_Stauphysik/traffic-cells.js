@@ -1,13 +1,13 @@
 /** 03_Stauphysik: Zugeordnetes Fachmodul traffic-cells. */
-import { extensionRoute } from '../network-extensions.js?build=611f14eae9771edc';
-import { routeDescriptor } from '../network-catalog.js?build=611f14eae9771edc';
-import { baseLaneCapacity } from '../traffic-physics.js?build=611f14eae9771edc';
-import { positionM, closureGate } from '../spatial.js?build=611f14eae9771edc';
-import { baselineCapacity, eventCapacity } from '../traffic.js?build=611f14eae9771edc';
-import { flowPolicy, DEFAULT_CLEARANCE_MIN } from '../events.js?build=611f14eae9771edc';
-import { colorAtSpeed, freeSpeedKmh, QUEUE_JAM_DENSITY_PER_LANE, CONGESTION_WAVE_KMH } from '../traffic-physics.js?build=611f14eae9771edc';
-import { normalJunctionTraffic, exitRampVehicles, DEFAULT_EXIT_TERMINAL_VPH, DEFAULT_EXIT_STORAGE_VEHICLES } from '../junction-traffic.js?build=611f14eae9771edc';
-import { roadSections, physicalEvents, junctionAccess } from '../road-controls.js?build=611f14eae9771edc';
+import { extensionRoute } from '../network-extensions.js?build=6c50172f4f7501e9';
+import { routeDescriptor } from '../network-catalog.js?build=6c50172f4f7501e9';
+import { baseLaneCapacity } from '../traffic-physics.js?build=6c50172f4f7501e9';
+import { positionM, closureGate } from '../spatial.js?build=6c50172f4f7501e9';
+import { baselineCapacity, eventCapacity } from '../traffic.js?build=6c50172f4f7501e9';
+import { flowPolicy, DEFAULT_CLEARANCE_MIN } from '../events.js?build=6c50172f4f7501e9';
+import { colorAtSpeed, freeSpeedKmh, QUEUE_JAM_DENSITY_PER_LANE, CONGESTION_WAVE_KMH } from '../traffic-physics.js?build=6c50172f4f7501e9';
+import { normalJunctionTraffic, exitRampVehicles, DEFAULT_EXIT_TERMINAL_VPH, DEFAULT_EXIT_STORAGE_VEHICLES } from '../junction-traffic.js?build=6c50172f4f7501e9';
+import { roadSections, physicalEvents, junctionAccess } from '../road-controls.js?build=6c50172f4f7501e9';
 const TARGET_CELL_M = 100, WAVE_KMH = CONGESTION_WAVE_KMH, JAM_PER_LANE = QUEUE_JAM_DENSITY_PER_LANE;
 // One observation per MODEL minute; repainting/pause never advances this.
 const TRAVEL_ALPHA = 1 - Math.exp(-1 / 6);
@@ -127,7 +127,7 @@ function localControls(route, events, demandVph, count, cellM, exits = []) {
             const gate = closureGate(route, event, exits, events);
             if (!gate)
                 continue;
-            const face = gate.metre>0 ? Math.max(1, Math.min(count, Math.round(gate.metre / cellM))) : 0;
+            const face = gate.metre > 0 ? Math.max(1, Math.min(count, Math.round(gate.metre / cellM))) : 0;
             faceCapacity[face] = 0;
             unknownBlocks.add(face);
             faceControls[face].push(event.id + ':closure');

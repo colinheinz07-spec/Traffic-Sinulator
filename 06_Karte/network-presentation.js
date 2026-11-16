@@ -1,6 +1,6 @@
-import { MOTORWAY_ROUTE_KEYS, MOTORWAY_REFS } from '../network-catalog.js?build=611f14eae9771edc';
-import { networkRoad } from '../network-road.js?build=611f14eae9771edc';
-import { NETWORK_PATHS, PATHS } from '../traffic.js?build=611f14eae9771edc';
+import { MOTORWAY_ROUTE_KEYS, MOTORWAY_REFS } from '../network-catalog.js?build=6c50172f4f7501e9';
+import { networkRoad } from '../network-road.js?build=6c50172f4f7501e9';
+import { NETWORK_PATHS, PATHS } from '../traffic.js?build=6c50172f4f7501e9';
 export const MOTORWAY_PATHS = MOTORWAY_ROUTE_KEYS;
 export const MOTORWAY_GROUPS = MOTORWAY_REFS.map(road => ({ road, paths: MOTORWAY_PATHS.filter(key => networkRoad(key) === road) }));
 export function junctionDirectory(exits) {

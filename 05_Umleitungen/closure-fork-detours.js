@@ -1,8 +1,8 @@
-import { closureGate, metres, positionM } from '../spatial.js?build=611f14eae9771edc';
-import { routeDescriptor } from '../network-catalog.js?build=611f14eae9771edc';
-import { extensionRoute } from '../network-extensions.js?build=611f14eae9771edc';
-import { closedNetworkSpans } from '../closure-network.js?build=611f14eae9771edc';
-import { ringDetours } from '../ring-detours-data.js?build=611f14eae9771edc';
+import { closureGate, metres, positionM } from '../spatial.js?build=6c50172f4f7501e9';
+import { routeDescriptor } from '../network-catalog.js?build=6c50172f4f7501e9';
+import { extensionRoute } from '../network-extensions.js?build=6c50172f4f7501e9';
+import { closedNetworkSpans } from '../closure-network.js?build=6c50172f4f7501e9';
+import { ringDetours } from '../ring-detours-data.js?build=6c50172f4f7501e9';
 const pointKey = (p) => p.join(',');
 const motorway = (key) => routeDescriptor(key)?.kind === 'motorway';
 const lengthKm = (points) => points.slice(1).reduce((sum, p, i) => sum + metres(points[i], p), 0) / 1000;

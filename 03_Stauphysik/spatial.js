@@ -1,17 +1,17 @@
 /** 03_Stauphysik: Zugeordnetes Fachmodul spatial. */
-import { networkRoad } from '../network-road.js?build=611f14eae9771edc';
-import { extensionRoutes, extensionRoute } from '../network-extensions.js?build=611f14eae9771edc';
-import { routeDescriptor, LEGACY_ROUTE_KEYS } from '../network-catalog.js?build=611f14eae9771edc';
-import { normalThroughLanes } from '../lane-info.js?build=611f14eae9771edc';
+import { networkRoad } from '../network-road.js?build=6c50172f4f7501e9';
+import { extensionRoutes, extensionRoute } from '../network-extensions.js?build=6c50172f4f7501e9';
+import { routeDescriptor, LEGACY_ROUTE_KEYS } from '../network-catalog.js?build=6c50172f4f7501e9';
+import { normalThroughLanes } from '../lane-info.js?build=6c50172f4f7501e9';
 /** Georeferenced, per-event queue model on the exact OSM motorway carriageway curves.
  * A first-pass conservation model (not a calibrated traffic forecast).
  * No vehicle sprites, hidden road connectors, A3/A48 transfers, or invented detours.
  */
-import { buildContinuousRoads } from '../cartography.js?build=611f14eae9771edc';
-import { exitPosition } from '../core.js?build=611f14eae9771edc';
-import { PATHS, baselineCapacity, eventCapacity, defaultDemand } from '../traffic.js?build=611f14eae9771edc';
-import { baseLaneCapacity, colorAtSpeed, queueFundamentalDiagram, freeSpeedKmh } from '../traffic-physics.js?build=611f14eae9771edc';
-import { physicalEvents, accessibleExits } from '../road-controls.js?build=611f14eae9771edc';
+import { buildContinuousRoads } from '../cartography.js?build=6c50172f4f7501e9';
+import { exitPosition } from '../core.js?build=6c50172f4f7501e9';
+import { PATHS, baselineCapacity, eventCapacity, defaultDemand } from '../traffic.js?build=6c50172f4f7501e9';
+import { baseLaneCapacity, colorAtSpeed, queueFundamentalDiagram, freeSpeedKmh } from '../traffic-physics.js?build=6c50172f4f7501e9';
+import { physicalEvents, accessibleExits } from '../road-controls.js?build=6c50172f4f7501e9';
 const rad = Math.PI / 180;
 export function metres(a, b) {
     const dx = (b[1] - a[1]) * 111195 * Math.cos((a[0] + b[0]) / 2 * rad);
@@ -128,13 +128,15 @@ export function emptySpatial() { return { minute: 0, queues: {} }; }
  * the network boundary rather than allowing it through the closure.
  */
 export function closureGate(route, event, exits, events = []) {
-    if(event.kind!=='closure'||event.pathKey!==route.key)return null;
- if(event.networkClosure){
-  const n=event.networkClosure,road=networkRoad(route.key);
-  const label=(ref)=>exits.find(e=>e.road===road&&e.ref===ref)??null;
-  return {metre:n.fromM,endM:n.toM,eventM:positionM(route,event.point,900)??n.fromM,exit:label(n.startRef),endExit:label(n.endRef)};
- }
- if(route.key.startsWith('ramp-')||routeDescriptor(route.key)?.kind==='ramp')return null;
+    if (event.kind !== 'closure' || event.pathKey !== route.key)
+        return null;
+    if (event.networkClosure) {
+        const n = event.networkClosure, road = networkRoad(route.key);
+        const label = (ref) => exits.find(e => e.road === road && e.ref === ref) ?? null;
+        return { metre: n.fromM, endM: n.toM, eventM: positionM(route, event.point, 900) ?? n.fromM, exit: label(n.startRef), endExit: label(n.endRef) };
+    }
+    if (route.key.startsWith('ramp-') || routeDescriptor(route.key)?.kind === 'ramp')
+        return null;
     const at = positionM(route, event.point);
     if (at === null)
         return null;

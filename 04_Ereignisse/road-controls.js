@@ -1,13 +1,13 @@
 /** 04_Ereignisse: Zugeordnetes Fachmodul road-controls. */
-import { extensionJunctions } from '../network-extensions.js?build=611f14eae9771edc';
-import { networkRoad } from '../network-road.js?build=611f14eae9771edc';
-import { networkData } from '../geodata.js?build=611f14eae9771edc';
-import { junctionRampAccess } from '../junction-ramp-bindings.js?build=611f14eae9771edc';
+import { extensionJunctions } from '../network-extensions.js?build=6c50172f4f7501e9';
+import { networkRoad } from '../network-road.js?build=6c50172f4f7501e9';
+import { networkData } from '../geodata.js?build=6c50172f4f7501e9';
+import { junctionRampAccess } from '../junction-ramp-bindings.js?build=6c50172f4f7501e9';
 /** Physical lane restrictions and directional AS access on actual road
  * intervals. Administrative closures keep their separate exit-gate rule. */
-import { exitPosition } from '../core.js?build=611f14eae9771edc';
-import { suggestedSpeed } from '../events.js?build=611f14eae9771edc';
-import { closureGate, positionM } from '../spatial.js?build=611f14eae9771edc';
+import { exitPosition } from '../core.js?build=6c50172f4f7501e9';
+import { suggestedSpeed } from '../events.js?build=6c50172f4f7501e9';
+import { closureGate, positionM } from '../spatial.js?build=6c50172f4f7501e9';
 export function roadSections(route, events) {
     const located = events.filter(e => e.pathKey === route.key && e.kind !== 'closure').flatMap(event => {
         const fromM = positionM(route, event.point);
@@ -70,9 +70,15 @@ export function junctionAccess(route, events, metre, ref) {
         const gate = closureGate(route, event, [...junctionDefinitions.values()], events);
         if (!gate)
             continue;
-        if(event.networkClosure?.startRef===ref){entry=false;continue;}
-  if(event.networkClosure?.endRef===ref){exit=false;continue;}
-  if (metre >= gate.metre - 2 && metre < gate.endM - 1)
+        if (event.networkClosure?.startRef === ref) {
+            entry = false;
+            continue;
+        }
+        if (event.networkClosure?.endRef === ref) {
+            exit = false;
+            continue;
+        }
+        if (metre >= gate.metre - 2 && metre < gate.endM - 1)
             entry = false;
         if (metre > gate.metre + 2 && metre < gate.endM - 1)
             exit = false;

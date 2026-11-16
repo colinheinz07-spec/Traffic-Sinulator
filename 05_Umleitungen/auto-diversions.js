@@ -3,15 +3,15 @@
  * boundaries. Every choice has an offline simulated side-road corridor.
  * This planner itself never removes vehicles.
  */
-import { DIRECTIONS } from '../core.js?build=611f14eae9771edc';
-import { positionM, closureGate } from '../spatial.js?build=611f14eae9771edc';
-import { DIVERSION_LINKS, diversionJunctions, nearestExitBeforeQueue } from '../diversions.js?build=611f14eae9771edc';
-import { speedDelayInCells } from '../speed-delay.js?build=611f14eae9771edc';
-import { cellQueueSpans } from '../traffic-cells.js?build=611f14eae9771edc';
-import { bundledTargets, isNetworkDestination } from '../bundled-detours.js?build=611f14eae9771edc';
-import { junctionAccess, accessibleExits } from '../road-controls.js?build=611f14eae9771edc';
-import { interchangeJourneys } from '../interchange-journeys.js?build=611f14eae9771edc';
-import { INTERCHANGE_DIVERSION_START_MIN } from '../interchange.js?build=611f14eae9771edc';
+import { DIRECTIONS } from '../core.js?build=6c50172f4f7501e9';
+import { positionM, closureGate } from '../spatial.js?build=6c50172f4f7501e9';
+import { DIVERSION_LINKS, diversionJunctions, nearestExitBeforeQueue } from '../diversions.js?build=6c50172f4f7501e9';
+import { speedDelayInCells } from '../speed-delay.js?build=6c50172f4f7501e9';
+import { cellQueueSpans } from '../traffic-cells.js?build=6c50172f4f7501e9';
+import { bundledTargets, isNetworkDestination } from '../bundled-detours.js?build=6c50172f4f7501e9';
+import { junctionAccess, accessibleExits } from '../road-controls.js?build=6c50172f4f7501e9';
+import { interchangeJourneys } from '../interchange-journeys.js?build=6c50172f4f7501e9';
+import { INTERCHANGE_DIVERSION_START_MIN } from '../interchange.js?build=6c50172f4f7501e9';
 export function automaticDiversions(events, corridors, exits, cells, connections = [], turnDelays = {}) {
     const plans = new Map();
     const available = (path, access) => accessibleExits(corridors[path], events, exits, access);
@@ -25,8 +25,9 @@ export function automaticDiversions(events, corridors, exits, cells, connections
         const section = closureGate(route, event, exits, events);
         const end = Math.min(route.lengthM, at + event.settings.lengthM + 50);
         const after = targets.filter(x => isNetworkDestination(x) || junctionAccess(route, events, x.metre, x.ref).entry && (section ? x.metre >= section.endM - 1 : x.metre > end));
-        if(!after.length)continue;
- for (const connection of connections.filter(c => c.to === path && at > c.downstreamMergeM)) {
+        if (!after.length)
+            continue;
+        for (const connection of connections.filter(c => c.to === path && at > c.downstreamMergeM)) {
             // Prepare cross-motorway alternatives before the target queue reaches
             // the AD. The remaining journey's delay controls whether anyone uses it.
             const source = connection.from, to = after[0];
