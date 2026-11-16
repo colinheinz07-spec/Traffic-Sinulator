@@ -21,7 +21,7 @@ export interface EventSettings {lengthM:number;speedKmh:number;shoulder:Shoulder
 export const DEFAULT_CLEARANCE_MIN=0;
 export interface EventPhase {startAt:string;kind:'roadworks'|'closure';closedLanes:number[];speedKmh:number;shoulder:ShoulderMode}
 export interface EventSchedule {startAt:string;endAt:string;phases:EventPhase[];recurrence?:DailyRecurrence}
-export interface SimEvent {id:string;kind:EventKind;pathKey:string;point:Point;closedLanes:number[];laneCount:number;createdAt:string;settings:EventSettings;schedule?:EventSchedule}
+export interface SimEvent {id:string;kind:EventKind;pathKey:string;point:Point;closedLanes:number[];laneCount:number;createdAt:string;settings:EventSettings;schedule?:EventSchedule;networkClosure?:{fromM:number;toM:number;source:'motorway'|'interchange-entry'|'local-entry'|'local-exit'|'direct-ramp';derived:boolean;startRef?:string;endRef?:string}}
 export interface FlowPolicy {openMainLanes:number;openTotalLanes:number;canEnter:boolean;occupantsMayLeave:boolean;rerouteApproaching:boolean;speedKmh:number}
 const directions:ReadonlySet<string>=new Set<RoadId>(['A3-koeln','A3-frankfurt','A48-koblenz','A48-dernbach']);
 const knownRampIds:ReadonlySet<string>=new Set(['ramp-a3-to-a48-from-frankfurt','ramp-a3-to-a48-from-koeln','ramp-a48-to-koeln','ramp-a48-to-frankfurt']);

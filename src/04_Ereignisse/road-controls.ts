@@ -59,6 +59,8 @@ export function junctionAccess(route:Corridor,events:readonly SimEvent[],metre:n
   if(event.kind!=='closure'||event.pathKey!==route.key)continue;
   const gate=closureGate(route,event,[...junctionDefinitions.values()],events);
   if(!gate)continue;
+  if(event.networkClosure?.startRef===ref){entry=false;continue;}
+  if(event.networkClosure?.endRef===ref){exit=false;continue;}
   if(metre>=gate.metre-2&&metre<gate.endM-1)entry=false;
   if(metre>gate.metre+2&&metre<gate.endM-1)exit=false;
  }
