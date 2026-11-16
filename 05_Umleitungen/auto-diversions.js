@@ -25,7 +25,8 @@ export function automaticDiversions(events, corridors, exits, cells, connections
         const section = closureGate(route, event, exits, events);
         const end = Math.min(route.lengthM, at + event.settings.lengthM + 50);
         const after = targets.filter(x => isNetworkDestination(x) || junctionAccess(route, events, x.metre, x.ref).entry && (section ? x.metre >= section.endM - 1 : x.metre > end));
-        for (const connection of connections.filter(c => c.to === path && at > c.downstreamMergeM)) {
+        if(!after.length)continue;
+ for (const connection of connections.filter(c => c.to === path && at > c.downstreamMergeM)) {
             // Prepare cross-motorway alternatives before the target queue reaches
             // the AD. The remaining journey's delay controls whether anyone uses it.
             const source = connection.from, to = after[0];

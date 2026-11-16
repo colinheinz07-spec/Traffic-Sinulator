@@ -6,11 +6,11 @@
  * Vehicles already inside the section are handled by the conserved CTM.
  * Diverges to another OPEN motorway remain available for evacuation.
  */
-import type {Exit} from '../core.js';
+import type {Exit,RoadId} from '../core.js';
 import type {SimEvent} from '../events.js';
 import type {NetworkConnection} from '../interchange.js';
 import type {Corridor} from '../spatial.js';
-import {closureGate,positionM} from '../spatial.js';
+import {closureGate, positionM, routeSlice} from '../spatial.js';
 import {junctionRampBindings} from '../junction-ramp-bindings.js';
 import {routeDescriptor} from '../network-catalog.js';
 import {mainlineMerges} from '../network-receiving.js';
@@ -87,6 +87,8 @@ export function closedNetworkSpans(
  exits:readonly Exit[],
  connections:readonly NetworkConnection[]
 ):ClosedNetworkSpan[]{
+ const resolved=events.filter(e=>e.kind==='closure');
+ if(resolved.length&&resolved.every(e=>e.networkClosure))return resolved.map(e=>({eventId:e.id,pathKey:e.pathKey,fromM:e.networkClosure!.fromM,toM:e.networkClosure!.toM,source:e.networkClosure!.source}));
  const result:ClosedNetworkSpan[]=[];
  const add=(eventId:string,pathKey:string,fromM:number,toM:number,source:ClosedNetworkSpan['source'])=>{
   const route=routes[pathKey];
@@ -96,7 +98,7 @@ export function closedNetworkSpans(
  for(const event of events){
   if(event.kind!=='closure')continue;
   const route=routes[event.pathKey];if(!route)continue;
-  if(routeDescriptor(route.key)?.kind==='ramp'){
+  if(routeDescriptor(route.key)?.kind==='ramp'||route.key.startsWith('ramp-')){
    // Dedicated ramp closure: its whole directed branch is administratively shut.
    add(event.id,route.key,0,route.lengthM,'direct-ramp');continue;
   }
@@ -118,15 +120,6 @@ export function closedNetworkSpans(
    const ramp=routes[link.rampId];if(!ramp)continue;
    add(event.id,link.rampId,0,ramp.lengthM,'interchange-entry');
   }
-  // Some motorways merge directly into another motorway at a common OSM
-  // vertex, without a separate highway=motorway_link (e.g. A59 -> A3).
-  // Stripe only the terminal entrance to the blocked arm. The rest of the
-  // approach remains open for earlier motorway and AS diversions.
-  for(const merge of cachedMotorwayMerges(routes)){
-   if(merge.to!==route.key||!inClosed(merge.mergeM,gate.metre,gate.endM,true))continue;
-   const feeder=routes[merge.from];if(!feeder)continue;
-   add(event.id,feeder.key,Math.max(0,feeder.lengthM-250),feeder.lengthM,'motorway');
-  }
   // Exit to the LOCAL road network: one endpoint belongs to the closed
   // motorway and the other lies outside our Autobahn simulation. A fork
   // leading to another *mapped motorway* is an open escape route instead.
@@ -145,9 +138,9 @@ export function closedNetworkSpans(
    // The matching ramp's tie-in can be up to 900m away from its label.
    const metre=positionM(route,position,900);
    if(metre===null)continue;
-   const permitted=binding.kind==='entry'
-    ?inClosed(metre,gate.metre,gate.endM,true)
-    :inClosed(metre,gate.metre,gate.endM,false);
+   const permitted=gate.exit?.ref===binding.ref?binding.kind==='entry':
+    gate.endExit?.ref===binding.ref?binding.kind==='exit':
+    binding.kind==='entry'?inClosed(metre,gate.metre,gate.endM,true):inClosed(metre,gate.metre,gate.endM,false);
    if(!permitted)continue;
    for(const segment of binding.segments){
     add(event.id,segment.ramp.id,segment.rampFromM,
@@ -166,7 +159,7 @@ export function closedNetworkSpans(
    const nextSeen=new Set(visiting);nextSeen.add(ramp.key);
    const at=pointId(ramp.points.at(-1)!);
    const mainlineHits=(topo.mainlines.get(at)??[]).filter(hit=>directedReceiving(ramp,hit,routes));
-   const continuations=(topo.starts.get(at)??[]).filter(next=>next.key!==ramp.key);
+   const continuations=(topo.starts.get(at)??[]).filter(next=>next.key!==ramp.key&&pointId(next.points.at(-1)!)!==pointId(ramp.points[0]!));
    // Gemeinsame Zufahrt nur sperren, wenn ALLE tatsächlich befahrbaren
    // Nachfolger gesperrt sind. Ein offener Ast gewinnt auch bei vorhandenem
    // Hauptfahrbahn-Treffer – keine pauschale Sperrung vor einer Gabelung.
@@ -181,9 +174,156 @@ export function closedNetworkSpans(
    if(!hasOpenReceiver(ramp.key)&&leadsOnlyIntoClosure(ramp,new Set()))
     add(event.id,ramp.key,0,ramp.lengthM,'interchange-entry');
  }
+ if(result.length)extendTrappedApproaches(result,routes,connections,exits);
  // The same segment must not draw multiple overlapping red/white stripes
  // when two closure rules name the identical directed ramp.
  const uniq=new Map<string,ClosedNetworkSpan>();
  for(const s of result)uniq.set([s.eventId,s.pathKey,s.fromM.toFixed(2),s.toM.toFixed(2)].join(':'),s);
  return [...uniq.values()];
+}
+
+// Compute the closure of the UNION of active events on exact directed OSM nodes.
+// A terminal approach is closed only when every legal continuation is closed.
+function extendTrappedApproaches(result:ClosedNetworkSpan[],routes:Readonly<Record<string,Corridor>>,connections:readonly NetworkConnection[],exits:readonly Exit[]) {
+ const topo=endpointTopology(routes);
+ const bands=new Map<string,ClosedNetworkSpan[]>();
+ const record=(s:ClosedNetworkSpan)=>{
+  const list=bands.get(s.pathKey)??[];
+  if(list.some((p:ClosedNetworkSpan)=>p.fromM<=s.fromM+.05&&p.toM>=s.toM-.05))return false;
+  list.push(s);bands.set(s.pathKey,list);return true;
+ };
+ for(const s of result)record(s);
+ const blocked=(key:string,at:number)=> (bands.get(key)??[]).find((s:ClosedNetworkSpan)=>
+  at>=s.fromM-.05&&(at<s.toM-.05||at>=routes[key]!.lengthM-.05&&s.toM>=routes[key]!.lengthM-.05));
+ const isRamp=(route:Corridor)=>route.key.startsWith('ramp-')||routeDescriptor(route.key)?.kind==='ramp';
+ const routeLinks=new Map<string,NetworkConnection[]>();
+ const departures=new Map<string,{key:string;metre:number;at:number}[]>();
+ function depart(key:string,metre:number,target:string,at:number){
+  if(!routes[key]||!routes[target]||key===target)return;
+  const list=departures.get(key)??[];
+  if(!list.some((x:{key:string;metre:number;at:number})=>x.key===target&&Math.abs(x.metre-metre)<.05&&Math.abs(x.at-at)<.05))
+   list.push({key:target,metre,at});
+  departures.set(key,list);
+ }
+ for(const link of connections){
+  const list=routeLinks.get(link.rampId)??[];list.push(link);routeLinks.set(link.rampId,list);
+  if(link.from!==link.rampId)depart(link.from,link.rampEntryM,link.rampId,0);
+ }
+ for(const merge of cachedMotorwayMerges(routes))depart(merge.from,routes[merge.from]!.lengthM,merge.to,merge.mergeM);
+ // At a real OSM node a ramp may begin inside a long motorway Way.
+ // Use the same directed tangent test instead of a radius/geographic guess.
+ for(const road of Object.values(routes)){
+  if(isRamp(road))continue;
+  road.points.forEach((point,i)=>{
+   for(const ramp of topo.starts.get(pointId(point))??[]){
+    const end=pointId(ramp.points.at(-1)!);
+    if(end===pointId(point))continue;
+    const idx=Math.max(0,i-1),along=heading(road.points[idx]!,road.points[Math.min(i+1,road.points.length-1)]!);
+    const axis=heading(ramp.points[0]!,ramp.points[1]!);
+    if(along[0]*axis[0]+along[1]*axis[1]>=.15)depart(road.key,road.metres[i]!,ramp.key,0);
+   }
+  });
+ }
+ const receivers=new Map<string,{key:string;at:number}[]>();
+ const localEnds=new Set<string>();
+ for(const road of Object.values(routes))if(!isRamp(road)){
+  for(const b of junctionRampBindings(road,exits).filter(b=>b.kind==='exit')){
+   const terminal=b.segments.at(-1);if(terminal)localEnds.add(terminal.ramp.id);
+  }
+ }
+ for(const ramp of topo.ramps){
+  const at=pointId(ramp.points.at(-1)!);
+  const next:{key:string;at:number}[]=[];
+  for(const hit of topo.mainlines.get(at)??[])if(directedReceiving(ramp,hit,routes))
+   next.push({key:hit.key,at:hit.metre});
+  for(const link of routeLinks.get(ramp.key)??[])if(link.to!==ramp.key&&routes[link.to])
+   next.push({key:link.to,at:link.downstreamMergeM});
+  for(const r of topo.starts.get(at)??[]){
+   if(r.key===ramp.key||pointId(r.points.at(-1)!)===pointId(ramp.points[0]!))continue; // no U-turn
+   next.push({key:r.key,at:0});
+  }
+  receivers.set(ramp.key,next);
+ }
+ // A ramp that terminates at an ordinary, mapped local AS is an escape.
+ // An orphaned transfer at a motorway cross is not a local exit.
+ function canEscape(key:string,at:number,seen:Set<string>=new Set() ):boolean{
+  if(blocked(key,at)||seen.has(key))return false;
+  const route=routes[key];if(!route)return false;
+  if(!isRamp(route))return true;
+  const next=receivers.get(key)??[];
+  if(localEnds.has(key))return true;
+  if(!next.length){
+   const label=routeDescriptor(key)?.label??'';
+   return !/\b(?:AK|AD|Autobahnkreuz|Autobahndreieck)\b/i.test(label);
+  }
+  const visited=new Set(seen);visited.add(key);
+  return next.some((r:{key:string;at:number})=>canEscape(r.key,r.at,visited));
+ }
+ let changed=true;
+ while(changed){
+  changed=false;
+  for(const road of Object.values(routes)){
+   if(isRamp(road)){
+    if(blocked(road.key,0)||localEnds.has(road.key))continue;
+    const next=receivers.get(road.key)??[];
+    const cause=next.map((r:{key:string;at:number})=>blocked(r.key,r.at)).find(Boolean);
+    if(cause&&next.every((r:{key:string;at:number})=>!canEscape(r.key,r.at))){
+     const span:ClosedNetworkSpan={eventId:cause.eventId,pathKey:road.key,fromM:0,toM:road.lengthM,source:'interchange-entry'};
+     if(record(span)){result.push(span);changed=true;}
+    }
+    continue;
+   }
+   const all=departures.get(road.key)??[];
+   const current=(bands.get(road.key)??[]).filter((s:ClosedNetworkSpan)=>s.toM>=road.lengthM-.05)
+    .sort((a:ClosedNetworkSpan,b:ClosedNetworkSpan)=>a.fromM-b.fromM)[0];
+   const terminal=all.filter((r:{key:string;metre:number;at:number})=>r.metre>=road.lengthM-.05);
+   const cause=current??terminal.map((r:{key:string;metre:number;at:number})=>blocked(r.key,r.at)).find(Boolean);
+   if(!cause||!current&&(!terminal.length||terminal.some((r:{key:string;metre:number;at:number})=>canEscape(r.key,r.at))))continue;
+   const gate=current?.fromM??road.lengthM;
+   if(gate<=.05)continue;
+   // An explicitly selected primary gate remains an anchor unless an actual
+   // departure at that gate lost its last open movement.
+   if(current&&gate!==road.lengthM&&!all.some((r:{key:string;metre:number;at:number})=>Math.abs(r.metre-gate)<.1))continue;
+   const last=Math.max(0,...all.filter((r:{key:string;metre:number;at:number})=>r.metre<=gate+.05&&canEscape(r.key,r.at)).map((r:{key:string;metre:number;at:number})=>r.metre));
+   if(last>=gate-.05)continue;
+   const span:ClosedNetworkSpan={eventId:cause.eventId,pathKey:road.key,fromM:last,toM:gate,source:'motorway'};
+   if(record(span)){result.push(span);changed=true;}
+  }
+ }
+}
+
+/** One resolved closure plan for rendering, CTM and diversion routing.
+ * Synthetic events are ephemeral; only the user's original events are stored. */
+export function effectiveNetworkEvents(events:readonly SimEvent[],routes:Readonly<Record<string,Corridor>>,exits:readonly Exit[],connections:readonly NetworkConnection[]):SimEvent[] {
+ if(!events.some(e=>e.kind==='closure'))return [...events];
+ const spans=closedNetworkSpans(events,routes,exits,connections);
+ const grouped=new Map<string,ClosedNetworkSpan[]>();
+ for(const span of spans){const list=grouped.get(span.pathKey)??[];list.push({...span});grouped.set(span.pathKey,list);}
+ const out=events.filter(e=>e.kind!=='closure');
+ for(const [key,list] of grouped){
+  const route=routes[key];if(!route)continue;
+  const merged:ClosedNetworkSpan[]=[];
+  for(const span of list.sort((a,b)=>a.fromM-b.fromM||b.toM-a.toM)){
+   const last=merged.at(-1);
+   if(last&&span.fromM<=last.toM+.5){last.toM=Math.max(last.toM,span.toM);if(span.source==='motorway')last.source='motorway';}
+   else merged.push({...span});
+  }
+  for(const span of merged){
+   const primary=events.find(e=>e.kind==='closure'&&e.pathKey===key&&e.id===span.eventId)??events.find(e=>e.kind==='closure'&&e.pathKey===key&&list.some(s=>s.eventId===e.id&&s.fromM>=span.fromM-.5&&s.toM<=span.toM+.5));
+   const base=primary??events.find(e=>e.id===span.eventId);if(!base)continue;
+   const gate=primary?closureGate(route,primary,exits,events):null;
+   const directional=exits.filter(e=>e.road===routeDescriptor(key)?.motorway&&(!e.directional||e.directional[key as RoadId]));
+   const near=(metre:number)=>directional.map(e=>({e,m:positionM(route,e.directional?.[key as RoadId]?.position??e.position,900)})).filter(x=>x.m!==null&&(Math.abs(x.m!-metre)<900)).sort((a,b)=>Math.abs(a.m!-metre)-Math.abs(b.m!-metre))[0]?.e.ref;
+   const startRef=gate&&Math.abs(gate.metre-span.fromM)<.5?gate.exit?.ref:span.fromM>0?near(span.fromM):undefined;
+   const endRef=gate&&Math.abs(gate.endM-span.toM)<.5?gate.endExit?.ref:span.toM<route.lengthM?near(span.toM):undefined;
+   const mid=(span.fromM+span.toM)/2;
+   const point=primary?.point??routeSlice(route,mid,Math.min(route.lengthM,mid+1))[0]??route.points[0]!;
+   const lanes=routeDescriptor(key)?.lanes??base.laneCount;
+   out.push({...base,id:primary?.id??'network:'+base.id+':'+key+':'+Math.round(span.fromM),
+    pathKey:key,point,laneCount:lanes,closedLanes:Array.from({length:lanes},(_,i)=>i),
+    settings:{...base.settings,lengthM:Math.max(1,Math.round(span.toM-span.fromM)),speedKmh:0,shoulder:'blocked'},
+    networkClosure:{fromM:span.fromM,toM:span.toM,source:span.source,derived:!primary,startRef,endRef}});
+  }
+ }
+ return [...out,...events.filter(e=>e.kind==='closure'&&!out.some(x=>x.id===e.id)&&!spans.some(s=>s.eventId===e.id))];
 }

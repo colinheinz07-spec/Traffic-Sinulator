@@ -9,7 +9,7 @@ import { renderNetworkAudit } from './01_Strassennetz/netzdiagnose-anzeige.js?bu
 import { MOTORWAY_PATHS, MOTORWAY_GROUPS, junctionDirectory, junctionRoute, trafficOverviewPaths } from './network-presentation.js?build=611f14eae9771edc';
 import { planExtensionDetours, refreshExtensionDetour, extensionDetours } from './extension-detours.js?build=611f14eae9771edc';
 import { networkRoad } from './network-road.js?build=611f14eae9771edc';
-import { closedNetworkSpans } from './closure-network.js?build=611f14eae9771edc';
+import {closedNetworkSpans,effectiveNetworkEvents} from './closure-network.js?build=611f14eae9771edc';
 import { closureForkDetours } from './05_Umleitungen/closure-fork-detours.js?build=611f14eae9771edc';
 import { routeDescriptor } from './network-catalog.js?build=611f14eae9771edc';
 import { buildExtensionConnections } from './extension-connections.js?build=611f14eae9771edc';
@@ -109,7 +109,14 @@ function eventPathLabel(e) {
     const ramp = ramps.find(r => r.id === e.pathKey);
     return ramp?.name ?? (names[e.pathKey] || 'Unbekannter Fahrweg');
 }
-function activeEvents() { return effectiveEventsAt(events, simulatedClock().getTime()); }
+let closureSignature='';
+let effectiveTimeline=[];
+function activeEvents(){
+ const raw=effectiveEventsAt(events,simulatedClock().getTime());
+ const signature=JSON.stringify(raw);
+ if(signature!==closureSignature){closureSignature=signature;effectiveTimeline=effectiveNetworkEvents(raw,spatialCorridors,exits,networkConnections);}
+ return effectiveTimeline;
+}
 function scheduleSummary(event) {
     if (!event.schedule)
         return 'Ohne Enddatum';
@@ -197,7 +204,7 @@ function laneCountFor(hit) {
     return info.source === 'unknown' ? 0 : info.count;
 }
 function drawEventMarkers(width, height) {
-    for (const event of activeEvents()) {
+    for (const event of effectiveEventsAt(events,simulatedClock().getTime())) {
         const [x, y] = toScreen(event.point);
         if (x < -20 || y < -20 || x > width + 20 || y > height + 20)
             continue;
@@ -730,7 +737,7 @@ function drawJunctionMovementHints(width, height) {
     const used = [
         ...trafficLabelRects,
         ...junctionLabels.flatMap(label => label.box ? [{ x: label.box.x, y: label.box.y, width: label.box.w, height: label.box.h }] : []),
-        ...activeEvents().map(event => { const [x, y] = toScreen(event.point); return { x: x - 25, y: y - 25, width: 50, height: 50 }; })
+        ...effectiveEventsAt(events,simulatedClock().getTime()).map(event=>{ const [x, y] = toScreen(event.point); return { x: x - 25, y: y - 25, width: 50, height: 50 }; })
     ];
     for (const row of rows) {
         if (row.exit.isInterchange || !row.entryClosed && !row.exitClosed && row.desiredPercent <= 0 && row.outVph <= 0 && row.inVph <= 0)
@@ -1449,7 +1456,7 @@ function plotLabels(width, height) {
         return { x: r.left - bounds.left, y: r.top - bounds.top, w: r.width, h: r.height };
     });
     obstacles.push(...trafficLabelRects.map(box => ({ x: box.x, y: box.y, w: box.width, h: box.height })));
-    for (const event of activeEvents()) {
+    for (const event of effectiveEventsAt(events,simulatedClock().getTime())) {
         const [x, y] = toScreen(event.point);
         obstacles.push({ x: x - 24, y: y - 24, w: 48, h: 48 });
     }
@@ -1690,15 +1697,17 @@ function draw() {
     }
     for (const road of drawnRoads)
         stroke(road.points, lines.motorwayCasing, '#083348');
+    // Draw all casings before all live traffic strokes at shared OSM nodes.
     for (const feature of extensionRoutes)
-        for (const range of visibleRanges(feature.id, feature.points)) {
+        for (const range of visibleRanges(feature.id, feature.points))
             stroke(range.points, feature.kind === 'ramp' ? lines.rampCasing : lines.motorwayCasing, '#061927');
-            stroke(range.points, feature.kind === 'ramp' ? lines.ramp : lines.motorway, '#26bb7c');
-        }
-    for (const road of drawnRoads)
-        stroke(road.points, lines.motorway, '#26bb7c');
     for (const ramp of ramps)
         stroke(ramp.points, lines.rampCasing, '#273b4c');
+    for (const road of drawnRoads)
+        stroke(road.points, lines.motorway, '#26bb7c');
+    for (const feature of extensionRoutes)
+        for (const range of visibleRanges(feature.id, feature.points))
+            stroke(range.points, feature.kind === 'ramp' ? lines.ramp : lines.motorway, '#26bb7c');
     for (const ramp of ramps)
         stroke(ramp.points, lines.ramp, '#26bb7c');
     drawSpatialJams();
@@ -1761,7 +1770,7 @@ function showSelected(hit) {
     hint.textContent = 'Fahrbahn ausgewählt. Du kannst ein Simulator-Ereignis anlegen.';
 }
 function selectAt(x, y) {
-    const picked = [...activeEvents()].reverse().find(e => { const p = toScreen(e.point); return Math.hypot(p[0] - x, p[1] - y) <= 18; });
+    const picked = [...effectiveEventsAt(events,simulatedClock().getTime())].reverse().find(e => { const p = toScreen(e.point); return Math.hypot(p[0] - x, p[1] - y) <= 18; });
     if (picked) {
         showExistingEvent(picked);
         return;

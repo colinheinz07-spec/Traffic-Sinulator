@@ -10,7 +10,7 @@ import {MOTORWAY_PATHS,MOTORWAY_GROUPS,junctionDirectory,junctionRoute,trafficOv
 import type {DetourGeometry} from './detour-routing.js';
 import {planExtensionDetours,refreshExtensionDetour,extensionDetours} from './extension-detours.js';
 import {networkRoad} from './network-road.js';
-import {closedNetworkSpans} from './closure-network.js';
+import {closedNetworkSpans,effectiveNetworkEvents} from './closure-network.js';
 import {closureForkDetours} from './05_Umleitungen/closure-fork-detours.js';
 import {routeDescriptor} from './network-catalog.js';
 import {buildExtensionConnections} from './extension-connections.js';
@@ -90,7 +90,14 @@ function eventPathLabel(e:SimEvent):string{
  const ramp=ramps.find(r=>r.id===e.pathKey);
  return ramp?.name??(names[e.pathKey as keyof typeof names]||'Unbekannter Fahrweg');
 }
-function activeEvents():SimEvent[]{return effectiveEventsAt(events,simulatedClock().getTime());}
+let closureSignature='';
+let effectiveTimeline:SimEvent[]=[];
+function activeEvents():SimEvent[]{
+ const raw=effectiveEventsAt(events,simulatedClock().getTime());
+ const signature=JSON.stringify(raw);
+ if(signature!==closureSignature){closureSignature=signature;effectiveTimeline=effectiveNetworkEvents(raw,spatialCorridors,exits,networkConnections);}
+ return effectiveTimeline;
+}
 function scheduleSummary(event:SimEvent):string{
  if(!event.schedule)return 'Ohne Enddatum';
  const repeated=event.schedule.recurrence;
@@ -153,7 +160,7 @@ function laneCountFor(hit:MapHit):number{
  return info.source==='unknown'?0:info.count;
 }
 function drawEventMarkers(width:number,height:number){
- for(const event of activeEvents()){const [x,y]=toScreen(event.point);
+ for(const event of effectiveEventsAt(events,simulatedClock().getTime())){const [x,y]=toScreen(event.point);
   if(x < -20||y < -20||x>width+20||y>height+20)continue;
   const active=event.id===activeEventId;
   context!.beginPath();context!.arc(x,y,active?18:15,0,2*Math.PI);
@@ -561,7 +568,7 @@ function drawJunctionMovementHints(width:number,height:number){
  const used:LabelRect[]=[
   ...trafficLabelRects,
   ...junctionLabels.flatMap(label=>label.box?[{x:label.box.x,y:label.box.y,width:label.box.w,height:label.box.h}]:[]),
-  ...activeEvents().map(event=>{const [x,y]=toScreen(event.point);return {x:x-25,y:y-25,width:50,height:50};})
+  ...effectiveEventsAt(events,simulatedClock().getTime()).map(event=>{const [x,y]=toScreen(event.point);return {x:x-25,y:y-25,width:50,height:50};})
  ];
  for(const row of rows){
   if(row.exit.isInterchange||!row.entryClosed&&!row.exitClosed&&row.desiredPercent<=0&&row.outVph<=0&&row.inVph<=0)continue;
@@ -1068,7 +1075,7 @@ function plotLabels(width:number,height:number){
   const r=element.getBoundingClientRect();return {x:r.left-bounds.left,y:r.top-bounds.top,w:r.width,h:r.height};
  });
  obstacles.push(...trafficLabelRects.map(box=>({x:box.x,y:box.y,w:box.width,h:box.height})));
- for(const event of activeEvents()){
+ for(const event of effectiveEventsAt(events,simulatedClock().getTime())){
   const [x,y]=toScreen(event.point);obstacles.push({x:x-24,y:y-24,w:48,h:48});
  }
  context!.font='600 10px system-ui';
@@ -1243,9 +1250,14 @@ function draw(){
  }
 
  for(const road of drawnRoads)stroke(road.points,lines.motorwayCasing,'#083348');
- for(const feature of extensionRoutes)for(const range of visibleRanges(feature.id,feature.points)){stroke(range.points,feature.kind==='ramp'?lines.rampCasing:lines.motorwayCasing,'#061927');stroke(range.points,feature.kind==='ramp'?lines.ramp:lines.motorway,'#26bb7c');}
- for(const road of drawnRoads)stroke(road.points,lines.motorway,'#26bb7c');
+ // First ALL casings, then ALL live carriageways. A later ramp casing
+ // must never cover an earlier green motorway/ramp at a shared OSM node.
+ for(const feature of extensionRoutes)for(const range of visibleRanges(feature.id,feature.points))
+  stroke(range.points,feature.kind==='ramp'?lines.rampCasing:lines.motorwayCasing,'#061927');
  for(const ramp of ramps)stroke(ramp.points,lines.rampCasing,'#273b4c');
+ for(const road of drawnRoads)stroke(road.points,lines.motorway,'#26bb7c');
+ for(const feature of extensionRoutes)for(const range of visibleRanges(feature.id,feature.points))
+  stroke(range.points,feature.kind==='ramp'?lines.ramp:lines.motorway,'#26bb7c');
  for(const ramp of ramps)stroke(ramp.points,lines.ramp,'#26bb7c');
 
  drawSpatialJams();drawClosureSections();
@@ -1286,7 +1298,7 @@ function showSelected(hit:MapHit){
  hint.textContent='Fahrbahn ausgewählt. Du kannst ein Simulator-Ereignis anlegen.';
 }
 function selectAt(x:number,y:number){
- const picked=[...activeEvents()].reverse().find(e=>{const p=toScreen(e.point);return Math.hypot(p[0]-x,p[1]-y)<=18});
+ const picked=[...effectiveEventsAt(events,simulatedClock().getTime())].reverse().find(e=>{const p=toScreen(e.point);return Math.hypot(p[0]-x,p[1]-y)<=18});
  if(picked){showExistingEvent(picked);return;}
  const junction=junctionLabels.find(label=>label.box&&x>=label.box.x&&x<=label.box.x+label.box.w&&
   y>=label.box.y&&y<=label.box.y+label.box.h);

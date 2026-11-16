@@ -182,7 +182,7 @@ function localControls(route:Corridor,events:readonly SimEvent[],demandVph:numbe
   if(event.kind==='closure'&&exits.length){
    const gate=closureGate(route,event,exits,events);
    if(!gate)continue;
-   const face=gate.exit?Math.max(1,Math.min(count,Math.round(gate.metre/cellM))):0;
+   const face=gate.metre>0 ? Math.max(1,Math.min(count,Math.round(gate.metre/cellM))):0;
    faceCapacity[face]=0;
    unknownBlocks.add(face);
    faceControls[face]!.push(event.id+':closure');

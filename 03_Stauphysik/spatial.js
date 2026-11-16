@@ -128,8 +128,13 @@ export function emptySpatial() { return { minute: 0, queues: {} }; }
  * the network boundary rather than allowing it through the closure.
  */
 export function closureGate(route, event, exits, events = []) {
-    if (event.kind !== 'closure' || event.pathKey !== route.key || route.key.startsWith('ramp-'))
-        return null;
+    if(event.kind!=='closure'||event.pathKey!==route.key)return null;
+ if(event.networkClosure){
+  const n=event.networkClosure,road=networkRoad(route.key);
+  const label=(ref)=>exits.find(e=>e.road===road&&e.ref===ref)??null;
+  return {metre:n.fromM,endM:n.toM,eventM:positionM(route,event.point,900)??n.fromM,exit:label(n.startRef),endExit:label(n.endRef)};
+ }
+ if(route.key.startsWith('ramp-')||routeDescriptor(route.key)?.kind==='ramp')return null;
     const at = positionM(route, event.point);
     if (at === null)
         return null;

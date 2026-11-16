@@ -13,8 +13,11 @@ const indexed = new Map(extensionDetours.map(r => [r.id, r]));
 /** Real directed geometry; route selection and capacities are simulator assumptions. */
 export function extensionDetourConfig(record, eventId, routes, events, exits, cells = {}) {
     const path = record.path, target = record.targetPath, route = routes[path], destination = routes[target];
-    if (!route || !destination)
-        return null;
+    if(!route||!destination)return null;
+ // A local diversion may only re-enter at an actual ordinary AS.
+ // A verified motorway-to-motorway trace is a different kind of journey.
+ const targetJunction=diversionJunctions(target,exits,destination).find(j=>j.ref===record.toRef);
+ if(record.toRef!=='end'&&(!targetJunction||targetJunction.isInterchange)&&!record.motorwayBypass)return null;
     const fromM = positionM(route, record.fromPoint, 1), toM = record.toRef === 'end' ? destination.lengthM : positionM(destination, record.toPoint, 1);
     if (fromM === null || toM === null || path === target && toM <= fromM)
         return null;
