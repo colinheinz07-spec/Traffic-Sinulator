@@ -17,7 +17,8 @@ test('138 actual OSM motorway_link ways are available as 145 navigable directed 
  assert.equal(new Set(extra.flatMap(x=>x.wayIds)).size,138);
  assert.equal(extra.length,145);
  assert.equal(new Set(extra.map(x=>x.id)).size,extra.length);
- assert.equal(extensionRoutes.length,711+extra.length+verifiedRampGapRoutes.length);
+ const generator=JSON.parse(readFileSync('data/extension-junctions.json','utf8'));
+ assert.equal(extensionRoutes.length,generator.routes.length+extra.length+verifiedRampGapRoutes.length);
  assert.equal(EXTENSION_IDS.length,extensionRoutes.length);
  const allKeys=new Set(NETWORK_ROUTE_KEYS);
  const corridors=makeCorridors(networkData.roads,networkData.ramps);
@@ -100,4 +101,19 @@ test('no service area-only slip roads, closed/private ramps or duplicate importe
  assert.match(doc,/known/);
  assert.match(doc,/w\["nodes"\]/);
  assert.doesNotMatch(doc,/nearestPolyline|snapTo|random/);
+});
+
+test('Köln-Eifeltor two verified bidirectional ramp ways retain both directions without extra demand',()=>{
+ const generator=JSON.parse(readFileSync('data/extension-junctions.json','utf8'));
+ for(const id of [455315441,455315447]){
+  const forward=extensionRoute('extra-koelnwest-link-'+id);
+  const reverse=extensionRoute('extra-koelnwest-link-'+id+'-reverse');
+  assert.ok(forward&&reverse);
+  assert.deepEqual(reverse.points,forward.points.slice().reverse());
+  assert.deepEqual(reverse.wayIds,forward.wayIds);
+  assert.equal(reverse.lanes,1);
+  assert.equal(forward.lanes,1);
+  assert.equal(reverse.demandVph,0);
+  assert.deepEqual(generator.routes.find(r=>r.id===reverse.id),reverse);
+ }
 });
